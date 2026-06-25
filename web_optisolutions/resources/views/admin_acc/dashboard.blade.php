@@ -11,62 +11,19 @@
     <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <title>OptiSolutions - Admin Dashboard</title>
-
+    <!-- Vite CSS -->
     @vite('resources/css/admin_css/dashboard.css')
+
 
 </head>
 <body>
     <!-- Header -->
-    <div class="header">
-        <div class="logo-section">
-            <img src="polyclinic_logo.png" alt="logo" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;">
-            <h1>Polyclinic Admin</h1>
-        </div>
-        <div class="user-info">
-            <div class="user-avatar">DL</div>
-            <div>
-                <div style="font-weight: 600;">Dr. Lara</div>
-                <div style="font-size: 0.85rem; color: #7f8c8d;">Administrator</div>
-            </div>
-            <button class="logout-btn">Logout</button>
-        </div>
-    </div>
+  @include('admin_acc.header')
 
     <!-- Main Container -->
     <div class="container">
         <!-- Sidebar Navigation -->
-        <aside class="sidebar">
-            <nav>
-                <div class="nav-item active" onclick="window.location.href='dashboard.html'">
-                    <div class="nav-icon"><i class="bi bi-bar-chart-line"></i></div>
-                    <span>Dashboard</span>
-                </div>
-                <div class="nav-item" onclick="window.location.href='chatbotlogs.html'">
-                    <div class="nav-icon"><i class="fa-regular fa-comment-dots"></i></div>
-                    <span>Chatbot Inquiries</span>
-                </div>
-                <div class="nav-item" onclick="window.location.href='appointments.html'">
-                    <div class="nav-icon"><i class="fa-solid fa-book-medical"></i></div>
-                    <span>Appointments</span>
-                </div>
-                <div class="nav-item" onclick="window.location.href='doctors.html'">
-                    <div class="nav-icon"><i class="fa-solid fa-user-doctor"></i></div>
-                    <span>Manage Doctors</span>
-                </div>
-                <div class="nav-item" onclick="window.location.href='patients.html'">
-                    <div class="nav-icon"><i class="fa-regular fa-hospital"></i></div>
-                    <span>Patient Records</span>
-                </div>
-                <div class="nav-item" onclick="window.location.href='feedback.html'">
-                    <div class="nav-icon"><i class="fa-regular fa-star"></i></div>
-                    <span>Patient Feedback</span>
-                </div>
-                <div class="nav-item" onclick="window.location.href='usermanagement.html'">
-                    <div class="nav-icon"><i class="fa-solid fa-users"></i></div>
-                    <span>User Management</span>
-                </div>
-            </nav>
-        </aside>
+        @include('admin_acc.sidebar')
 
         <!-- Main Content -->
         <main class="main-content">

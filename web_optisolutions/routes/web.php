@@ -9,6 +9,9 @@ Route::get('/', function () {
 Route::get('/sample', function () {
     return view('sample');
 });
+Route::get('/auth/login', function () {
+    return view('auth.login');
+});
 
 Route::get('/admin_acc/dashboard', function () {
     return view('admin_acc.dashboard');
@@ -40,4 +43,8 @@ Route::get('/admin_acc/feedback', function () {
 
 Route::get('/admin_acc/user_management', function () {
     return view('admin_acc.user_management');
+});
+
+Route::get('/admin_acc/sidebar1', function () {
+    return view('admin_acc.sidebar1');
 });

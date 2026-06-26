@@ -33,8 +33,8 @@
             <div class="nav-icon"><i class="fa-regular fa-star"></i></div>
             <span>Patient Feedback</span>
         </div>
-        <div class="nav-item {{ request()->is('admin_acc/users*') ? 'active' : '' }}"
-             onclick="window.location.href='/admin_acc/users'">
+        <div class="nav-item {{ request()->is('admin_acc/user_management*') ? 'active' : '' }}"
+             onclick="window.location.href='/admin_acc/user_management'">
             <div class="nav-icon"><i class="fa-solid fa-users"></i></div>
             <span>User Management</span>
         </div>

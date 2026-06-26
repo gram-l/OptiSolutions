@@ -1,0 +1,185 @@
+/* =====================
+   SIDEBAR — original colors, collapsible layout
+   ===================== */
+
+.sidebar {
+    width: 280px;
+    min-height: 100vh;
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    box-shadow: 0 4px 20px var(--shadow);
+    transition: width 0.3s ease;
+    overflow: hidden;
+    flex-shrink: 0;
+    z-index: 50;
+}
+
+.sidebar.sidebar-collapsed {
+    width: 70px;
+}
+
+/* ── Toggle button ── */
+.sidebar-toggle {
+    position: absolute;
+    top: 1.2rem;
+    right: -14px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-main);
+    background: var(--white);
+    color: var(--primary-main);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    z-index: 100;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+.sidebar-toggle:hover {
+    background: var(--primary-main);
+    color: var(--white);
+}
+
+/* ── Logo ── */
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1.5rem 1.2rem;
+    border-bottom: 1px solid var(--light-gray);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-logo img {
+    width: 46px;
+    height: 46px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.sidebar-logo-text {
+    color: var(--primary-dark);
+    font-weight: 700;
+    font-size: 1rem;
+    transition: opacity 0.2s ease;
+}
+
+.sidebar-collapsed .sidebar-logo-text {
+    opacity: 0;
+    width: 0;
+}
+
+/* ── Nav ── */
+.sidebar-nav {
+    flex: 1;
+    padding: 1rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1rem 0.8rem;
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--text-dark);
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.nav-item:hover {
+    background: var(--light-gray);
+    transform: translateX(5px);
+}
+
+.nav-item.active {
+    background: var(--primary-main);
+    color: var(--white);
+}
+
+.nav-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--icon-color);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.nav-item.active .nav-icon {
+    color: var(--white);
+}
+
+.nav-label {
+    transition: opacity 0.15s ease;
+}
+
+.sidebar-collapsed .nav-label {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+/* ── Footer / Logout ── */
+.sidebar-footer {
+    padding: 0.75rem;
+    border-top: 1px solid var(--light-gray);
+}
+
+.logout-item:hover {
+    background: #fdeaea;
+    color: #e74c3c;
+}
+
+.logout-item:hover .nav-icon {
+    color: #e74c3c;
+}
+
+/* ── Tooltip when collapsed ── */
+.sidebar-collapsed .nav-item {
+    position: relative;
+}
+
+.sidebar-collapsed .nav-item:hover::after {
+    content: attr(title);
+    position: absolute;
+    left: 65px;
+    background: var(--primary-dark);
+    color: var(--white);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px var(--shadow);
+    pointer-events: none;
+    z-index: 200;
+}
+
+/* ── Layout wrapper ── */
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.admin-layout .main-content {
+    flex: 1;
+    padding: 2rem;
+    overflow-x: hidden;
+}

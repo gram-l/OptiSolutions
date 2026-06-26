@@ -12,6 +12,9 @@
             <div style="font-weight: 600;">Dr. Lara</div>
             <div style="font-size: 0.85rem; color: #7f8c8d;">Administrator</div>
         </div>
-        <button class="logout-btn">Logout</button>
+        <button class="logout-btn"
+    onclick="window.location.href='/auth/login'">
+    Logout
+</button>
     </div>
 </div>

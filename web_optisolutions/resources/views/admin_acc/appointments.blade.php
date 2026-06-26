@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <title>OptiSolutions - Appointments & Scheduling</title>
     
-    vite(['resources/css/admin_css/appointments.css', 'resources/css/admin_css/sidebar.css'])
+    @vite(['resources/css/admin_css/appointments.css', 'resources/css/admin_css/sidebar.css'])
 </head>
 <body>
     <!-- Header -->

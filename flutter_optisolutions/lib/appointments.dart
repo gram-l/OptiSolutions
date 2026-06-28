@@ -209,7 +209,7 @@ class _TopBar extends StatelessWidget {
               width: 32,
               height: 32,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(

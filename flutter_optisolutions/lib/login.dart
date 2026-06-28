@@ -53,7 +53,7 @@ class _AuthScaffold extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8),
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8),
                         ],
                       ),
                       child: const _AppIcon(),
@@ -82,7 +82,7 @@ class _AuthScaffold extends StatelessWidget {
                     color: _C.card,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20),
                     ],
                   ),
                   child: child,
@@ -98,7 +98,7 @@ class _AuthScaffold extends StatelessWidget {
 }
 
 class _AppIcon extends StatelessWidget {
-  const _AppIcon({super.key});
+  const _AppIcon();
 
   @override
   Widget build(BuildContext context) {
@@ -491,8 +491,12 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void dispose() {
     _emailCtrl.dispose();
-    for (final c in _otpCtrl) c.dispose();
-    for (final f in _focusNodes) f.dispose();
+    for (final c in _otpCtrl) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     _timer?.cancel();
     super.dispose();
   }

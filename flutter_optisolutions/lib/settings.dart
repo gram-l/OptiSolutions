@@ -235,7 +235,7 @@ class _TopBar extends StatelessWidget {
               width: 28,
               height: 28,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
@@ -405,7 +405,7 @@ class _SettingsTile extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: AppColors.textGrey.withOpacity(0.6), size: 20),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textGrey.withValues(alpha: 0.6), size: 20),
         ],
       ),
     );
@@ -457,7 +457,7 @@ class _ToggleTile extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
           ),
         ],
       ),

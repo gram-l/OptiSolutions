@@ -22,7 +22,7 @@
             </h2>
             <p>Review, approve, and manage patient appointment requests organized by day</p>
         </div>
-@include('admin_acc.sidebar')
+            @include('admin_acc.sidebar')
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-number" id="totalPending">0</div>

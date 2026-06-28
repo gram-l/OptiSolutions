@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\LoginController;
+use App\Http\Controllers\EmailController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -12,6 +14,8 @@ Route::get('/sample', function () {
 Route::get('/auth/login', function () {
     return view('auth.login');
 });
+Route::post('/auth/login', [LoginController::class, 'login'])->name('login');
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::get('/admin_acc/dashboard', function () {
     return view('admin_acc.dashboard');
@@ -47,4 +51,19 @@ Route::get('/admin_acc/user_management', function () {
 
 Route::get('/admin_acc/sidebar1', function () {
     return view('admin_acc.sidebar1');
+});
+
+use Illuminate\Support\Facades\Mail;
+use App\Mail\AppointmentConfirmation;
+
+Route::get('/test-email', function () {
+    Mail::to('mikaelaloyola1020@gmail.com')->send(
+        new AppointmentConfirmation(
+            'John Doe',
+            'July 20, 2026',
+            'Dr. Lara'
+        )
+    );
+
+    return 'Email Sent!';
 });

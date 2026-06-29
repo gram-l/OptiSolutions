@@ -70,7 +70,7 @@
                        required>
 
                 <div class="forgot">
-                    <a href="#">Forgot password?</a>
+                    <a href="{{ route('password.forgot') }}">Forgot password?</a>
                 </div>
 
                 <button type="submit">Sign In →</button>

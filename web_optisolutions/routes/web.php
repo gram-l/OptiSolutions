@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\EmailController;
+use App\Http\Controllers\ForgotPasswordController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -53,6 +54,7 @@ Route::get('/admin_acc/sidebar1', function () {
     return view('admin_acc.sidebar1');
 });
 
+//sample email route
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AppointmentConfirmation;
 
@@ -67,3 +69,17 @@ Route::get('/test-email', function () {
 
     return 'Email Sent!';
 });
+
+//forgot password route
+// Step 1 – Email entry
+Route::get('/auth/forgot-password',  [ForgotPasswordController::class, 'showEmailForm'])->name('password.forgot');
+Route::post('/auth/forgot-password', [ForgotPasswordController::class, 'sendOtp'])->name('password.otp.send');
+ 
+// Step 2 – OTP verification
+Route::get('/auth/verify-otp',  [ForgotPasswordController::class, 'showOtpForm'])->name('password.otp.form');
+Route::post('/auth/verify-otp', [ForgotPasswordController::class, 'verifyOtp'])->name('password.otp.verify');
+Route::post('/auth/resend-otp', [ForgotPasswordController::class, 'resendOtp'])->name('password.otp.resend');
+ 
+// Step 3 – New password
+Route::get('/auth/reset-password',  [ForgotPasswordController::class, 'showResetForm'])->name('password.reset.form');
+Route::post('/auth/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.reset.update');

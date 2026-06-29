@@ -240,3 +240,17 @@ button:hover{
         font-size:32px;
     }
 }
+.branding .logo {
+    width:70px;
+    height:70px;
+    object-fit:contain;
+    border:none;
+    border-radius:0;
+    background:none;
+    padding:0;
+}
+
+.logo {
+    background: transparent;
+    display: flex;
+}

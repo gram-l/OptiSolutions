@@ -150,7 +150,7 @@ class _InquiriesScreenState extends State<InquiriesScreen> {
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -164,7 +164,7 @@ class _InquiriesScreenState extends State<InquiriesScreen> {
                       Expanded(
                         child: ListView.separated(
                           itemCount: _filtered.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (_, _) =>
                               const Divider(height: 1, indent: 16, color: AppColors.border),
                           itemBuilder: (_, i) => _ChatTile(
                             thread: _filtered[i],
@@ -231,7 +231,7 @@ class _InquiriesScreenState extends State<InquiriesScreen> {
           Container(
             width: 32, height: 32,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.chat_bubble_outline_rounded,
@@ -485,7 +485,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.activeBadge.withOpacity(0.12),
+                color: AppColors.activeBadge.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Text('Active',
@@ -593,7 +593,7 @@ class _MessageBubble extends StatelessWidget {
                 radius: 16,
                 backgroundColor: _isPatient
                     ? const Color(0xFFE0E4ED)
-                    : AppColors.primary.withOpacity(0.15),
+                    : AppColors.primary.withValues(alpha: 0.15),
                 child: Icon(
                   _isPatient ? Icons.person_outline_rounded : Icons.smart_toy_outlined,
                   size: 16,
@@ -653,7 +653,7 @@ class _AppIcon extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4)],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),

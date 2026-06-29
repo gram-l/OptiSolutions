@@ -1,0 +1,256 @@
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+}
+
+body{
+    min-height:100vh;
+    background:#edf4f7;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.login-container{
+    width:1200px;
+    max-width:100%;
+    min-height:530px;
+    display:flex;
+    background:#fff;
+    border-radius:25px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,0.08);
+}
+
+/* LEFT PANEL */
+
+.left-panel{
+    width:55%;
+    background:linear-gradient(135deg,#0b5574,#156a8b,#1e7695);
+    color:#fff;
+    padding:35px 40px;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+}
+
+.branding{
+    display:flex;
+    align-items:center;
+    gap:15px;
+    z-index:2;
+}
+
+.logo{
+    width:55px;
+    height:55px;
+    border-radius:50%;
+    background:#ffffff;
+    color:#0b5574;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:24px;
+    font-weight:700;
+}
+
+.branding h2{
+    font-size:22px;
+    font-weight:600;
+}
+
+.branding p{
+    font-size:13px;
+    opacity:0.85;
+}
+
+.welcome{
+    margin-top:140px;
+    z-index:2;
+}
+
+.welcome h1{
+    font-size:41px;
+    line-height:1.4;
+}
+
+.welcome span{
+    background:rgba(255,255,255,0.18);
+    padding:5px 12px;
+    border-radius:12px;
+}
+
+.welcome p{
+    margin-top:20px;
+    font-size:16px;
+    color:rgba(255,255,255,0.9);
+    max-width:500px;
+}
+
+.left-panel small{
+    margin-top:auto;
+    color:rgba(255,255,255,0.7);
+    z-index:2;
+}
+
+/* Decorative Circles */
+
+.circle{
+    position:absolute;
+    border-radius:50%;
+}
+
+.circle-top{
+    width:220px;
+    height:220px;
+    background:rgba(255,255,255,0.08);
+    top:-40px;
+    right:-40px;
+}
+
+.circle-left{
+    width:250px;
+    height:250px;
+    background:rgba(88,189,197,0.15);
+    left:-90px;
+    top:130px;
+}
+
+/* RIGHT PANEL */
+
+.right-panel{
+    width:45%;
+    background:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:50px;
+}
+
+.form-box{
+    width:100%;
+    max-width:480px;
+}
+
+.form-box h2{
+    font-size:40px;
+    color:#243648;
+    margin-bottom:8px;
+}
+
+.subtitle{
+    color:#7d8a98;
+    margin-bottom:35px;
+    font-size:14px;
+}
+
+label{
+    display:block;
+    margin-bottom:8px;
+    color:#2f3f50;
+    font-size:14px;
+    font-weight:500;
+}
+
+input{
+    width:100%;
+    height:52px;
+    border:1px solid #c7dff0;
+    border-radius:14px;
+    padding:0 18px;
+    font-size:15px;
+    margin-bottom:18px;
+    outline:none;
+    transition:0.3s;
+
+    background-color:#f2f8fc;
+    color:#243648;
+}
+
+input:focus{
+    background-color:#ffffff;
+    border-color:#0b5574;
+    box-shadow:0 0 0 4px rgba(11,85,116,0.15);
+}
+
+.forgot{
+    text-align:right;
+    margin-bottom:25px;
+}
+
+.forgot a{
+    text-decoration:none;
+    color:#0b5574;
+    font-size:13px;
+}
+
+button{
+    width:100%;
+    height:55px;
+    border:none;
+    border-radius:30px;
+    background:#0b5574;
+    color:#fff;
+    font-size:16px;
+    font-weight:600;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+button:hover{
+    background:#08465f;
+}
+
+/* Error message styling */
+.error-message {
+    background: #fdeaea;
+    color: #e74c3c;
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    text-align: center;
+    display: none;
+}
+
+.error-message.show {
+    display: block;
+}
+
+@media(max-width:900px){
+
+    .login-container{
+        flex-direction:column;
+    }
+
+    .left-panel,
+    .right-panel{
+        width:100%;
+    }
+
+    .welcome{
+        margin-top:80px;
+    }
+
+    .welcome h1{
+        font-size:32px;
+    }
+}
+.branding .logo {
+    width:70px;
+    height:70px;
+    object-fit:contain;
+    border:none;
+    border-radius:0;
+    background:none;
+    padding:0;
+}
+
+.logo {
+    background: transparent;
+    display: flex;
+}

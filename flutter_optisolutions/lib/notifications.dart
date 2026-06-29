@@ -225,7 +225,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: _filters.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 8),
+                            separatorBuilder: (_, _) => const SizedBox(width: 8),
                             itemBuilder: (context, i) {
                               final f = _filters[i];
                               final selected = _filter == f;
@@ -272,7 +272,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         : ListView.separated(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                             itemCount: _filtered.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(height: 8),
                             itemBuilder: (context, i) {
                               final notif = _filtered[i];
@@ -320,7 +320,7 @@ class _TopBar extends StatelessWidget {
               width: 32,
               height: 32,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
@@ -448,7 +448,7 @@ class _NotifCard extends StatelessWidget {
             border: Border.all(
               color: notif.isRead
                   ? AppColors.border
-                  : AppColors.primary.withOpacity(0.3),
+                  : AppColors.primary.withValues(alpha: 0.3),
             ),
           ),
           child: Row(

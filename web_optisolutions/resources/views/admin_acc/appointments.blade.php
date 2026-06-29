@@ -7,13 +7,15 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <title>OptiSolutions - Appointments & Scheduling</title>
     
-    @vite(['resources/css/admin_css/appointments.css', 'resources/css/admin_css/sidebar.css'])
+    @vite(['resources/css/admin_css/appointments.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/feedback.css'])
 </head>
 <body>
     <!-- Header -->
     @include('admin_acc.header')
 
     <div class="container">
+           @include('admin_acc.sidebar')
+        <div style="flex: 1; min-width: 0;">
         <div class="page-header">
             
             <h2>
@@ -22,7 +24,7 @@
             </h2>
             <p>Review, approve, and manage patient appointment requests organized by day</p>
         </div>
-            @include('admin_acc.sidebar')
+         
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-number" id="totalPending">0</div>

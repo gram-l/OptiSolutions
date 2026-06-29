@@ -13,7 +13,7 @@
     <title>OptiSolutions - Manage Doctors</title>
 
     <!-- Vite CSS -->
-    @vite(['resources/css/admin_css/doctors.css', 'resources/css/admin_css/sidebar.css'])
+    @vite(['resources/css/admin_css/doctors.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 </head>
 <body>
     <!-- Header -->
@@ -23,6 +23,7 @@
     <div class="container">
         <!-- Sidebar Navigation -->
          @include('admin_acc.sidebar')
+          <div style="flex: 1; min-width: 0;">
         <div class="page-header">
             <h2>
                 <span><i class="fa-solid fa-user-doctor"></i></span> 
@@ -50,6 +51,7 @@
         <!-- Doctors Grid -->
         <div class="doctors-grid" id="doctorsGrid">
             <!-- Dynamic content -->
+        </div>
         </div>
     </div>
 

@@ -44,7 +44,7 @@
                 <select class="filter-select" id="roleFilter">
                     <option value="all">All Roles</option>
                     <option value="Admin">Administrator</option>
-                    <option value="Nurse">Nurse</option>
+                    
                     <option value="Staff">Staff</option>
                 </select>
                 <select class="filter-select" id="statusFilter">
@@ -112,7 +112,7 @@
                         <select id="userRole" required>
                             <option value="">Select Role</option>
                             <option value="Admin">Administrator</option>
-                            <option value="Nurse">Nurse</option>
+                            
                             <option value="Staff">Staff</option>
                         </select>
                     </div>
@@ -158,7 +158,7 @@
         }
 
         function getRoleBadgeClass(role) {
-            return role === 'Admin' ? 'role-admin' : role === 'Nurse' ? 'role-nurse' : 'role-staff';
+            return role === 'Admin' ? 'role-admin' : 'role-staff';
         }
 
         function renderUsers() {
@@ -278,7 +278,7 @@
             saveBtn.textContent = 'Saving...';
 
             const isEdit = !!user_id;
-            const url    = isEdit ? `/admin_acc/users/${user_id}` : '/admin_acc/users';
+            const url    = isEdit ? `/admin_acc/user_management/${user_id}` : '/admin_acc/user_management';
             const body   = { name, email, user_role, status, _token: CSRF };
             if (!isEdit || password) body.password = password;
             if (isEdit) body._method = 'PUT';
@@ -321,7 +321,7 @@
         // Toggle Active / Inactive
         async function toggleStatus(user_id) {
             try {
-                const res  = await fetch(`/admin_acc/users/${user_id}/toggle`, {
+                const res  = await fetch(`/admin_acc/user_management/${user_id}/toggle`, {
                     method:  'PATCH',
                     headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
                 });
@@ -348,7 +348,7 @@
             if (!confirm(`${warn}Permanently delete ${u.name}'s account? This cannot be undone.`)) return;
 
             try {
-                const res  = await fetch(`/admin_acc/users/${user_id}`, {
+                const res  = await fetch(`/admin_acc/user_management/${user_id}`, {
                     method:  'DELETE',
                     headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
                 });

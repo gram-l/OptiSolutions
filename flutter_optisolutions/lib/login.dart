@@ -395,7 +395,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(fontSize: 12.5, color: Color(0xFF4A5568))),
                 const Spacer(),
                 GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, '/reset'),
+                  onTap: () {
+  print("Forgot Password clicked");
+  Navigator.pushNamed(context, '/reset');
+},
                   child: const Text('Forgot Password?',
                       style: TextStyle(
                           fontSize: 12.5,
@@ -462,7 +465,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _loading = false);
 
     if (result['success'] == true) {
-      Navigator.pushNamed(context, '/otp', arguments: email);
+      Navigator.pushNamed(context, '/verify-otp', arguments: email);
     } else {
       setState(() => _errorMessage = result['message'] ?? 'Failed to send code.');
     }

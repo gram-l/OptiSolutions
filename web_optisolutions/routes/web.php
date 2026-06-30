@@ -5,6 +5,7 @@ use App\Http\Controllers\LoginController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\ApiAuthController;
 
 Route::get('/', function () {
     return view('welcome');

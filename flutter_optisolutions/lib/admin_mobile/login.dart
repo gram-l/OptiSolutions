@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'services/auth_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  SHARED CONSTANTS
@@ -264,9 +265,40 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
-    if (_formKey.currentState?.validate() ?? false) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
+ bool _isLoading = false;
+
+Future<void> _login() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final data = await AuthService.login(
+        _emailCtrl.text.trim(),
+        _passwordCtrl.text,
+      );
+
+      final role = data['user']['role'];
+
+      if (!mounted) return;
+
+      if (role == 'Admin') {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      } else if (role == 'Staff') {
+        Navigator.pushReplacementNamed(context, '/appointments');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unknown role. Contact administrator.')),
+        );
+      }
+
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

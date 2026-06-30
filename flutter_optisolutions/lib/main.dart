@@ -34,7 +34,7 @@ class PolyclinicApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/':               (_) => const LoginScreen(),
-        '/forgot-password': (_) => const ResetPasswordScreen(),
+        '/reset': (_) => const ResetPasswordScreen(),
         '/verify-otp': (_) => const OtpScreen(),
         '/new-password': (_) => const NewPasswordScreen(),
         '/dashboard':      (_) => const DashboardScreen(),

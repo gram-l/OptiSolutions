@@ -35,7 +35,7 @@ class ForgotPasswordService {
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {
-      return {'success': false, 'message': 'Could not connect to server.'};
+      return {'success': false,   'message': e.toString(),};
     }
   }
 

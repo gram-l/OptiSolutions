@@ -3,13 +3,13 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  // Replace with your actual IPv4 address
-  static const String baseUrl = 'http://10.145.123.34/polyclinic';
+  
+  static const String baseUrl = 'http://192.168.254.147:8000/api';
 
   static Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/login.php'),
+        Uri.parse('$baseUrl/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       ).timeout(const Duration(seconds: 10));
@@ -21,9 +21,20 @@ class AuthService {
 
       if (response.statusCode == 200 && data['success'] == true) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_id',    data['user']['id'].toString());
-        await prefs.setString('user_email', data['user']['email']);
-        await prefs.setString('user_role',  data['user']['role']);
+        await prefs.setString(
+          'user_id',
+          data['user']['user_id'].toString(),
+        );
+
+        await prefs.setString(
+          'user_email',
+          data['user']['email'] ?? '',
+        );
+
+        await prefs.setString(
+          'user_role',
+          data['user']['user_role'] ?? '',
+        );
         return data;
       } else {
         throw Exception(data['message'] ?? 'Login failed');
@@ -32,5 +43,13 @@ class AuthService {
       print('ERROR: $e');          // ← check VS Code terminal for this
       rethrow;
     }
+  }
+  static Future<void> logout() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  await prefs.remove('user_id');
+  await prefs.remove('user_email');
+  await prefs.remove('user_role');
+
   }
 }

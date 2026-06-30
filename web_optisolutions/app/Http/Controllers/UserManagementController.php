@@ -32,7 +32,7 @@ class UserManagementController extends Controller
         $validator = Validator::make($request->all(), [
             'name'      => 'required|string|max:255',
             'email'     => 'required|email|unique:users,email',
-            'user_role' => 'required|in:Admin,Nurse,Staff',
+            'user_role' => 'required|in:Admin,Staff',
             'password'  => 'required|string|min:6',
             'status'    => 'required|in:active,inactive',
         ]);
@@ -68,7 +68,7 @@ class UserManagementController extends Controller
         $rules = [
             'name'      => 'required|string|max:255',
             'email'     => "required|email|unique:users,email,{$user_id},user_id",
-            'user_role' => 'required|in:Admin,Nurse,Staff',
+            'user_role' => 'required|in:Admin,Staff',
             'status'    => 'required|in:active,inactive',
         ];
         if ($request->filled('password')) $rules['password'] = 'string|min:6';
@@ -121,4 +121,24 @@ class UserManagementController extends Controller
         DB::table('users')->where('user_id', $user_id)->delete();
         return response()->json(['success' => true, 'message' => "{$user->name}'s account has been permanently deleted."]);
     }
+
+
+public function getUsers(){
+    $users = DB::table('users')
+        ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at')
+        ->orderBy('name')
+        ->get();
+
+    $stats = [
+        'total'  => $users->count(),
+        'active' => $users->where('status', 'active')->count(),
+        'admins' => $users->where('user_role', 'Admin')->count(),
+    ];
+
+    return response()->json([
+        'success' => true,
+        'users'   => $users,
+        'stats'   => $stats,
+    ]);
+}
 }

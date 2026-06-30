@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'services/auth_service.dart';
 
+
 // ─────────────────────────────────────────────────────────────
 //  SHARED CONSTANTS
 // ─────────────────────────────────────────────────────────────
@@ -243,8 +244,9 @@ class _PrimaryButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  1.  LOGIN SCREEN
+//  1.  LOGIN SCREEN  (with inline error message UI)
 // ─────────────────────────────────────────────────────────────
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -257,6 +259,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _rememberMe = false;
+  bool _loading = false;
+  String? _errorMessage;   // NEW: holds the error text to display inline
 
   @override
   void dispose() {
@@ -265,40 +269,32 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
- bool _isLoading = false;
+  Future<void> _login() async {
+    // Clear any previous error before validating/retrying
+    setState(() => _errorMessage = null);
 
-Future<void> _login() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    setState(() => _isLoading = true);
+    setState(() => _loading = true);
 
     try {
-      final data = await AuthService.login(
+      final result = await AuthService.login(
         _emailCtrl.text.trim(),
         _passwordCtrl.text,
       );
 
-      final role = data['user']['role'];
-
       if (!mounted) return;
+      setState(() => _loading = false);
 
-      if (role == 'Admin') {
+      if (result['success'] == true) {
         Navigator.pushReplacementNamed(context, '/dashboard');
-      } else if (role == 'Staff') {
-        Navigator.pushReplacementNamed(context, '/appointments');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unknown role. Contact administrator.')),
-        );
       }
-
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() {
+        _loading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 
@@ -322,7 +318,39 @@ Future<void> _login() async {
             const SizedBox(height: 4),
             const Text('Welcome back to PolyClinic',
                 style: TextStyle(color: Color(0xFF8A8FA3), fontSize: 13)),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
+
+            // ── NEW: Inline error banner ──
+            if (_errorMessage != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDEAEA),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFF5C6C6)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.error_outline_rounded,
+                        size: 18, color: Color(0xFFD32F2F)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFFD32F2F),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // ── Email ──
             _FormField(
@@ -348,7 +376,7 @@ Future<void> _login() async {
             ),
             const SizedBox(height: 10),
 
-            // ── Remember me + Forgot password ──
+            // Remember me + Forgot password
             Row(
               children: [
                 SizedBox(
@@ -377,12 +405,19 @@ Future<void> _login() async {
             ),
             const SizedBox(height: 22),
 
-            // ── Login button ──
-            _PrimaryButton(
-              label: 'Sign In',
-              icon: Icons.login_rounded,
-              onTap: _login,
-            ),
+            // ── Login button (shows spinner while loading) ──
+            _loading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 13),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _PrimaryButton(
+                    label: 'Sign In',
+                    icon: Icons.login_rounded,
+                    onTap: _login,
+                  ),
           ],
         ),
       ),

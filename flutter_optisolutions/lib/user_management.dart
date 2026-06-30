@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'side_panel.dart';
 import 'main.dart' show appMenuItems;
+import 'services/user_service.dart';
 
 class UserModel {
+  final int    id;
   final String name;
   final String email;
-  final String role;          // Admin | Doctor | Staff 
+  final String role;          // Admin | Staff
   final String lastLogin;
   final bool   isActive;
   final String avatarInitials;
   final Color  avatarColor;
 
   const UserModel({
+    required this.id,
     required this.name,
     required this.email,
     required this.role,
@@ -21,45 +24,36 @@ class UserModel {
     required this.avatarInitials,
     required this.avatarColor,
   });
-}
 
-const _users = <UserModel>[
-  UserModel(
-    name: 'Dr. Lara Cruz', email: 'lara.cruz@polyclinic.com',
-    role: 'Admin',  lastLogin: '2026-05-22 · 09:30 AM',
-    isActive: true, avatarInitials: 'LC', avatarColor: Color(0xFF1565C0),
-  ),
-  UserModel(
-    name: 'Dr. Maria Reyes', email: 'maria.reyes@polyclinic.com',
-    role: 'Doctor', lastLogin: '2026-05-22 · 08:15 AM',
-    isActive: true, avatarInitials: 'MR', avatarColor: Color(0xFF00897B),
-  ),
-  UserModel(
-    name: 'Dr. Jose Mendoza', email: 'jose.mendoza@polyclinic.com',
-    role: 'Doctor', lastLogin: '2026-05-21 · 04:20 PM',
-    isActive: true, avatarInitials: 'JM', avatarColor: Color(0xFF6D4C41),
-  ),
-  UserModel(
-    name: 'Anna Santos', email: 'anna.santos@polyclinic.com',
-    role: 'Doctor', lastLogin: '2026-05-22 · 03:45 AM',
-    isActive: true, avatarInitials: 'AS', avatarColor: Color(0xFF5E35B1),
-  ),
-  UserModel(
-    name: 'Robert Gomez', email: 'robert.gomez@polyclinic.com',
-    role: 'Staff', lastLogin: '2026-05-10 · 04:10 PM',
-    isActive: false, avatarInitials: 'RG', avatarColor: Color(0xFF546E7A),
-  ),
-  UserModel(
-    name: 'Michael Tan', email: 'michael.tan@polyclinic.com',
-    role: 'Staff', lastLogin: '2026-05-22 · 09:00 AM',
-    isActive: true, avatarInitials: 'MT', avatarColor: Color(0xFF00838F),
-  ),
-  UserModel(
-    name: 'Sarah Javier', email: 'sarah.javier@polyclinic.com',
-    role: 'Nurse', lastLogin: '2026-05-15 · 10:00 AM',
-    isActive: false, avatarInitials: 'SJ', avatarColor: Color(0xFF558B2F),
-  ),
-];
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    final name = (json['name'] ?? '').toString();
+    final initials = name
+        .trim()
+        .split(' ')
+        .where((s) => s.isNotEmpty)
+        .map((s) => s[0])
+        .take(2)
+        .join()
+        .toUpperCase();
+
+    const colors = [
+      Color(0xFF1565C0), Color(0xFF00897B), Color(0xFF6D4C41),
+      Color(0xFF5E35B1), Color(0xFF546E7A), Color(0xFF00838F), Color(0xFF558B2F),
+    ];
+    final color = colors[(json['user_id'] ?? 0) % colors.length];
+
+    return UserModel(
+      id: json['user_id'],
+      name: name,
+      email: json['email'] ?? '',
+      role: json['user_role'] ?? '',
+      lastLogin: json['last_login_at']?.toString() ?? 'Never',
+      isActive: json['status'] == 'active',
+      avatarInitials: initials.isEmpty ? '?' : initials,
+      avatarColor: color,
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 //  SCREEN
@@ -76,6 +70,42 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   String _roleFilter = 'All';
   String _statusFilter = 'All';
 
+  List<UserModel> _users = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final data = await UserService.fetchUsers();
+
+    if (!mounted) return;
+
+    if (data['success'] == true) {
+      final list = (data['users'] as List)
+          .map((u) => UserModel.fromJson(u))
+          .toList();
+      setState(() {
+        _users = list;
+        _loading = false;
+      });
+    } else {
+      setState(() {
+        _error = data['message'] ?? 'Failed to load users.';
+        _loading = false;
+      });
+    }
+  }
+
   List<UserModel> get _filtered => _users.where((u) {
         final matchSearch = u.name.toLowerCase().contains(_search.toLowerCase()) ||
             u.email.toLowerCase().contains(_search.toLowerCase());
@@ -84,6 +114,169 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             (_statusFilter == 'Active' ? u.isActive : !u.isActive);
         return matchSearch && matchRole && matchStatus;
       }).toList();
+
+  Future<void> _toggleStatus(UserModel user) async {
+    final result = await UserService.toggleStatus(user.id);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      _loadUsers();
+      _showSnack(result['message']);
+    } else {
+      _showSnack(result['message'] ?? 'Action failed.');
+    }
+  }
+
+  Future<void> _deleteUser(UserModel user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete user?'),
+        content: Text('Are you sure you want to delete ${user.name}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final result = await UserService.deleteUser(user.id);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      _loadUsers();
+      _showSnack(result['message']);
+    } else {
+      _showSnack(result['message'] ?? 'Delete failed.');
+    }
+  }
+
+  void _showSnack(String? msg) {
+    if (msg == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _openAddDialog() => _openUserForm();
+  void _openEditDialog(UserModel user) => _openUserForm(user: user);
+
+  void _openUserForm({UserModel? user}) {
+    final isEdit = user != null;
+    final nameCtrl = TextEditingController(text: user?.name ?? '');
+    final emailCtrl = TextEditingController(text: user?.email ?? '');
+    final passCtrl = TextEditingController();
+    String role = (user?.role == 'Admin' || user?.role == 'Staff') ? user!.role : 'Staff';
+    String status = (user?.isActive ?? true) ? 'active' : 'inactive';
+    bool saving = false;
+    String? formError;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(isEdit ? 'Edit User' : 'Add User'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (formError != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFDEAEA),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      formError!,
+                      style: const TextStyle(color: Colors.red, fontSize: 12.5),
+                    ),
+                  ),
+                ],
+                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
+                TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email')),
+                TextField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: isEdit ? 'New Password (optional)' : 'Password',
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: role,
+                  decoration: const InputDecoration(labelText: 'Role'),
+                  items: const ['Admin', 'Staff']
+                      .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                      .toList(),
+                  onChanged: (v) => setLocal(() => role = v!),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: 'Status'),
+                  items: const ['active', 'inactive']
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (v) => setLocal(() => status = v!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      setLocal(() {
+                        saving = true;
+                        formError = null;
+                      });
+
+                      Map<String, dynamic> result;
+                      if (isEdit) {
+                        result = await UserService.updateUser(
+                          user.id,
+                          nameCtrl.text,
+                          emailCtrl.text,
+                          role,
+                          status,
+                          password: passCtrl.text,
+                        );
+                      } else {
+                        result = await UserService.createUser(
+                          nameCtrl.text,
+                          emailCtrl.text,
+                          role,
+                          passCtrl.text,
+                          status,
+                        );
+                      }
+
+                      if (result['success'] == true) {
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        _loadUsers();
+                        _showSnack(result['message']);
+                      } else {
+                        setLocal(() {
+                          saving = false;
+                          formError = result['message'] ?? 'Something went wrong.';
+                        });
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,14 +294,46 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             _buildTopBar(),
             _buildHeader(),
             _buildFilterRow(),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                itemCount: _filtered.length,
-                itemBuilder: (_, i) => _UserCard(user: _filtered[i]),
-              ),
-            ),
+            Expanded(child: _buildBody()),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_rounded, size: 36, color: AppColors.textGrey),
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 8),
+            ElevatedButton(onPressed: _loadUsers, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+    if (_filtered.isEmpty) {
+      return const Center(
+        child: Text('No users found.', style: TextStyle(color: AppColors.textGrey)),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadUsers,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: _filtered.length,
+        itemBuilder: (_, i) => _UserCard(
+          user: _filtered[i],
+          onEdit: () => _openEditDialog(_filtered[i]),
+          onToggle: () => _toggleStatus(_filtered[i]),
+          onDelete: () => _deleteUser(_filtered[i]),
         ),
       ),
     );
@@ -148,14 +373,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             child: const Text('DL',
                 style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(width: 8),
-          const Icon(Icons.logout_outlined, color: AppColors.textGrey, size: 20),
         ],
       ),
     );
   }
 
-  // ── Page heading ──
   Widget _buildHeader() {
     return const Padding(
       padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
@@ -178,7 +400,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  // ── Search + filter row ──
   Widget _buildFilterRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -192,7 +413,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           const SizedBox(width: 8),
           _DropdownChip(
             value: _roleFilter,
-            items: const ['All', 'Admin', 'Doctor', 'Staff', 'Nurse'],
+            items: const ['All', 'Admin', 'Staff'],
             onChanged: (v) => setState(() => _roleFilter = v!),
           ),
           const SizedBox(width: 6),
@@ -202,7 +423,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             onChanged: (v) => setState(() => _statusFilter = v!),
           ),
           const SizedBox(width: 6),
-          _AddButton(onTap: () {}),
+          _AddButton(onTap: _openAddDialog),
         ],
       ),
     );
@@ -214,7 +435,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 // ─────────────────────────────────────────────────────────────
 class _UserCard extends StatelessWidget {
   final UserModel user;
-  const _UserCard({required this.user});
+  final VoidCallback onEdit;
+  final VoidCallback onToggle;
+  final VoidCallback onDelete;
+
+  const _UserCard({
+    required this.user,
+    required this.onEdit,
+    required this.onToggle,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -225,9 +455,7 @@ class _UserCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: user.isActive
-              ? Colors.transparent
-              : const Color(0xFFEEEEEE),
+          color: user.isActive ? Colors.transparent : const Color(0xFFEEEEEE),
         ),
         boxShadow: [
           BoxShadow(
@@ -240,7 +468,6 @@ class _UserCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Avatar + Name + badge ──
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -257,12 +484,10 @@ class _UserCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(user.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 1),
                     Text(user.email,
-                        style: const TextStyle(
-                            fontSize: 11.5, color: AppColors.textGrey)),
+                        style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
                   ],
                 ),
               ),
@@ -270,7 +495,6 @@ class _UserCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // ── Role chip + last login ──
           Row(
             children: [
               _RoleChip(role: user.role),
@@ -282,22 +506,21 @@ class _UserCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          // ── Action buttons ──
           Row(
             children: user.isActive
                 ? [
-                    _ActionBtn(label: 'Edit', icon: Icons.edit_outlined, color: AppColors.editBlue, onTap: () {}),
+                    _ActionBtn(label: 'Edit', icon: Icons.edit_outlined, color: AppColors.editBlue, onTap: onEdit),
                     const SizedBox(width: 6),
-                    _ActionBtn(label: 'Deactivate', icon: Icons.block_outlined, color: AppColors.deactivateOrange, onTap: () {}),
+                    _ActionBtn(label: 'Deactivate', icon: Icons.block_outlined, color: AppColors.deactivateOrange, onTap: onToggle),
                     const SizedBox(width: 6),
-                    _ActionBtn(label: 'Delete', icon: Icons.delete_outline_rounded, color: AppColors.deleteRed, onTap: () {}),
+                    _ActionBtn(label: 'Delete', icon: Icons.delete_outline_rounded, color: AppColors.deleteRed, onTap: onDelete),
                   ]
                 : [
-                    _ActionBtn(label: 'Edit', icon: Icons.edit_outlined, color: AppColors.editBlue, onTap: () {}),
+                    _ActionBtn(label: 'Edit', icon: Icons.edit_outlined, color: AppColors.editBlue, onTap: onEdit),
                     const SizedBox(width: 6),
-                    _ActionBtn(label: 'Activate', icon: Icons.check_circle_outline_rounded, color: AppColors.activateGreen, onTap: () {}),
+                    _ActionBtn(label: 'Activate', icon: Icons.check_circle_outline_rounded, color: AppColors.activateGreen, onTap: onToggle),
                     const SizedBox(width: 6),
-                    _ActionBtn(label: 'Delete', icon: Icons.delete_outline_rounded, color: AppColors.deleteRed, onTap: () {}),
+                    _ActionBtn(label: 'Delete', icon: Icons.delete_outline_rounded, color: AppColors.deleteRed, onTap: onDelete),
                   ],
           ),
         ],
@@ -318,9 +541,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: active
-            ? const Color(0xFFE8F5E9)
-            : const Color(0xFFF5F5F5),
+        color: active ? const Color(0xFFE8F5E9) : const Color(0xFFF5F5F5),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -341,16 +562,12 @@ class _RoleChip extends StatelessWidget {
   const _RoleChip({required this.role});
 
   static const _colors = {
-    'Admin':  Color(0xFFE3F2FD),
-    'Doctor': Color(0xFFE8F5E9),
-    'Staff':  Color(0xFFFFF3E0),
-    'Nurse':  Color(0xFFF3E5F5),
+    'Admin': Color(0xFFE3F2FD),
+    'Staff': Color(0xFFFFF3E0),
   };
   static const _textColors = {
-    'Admin':  Color(0xFF1565C0),
-    'Doctor': Color(0xFF2E7D32),
-    'Staff':  Color(0xFFE65100),
-    'Nurse':  Color(0xFF6A1B9A),
+    'Admin': Color(0xFF1565C0),
+    'Staff': Color(0xFFE65100),
   };
 
   @override

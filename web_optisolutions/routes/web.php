@@ -50,6 +50,7 @@ Route::get('/admin_acc/feedback', function () {
 
 Route::get('/admin_acc/user_management', [UserManagementController::class, 'index']);
 
+
 Route::get('/admin_acc/sidebar1', function () {
     return view('admin_acc.sidebar1');
 });

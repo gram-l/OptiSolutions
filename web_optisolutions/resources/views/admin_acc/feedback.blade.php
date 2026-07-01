@@ -11,7 +11,7 @@
     <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <title>OptiSolutions - Feedback & Sentiment Analysis</title>
-   @vite(['resources/css/admin_css/feedback.css', 'resources/css/admin_css/sidebar.css'])
+   @vite(['resources/css/admin_css/feedback.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 </head>
 <body>
     <!-- Header -->
@@ -21,6 +21,7 @@
     <!-- Main Container -->
     <div class="container">
         @include('admin_acc.sidebar')
+        <div style="flex: 1; min-width: 0;">
         <div class="page-header">
             <h2>
                 <span><i class="fa-solid fa-star-half-stroke"></i></span> 
@@ -114,6 +115,7 @@
                 </tbody>
             </table>
         </div>
+    </div>
     </div>
 
     <script>

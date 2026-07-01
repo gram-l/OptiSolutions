@@ -12,7 +12,11 @@
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <title>OptiSolutions - Admin Dashboard</title>
     <!-- Vite CSS -->
-    @vite('resources/css/admin_css/dashboard.css')
+   @vite([
+    'resources/css/admin_css/dashboard.css', 
+    'resources/css/admin_css/sidebar.css', 
+    'resources/css/admin_css/header.css'
+])
 
 
 </head>

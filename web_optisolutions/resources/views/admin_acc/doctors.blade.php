@@ -92,54 +92,8 @@
     </div>
 
     <script>
-        // Mock doctor data
-        let doctorsData = [
-            { 
-                id: 1, 
-                name: "Dr. Maria Reyes", 
-                specialty: "Ophthalmology", 
-                schedule: "Mon, Wed, Fri • 9:00 AM - 5:00 PM",
-                description: "Board-certified ophthalmologist with over 15 years of experience in cataract surgery and LASIK procedures. Specializes in retinal disorders and diabetic eye care.",
-                phone: "09123456789",
-                active: true
-            },
-            { 
-                id: 2, 
-                name: "Dr. Jose Mendoza", 
-                specialty: "Pediatrics", 
-                schedule: "Tue, Thu, Sat • 10:00 AM - 6:00 PM",
-                description: "Experienced pediatrician focused on child development, vaccinations, and preventive care. Fluent in English and Spanish.",
-                phone: "09234567890",
-                active: true
-            },
-            { 
-                id: 3, 
-                name: "Dr. Anna Garcia", 
-                specialty: "ENT", 
-                schedule: "Mon, Tue, Thu • 8:00 AM - 4:00 PM",
-                description: "Otolaryngologist specializing in sinus disorders, hearing loss, and pediatric ENT conditions. Published research in tinnitus management.",
-                phone: "09345678901",
-                active: true
-            },
-            { 
-                id: 4, 
-                name: "Dr. Carlos Santos", 
-                specialty: "Cardiology", 
-                schedule: "Wed, Thu, Fri • 1:00 PM - 7:00 PM",
-                description: "Interventional cardiologist with expertise in hypertension, heart failure, and preventive cardiology. Performs echocardiograms and stress tests.",
-                phone: "09456789012",
-                active: false
-            },
-            { 
-                id: 5, 
-                name: "Dr. Elena Lopez", 
-                specialty: "Dermatology", 
-                schedule: "Mon, Tue, Fri • 9:00 AM - 3:00 PM",
-                description: "Dermatologist offering medical and cosmetic dermatology. Specializes in acne treatment, skin cancer screening, and eczema management.",
-                phone: "09567890123",
-                active: true
-            }
-        ];
+    
+    let doctorsData = @json($doctors);
 
         let nextId = 6;
         let currentEditId = null;

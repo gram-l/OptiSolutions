@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\EmailController;
+use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
@@ -36,9 +37,7 @@ Route::get('/admin_acc/appointments', function () {
     return view('admin_acc.appointments');
 });
 
-Route::get('/admin_acc/doctors', function () {
-    return view('admin_acc.doctors');
-});
+Route::get('/admin_acc/doctors', [DoctorController::class, 'index']);
 
 Route::get('/admin_acc/patients', function () {
     return view('admin_acc.patients');

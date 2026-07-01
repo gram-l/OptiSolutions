@@ -109,6 +109,9 @@
             max-width: 1400px;
             margin: 2rem auto;
             padding: 0 2rem;
+              display: flex;        /* ADD */
+    gap: 2rem;            /* ADD */
+    align-items: flex-start; /* ADD */
         }
 
         .page-header {

@@ -7,11 +7,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 @vite('resources/css/login.css')
 <style>
-  .otp-inputs { display:flex; gap:10px; justify-content:center; margin:24px 0; }
+  .otp-inputs { display:flex; gap:10px; justify-content:center; margin:24px 0; 
+}
   .otp-inputs input {
     width:48px; height:56px; text-align:center; font-size:22px; font-weight:700;
     border:2px solid #dde1e8; border-radius:10px; outline:none;
     font-family:'Poppins',sans-serif; color:#0D3B72; transition:.2s;
+   
+    line-height: 64px;
+    padding: 0;
+
   }
   .otp-inputs input:focus { border-color:#0D3B72; box-shadow:0 0 0 3px rgba(13,59,114,.1); }
   .resend-row { text-align:center; font-size:13px; color:#8a8fa3; margin-top:12px; }

@@ -2,20 +2,22 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'side_panel.dart';
 import 'main.dart' show appMenuItems;
-// ─────────────────────────────────────────────────────────────
+import 'services/doctor_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  DATA MODEL
 // ─────────────────────────────────────────────────────────────
 class DoctorModel {
+  final int    id;
   final String name;
   final String specialty;
-  final String schedule;        // e.g. "Mon, Wed, Fri • 9AM-5PM"
+  final String schedule;
   final String description;
   final String phone;
   final bool   isActive;
 
   const DoctorModel({
+    required this.id,
     required this.name,
     required this.specialty,
     required this.schedule,
@@ -23,55 +25,23 @@ class DoctorModel {
     required this.phone,
     required this.isActive,
   });
-}
 
-const _doctors = <DoctorModel>[
-  DoctorModel(
-    name: 'Dr. Maria Reyes',
-    specialty: 'Ophthalmology',
-    schedule: 'Mon, Wed, Fri  •  9AM–5PM',
-    description:
-        'Board-certified ophthalmologist with 15+ years in cataract surgery and LASIK.',
-    phone: '09123458789',
-    isActive: true,
-  ),
-  DoctorModel(
-    name: 'Dr. Jose Mendoza',
-    specialty: 'Pediatrics',
-    schedule: 'Tue, Thu, Sat  •  10AM–6PM',
-    description:
-        'Pediatrician focused on child development and preventive care.',
-    phone: '09234567890',
-    isActive: true,
-  ),
-  DoctorModel(
-    name: 'Dr. Anna Garcia',
-    specialty: 'ENT',
-    schedule: 'Mon, Tue, Wed  •  8AM–4PM',
-    description:
-        'Otolaryngologist specializing in sinus disorders and hearing loss.',
-    phone: '09345678901',
-    isActive: true,
-  ),
-  DoctorModel(
-    name: 'Dr. Carlos Santos',
-    specialty: 'Cardiology',
-    schedule: 'Wed, Thu, Fri  •  1PM–7PM',
-    description:
-        'Interventional cardiologist with expertise in hypertension and heart failure.',
-    phone: '09456789012',
-    isActive: false,
-  ),
-  DoctorModel(
-    name: 'Dr. Elena Lopez',
-    specialty: 'Dermatology',
-    schedule: 'Mon, Fri  •  9AM–3PM',
-    description:
-        'Dermatologist offering medical and cosmetic dermatology services.',
-    phone: '09567890123',
-    isActive: true,
-  ),
-];
+  // Parses the raw shape returned by GET /api/doctors
+  // (matches your Doctor model's actual DB columns)
+  factory DoctorModel.fromJson(Map<String, dynamic> json) {
+    return DoctorModel(
+      id: json['doctor_id'] is int
+          ? json['doctor_id']
+          : int.tryParse(json['doctor_id'].toString()) ?? 0,
+      name: json['doctor_name'] ?? '',
+      specialty: json['specialty'] ?? '',
+      schedule: json['schedule'] ?? '',
+      description: json['description'] ?? '',
+      phone: json['contact_number'] ?? '',
+      isActive: (json['status'] ?? '') == 'Active',
+    );
+  }
+}
 
 // specialty → accent color
 const _specialtyColors = <String, Color>{
@@ -93,8 +63,40 @@ class DoctorsScreen extends StatefulWidget {
 }
 
 class _DoctorsScreenState extends State<DoctorsScreen> {
-  String _search     = '';
-  String _filter     = 'All';   // All | Active | Inactive
+  String _search = '';
+  String _filter = 'All'; // All | Active | Inactive
+
+  List<DoctorModel> _doctors = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDoctors();
+  }
+
+  Future<void> _loadDoctors() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final result = await DoctorService.fetchDoctors();
+
+    if (result['success'] == true) {
+      final List<dynamic> data = result['doctors'] ?? [];
+      setState(() {
+        _doctors = data.map((d) => DoctorModel.fromJson(d)).toList();
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = result['message'] ?? 'Failed to load doctors.';
+        _isLoading = false;
+      });
+    }
+  }
 
   List<DoctorModel> get _filtered => _doctors.where((d) {
         final q = _search.toLowerCase();
@@ -104,6 +106,164 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
             (_filter == 'Active' ? d.isActive : !d.isActive);
         return matchSearch && matchFilter;
       }).toList();
+
+  // ── Add / Edit modal ──
+  Future<void> _openDoctorForm({DoctorModel? doctor}) async {
+    final nameCtrl = TextEditingController(text: doctor?.name ?? '');
+    final specialtyCtrl = TextEditingController(text: doctor?.specialty ?? '');
+    final scheduleCtrl = TextEditingController(text: doctor?.schedule ?? '');
+    final descCtrl = TextEditingController(text: doctor?.description ?? '');
+    final phoneCtrl = TextEditingController(text: doctor?.phone ?? '');
+    final formKey = GlobalKey<FormState>();
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => AlertDialog(
+          title: Text(doctor == null ? 'Add New Doctor' : 'Edit Doctor Profile'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Full Name *'),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    controller: specialtyCtrl,
+                    decoration: const InputDecoration(labelText: 'Specialty *'),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    controller: scheduleCtrl,
+                    decoration: const InputDecoration(labelText: 'Schedule *'),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    maxLines: 2,
+                  ),
+                  TextFormField(
+                    controller: phoneCtrl,
+                    decoration: const InputDecoration(labelText: 'Contact Number'),
+                    keyboardType: TextInputType.phone,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setModalState(() => isSaving = true);
+
+                      final result = doctor == null
+                          ? await DoctorService.createDoctor(
+                              name: nameCtrl.text.trim(),
+                              specialty: specialtyCtrl.text.trim(),
+                              schedule: scheduleCtrl.text.trim(),
+                              description: descCtrl.text.trim(),
+                              phone: phoneCtrl.text.trim(),
+                            )
+                          : await DoctorService.updateDoctor(
+                              id: doctor.id,
+                              name: nameCtrl.text.trim(),
+                              specialty: specialtyCtrl.text.trim(),
+                              schedule: scheduleCtrl.text.trim(),
+                              description: descCtrl.text.trim(),
+                              phone: phoneCtrl.text.trim(),
+                            );
+
+                      if (!ctx.mounted) return;
+
+                      if (result['success'] == true) {
+                        Navigator.pop(ctx);
+                        _loadDoctors();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(result['message'] ?? 'Saved.')),
+                          );
+                        }
+                      } else {
+                        setModalState(() => isSaving = false);
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text(result['message'] ?? 'Something went wrong.')),
+                        );
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleStatus(DoctorModel doctor) async {
+    final result = await DoctorService.toggleDoctorStatus(doctor.id);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      _loadDoctors();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Status updated.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Could not update status.')),
+      );
+    }
+  }
+
+  Future<void> _removeDoctor(DoctorModel doctor) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Doctor'),
+        content: Text(
+          'Are you sure you want to permanently remove ${doctor.name} from the system? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final result = await DoctorService.deleteDoctor(doctor.id);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      _loadDoctors();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Doctor removed.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Could not remove doctor.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -121,15 +281,46 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
             _buildTopBar(),
             _buildHeader(),
             _buildFilterRow(),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                itemCount: _filtered.length,
-                itemBuilder: (_, i) => _DoctorCard(doctor: _filtered[i]),
-              ),
-            ),
+            Expanded(child: _buildBody()),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 8),
+            ElevatedButton(onPressed: _loadDoctors, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+    if (_filtered.isEmpty) {
+      return const Center(child: Text('No doctors found.'));
+    }
+    return RefreshIndicator(
+      onRefresh: _loadDoctors,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: _filtered.length,
+        itemBuilder: (_, i) {
+          final doctor = _filtered[i];
+          return _DoctorCard(
+            doctor: doctor,
+            onEdit: () => _openDoctorForm(doctor: doctor),
+            onToggle: () => _toggleStatus(doctor),
+            onRemove: () => _removeDoctor(doctor),
+          );
+        },
       ),
     );
   }
@@ -166,8 +357,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
             radius: 14,
             backgroundColor: AppColors.primary,
             child: const Text('DL',
-                style: TextStyle(
-                    color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 8),
           const Icon(Icons.logout_outlined, color: AppColors.textGrey, size: 20),
@@ -183,7 +373,6 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Back button
           GestureDetector(
             onTap: () => Navigator.maybePop(context),
             child: Container(
@@ -197,8 +386,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                 children: [
                   Icon(Icons.arrow_back_ios_new_rounded, size: 12, color: Colors.white),
                   SizedBox(width: 4),
-                  Text('Dashboard',
-                      style: TextStyle(color: Colors.white, fontSize: 12)),
+                  Text('Dashboard', style: TextStyle(color: Colors.white, fontSize: 12)),
                 ],
               ),
             ),
@@ -206,11 +394,9 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
           const SizedBox(height: 10),
           const Row(
             children: [
-              Icon(Icons.medical_services_outlined,
-                  color: AppColors.primary, size: 22),
+              Icon(Icons.medical_services_outlined, color: AppColors.primary, size: 22),
               SizedBox(width: 8),
-              Text('Doctors',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('Doctors', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 2),
@@ -240,7 +426,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
             onChanged: (v) => setState(() => _filter = v!),
           ),
           const SizedBox(width: 6),
-          _AddButton(onTap: () {}),
+          _AddButton(onTap: () => _openDoctorForm()),
         ],
       ),
     );
@@ -252,12 +438,20 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
 // ─────────────────────────────────────────────────────────────
 class _DoctorCard extends StatelessWidget {
   final DoctorModel doctor;
-  const _DoctorCard({required this.doctor});
+  final VoidCallback onEdit;
+  final VoidCallback onToggle;
+  final VoidCallback onRemove;
+
+  const _DoctorCard({
+    required this.doctor,
+    required this.onEdit,
+    required this.onToggle,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final accentColor =
-        _specialtyColors[doctor.specialty] ?? AppColors.primary;
+    final accentColor = _specialtyColors[doctor.specialty] ?? AppColors.primary;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -265,11 +459,7 @@ class _DoctorCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Padding(
@@ -277,41 +467,26 @@ class _DoctorCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Name + status ──
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    doctor.name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 14.5),
-                  ),
+                  child: Text(doctor.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5)),
                 ),
                 _StatusBadge(active: doctor.isActive),
               ],
             ),
-            // ── Specialty ──
-            Text(
-              doctor.specialty,
-              style: TextStyle(
-                  color: accentColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.5),
-            ),
+            Text(doctor.specialty,
+                style: TextStyle(color: accentColor, fontWeight: FontWeight.w600, fontSize: 12.5)),
             const SizedBox(height: 8),
-            // ── Schedule ──
             Row(
               children: [
-                const Icon(Icons.access_time_rounded,
-                    size: 13, color: AppColors.textGrey),
+                const Icon(Icons.access_time_rounded, size: 13, color: AppColors.textGrey),
                 const SizedBox(width: 4),
-                Text(doctor.schedule,
-                    style: const TextStyle(
-                        fontSize: 11.5, color: AppColors.textGrey)),
+                Text(doctor.schedule, style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
               ],
             ),
             const SizedBox(height: 8),
-            // ── Description ──
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(10),
@@ -319,65 +494,37 @@ class _DoctorCard extends StatelessWidget {
                 color: const Color(0xFFF4F6FB),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                doctor.description,
-                style: const TextStyle(fontSize: 12, color: AppColors.textDark, height: 1.45),
-              ),
+              child: Text(doctor.description,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textDark, height: 1.45)),
             ),
             const SizedBox(height: 8),
-            // ── Phone ──
             Row(
               children: [
-                const Icon(Icons.phone_outlined,
-                    size: 13, color: AppColors.textGrey),
+                const Icon(Icons.phone_outlined, size: 13, color: AppColors.textGrey),
                 const SizedBox(width: 4),
-                Text(doctor.phone,
-                    style: const TextStyle(
-                        fontSize: 11.5, color: AppColors.textGrey)),
+                Text(doctor.phone, style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
               ],
             ),
             const SizedBox(height: 10),
-            // ── Action buttons ──
             Row(
-              children: doctor.isActive
-                  ? [
-                      _ActionBtn(
-                          label: 'Edit',
-                          icon: Icons.edit_outlined,
-                          color: AppColors.editBlue,
-                          onTap: () {}),
-                      const SizedBox(width: 6),
-                      _ActionBtn(
-                          label: 'Deactivate',
-                          icon: Icons.block_outlined,
-                          color: AppColors.deactivateOrange,
-                          onTap: () {}),
-                      const SizedBox(width: 6),
-                      _ActionBtn(
-                          label: 'Remove',
-                          icon: Icons.delete_outline_rounded,
-                          color: AppColors.deleteRed,
-                          onTap: () {}),
-                    ]
-                  : [
-                      _ActionBtn(
-                          label: 'Edit',
-                          icon: Icons.edit_outlined,
-                          color: AppColors.editBlue,
-                          onTap: () {}),
-                      const SizedBox(width: 6),
-                      _ActionBtn(
-                          label: 'Activate',
-                          icon: Icons.check_circle_outline_rounded,
-                          color: AppColors.activateGreen,
-                          onTap: () {}),
-                      const SizedBox(width: 6),
-                      _ActionBtn(
-                          label: 'Remove',
-                          icon: Icons.delete_outline_rounded,
-                          color: AppColors.deleteRed,
-                          onTap: () {}),
-                    ],
+              children: [
+                _ActionBtn(label: 'Edit', icon: Icons.edit_outlined, color: AppColors.editBlue, onTap: onEdit),
+                const SizedBox(width: 6),
+                doctor.isActive
+                    ? _ActionBtn(
+                        label: 'Deactivate',
+                        icon: Icons.block_outlined,
+                        color: AppColors.deactivateOrange,
+                        onTap: onToggle)
+                    : _ActionBtn(
+                        label: 'Activate',
+                        icon: Icons.check_circle_outline_rounded,
+                        color: AppColors.activateGreen,
+                        onTap: onToggle),
+                const SizedBox(width: 6),
+                _ActionBtn(
+                    label: 'Remove', icon: Icons.delete_outline_rounded, color: AppColors.deleteRed, onTap: onRemove),
+              ],
             ),
           ],
         ),
@@ -387,7 +534,7 @@ class _DoctorCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  REUSABLE WIDGETS (shared with user_management_screen.dart)
+//  REUSABLE WIDGETS
 // ─────────────────────────────────────────────────────────────
 class _StatusBadge extends StatelessWidget {
   final bool active;
@@ -419,11 +566,7 @@ class _ActionBtn extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  const _ActionBtn(
-      {required this.label,
-      required this.icon,
-      required this.color,
-      required this.onTap});
+  const _ActionBtn({required this.label, required this.icon, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -439,11 +582,7 @@ class _ActionBtn extends StatelessWidget {
             children: [
               Icon(icon, size: 13, color: color),
               const SizedBox(width: 4),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: color,
-                      fontWeight: FontWeight.w600)),
+              Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -470,11 +609,9 @@ class _SearchField extends StatelessWidget {
         onChanged: onChanged,
         style: const TextStyle(fontSize: 13),
         decoration: InputDecoration(
-          prefixIcon:
-              const Icon(Icons.search, size: 16, color: AppColors.textGrey),
+          prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.textGrey),
           hintText: hint,
-          hintStyle:
-              const TextStyle(color: AppColors.textGrey, fontSize: 13),
+          hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 10),
         ),
@@ -487,10 +624,7 @@ class _DropdownChip extends StatelessWidget {
   final String value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
-  const _DropdownChip(
-      {required this.value,
-      required this.items,
-      required this.onChanged});
+  const _DropdownChip({required this.value, required this.items, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -505,17 +639,10 @@ class _DropdownChip extends StatelessWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
-          items: items
-              .map((e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(e,
-                      style: const TextStyle(fontSize: 12))))
-              .toList(),
+          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12)))).toList(),
           onChanged: onChanged,
-          style: const TextStyle(
-              fontSize: 12, color: AppColors.textDark),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded,
-              size: 16, color: AppColors.textGrey),
+          style: const TextStyle(fontSize: 12, color: AppColors.textDark),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textGrey),
         ),
       ),
     );
@@ -533,19 +660,12 @@ class _AddButton extends StatelessWidget {
       child: Container(
         height: 38,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(10),
-        ),
+        decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
         child: const Row(
           children: [
             Icon(Icons.add, color: Colors.white, size: 16),
             SizedBox(width: 4),
-            Text('Add',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
+            Text('Add', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
       ),

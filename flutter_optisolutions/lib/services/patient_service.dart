@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class PatientService {
-  static const String baseUrl = 'http://10.232.147.34/polyclinic';
+  static const String baseUrl = 'http://192.168.193.172/polyclinic';
 
   static Future<List<Map<String, dynamic>>> getPatients() async {
     final response = await http.get(

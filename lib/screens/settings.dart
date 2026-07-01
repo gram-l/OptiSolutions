@@ -541,7 +541,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFF1A237E),
+           activeThumbColor: const Color(0xFF1A237E),
           ),
         ],
       ),

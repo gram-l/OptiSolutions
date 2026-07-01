@@ -1,88 +1,85 @@
 import 'package:flutter/material.dart';
 import 'cliniclogin.dart';
+import '../services/api_service.dart';
 
-// ✅ SEPARATE CLASS para sa notification data (hindi State)
+// ✅ Now fetches from the database via API instead of hardcoded data.
+// Call NotificationData.load() once (e.g. in initState) before using the
+// other methods, since the list is populated asynchronously.
 class NotificationData {
-  static List<Map<String, dynamic>> _notifications = [
-    {
-      'icon': Icons.question_answer,
-      'title': 'New Inquiry Received',
-      'message':
-          'Juan Dela Cruz has sent a new inquiry about eye consultation.',
-      'time': '2 minutes ago',
-      'isRead': false,
-      'color': Colors.blue,
-    },
-    {
-      'icon': Icons.calendar_today,
-      'title': 'Appointment Confirmed',
-      'message':
-          'Appointment with Dr. Lee has been confirmed for June 25, 2026 at 10:00 AM.',
-      'time': '15 minutes ago',
-      'isRead': false,
-      'color': Colors.green,
-    },
-    {
-      'icon': Icons.medical_services,
-      'title': 'Doctor Availability Updated',
-      'message': 'Dr. Marquez has updated their availability schedule.',
-      'time': '1 hour ago',
-      'isRead': false,
-      'color': Colors.purple,
-    },
-    {
-      'icon': Icons.person,
-      'title': 'Patient Record Updated',
-      'message': 'Michael Chu\'s medical records have been updated.',
-      'time': '2 hours ago',
-      'isRead': true,
-      'color': Colors.orange,
-    },
-    {
-      'icon': Icons.schedule,
-      'title': 'Appointment Reminder',
-      'message': 'Reminder: You have 3 pending appointments to review.',
-      'time': '3 hours ago',
-      'isRead': true,
-      'color': Colors.red,
-    },
-    {
-      'icon': Icons.check_circle,
-      'title': 'Inquiry Resolved',
-      'message': 'Inquiry from Maria Santos has been resolved successfully.',
-      'time': '5 hours ago',
-      'isRead': true,
-      'color': Colors.teal,
-    },
-    {
-      'icon': Icons.warning,
-      'title': 'Low Stock Alert',
-      'message': 'Some medications are running low in inventory.',
-      'time': '1 day ago',
-      'isRead': true,
-      'color': Colors.amber,
-    },
-  ];
+  static List<Map<String, dynamic>> _notifications = [];
 
-  // ✅ STATIC METHOD - accessible kahit saan
+  static IconData _iconFromName(String? name) {
+    switch (name) {
+      case 'question_answer':
+        return Icons.question_answer;
+      case 'calendar_today':
+        return Icons.calendar_today;
+      case 'medical_services':
+        return Icons.medical_services;
+      case 'person':
+        return Icons.person;
+      case 'schedule':
+        return Icons.schedule;
+      case 'check_circle':
+        return Icons.check_circle;
+      case 'warning':
+        return Icons.warning;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  static Color _colorFromHex(String? hex) {
+    if (hex == null || hex.isEmpty) return Colors.blueGrey;
+    final cleanHex = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$cleanHex', radix: 16));
+  }
+
+  // ✅ Fetches the real list from Laravel. Returns the populated list too,
+  // so callers can `await` it directly if they want.
+  static Future<List<Map<String, dynamic>>> load() async {
+    final result = await ApiService.get('/notifications');
+    _notifications = (result as List).map<Map<String, dynamic>>((n) {
+      return {
+        'dbId': n['id'], // real database id, needed for markAsRead calls
+        'icon': _iconFromName(n['icon']),
+        'title': n['title'],
+        'message': n['message'],
+        'time': n['time'],
+        'isRead': n['isRead'],
+        'color': _colorFromHex(n['color']),
+      };
+    }).toList();
+    return _notifications;
+  }
+
   static int getUnreadCount() {
     return _notifications.where((n) => !n['isRead']).length;
   }
 
-  // ✅ STATIC METHOD - para makuha ang list
   static List<Map<String, dynamic>> getNotifications() {
     return _notifications;
   }
 
-  // ✅ STATIC METHOD - para mag-mark ng read
-  static void markAsRead(int index) {
-    _notifications[index]['isRead'] = true;
+  static Future<void> markAsRead(int index) async {
+    final dbId = _notifications[index]['dbId'];
+    _notifications[index]['isRead'] = true; // update locally immediately
+    try {
+      await ApiService.patch('/notifications/$dbId/read', {});
+    } catch (_) {
+      // local UI already shows it as read; a failed sync here isn't critical,
+      // next load() call will reconcile with the real server state
+    }
   }
 
-  // ✅ STATIC METHOD - para mark all as read
-  static void markAllAsRead() {
+  static Future<void> markAllAsRead() async {
     for (var notification in _notifications) {
       notification['isRead'] = true;
+    }
+    try {
+      await ApiService.post('/notifications/mark-all-read', {});
+    } catch (_) {
+      // same as above — local state already updated
     }
   }
 }
@@ -95,8 +92,33 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
+  bool _loading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
+
+  Future<void> _loadNotifications() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      await NotificationData.load();
+      setState(() => _loading = false);
+    } catch (e) {
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
   void _viewNotification(int index) {
-    // ✅ Mark as read using static method
+    // ✅ Mark as read using static method (now syncs to the database)
     NotificationData.markAsRead(index);
 
     final notification = NotificationData.getNotifications()[index];
@@ -169,10 +191,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
         centerTitle: false,
         actions: [
           TextButton(
-            onPressed: () {
-              // ✅ Mark all as read using static method
-              NotificationData.markAllAsRead();
+            onPressed: () async {
+              // ✅ Mark all as read using static method (syncs to database)
+              await NotificationData.markAllAsRead();
               setState(() {});
+              if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('All notifications marked as read'),
@@ -244,23 +267,45 @@ class _NotificationsPageState extends State<NotificationsPage> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: notifications.length,
-              itemBuilder: (context, index) {
-                final notification = notifications[index];
-                return _buildNotificationItem(
-                  context,
-                  index,
-                  notification['icon'],
-                  notification['title'],
-                  notification['message'],
-                  notification['time'],
-                  notification['isRead'],
-                  notification['color'],
-                );
-              },
-            ),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _loadError != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _loadError!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _loadNotifications,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadNotifications,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: notifications.length,
+                      itemBuilder: (context, index) {
+                        final notification = notifications[index];
+                        return _buildNotificationItem(
+                          context,
+                          index,
+                          notification['icon'],
+                          notification['title'],
+                          notification['message'],
+                          notification['time'],
+                          notification['isRead'],
+                          notification['color'],
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -398,8 +443,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              await ApiService.logout();
+              if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const PCLogin()),

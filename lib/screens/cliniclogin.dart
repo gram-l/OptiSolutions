@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dashboard.dart';
+import '../services/api_service.dart';
 
 class PCLogin extends StatefulWidget {
   const PCLogin({super.key});
@@ -31,19 +32,37 @@ class _PCLoginState extends State<PCLogin> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      // Note: this calls Laravel's default email-based login. Your field is
+      // labeled "Username" — if staff log in with an email address, this
+      // works as-is. If you need actual usernames, update the Laravel
+      // AuthController to look up by a "username" column instead of "email".
+      await ApiService.login(
+        _usernameController.text,
+        _passwordController.text,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (mounted) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const Dashboard()),
       );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

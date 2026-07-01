@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'cliniclogin.dart';
 import 'inquiries.dart';
@@ -9,6 +10,7 @@ import 'settings.dart';
 import 'help.dart';
 import 'notifications.dart';
 import '../widgets/notification_badge.dart';
+import '../services/api_service.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -18,44 +20,115 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  // Sample recent activities data
-  final List<Map<String, dynamic>> _recentActivities = [
-    {
-      'icon': Icons.calendar_today,
-      'title': 'New Schedule Visit',
-      'description': 'Juan Dela Cruz booked an appointment with Dr. Lee',
-      'time': '2 minutes ago',
-      'color': Colors.blue,
-    },
-    {
-      'icon': Icons.question_answer,
-      'title': 'New Inquiry',
-      'description': 'Maria Santos sent a new inquiry about eye consultation',
-      'time': '15 minutes ago',
-      'color': Colors.green,
-    },
-    {
-      'icon': Icons.medical_services,
-      'title': 'Doctor Status Updated',
-      'description': 'Dr. Mendoza is now available for appointments',
-      'time': '1 hour ago',
-      'color': Colors.purple,
-    },
-    {
-      'icon': Icons.person_add,
-      'title': 'New Patient Registered',
-      'description': 'Robert Lim has been registered as a new patient',
-      'time': '2 hours ago',
-      'color': Colors.orange,
-    },
-    {
-      'icon': Icons.check_circle,
-      'title': 'Inquiry Resolved',
-      'description': 'Inquiry from Anna Rivera has been resolved',
-      'time': '3 hours ago',
-      'color': Colors.teal,
-    },
-  ];
+  // ✅ Now loaded from the database via API instead of hardcoded
+  List<Map<String, dynamic>> _recentActivities = [];
+  bool _loading = true;
+  String? _loadError;
+
+  // ✅ Stats card counts — pulled from the same endpoints used by the other pages
+  int _appointmentsCount = 0;
+  int _pendingInquiriesCount = 0;
+  int _activeDoctorsCount = 0;
+  int _patientsCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  IconData _iconFromName(String? name) {
+    switch (name) {
+      case 'question_answer':
+        return Icons.question_answer;
+      case 'calendar_today':
+        return Icons.calendar_today;
+      case 'medical_services':
+        return Icons.medical_services;
+      case 'person':
+      case 'person_add':
+        return Icons.person_add;
+      case 'check_circle':
+        return Icons.check_circle;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  Color _colorFromHex(String? hex) {
+    if (hex == null || hex.isEmpty) return Colors.blueGrey;
+    final cleanHex = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$cleanHex', radix: 16));
+  }
+
+  Future<void> _preloadNotifications() async {
+    try {
+      await NotificationData.load();
+      if (mounted) setState(() {});
+    } catch (_) {
+      // non-critical — badge will just show 0 until the Notifications page is visited
+    }
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+
+    try {
+      // Run all the requests in parallel instead of one-by-one
+      final results = await Future.wait([
+        ApiService.get('/appointments'),
+        ApiService.get('/inquiries'),
+        ApiService.get('/doctors'),
+        ApiService.get('/patients'),
+        ApiService.get('/notifications'),
+      ]);
+
+      final appointments = results[0] as List;
+      final inquiries = results[1] as List;
+      final doctors = results[2] as List;
+      final patients = results[3] as List;
+      final notifications = results[4] as List;
+
+      setState(() {
+        _appointmentsCount = appointments.length;
+        _pendingInquiriesCount = inquiries
+            .where((i) => i['isNew'] == true)
+            .length;
+        _activeDoctorsCount = doctors
+            .where((d) => d['status'] == 'Available')
+            .length;
+        _patientsCount = patients.length;
+
+        // Reuse the notifications feed as the "Recent Activities" list —
+        // swap this for a dedicated /activities endpoint later if you add one.
+        _recentActivities = notifications.take(5).map<Map<String, dynamic>>((
+          n,
+        ) {
+          return {
+            'icon': _iconFromName(n['icon']),
+            'title': n['title'],
+            'description': n['message'],
+            'time': n['time'],
+            'color': _colorFromHex(n['color']),
+          };
+        }).toList();
+
+        _loading = false;
+      });
+
+      // Preload notifications separately so the bell badge count is accurate
+      // from the moment the app opens, not just after visiting that page.
+      unawaited(_preloadNotifications());
+    } catch (e) {
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,28 +136,48 @@ class _DashboardState extends State<Dashboard> {
       backgroundColor: Colors.grey.shade50,
       appBar: _buildAppBar(),
       drawer: _buildDrawer(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ✅ Greeting with colored background - NO CIRCLE
-            _buildGreetingCard(),
-            const SizedBox(height: 20),
-            // ✅ Stats Cards - 4 cards in 2 rows
-            _buildStatsGrid(),
-            const SizedBox(height: 20),
-            // Inquiry Volume Chart
-            _buildInquiryVolume(),
-            const SizedBox(height: 20),
-            // ✅ Sentiment Analysis - renamed to "Patient Feedback Overview"
-            _buildSentimentAnalysis(),
-            const SizedBox(height: 20),
-            // ✅ Recent Activities
-            _buildRecentActivities(),
-          ],
-        ),
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_loadError!, style: const TextStyle(color: Colors.red)),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _loadDashboardData,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadDashboardData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ✅ Greeting with colored background - NO CIRCLE
+                    _buildGreetingCard(),
+                    const SizedBox(height: 20),
+                    // ✅ Stats Cards - 4 cards in 2 rows
+                    _buildStatsGrid(),
+                    const SizedBox(height: 20),
+                    // Inquiry Volume Chart
+                    _buildInquiryVolume(),
+                    const SizedBox(height: 20),
+                    // ✅ Sentiment Analysis - renamed to "Patient Feedback Overview"
+                    _buildSentimentAnalysis(),
+                    const SizedBox(height: 20),
+                    // ✅ Recent Activities
+                    _buildRecentActivities(),
+                  ],
+                ),
+              ),
+            ),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
@@ -131,7 +224,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  // ✅ 4 Stats Cards (2 rows of 2)
+  // ✅ 4 Stats Cards (2 rows of 2) — now using real counts from the API
   Widget _buildStatsGrid() {
     return Column(
       children: [
@@ -139,7 +232,7 @@ class _DashboardState extends State<Dashboard> {
           children: [
             Expanded(
               child: _buildStatCard(
-                '15',
+                '$_appointmentsCount',
                 'Schedule Visits',
                 Icons.calendar_today,
                 Colors.blue,
@@ -148,7 +241,7 @@ class _DashboardState extends State<Dashboard> {
             const SizedBox(width: 10),
             Expanded(
               child: _buildStatCard(
-                '8',
+                '$_pendingInquiriesCount',
                 'Pending Inquiries',
                 Icons.question_answer,
                 Colors.orange,
@@ -161,7 +254,7 @@ class _DashboardState extends State<Dashboard> {
           children: [
             Expanded(
               child: _buildStatCard(
-                '6',
+                '$_activeDoctorsCount',
                 'Active Doctors',
                 Icons.medical_services,
                 Colors.green,
@@ -170,7 +263,7 @@ class _DashboardState extends State<Dashboard> {
             const SizedBox(width: 10),
             Expanded(
               child: _buildStatCard(
-                '10',
+                '$_patientsCount',
                 'Registered Patients',
                 Icons.people,
                 Colors.purple,
@@ -725,8 +818,10 @@ class _DashboardState extends State<Dashboard> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              await ApiService.logout();
+              if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const PCLogin()),

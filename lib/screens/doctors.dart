@@ -8,6 +8,7 @@ import 'profile.dart';
 import 'notifications.dart';
 import 'settings.dart';
 import '../widgets/notification_badge.dart';
+import '../services/api_service.dart';
 
 class DoctorsPage extends StatefulWidget {
   const DoctorsPage({super.key});
@@ -21,63 +22,52 @@ class _DoctorsPageState extends State<DoctorsPage> {
   String _searchQuery = '';
   String _selectedDepartment = 'All Departments';
 
-  // Sample doctors data
-  final List<Map<String, dynamic>> _allDoctors = [
-    {
-      'name': 'Dr. Kent Lee',
-      'specialty': 'Cardiology',
-      'status': 'Available',
-      'schedule': 'Mon - Thurs',
-      'time': '9:00am - 3:00pm',
-      'avatar': 'KL',
-      'color': Colors.blue,
-    },
-    {
-      'name': 'Dr. Ben Miller',
-      'specialty': 'Neurologist',
-      'status': 'Unavailable',
-      'schedule': 'Tues - Thurs',
-      'time': '8:00am - 1:00pm',
-      'avatar': 'BM',
-      'color': Colors.red,
-    },
-    {
-      'name': 'Dr. Klain Smith',
-      'specialty': 'Ophthalmology',
-      'status': 'Unavailable',
-      'schedule': 'Thurs - Sun',
-      'time': '10:00am - 4:00pm',
-      'avatar': 'KS',
-      'color': Colors.orange,
-    },
-    {
-      'name': 'Dr. Khey Mendoza',
-      'specialty': 'OB-Gyne',
-      'status': 'Available',
-      'schedule': 'Mon - Fri',
-      'time': '8:00am - 3:00pm',
-      'avatar': 'KM',
-      'color': Colors.green,
-    },
-    {
-      'name': 'Dr. Sarah Reyes',
-      'specialty': 'Pediatrics',
-      'status': 'Available',
-      'schedule': 'Mon - Wed',
-      'time': '9:00am - 2:00pm',
-      'avatar': 'SR',
-      'color': Colors.purple,
-    },
-    {
-      'name': 'Dr. Mark Cruz',
-      'specialty': 'Orthopedics',
-      'status': 'Unavailable',
-      'schedule': 'Fri - Sun',
-      'time': '10:00am - 5:00pm',
-      'avatar': 'MC',
-      'color': Colors.teal,
-    },
-  ];
+  // ✅ Now loaded from the database via API instead of hardcoded
+  List<Map<String, dynamic>> _allDoctors = [];
+  bool _loading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDoctors();
+  }
+
+  Future<void> _loadDoctors() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final result = await ApiService.get('/doctors');
+      setState(() {
+        _allDoctors = (result as List).map<Map<String, dynamic>>((doc) {
+          return {
+            'id': doc['id'],
+            'name': doc['name'],
+            'specialty': doc['specialty'],
+            'status': doc['status'],
+            'schedule': doc['schedule'],
+            'time': doc['time'],
+            'avatar': doc['avatar'],
+            'color': _hexToColor(doc['color']),
+          };
+        }).toList();
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
+  Color _hexToColor(String? hex) {
+    if (hex == null || hex.isEmpty) return Colors.blueGrey;
+    final cleanHex = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$cleanHex', radix: 16));
+  }
 
   // Get unique departments for filter
   List<String> get _departments {
@@ -112,28 +102,40 @@ class _DoctorsPageState extends State<DoctorsPage> {
     return result;
   }
 
-  // Toggle availability status
-  void _toggleAvailability(String name) {
-    setState(() {
-      final index = _allDoctors.indexWhere((doc) => doc['name'] == name);
-      if (index != -1) {
-        final updatedDoctor = Map<String, dynamic>.from(_allDoctors[index]);
-        updatedDoctor['status'] = updatedDoctor['status'] == 'Available'
-            ? 'Unavailable'
-            : 'Available';
-        _allDoctors[index] = updatedDoctor;
-      }
-    });
+  // Toggle availability status — now saves to the database
+  void _toggleAvailability(String name) async {
+    final index = _allDoctors.indexWhere((doc) => doc['name'] == name);
+    if (index == -1) return;
 
-    final doctor = _allDoctors.firstWhere((doc) => doc['name'] == name);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${doctor['name']} is now ${doctor['status']}'),
-        backgroundColor: doctor['status'] == 'Available'
-            ? Colors.green
-            : Colors.red,
-      ),
-    );
+    final doctor = _allDoctors[index];
+    final newStatus = doctor['status'] == 'Available'
+        ? 'Unavailable'
+        : 'Available';
+
+    try {
+      await ApiService.patch('/doctors/${doctor['id']}', {'status': newStatus});
+      setState(() {
+        final updatedDoctor = Map<String, dynamic>.from(_allDoctors[index]);
+        updatedDoctor['status'] = newStatus;
+        _allDoctors[index] = updatedDoctor;
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${doctor['name']} is now $newStatus'),
+          backgroundColor: newStatus == 'Available' ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // Edit Schedule
@@ -200,31 +202,51 @@ class _DoctorsPageState extends State<DoctorsPage> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    final index = _allDoctors.indexWhere(
-                      (d) => d['name'] == doctor['name'],
-                    );
-                    if (index != -1) {
+                onPressed: () async {
+                  final index = _allDoctors.indexWhere(
+                    (d) => d['name'] == doctor['name'],
+                  );
+                  if (index == -1) return;
+
+                  final newSchedule = daysController.text.trim().isNotEmpty
+                      ? daysController.text.trim()
+                      : doctor['schedule'];
+                  final newTime = timeController.text.trim().isNotEmpty
+                      ? timeController.text.trim()
+                      : doctor['time'];
+
+                  try {
+                    await ApiService.patch('/doctors/${doctor['id']}', {
+                      'schedule': newSchedule,
+                      'time': newTime,
+                    });
+
+                    setState(() {
                       final updatedDoctor = Map<String, dynamic>.from(
                         _allDoctors[index],
                       );
-                      if (daysController.text.trim().isNotEmpty) {
-                        updatedDoctor['schedule'] = daysController.text.trim();
-                      }
-                      if (timeController.text.trim().isNotEmpty) {
-                        updatedDoctor['time'] = timeController.text.trim();
-                      }
+                      updatedDoctor['schedule'] = newSchedule;
+                      updatedDoctor['time'] = newTime;
                       _allDoctors[index] = updatedDoctor;
-                    }
-                  });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Schedule updated successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                    });
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Schedule updated successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to update: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A237E),
@@ -301,15 +323,37 @@ class _DoctorsPageState extends State<DoctorsPage> {
           _buildHeader(),
           _buildSearchAndFilter(),
           Expanded(
-            child: _filteredDoctors.isEmpty
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _loadError != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _loadError!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _loadDoctors,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _filteredDoctors.isEmpty
                 ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredDoctors.length,
-                    itemBuilder: (context, index) {
-                      final doctor = _filteredDoctors[index];
-                      return _buildDoctorCard(doctor);
-                    },
+                : RefreshIndicator(
+                    onRefresh: _loadDoctors,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _filteredDoctors.length,
+                      itemBuilder: (context, index) {
+                        final doctor = _filteredDoctors[index];
+                        return _buildDoctorCard(doctor);
+                      },
+                    ),
                   ),
           ),
         ],
@@ -906,8 +950,10 @@ class _DoctorsPageState extends State<DoctorsPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              await ApiService.logout();
+              if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const PCLogin()),

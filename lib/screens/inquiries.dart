@@ -9,6 +9,7 @@ import 'profile.dart';
 import 'notifications.dart';
 import 'settings.dart';
 import '../widgets/notification_badge.dart';
+import '../services/api_service.dart';
 
 class InquiriesPage extends StatefulWidget {
   const InquiriesPage({super.key});
@@ -21,53 +22,45 @@ class _InquiriesPageState extends State<InquiriesPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  List<Map<String, dynamic>> _allInquiries = [
-    {
-      'id': 'CHAT-001',
-      'patientId': 'P-12345',
-      'department': 'Ophthalmology',
-      'message': 'When will my eye consultation be scheduled?',
-      'date': 'May 22',
-      'time': '10:30 AM',
-      'isNew': false,
-    },
-    {
-      'id': 'CHAT-002',
-      'patientId': 'P-67890',
-      'department': 'Pediatrics',
-      'message': 'My son has a fever, what should I do?',
-      'date': 'May 22',
-      'time': '2:15 PM',
-      'isNew': true,
-    },
-    {
-      'id': 'CHAT-003',
-      'patientId': 'P-24680',
-      'department': 'General',
-      'message': 'Thank you for the information!',
-      'date': 'May 21',
-      'time': '11:00 AM',
-      'isNew': false,
-    },
-    {
-      'id': 'CHAT-004',
-      'patientId': 'P-13579',
-      'department': 'Pharmacy',
-      'message': 'Can I get a prescription refill?',
-      'date': 'May 21',
-      'time': '3:45 PM',
-      'isNew': false,
-    },
-    {
-      'id': 'CHAT-005',
-      'patientId': 'P-98765',
-      'department': 'General',
-      'message': 'Is my appointment still confirmed?',
-      'date': 'May 20',
-      'time': '9:30 AM',
-      'isNew': false,
-    },
-  ];
+  // ✅ Now loaded from the database via API instead of hardcoded
+  List<Map<String, dynamic>> _allInquiries = [];
+  bool _loading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInquiries();
+  }
+
+  Future<void> _loadInquiries() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final result = await ApiService.get('/inquiries');
+      setState(() {
+        _allInquiries = (result as List).map<Map<String, dynamic>>((inq) {
+          return {
+            'id': inq['id'],
+            'patientId': inq['patientId'],
+            'department': inq['department'],
+            'message': inq['message'],
+            'date': inq['date'],
+            'time': inq['time'],
+            'isNew': inq['isNew'],
+          };
+        }).toList();
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
 
   List<Map<String, dynamic>> get _filteredInquiries {
     if (_searchQuery.isEmpty) return _allInquiries;
@@ -88,12 +81,10 @@ class _InquiriesPageState extends State<InquiriesPage> {
     });
   }
 
-  // ✅ Get last message from storage
+  // ✅ The API already returns the latest message as part of each inquiry
+  // (see Inquiry::toApiArray() in Laravel), so no separate lookup is needed.
   String _getLastMessage(String inquiryId) {
-    final lastMsg = InquiryChatStorage.getLastMessage(inquiryId);
-    return lastMsg.isNotEmpty
-        ? lastMsg
-        : _allInquiries.firstWhere((inq) => inq['id'] == inquiryId)['message'];
+    return _allInquiries.firstWhere((inq) => inq['id'] == inquiryId)['message'];
   }
 
   @override
@@ -108,47 +99,69 @@ class _InquiriesPageState extends State<InquiriesPage> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: _filteredInquiries.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      itemCount: _filteredInquiries.length,
-                      itemBuilder: (context, index) {
-                        final inquiry = _filteredInquiries[index];
-                        final lastMessage = _getLastMessage(inquiry['id']);
-                        return GestureDetector(
-                          onTap: () async {
-                            // ✅ Navigate and wait for result
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => InquiryChatPage(
-                                  inquiryId: inquiry['id'],
-                                  patientId: inquiry['patientId'],
-                                  department: inquiry['department'],
-                                  initialMessage: inquiry['message'],
-                                  date: inquiry['date'],
-                                  time: inquiry['time'],
-                                  onReplySent: () =>
-                                      markInquiryAsRead(inquiry['id']),
-                                ),
-                              ),
-                            );
-
-                            // ✅ Refresh pagbalik
-                            if (result == true) {
-                              setState(() {});
-                            }
-                          },
-                          child: _buildInquiryItem(
-                            inquiry['id'],
-                            inquiry['patientId'],
-                            inquiry['department'],
-                            lastMessage,
-                            inquiry['date'],
-                            inquiry['isNew'],
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _loadError != null
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _loadError!,
+                            style: const TextStyle(color: Colors.red),
                           ),
-                        );
-                      },
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: _loadInquiries,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _filteredInquiries.isEmpty
+                  ? _buildEmptyState()
+                  : RefreshIndicator(
+                      onRefresh: _loadInquiries,
+                      child: ListView.builder(
+                        itemCount: _filteredInquiries.length,
+                        itemBuilder: (context, index) {
+                          final inquiry = _filteredInquiries[index];
+                          final lastMessage = _getLastMessage(inquiry['id']);
+                          return GestureDetector(
+                            onTap: () async {
+                              // ✅ Navigate and wait for result
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => InquiryChatPage(
+                                    inquiryId: inquiry['id'],
+                                    patientId: inquiry['patientId'],
+                                    department: inquiry['department'],
+                                    initialMessage: inquiry['message'],
+                                    date: inquiry['date'],
+                                    time: inquiry['time'],
+                                    onReplySent: () =>
+                                        markInquiryAsRead(inquiry['id']),
+                                  ),
+                                ),
+                              );
+
+                              // ✅ Refresh pagbalik
+                              if (result == true) {
+                                setState(() {});
+                              }
+                            },
+                            child: _buildInquiryItem(
+                              inquiry['id'],
+                              inquiry['patientId'],
+                              inquiry['department'],
+                              lastMessage,
+                              inquiry['date'],
+                              inquiry['isNew'],
+                            ),
+                          );
+                        },
+                      ),
                     ),
             ),
           ),
@@ -635,8 +648,10 @@ class _InquiriesPageState extends State<InquiriesPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              await ApiService.logout();
+              if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const PCLogin()),

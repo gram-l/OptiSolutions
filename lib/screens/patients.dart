@@ -8,6 +8,7 @@ import 'profile.dart';
 import 'notifications.dart';
 import 'settings.dart';
 import '../widgets/notification_badge.dart';
+import '../services/api_service.dart';
 
 class PatientsPage extends StatefulWidget {
   const PatientsPage({super.key});
@@ -26,119 +27,48 @@ class _PatientsPageState extends State<PatientsPage> {
   DateTime? _endDate;
   bool _isDateFilterActive = false;
 
-  // Sample patients data with dateRegistered
-  final List<Map<String, dynamic>> _allPatients = [
-    {
-      'id': 'P-1001',
-      'name': 'Maria Santos',
-      'department': 'Ophthalmology',
-      'doctor': 'Dr. Maria Reyes',
-      'birthday': '1992-03-15',
-      'contact': '09123456789',
-      'status': 'Active',
-      'dateRegistered': '2026-06-10',
-      'notes': 'Cataract surgery scheduled for June 15. No known allergies.',
-    },
-    {
-      'id': 'P-1002',
-      'name': 'John Dela Cruz',
-      'department': 'Pediatrics',
-      'doctor': 'Dr. Jose Mendoza',
-      'birthday': '2021-08-22',
-      'contact': '09234567890',
-      'status': 'Active',
-      'dateRegistered': '2026-06-15',
-      'notes': 'Routine vaccination. Mild fever last week.',
-    },
-    {
-      'id': 'P-1003',
-      'name': 'Anna Rivera',
-      'department': 'ENT',
-      'doctor': 'Dr. Anna Garcia',
-      'birthday': '1998-11-05',
-      'contact': '09345678901',
-      'status': 'Active',
-      'dateRegistered': '2026-06-20',
-      'notes': 'Chronic sinusitis. Prescribed antibiotics.',
-    },
-    {
-      'id': 'P-1004',
-      'name': 'Carlos Gomez',
-      'department': 'Cardiology',
-      'doctor': 'Dr. Carlos Santos',
-      'birthday': '1968-07-30',
-      'contact': '09456789012',
-      'status': 'Active',
-      'dateRegistered': '2026-06-18',
-      'notes': 'Hypertension. Regular blood pressure monitoring.',
-    },
-    {
-      'id': 'P-1005',
-      'name': 'Elena Cruz',
-      'department': 'Neurology',
-      'doctor': 'Dr. Ben Miller',
-      'birthday': '1981-12-12',
-      'contact': '09567890123',
-      'status': 'Active',
-      'dateRegistered': '2026-06-05',
-      'notes': 'Migraine treatment. Follow-up in 2 weeks.',
-    },
-    {
-      'id': 'P-1006',
-      'name': 'Robert Lim',
-      'department': 'Orthopedics',
-      'doctor': 'Dr. Reyes',
-      'birthday': '1964-09-25',
-      'contact': '09678901234',
-      'status': 'Active',
-      'dateRegistered': '2026-06-25',
-      'notes': 'Knee replacement scheduled for July 10.',
-    },
-    {
-      'id': 'P-1007',
-      'name': 'Sarah Tan',
-      'department': 'Cardiology',
-      'doctor': 'Dr. Carlos Santos',
-      'birthday': '1975-04-10',
-      'contact': '09789012345',
-      'status': 'Active',
-      'dateRegistered': '2026-06-10',
-      'notes': 'Post-surgery checkup.',
-    },
-    {
-      'id': 'P-1008',
-      'name': 'Mike Reyes',
-      'department': 'Pediatrics',
-      'doctor': 'Dr. Jose Mendoza',
-      'birthday': '2020-12-01',
-      'contact': '09890123456',
-      'status': 'Active',
-      'dateRegistered': '2026-06-28',
-      'notes': 'First checkup. Healthy baby.',
-    },
-    {
-      'id': 'P-1009',
-      'name': 'Lisa Tan',
-      'department': 'Ophthalmology',
-      'doctor': 'Dr. Maria Reyes',
-      'birthday': '1990-07-14',
-      'contact': '09901234567',
-      'status': 'Active',
-      'dateRegistered': '2026-05-30',
-      'notes': 'Eye checkup. Needs glasses.',
-    },
-    {
-      'id': 'P-1010',
-      'name': 'David Cruz',
-      'department': 'ENT',
-      'doctor': 'Dr. Anna Garcia',
-      'birthday': '1988-03-22',
-      'contact': '09123456780',
-      'status': 'Active',
-      'dateRegistered': '2026-06-01',
-      'notes': 'Ear infection. Prescribed antibiotics.',
-    },
-  ];
+  // ✅ Now loaded from the database via API instead of hardcoded
+  List<Map<String, dynamic>> _allPatients = [];
+  bool _loading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPatients();
+  }
+
+  Future<void> _loadPatients() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final result = await ApiService.get('/patients');
+      setState(() {
+        _allPatients = (result as List).map<Map<String, dynamic>>((p) {
+          return {
+            'dbId': p['dbId'],
+            'id': p['id'],
+            'name': p['name'],
+            'department': p['department'],
+            'doctor': p['doctor'],
+            'birthday': p['birthday'],
+            'contact': p['contact'],
+            'status': p['status'],
+            'dateRegistered': p['dateRegistered'],
+            'notes': p['notes'],
+          };
+        }).toList();
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
 
   // Get unique departments for filter
   List<String> get _departmentList {
@@ -275,6 +205,8 @@ class _PatientsPageState extends State<PatientsPage> {
         );
       },
     );
+
+    if (!mounted) return;
 
     if (picked != null) {
       final DateTime? endPicked = await showDatePicker(
@@ -528,7 +460,7 @@ class _PatientsPageState extends State<PatientsPage> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   // Validate birthday format
                   final birthday = birthdayController.text.trim();
                   final birthdayRegex = RegExp(r'^\d{4}-\d{2}-\d{2}$');
@@ -546,11 +478,37 @@ class _PatientsPageState extends State<PatientsPage> {
                     return;
                   }
 
-                  setState(() {
-                    final index = _allPatients.indexWhere(
-                      (p) => p['id'] == patient['id'],
-                    );
-                    if (index != -1) {
+                  final index = _allPatients.indexWhere(
+                    (p) => p['id'] == patient['id'],
+                  );
+                  if (index == -1) return;
+
+                  // Build only the fields the user actually changed.
+                  // Note: Laravel's PatientController currently accepts
+                  // name/department/contact/status/notes. Doctor and
+                  // birthday aren't in that controller's validation list yet —
+                  // add them there if you want this dialog to update those too.
+                  final Map<String, dynamic> changes = {};
+                  if (nameController.text.trim().isNotEmpty) {
+                    changes['name'] = nameController.text.trim();
+                  }
+                  if (departmentController.text.trim().isNotEmpty) {
+                    changes['department'] = departmentController.text.trim();
+                  }
+                  if (contactController.text.trim().isNotEmpty) {
+                    changes['contact'] = contactController.text.trim();
+                  }
+                  if (notesController.text.trim().isNotEmpty) {
+                    changes['notes'] = notesController.text.trim();
+                  }
+
+                  try {
+                    final dbId = _allPatients[index]['dbId'];
+                    if (dbId != null && changes.isNotEmpty) {
+                      await ApiService.patch('/patients/$dbId', changes);
+                    }
+
+                    setState(() {
                       final updatedPatient = Map<String, dynamic>.from(
                         _allPatients[index],
                       );
@@ -575,15 +533,25 @@ class _PatientsPageState extends State<PatientsPage> {
                         updatedPatient['notes'] = notesController.text.trim();
                       }
                       _allPatients[index] = updatedPatient;
-                    }
-                  });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Patient updated successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                    });
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Patient updated successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to update: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A237E),
@@ -633,15 +601,37 @@ class _PatientsPageState extends State<PatientsPage> {
           _buildDateFilterBar(),
           _buildSearchAndFilter(),
           Expanded(
-            child: _filteredPatients.isEmpty
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _loadError != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _loadError!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _loadPatients,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _filteredPatients.isEmpty
                 ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredPatients.length,
-                    itemBuilder: (context, index) {
-                      final patient = _filteredPatients[index];
-                      return _buildPatientCard(patient);
-                    },
+                : RefreshIndicator(
+                    onRefresh: _loadPatients,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _filteredPatients.length,
+                      itemBuilder: (context, index) {
+                        final patient = _filteredPatients[index];
+                        return _buildPatientCard(patient);
+                      },
+                    ),
                   ),
           ),
         ],
@@ -1348,8 +1338,10 @@ class _PatientsPageState extends State<PatientsPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              await ApiService.logout();
+              if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const PCLogin()),

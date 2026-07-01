@@ -1,37 +1,8 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
-class InquiryChatStorage {
-  static final Map<String, List<Map<String, dynamic>>> _messages = {};
-  static final Map<String, String> _lastMessages = {};
-
-  static List<Map<String, dynamic>> getMessages(String inquiryId) {
-    return _messages[inquiryId] ?? [];
-  }
-
-  static String getLastMessage(String inquiryId) {
-    return _lastMessages[inquiryId] ?? '';
-  }
-
-  static void addMessage(String inquiryId, Map<String, dynamic> message) {
-    if (!_messages.containsKey(inquiryId)) {
-      _messages[inquiryId] = [];
-    }
-    _messages[inquiryId]!.add(message);
-    _lastMessages[inquiryId] = message['message'];
-  }
-
-  static void initializeMessages(
-    String inquiryId,
-    List<Map<String, dynamic>> initialMessages,
-  ) {
-    if (!_messages.containsKey(inquiryId) || _messages[inquiryId]!.isEmpty) {
-      _messages[inquiryId] = List.from(initialMessages);
-      if (initialMessages.isNotEmpty) {
-        _lastMessages[inquiryId] = initialMessages.last['message'];
-      }
-    }
-  }
-}
+// ✅ InquiryChatStorage removed — messages now come from and are saved to
+// the database via ApiService instead of being kept only in memory.
 
 class InquiryChatPage extends StatefulWidget {
   final String inquiryId;
@@ -63,6 +34,8 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
   List<Map<String, dynamic>> _messages = [];
   bool _hasReplied = false;
   bool _canSend = true;
+  bool _loading = true;
+  String? _loadError;
 
   @override
   void initState() {
@@ -70,38 +43,33 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
     _loadMessages();
   }
 
-  void _loadMessages() {
-    final List<Map<String, dynamic>> initialMessages = [
-      {
-        'sender': 'Patient',
-        'message': 'My ID is ${widget.patientId}',
-        'time': '10:27 AM',
-        'isStaff': false,
-      },
-      {
-        'sender': 'System',
-        'message':
-            'Thank you! I see you have a consultation scheduled with Dr. Reyes on May 28th. Would you like to reschedule or ask about preparation?',
-        'time': '10:28 AM',
-        'isStaff': false,
-      },
-      {
-        'sender': 'Patient',
-        'message': widget.initialMessage,
-        'time': widget.time,
-        'isStaff': false,
-      },
-      {
-        'sender': 'System',
-        'message':
-            'Based on your records, the consultation is tentatively scheduled for June 15th. Would you like me to connect you with an admin for confirmation?',
-        'time': '10:31 AM',
-        'isStaff': false,
-      },
-    ];
-
-    InquiryChatStorage.initializeMessages(widget.inquiryId, initialMessages);
-    _messages = InquiryChatStorage.getMessages(widget.inquiryId);
+  Future<void> _loadMessages() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final result = await ApiService.get(
+        '/inquiries/${widget.inquiryId}/messages',
+      );
+      setState(() {
+        _messages = (result as List).map<Map<String, dynamic>>((m) {
+          return {
+            'sender': m['sender'],
+            'message': m['message'],
+            'time': m['time'],
+            'isStaff': m['isStaff'],
+          };
+        }).toList();
+        _loading = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -111,7 +79,7 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
     super.dispose();
   }
 
-  void _sendReply() {
+  void _sendReply() async {
     // ✅ SIMPLE LANG - kung hindi pwede magsend, return
     if (!_canSend) return;
 
@@ -119,17 +87,9 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
     if (message.isEmpty) return;
 
     // ✅ I-off muna ang send
-    _canSend = false;
+    setState(() => _canSend = false);
 
     final String currentTime = _getCurrentTime();
-
-    if (!_hasReplied) {
-      _hasReplied = true;
-      if (widget.onReplySent != null) {
-        widget.onReplySent!();
-      }
-    }
-
     final newMessage = {
       'sender': 'Staff',
       'message': message,
@@ -137,20 +97,36 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
       'isStaff': true,
     };
 
-    InquiryChatStorage.addMessage(widget.inquiryId, newMessage);
-
-    _replyController.clear();
-
+    // Show it immediately for a snappy feel, then sync with the server.
     setState(() {
       _messages.add(newMessage);
     });
-
+    _replyController.clear();
     _scrollToBottom();
 
-    // ✅ I-on ulit ang send after 1 second
-    Future.delayed(const Duration(seconds: 1), () {
-      _canSend = true;
-    });
+    try {
+      await ApiService.post('/inquiries/${widget.inquiryId}/messages', {
+        'message': message,
+      });
+
+      if (!_hasReplied) {
+        _hasReplied = true;
+        if (widget.onReplySent != null) {
+          widget.onReplySent!();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+
+    if (mounted) setState(() => _canSend = true);
   }
 
   String _getCurrentTime() {
@@ -211,21 +187,40 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                final isStaff = message['isStaff'] as bool;
-                return _buildMessage(
-                  message['sender'],
-                  message['message'],
-                  message['time'],
-                  isStaff,
-                );
-              },
-            ),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _loadError != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _loadError!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _loadMessages,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      final isStaff = message['isStaff'] as bool;
+                      return _buildMessage(
+                        message['sender'],
+                        message['message'],
+                        message['time'],
+                        isStaff,
+                      );
+                    },
+                  ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

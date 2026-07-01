@@ -11,7 +11,7 @@
     <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <title>OptiSolutions - Patient Records</title>
-@vite(['resources/css/admin_css/patients.css', 'resources/css/admin_css/sidebar.css'])
+@vite(['resources/css/admin_css/patients.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 </head>
 <body>
     <!-- Header -->
@@ -21,6 +21,7 @@
     <!-- Main Container -->
     <div class="container">
         @include('admin_acc.sidebar')
+        <div style="flex: 1; min-width: 0;">
         <div class="page-header">
             <h2>
                 <span><i class="fa-regular fa-hospital"></i></span> 
@@ -94,7 +95,7 @@
             </table>
         </div>
     </div>
-
+</div>
     <!-- Add/Edit Patient Modal -->
     <div id="patientModal" class="modal">
         <div class="modal-content">

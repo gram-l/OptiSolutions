@@ -12,7 +12,7 @@
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <title>OptiSolutions - Chatbot Inquiries</title>
     <!-- Vite CSS -->
-    @vite(['resources/css/admin_css/chatbot_logs.css', 'resources/css/admin_css/sidebar.css'
+    @vite(['resources/css/admin_css/chatbot_logs.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/feedback.css'
     ])
 </head>
 <body>
@@ -21,8 +21,8 @@
 
     <!-- Main Container -->
     <div class="container">
-       
-
+        @include('admin_acc.sidebar')
+<div style="flex: 1; min-width: 0;">
         <div class="page-header">
             <h2>
                 <span><i class="bi bi-chat-dots"></i></span> 
@@ -30,7 +30,7 @@
             </h2>
             <p>Review and respond to patient conversations from the AI chatbot</p>
              <!-- Sidebar Navigation -->
-        @include('admin_acc.sidebar')
+       
         </div>
 
         <!-- Chatbot Inquiries Interface -->

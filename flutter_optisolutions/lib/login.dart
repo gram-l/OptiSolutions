@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'services/auth_service.dart';
+import 'services/forgot_password_service.dart';
+
 
 // ─────────────────────────────────────────────────────────────
 //  SHARED CONSTANTS
@@ -242,8 +245,9 @@ class _PrimaryButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  1.  LOGIN SCREEN
+//  1.  LOGIN SCREEN  (with inline error message UI)
 // ─────────────────────────────────────────────────────────────
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -256,6 +260,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _rememberMe = false;
+  bool _loading = false;
+  String? _errorMessage;   // NEW: holds the error text to display inline
 
   @override
   void dispose() {
@@ -264,9 +270,32 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
-    if (_formKey.currentState?.validate() ?? false) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
+  Future<void> _login() async {
+    // Clear any previous error before validating/retrying
+    setState(() => _errorMessage = null);
+
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _loading = true);
+
+    try {
+      final result = await AuthService.login(
+        _emailCtrl.text.trim(),
+        _passwordCtrl.text,
+      );
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (result['success'] == true) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 
@@ -290,7 +319,39 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 4),
             const Text('Welcome back to PolyClinic',
                 style: TextStyle(color: Color(0xFF8A8FA3), fontSize: 13)),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
+
+            // ── NEW: Inline error banner ──
+            if (_errorMessage != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDEAEA),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFF5C6C6)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.error_outline_rounded,
+                        size: 18, color: Color(0xFFD32F2F)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFFD32F2F),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // ── Email ──
             _FormField(
@@ -316,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 10),
 
-            // ── Remember me + Forgot password ──
+            // Remember me + Forgot password
             Row(
               children: [
                 SizedBox(
@@ -334,7 +395,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(fontSize: 12.5, color: Color(0xFF4A5568))),
                 const Spacer(),
                 GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, '/reset'),
+                  onTap: () {
+  print("Forgot Password clicked");
+  Navigator.pushNamed(context, '/reset');
+},
                   child: const Text('Forgot Password?',
                       style: TextStyle(
                           fontSize: 12.5,
@@ -345,12 +409,19 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 22),
 
-            // ── Login button ──
-            _PrimaryButton(
-              label: 'Sign In',
-              icon: Icons.login_rounded,
-              onTap: _login,
-            ),
+            // ── Login button (shows spinner while loading) ──
+            _loading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 13),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _PrimaryButton(
+                    label: 'Sign In',
+                    icon: Icons.login_rounded,
+                    onTap: _login,
+                  ),
           ],
         ),
       ),
@@ -358,9 +429,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  2.  RESET PASSWORD SCREEN
-// ─────────────────────────────────────────────────────────────
+//  2.  RESET PASSWORD SCREEN (Step 1 — enter email, send OTP)
+
+
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
 
@@ -369,18 +440,34 @@ class ResetPasswordScreen extends StatefulWidget {
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
-  final _formKey   = GlobalKey<FormState>();
-  final _phoneCtrl = TextEditingController();
+  final _formKey  = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();   // CHANGED: phone → email
+  bool _loading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
-    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
     super.dispose();
   }
 
-  void _sendOtp() {
-    if (_formKey.currentState?.validate() ?? false) {
-      Navigator.pushNamed(context, '/otp');
+  Future<void> _sendOtp() async {
+    setState(() => _errorMessage = null);
+
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _loading = true);
+
+    final email = _emailCtrl.text.trim();
+    final result = await ForgotPasswordService.sendOtp(email);
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (result['success'] == true) {
+      Navigator.pushNamed(context, '/verify-otp', arguments: email);
+    } else {
+      setState(() => _errorMessage = result['message'] ?? 'Failed to send code.');
     }
   }
 
@@ -401,26 +488,58 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ],
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
 
-            // ── Phone field ──
+            if (_errorMessage != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDEAEA),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFF5C6C6)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFD32F2F)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_errorMessage!,
+                          style: const TextStyle(
+                              fontSize: 12.5, color: Color(0xFFD32F2F), fontWeight: FontWeight.w500)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // ── Email field (was phone) ──
             _FormField(
-              label: 'Registered Phone Number',
-              hint: 'Enter your registered phone number',
-              prefixIcon: Icons.phone_outlined,
-              keyboardType: TextInputType.phone,
-              controller: _phoneCtrl,
+              label: 'Registered Email',
+              hint: 'Enter your registered email',
+              prefixIcon: Icons.email_outlined,
+              keyboardType: TextInputType.emailAddress,
+              controller: _emailCtrl,
               validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Phone number is required' : null,
+                  (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
             ),
             const SizedBox(height: 24),
 
             // ── Send OTP button ──
-            _PrimaryButton(
-              label: 'Send OTP',
-              icon: Icons.send_rounded,
-              onTap: _sendOtp,
-            ),
+            _loading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 13),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _PrimaryButton(
+                    label: 'Send OTP',
+                    icon: Icons.send_rounded,
+                    onTap: _sendOtp,
+                  ),
             const SizedBox(height: 16),
 
             // ── Back to login ──
@@ -428,10 +547,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: const Text('← Back to Login',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: _C.link,
-                        fontWeight: FontWeight.w500)),
+                    style: TextStyle(fontSize: 13, color: _C.link, fontWeight: FontWeight.w500)),
               ),
             ),
           ],
@@ -442,8 +558,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  3.  OTP SCREEN
+//  3.  OTP SCREEN  (Step 2 — verify code, then go to new password)
 // ─────────────────────────────────────────────────────────────
+
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});
 
@@ -452,7 +569,6 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  final _emailCtrl = TextEditingController();
   final List<TextEditingController> _otpCtrl =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes =
@@ -461,13 +577,22 @@ class _OtpScreenState extends State<OtpScreen> {
   static const _totalSeconds = 95;
   int _remaining = _totalSeconds;
   Timer? _timer;
-  bool _sent = false;
+  bool _loading = false;
+  bool _resending = false;
+  String? _errorMessage;
+  String _email = '';   // passed in via Navigator arguments
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is String) _email = args;
+  }
 
   @override
   void initState() {
     super.initState();
     _startTimer();
-    _sent = true;
   }
 
   void _startTimer() {
@@ -490,7 +615,6 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
     for (final c in _otpCtrl) {
       c.dispose();
     }
@@ -509,11 +633,51 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  void _verifyOtp() {
+  Future<void> _verifyOtp() async {
     final code = _otpCtrl.map((c) => c.text).join();
-    if (code.length == 6) {
+    if (code.length != 6) {
+      setState(() => _errorMessage = 'Enter all 6 digits.');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+
+    final result = await ForgotPasswordService.verifyOtp(_email, code);
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (result['success'] == true) {
+      Navigator.pushNamed(
+        context,
+        '/new-password',
+        arguments: {
+          'email': _email,
+          'reset_token': result['reset_token'],
+        },
+      );
+    } else {
+      setState(() => _errorMessage = result['message'] ?? 'Invalid code.');
+    }
+  }
+
+  Future<void> _resend() async {
+    setState(() => _resending = true);
+    final result = await ForgotPasswordService.resendOtp(_email);
+    if (!mounted) return;
+    setState(() => _resending = false);
+
+    if (result['success'] == true) {
+      _startTimer();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP Verified!')),
+        SnackBar(content: Text(result['message'] ?? 'Code resent.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Could not resend code.')),
       );
     }
   }
@@ -527,30 +691,44 @@ class _OtpScreenState extends State<OtpScreen> {
           // ── Heading ──
           const Text('One-Time-Password (OTP)',
               style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 22),
+          const SizedBox(height: 6),
+          Text('Sent to $_email',
+              style: const TextStyle(fontSize: 12.5, color: Color(0xFF8A8FA3))),
+          const SizedBox(height: 18),
 
-          // ── Email field ──
-          _FormField(
-            label: 'Registered Email',
-            hint: 'Enter your registered email',
-            prefixIcon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-            controller: _emailCtrl,
-          ),
-          const SizedBox(height: 12),
-
-          // ── Timer ──
-          if (_sent)
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                _timerText,
-                style: const TextStyle(
-                    fontSize: 13,
-                    color: _C.link,
-                    fontWeight: FontWeight.w600),
+          if (_errorMessage != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDEAEA),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF5C6C6)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFD32F2F)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(_errorMessage!,
+                        style: const TextStyle(
+                            fontSize: 12.5, color: Color(0xFFD32F2F), fontWeight: FontWeight.w500)),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 14),
+          ],
+
+          // ── Timer ──
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              _timerText,
+              style: const TextStyle(fontSize: 13, color: _C.link, fontWeight: FontWeight.w600),
+            ),
+          ),
           const SizedBox(height: 12),
 
           // ── 6-digit OTP boxes ──
@@ -564,26 +742,40 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
           const SizedBox(height: 22),
 
-          // ── Send / Verify OTP button ──
-          _PrimaryButton(
-            label: 'Send OTP',
-            icon: Icons.send_rounded,
-            onTap: _remaining > 0 ? _verifyOtp : null,
-          ),
+          // ── Verify button ──
+          _loading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 13),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : _PrimaryButton(
+                  label: 'Verify Code',
+                  icon: Icons.check_circle_outline_rounded,
+                  onTap: _verifyOtp,
+                ),
           const SizedBox(height: 10),
 
           // ── Resend ──
-          if (_remaining == 0)
-            Center(
-              child: GestureDetector(
-                onTap: _startTimer,
-                child: const Text('Resend OTP',
-                    style: TextStyle(
-                        color: _C.link,
+          Center(
+            child: _resending
+                ? const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : GestureDetector(
+                    onTap: _remaining == 0 ? _resend : null,
+                    child: Text(
+                      'Resend OTP',
+                      style: TextStyle(
+                        color: _remaining == 0 ? _C.link : _C.hint,
                         fontSize: 13,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+          ),
           const SizedBox(height: 6),
 
           // ── Back to login ──
@@ -591,10 +783,7 @@ class _OtpScreenState extends State<OtpScreen> {
             child: GestureDetector(
               onTap: () => Navigator.popUntil(context, ModalRoute.withName('/')),
               child: const Text('← Back to Login',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: _C.link,
-                      fontWeight: FontWeight.w500)),
+                  style: TextStyle(fontSize: 13, color: _C.link, fontWeight: FontWeight.w500)),
             ),
           ),
         ],
@@ -602,9 +791,159 @@ class _OtpScreenState extends State<OtpScreen> {
     );
   }
 }
+// ─────────────────────────────────────────────────────────────
+//  4.  NEW PASSWORD SCREEN  (Step 3 — set new password)
+// ─────────────────────────────────────────────────────────────
+
+class NewPasswordScreen extends StatefulWidget {
+  const NewPasswordScreen({super.key});
+
+  @override
+  State<NewPasswordScreen> createState() => _NewPasswordScreenState();
+}
+
+class _NewPasswordScreenState extends State<NewPasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _passwordCtrl = TextEditingController();
+  final _confirmCtrl  = TextEditingController();
+  bool _loading = false;
+  String? _errorMessage;
+
+  String _email = '';
+  String _resetToken = '';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      _email = args['email'] ?? '';
+      _resetToken = args['reset_token'] ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _passwordCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _errorMessage = null);
+
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _loading = true);
+
+    final result = await ForgotPasswordService.resetPassword(
+      email: _email,
+      resetToken: _resetToken,
+      password: _passwordCtrl.text,
+      passwordConfirmation: _confirmCtrl.text,
+    );
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Password updated.')),
+      );
+      Navigator.popUntil(context, ModalRoute.withName('/'));
+    } else {
+      setState(() => _errorMessage = result['message'] ?? 'Could not reset password.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _AuthScaffold(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.lock_reset_rounded, size: 20, color: Color(0xFF1A1A2E)),
+                SizedBox(width: 8),
+                Text('Set New Password',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            if (_errorMessage != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDEAEA),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFF5C6C6)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFD32F2F)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_errorMessage!,
+                          style: const TextStyle(
+                              fontSize: 12.5, color: Color(0xFFD32F2F), fontWeight: FontWeight.w500)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            _FormField(
+              label: 'New Password',
+              hint: 'Enter new password',
+              prefixIcon: Icons.lock_outline_rounded,
+              isPassword: true,
+              controller: _passwordCtrl,
+              validator: (v) =>
+                  (v == null || v.length < 8) ? 'Min. 8 characters' : null,
+            ),
+            const SizedBox(height: 16),
+
+            _FormField(
+              label: 'Confirm Password',
+              hint: 'Re-enter new password',
+              prefixIcon: Icons.lock_outline_rounded,
+              isPassword: true,
+              controller: _confirmCtrl,
+              validator: (v) =>
+                  (v != _passwordCtrl.text) ? 'Passwords do not match' : null,
+            ),
+            const SizedBox(height: 22),
+
+            _loading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 13),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _PrimaryButton(
+                    label: 'Update Password',
+                    icon: Icons.check_circle_outline_rounded,
+                    onTap: _submit,
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+}
 
 // ─────────────────────────────────────────────────────────────
-//  OTP DIGIT BOX
+//  OTP DIGIT BOX  (add this back at the very bottom of the file,
+//  after NewPasswordScreen — it was accidentally dropped)
 // ─────────────────────────────────────────────────────────────
 class _OtpBox extends StatelessWidget {
   final TextEditingController controller;
@@ -653,3 +992,4 @@ class _OtpBox extends StatelessWidget {
     );
   }
 }
+  

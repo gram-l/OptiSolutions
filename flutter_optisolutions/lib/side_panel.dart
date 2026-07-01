@@ -1,6 +1,7 @@
 // side_panel.dart
 import 'package:flutter/material.dart';
 import 'colors.dart'; 
+import '../services/auth_service.dart';
 
 class SideMenuItem {
   final IconData icon;
@@ -106,13 +107,66 @@ class SidePanel extends StatelessWidget {
               ),
             ),
             const Divider(height: 1),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'Polyclinic Admin v2.0',
-                style: TextStyle(color: AppColors.textGrey, fontSize: 11),
-              ),
-            ),
+
+ListTile(
+  leading: const Icon(
+    Icons.logout,
+    color: Colors.red,
+  ),
+  title: const Text(
+    'Logout',
+    style: TextStyle(
+      color: Colors.red,
+      fontWeight: FontWeight.w600,
+    ),
+  ),
+  onTap: () async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text(
+          'Are you sure you want to logout?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await AuthService.logout();
+
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => false,
+        );
+      }
+    }
+  },
+),
+
+const Divider(height: 1),
+
+const Padding(
+  padding: EdgeInsets.symmetric(vertical: 12),
+  child: Text(
+    'Polyclinic Admin v2.0',
+    style: TextStyle(
+      color: AppColors.textGrey,
+      fontSize: 11,
+    ),
+  ),
+),
           ],
         ),
       ),

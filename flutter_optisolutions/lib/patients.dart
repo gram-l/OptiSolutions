@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
-import 'side_panel.dart';
-import 'main.dart' show appMenuItems;
 // ─────────────────────────────────────────────────────────────
 //  COLORS
 // ─────────────────────────────────────────────────────────────
@@ -104,11 +102,6 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      drawer: SidePanel(
-        items: appMenuItems,
-        currentRoute: '/patients',
-        onItemTap: (route) => Navigator.pushNamed(context, route),
-      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -156,13 +149,6 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
           const Text('Polyclinic',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark, size: 22),
-            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          const SizedBox(width: 4),
           CircleAvatar(
             radius: 16,
             backgroundColor: AppColors.primary,

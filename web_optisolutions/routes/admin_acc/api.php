@@ -2,10 +2,10 @@
  
  
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\ApiForgotPasswordController;
-use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\admin_acc\DoctorController;
 
  
 // ── Auth ──

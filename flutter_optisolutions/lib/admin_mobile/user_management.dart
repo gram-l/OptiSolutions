@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'side_panel.dart';
-import 'main.dart' show appMenuItems;
+import '../main.dart' show appMenuItems;
 import 'services/user_service.dart';
 
 class UserModel {

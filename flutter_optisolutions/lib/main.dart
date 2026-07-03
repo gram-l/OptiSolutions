@@ -1,17 +1,17 @@
 // main.dart
 import 'package:flutter/material.dart';
-import 'colors.dart';
-import 'side_panel.dart';
-import 'login.dart';
-import 'dashboard.dart';
-import 'appointments.dart';
-import 'doctors.dart';
-import 'patients.dart';
-import 'chatbot.dart';
-import 'feedback.dart';
-import 'user_management.dart';
-import 'settings.dart';
-import 'notifications.dart';
+import 'admin_mobile/colors.dart';
+import 'admin_mobile/side_panel.dart';
+import 'admin_mobile/login.dart';
+import 'admin_mobile/dashboard.dart';
+import 'admin_mobile/appointments.dart';
+import 'admin_mobile/doctors.dart';
+import 'admin_mobile/patients.dart';
+import 'admin_mobile/chatbot.dart';
+import 'admin_mobile/feedback.dart';
+import 'admin_mobile/user_management.dart';
+import 'admin_mobile/settings.dart';
+import 'admin_mobile/notifications.dart';
 
 void main() {
   runApp(const PolyclinicApp());

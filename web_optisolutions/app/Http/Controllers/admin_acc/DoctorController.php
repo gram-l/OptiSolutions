@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\admin_acc;
 
 use App\Models\Doctor;
 use Illuminate\Http\Request;

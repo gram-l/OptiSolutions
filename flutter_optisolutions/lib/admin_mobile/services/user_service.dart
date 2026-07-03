@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'package:flutter_optisolutions/config/api_config.dart';
 class UserService {
   // Same base URL as auth_service.dart — keep these in sync.
-  static const String baseUrl = 'http://10.145.123.34:8000/api';
+  static const String baseUrl = ApiConfig.baseUrl;
 
   static Map<String, String> get _headers => {
         'Content-Type': 'application/json',

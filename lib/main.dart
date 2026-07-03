@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/cliniclogin.dart';
+import 'screens/dashboard.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      home: const PCLogin(),
+      home: const Dashboard(),
     );
   }
 }

@@ -9,6 +9,7 @@ import 'notifications.dart';
 import 'settings.dart';
 import 'help.dart';
 import '../widgets/notification_badge.dart';
+import '../services/api_service.dart';
 
 class AppointmentsPage extends StatefulWidget {
   const AppointmentsPage({super.key});
@@ -22,7 +23,50 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   String _searchQuery = '';
   String _selectedFilter = 'All Departments';
 
-  // Get unique departments for filter
+  List<Map<String, dynamic>> _allAppointments = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAppointments();
+  }
+
+  Future<void> _fetchAppointments() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+      final data = await ApiService.get('/appointments');
+
+      // Handle both list and paginated response
+      final List list = data is List ? data : (data['data'] ?? []);
+
+      setState(() {
+        _allAppointments = list
+            .map(
+              (apt) => {
+                'id': 'APP-${apt['id']}',
+                'patientName': apt['patient']?['patient_name'] ?? 'N/A',
+                'doctor': apt['doctor']?['doctor_name'] ?? 'N/A',
+                'department': apt['service_type'] ?? 'N/A',
+                'date': apt['appointment_date'] ?? 'N/A',
+                'status': apt['status'] ?? 'N/A',
+              },
+            )
+            .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
   List<String> get _departments {
     List<String> depts = _allAppointments
         .map((app) => app['department'] as String)
@@ -32,60 +76,6 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return ['All Departments', ...depts];
   }
 
-  // Sample appointments data - REMOVED status and time
-  final List<Map<String, dynamic>> _allAppointments = [
-    {
-      'id': 'APP-001',
-      'patientName': 'Juan Dela Cruz',
-      'doctor': 'Dr. Lee',
-      'department': 'Cardiology',
-      'date': '2026-06-25',
-    },
-    {
-      'id': 'APP-002',
-      'patientName': 'Jasmin Davis',
-      'doctor': 'Dr. Mendoza',
-      'department': 'OB-Gyne',
-      'date': '2026-06-26',
-    },
-    {
-      'id': 'APP-003',
-      'patientName': 'Maria Oh',
-      'doctor': 'Dr. Chu',
-      'department': 'Pulmonology',
-      'date': '2026-06-27',
-    },
-    {
-      'id': 'APP-004',
-      'patientName': 'Shinne Cruz',
-      'doctor': 'Dr. Smith',
-      'department': 'Ophthalmology',
-      'date': '2026-06-28',
-    },
-    {
-      'id': 'APP-005',
-      'patientName': 'Ann Santos',
-      'doctor': 'Dr. Miller',
-      'department': 'Neurology',
-      'date': '2026-06-29',
-    },
-    {
-      'id': 'APP-006',
-      'patientName': 'Robert Tan',
-      'doctor': 'Dr. Reyes',
-      'department': 'Orthopedics',
-      'date': '2026-06-24',
-    },
-    {
-      'id': 'APP-007',
-      'patientName': 'Sarah Lim',
-      'doctor': 'Dr. Garcia',
-      'department': 'Pediatrics',
-      'date': '2026-06-30',
-    },
-  ];
-
-  // Get filtered appointments by department
   List<Map<String, dynamic>> get _filteredAppointments {
     List<Map<String, dynamic>> result = List.from(_allAppointments);
 
@@ -108,7 +98,6 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return result;
   }
 
-  // View appointment details - REMOVED time and status
   void _viewAppointment(Map<String, dynamic> appointment) {
     showDialog(
       context: context,
@@ -134,96 +123,67 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
-  // Download filtered data
-  void _downloadData() {
-    final filtered = _filteredAppointments;
-    if (filtered.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No data to download'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Download Successful'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.download_done, color: Colors.green, size: 60),
-            const SizedBox(height: 10),
-            Text('Downloaded ${filtered.length} appointment(s)'),
-            Text(
-              'Department: $_selectedFilter',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            if (_searchQuery.isNotEmpty)
-              Text(
-                'Search: "$_searchQuery"',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       drawer: _buildDrawer(),
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          _buildHeader(),
-          _buildSearchAndFilter(),
-          Expanded(
-            child: _filteredAppointments.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredAppointments.length,
-                    itemBuilder: (context, index) {
-                      final appointment = _filteredAppointments[index];
-                      return _buildAppointmentCard(appointment);
-                    },
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error, color: Colors.red, size: 60),
+                  const SizedBox(height: 12),
+                  Text(_error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _fetchAppointments,
+                    child: const Text('Retry'),
                   ),
-          ),
-        ],
-      ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                _buildHeader(),
+                _buildSearchAndFilter(),
+                Expanded(
+                  child: _filteredAppointments.isEmpty
+                      ? _buildEmptyState()
+                      : RefreshIndicator(
+                          onRefresh: _fetchAppointments,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _filteredAppointments.length,
+                            itemBuilder: (context, index) {
+                              return _buildAppointmentCard(
+                                _filteredAppointments[index],
+                              );
+                            },
+                          ),
+                        ),
+                ),
+              ],
+            ),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  // ✅ UPDATED AppBar with NotificationBadge
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Row(
         children: [
-          Image.asset(
-            'assets/PCLOGO.png',
-            width: 35,
-            height: 35,
-            fit: BoxFit.contain,
-          ),
+          Image.asset('assets/PCLOGO.png', width: 35, height: 35),
           const SizedBox(width: 12),
           const Text(
             'Polyclinic',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              letterSpacing: 0.5,
               color: Color(0xFF1A237E),
             ),
           ),
@@ -232,32 +192,21 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       backgroundColor: Colors.white,
       foregroundColor: const Color(0xFF1A237E),
       elevation: 2,
-      centerTitle: false,
-      iconTheme: const IconThemeData(color: Color(0xFF1A237E)),
       actions: [
-        // ✅ NOTIFICATION BADGE
         NotificationBadge(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NotificationsPage(),
-              ),
-            );
-          },
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NotificationsPage()),
+          ),
         ),
-        // ✅ LOGOUT BUTTON
         IconButton(
           icon: const Icon(Icons.logout, color: Color(0xFF1A237E)),
-          onPressed: () {
-            _showLogoutDialog(context);
-          },
+          onPressed: () => _showLogoutDialog(context),
         ),
       ],
     );
   }
 
-  // ✅ UPDATED Drawer - REMOVED Notifications
   Widget _buildDrawer() {
     return Drawer(
       child: Column(
@@ -279,8 +228,6 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                   child: ClipOval(
                     child: Image.asset(
                       'assets/PCLOGO.png',
-                      width: 80,
-                      height: 80,
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -305,22 +252,21 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             Navigator.pop(context);
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const ProfilePage()),
+              MaterialPageRoute(builder: (_) => const ProfilePage()),
             );
           }),
-          // ❌ REMOVED Notifications from drawer
           _buildDrawerItem(Icons.settings, 'Settings', false, () {
             Navigator.pop(context);
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const SettingsPage()),
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
             );
           }),
           _buildDrawerItem(Icons.help, 'Help', false, () {
             Navigator.pop(context);
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const HelpPage()),
+              MaterialPageRoute(builder: (_) => const HelpPage()),
             );
           }),
           const Divider(),
@@ -328,7 +274,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const PCLogin()),
+              MaterialPageRoute(builder: (_) => const PCLogin()),
             );
           }),
         ],
@@ -354,14 +300,10 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade800,
         ),
       ),
-      trailing: isActive
-          ? Container(width: 4, height: 24, color: const Color(0xFF1A237E))
-          : null,
       onTap: onTap,
     );
   }
 
-  // Header - CHANGED to "Schedule Visits"
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -381,9 +323,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           ),
           const Spacer(),
           ElevatedButton.icon(
-            onPressed: _downloadData,
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('Download'),
+            onPressed: _fetchAppointments,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Refresh'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A237E),
               foregroundColor: Colors.white,
@@ -398,14 +340,12 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
-  // Search and Filter - CHANGED to department filter
   Widget _buildSearchAndFilter() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: Colors.white,
       child: Row(
         children: [
-          // Search
           Expanded(
             child: Container(
               height: 40,
@@ -417,7 +357,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 controller: _searchController,
                 onChanged: (value) => setState(() => _searchQuery = value),
                 decoration: InputDecoration(
-                  hintText: 'Search schedule visits...',
+                  hintText: 'Search appointments...',
                   hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
                   prefixIcon: const Icon(
                     Icons.search,
@@ -440,37 +380,31 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             ),
           ),
           const SizedBox(width: 8),
-
-          // Department Filter
-          Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButton<String>(
-              value: _selectedFilter,
-              underline: const SizedBox(),
-              icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF1A237E)),
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF1A237E),
-                fontWeight: FontWeight.w500,
+          if (_departments.length > 1)
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
               ),
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedFilter = newValue!;
-                });
-              },
-              items: _departments.map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value, style: const TextStyle(fontSize: 13)),
-                );
-              }).toList(),
+              child: DropdownButton<String>(
+                value: _selectedFilter,
+                underline: const SizedBox(),
+                icon: const Icon(
+                  Icons.arrow_drop_down,
+                  color: Color(0xFF1A237E),
+                ),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF1A237E)),
+                onChanged: (value) => setState(() => _selectedFilter = value!),
+                items: _departments
+                    .map(
+                      (dept) =>
+                          DropdownMenuItem(value: dept, child: Text(dept)),
+                    )
+                    .toList(),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -484,15 +418,19 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           Icon(Icons.calendar_today, size: 60, color: Colors.grey.shade400),
           const SizedBox(height: 12),
           Text(
-            'No schedule visits found',
+            'No appointments found',
             style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _fetchAppointments,
+            child: const Text('Refresh'),
           ),
         ],
       ),
     );
   }
 
-  // Appointment Card
   Widget _buildAppointmentCard(Map<String, dynamic> appointment) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -524,7 +462,6 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                   ),
                 ),
               ),
-              // Department badge
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -568,124 +505,94 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _viewAppointment(appointment),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A237E),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    minimumSize: const Size(0, 36),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.visibility, size: 16),
-                      SizedBox(width: 6),
-                      Text(
-                        'View Details',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _viewAppointment(appointment),
+              icon: const Icon(Icons.visibility, size: 16),
+              label: const Text(
+                'View Details',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A237E),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Bottom Navigation
   Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.2),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF1A237E),
-        unselectedItemColor: Colors.grey.shade400,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        currentIndex: 2,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const Dashboard()),
-                (route) => false,
-              );
-              break;
-            case 1:
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const InquiriesPage()),
-                (route) => false,
-              );
-              break;
-            case 2:
-              break;
-            case 3:
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const DoctorsPage()),
-                (route) => false,
-              );
-              break;
-            case 4:
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const PatientsPage()),
-                (route) => false,
-              );
-              break;
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.question_answer),
-            label: 'Inquiries',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Schedule Visits',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.medical_services),
-            label: 'Doctors',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Patients'),
-        ],
-      ),
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: const Color(0xFF1A237E),
+      unselectedItemColor: Colors.grey.shade400,
+      currentIndex: 2,
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const Dashboard()),
+              (r) => false,
+            );
+            break;
+          case 1:
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const InquiriesPage()),
+              (r) => false,
+            );
+            break;
+          case 2:
+            break;
+          case 3:
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const DoctorsPage()),
+              (r) => false,
+            );
+            break;
+          case 4:
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const PatientsPage()),
+              (r) => false,
+            );
+            break;
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.question_answer),
+          label: 'Inquiries',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_today),
+          label: 'Schedule Visits',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.medical_services),
+          label: 'Doctors',
+        ),
+        BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Patients'),
+      ],
     );
   }
 
-  // ✅ ADD Logout Dialog
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -702,7 +609,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const PCLogin()),
+                MaterialPageRoute(builder: (_) => const PCLogin()),
               );
             },
             style: ElevatedButton.styleFrom(

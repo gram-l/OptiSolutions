@@ -3,9 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\EmailController;
-use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
-use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
 
 Route::get('/', function () {

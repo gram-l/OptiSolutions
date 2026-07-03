@@ -1,7 +1,7 @@
 // side_panel.dart
 import 'package:flutter/material.dart';
 import 'colors.dart'; 
-import '../services/auth_service.dart';
+import 'services/auth_service.dart';
 
 class SideMenuItem {
   final IconData icon;

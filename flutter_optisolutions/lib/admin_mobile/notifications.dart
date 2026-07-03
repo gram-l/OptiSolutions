@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'side_panel.dart';
-import 'main.dart' show appMenuItems;
+import '../main.dart' show appMenuItems;
 
 // ── Data model ────────────────────────────────────────────────────────────────
 enum NotifType { inquiry, appointment, feedback, system }

@@ -1,3 +1,6 @@
+# OptiSolutions
+A Customer Inquiry System and Analytics System with Sentiment Analysis.
+
 # flutter_app_pc
 
 A new Flutter project.

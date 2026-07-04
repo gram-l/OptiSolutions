@@ -6,7 +6,6 @@ use App\Http\Controllers\Staff\AppointmentController;
 use App\Http\Controllers\Staff\InquiryController;
 use App\Http\Controllers\Staff\DoctorController;
 use App\Http\Controllers\Staff\PatientController;
-require __DIR__.'/staff_acc/api.php';
 
     // Staff Login Routes
     Route::get('/staff/login', [StaffController::class, 'login'])->name('staff.login');

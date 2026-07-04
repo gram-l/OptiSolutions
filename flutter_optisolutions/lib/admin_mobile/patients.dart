@@ -91,9 +91,7 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
   ];
   static const _statuses = ['All', 'Active', 'Inactive'];
 
-  void _navigateTo(String route) {
-    if (route != '/patients') Navigator.pushNamed(context, route);
-  }
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<PatientModel> get _filtered => _patients.where((p) {
         final q = _search.toLowerCase();
@@ -107,17 +105,17 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.background,
       drawer: SidePanel(
         items: appMenuItems,
         currentRoute: '/patients',
-        onItemTap: _navigateTo,
+        onItemTap: (route) => Navigator.pushNamed(context, route),
       ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildTopBar(),
             _buildHeader(),
             _buildFilterRow(),
             _buildExportButton(),
@@ -134,63 +132,45 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
     );
   }
 
-  // ── Top bar ──
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          Builder(
-            builder: (ctx) => IconButton(
-              icon: const Icon(Icons.menu, color: AppColors.textDark),
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Container(
-            width: 34, height: 34,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4)],
-            ),
-            child: const _AppIcon(),
-          ),
-          const SizedBox(width: 8),
-          const Text('Polyclinic',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const Spacer(),
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.primary,
-            child: const Text('DL',
-                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: 10),
-          const Icon(Icons.logout_outlined, color: AppColors.textGrey, size: 20),
-        ],
-      ),
-    );
-  }
-
-  // ── Page heading ──
+  // ── Merged header: hamburger + icon box + title + subtitle ──
   Widget _buildHeader() {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(16, 4, 16, 14),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 10, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.folder_shared_outlined, color: AppColors.primary, size: 24),
-              SizedBox(width: 8),
-              Text('Patients',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppColors.iconColor),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
+              Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.folder_shared_outlined,
+                  size: 15,
+                  color: AppColors.iconColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text('Patients',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkNavy,
+                  )),
             ],
           ),
-          SizedBox(height: 2),
-          Text('Manage patient records',
-              style: TextStyle(color: AppColors.textGrey, fontSize: 12.5)),
+          const Padding(
+            padding: EdgeInsets.only(left: 48, top: 4),
+            child: Text('Manage patient records',
+                style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+          ),
         ],
       ),
     );
@@ -738,33 +718,6 @@ class _AddButton extends StatelessWidget {
             Text('Add', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-//  APP ICON (4-quadrant)
-// ─────────────────────────────────────────────────────────────
-class _AppIcon extends StatelessWidget {
-  const _AppIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: GridView.count(
-        crossAxisCount: 2,
-        padding: const EdgeInsets.all(5),
-        mainAxisSpacing: 2,
-        crossAxisSpacing: 2,
-        physics: const NeverScrollableScrollPhysics(),
-        children: const [
-          Icon(Icons.favorite_outline,    color: Color(0xFFE53935), size: 11),
-          Icon(Icons.medical_services,    color: Color(0xFF1565C0), size: 11),
-          Icon(Icons.chat_bubble_outline, color: Color(0xFF43A047), size: 11),
-          Icon(Icons.local_hospital,      color: Color(0xFFFF9800), size: 11),
-        ],
       ),
     );
   }

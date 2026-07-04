@@ -2,6 +2,7 @@
 A Customer Inquiry System and Analytics System with Sentiment Analysis.
 
 # flutter_app_pc
+# flutter_optisolutions
 
 A new Flutter project.
 

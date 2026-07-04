@@ -45,78 +45,72 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     if (route != '/appointments') Navigator.pushNamed(context, route);
   }
 
-final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   Widget build(BuildContext context) {
-   return Scaffold(
-  key: _scaffoldKey,
-  backgroundColor: AppColors.background,
-  drawer: SidePanel(
-    items: appMenuItems,
-    currentRoute: '/appointments',
-    onItemTap: _navigateTo,
-  ),
-
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: AppColors.background,
+      drawer: SidePanel(
+        items: appMenuItems,
+        currentRoute: '/appointments',
+        onItemTap: _navigateTo,
+      ),
       body: SafeArea(
         child: Column(
           children: [
-        Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.menu_rounded),
-                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.event_note_rounded,
-                  size: 24,
-                  color: AppColors.textDark,
-                ),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Appointments',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.menu_rounded, color: AppColors.iconColor),
+                        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      const SizedBox(width: 10),
+                      // ── Icon box, same style as the chatbot header ──
+                      Container(
+                        width: 30, height: 30,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.event_note_rounded,
+                          size: 15,
+                          color: AppColors.iconColor,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Appointments',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkNavy,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 48, top: 4),
+                    child: Text(
+                      'Review & manage patient requests',
+                      style: TextStyle(
+                        color: AppColors.textGrey,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () => Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/',
-              (_) => false,
-            ),
-          ),
-        ],
-      ),
-      const Padding(
-        padding: EdgeInsets.only(left: 40),
-        child: Text(
-          'Review & manage patient requests',
-          style: TextStyle(
-            color: AppColors.textGrey,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    ],
-  ),
-),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -124,11 +118,7 @@ final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 16),
-
-                    // Page title
-                  
                     const SizedBox(height: 2),
-                    
                     const SizedBox(height: 18),
 
                     // Search + filter row
@@ -221,8 +211,6 @@ final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   }
 }
 
-// ── Top Bar ───────────────────────────────────────────────────────────────────
-
 // ── Filter chip / dropdown ────────────────────────────────────────────────────
 class _FilterChip extends StatefulWidget {
   final String value;
@@ -307,7 +295,7 @@ class _WeekNavButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: AppColors.border),
         ),
-        child: Icon(icon, size: 18, color: AppColors.textDark),
+        child: Icon(icon, size: 18, color: AppColors.iconColor),
       ),
     );
   }

@@ -2,37 +2,53 @@
 
 namespace App\Http\Controllers\admin_acc;
 
-use App\Models\Doctor;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
 class DoctorController extends Controller
 {
     // Used by the Blade admin page
-// Used by the Blade admin page
-public function index()
-{
-    $doctors = Doctor::all()->map(function ($doctor) {
-        return [
-            'id' => $doctor->doctor_id,
-            'name' => $doctor->doctor_name,
-            'specialty' => $doctor->specialty,
-            'schedule' => $doctor->schedule,
-            'description' => $doctor->description,
-            'phone' => $doctor->contact_number,
-            'active' => $doctor->status === 'Active',
-        ];
-    });
+    public function index()
+    {
+        $doctors = PatientDoctor::all()->map(function ($doctor) {
+            return [
+                'id' => $doctor->doctor_id,
+                'name' => $doctor->doctor_name,
+                'specialty' => $doctor->specialty,
+                'schedule' => $doctor->schedule,
+                'description' => $doctor->description,
+                'phone' => $doctor->contact_number,
+                'active' => $doctor->status === 'Active',
+            ];
+        });
 
-    return view('admin_acc.doctors', compact('doctors'));
-}
-    // GET /api/doctors — used by Flutter
+        return view('admin_acc.doctors', compact('doctors'));
+    }
+
+    // GET /api/doctors — used by the patient-facing website
     public function apiIndex()
     {
-        $doctors = Doctor::all();
-        return response()->json([
-            'success' => true,
-            'doctors' => $doctors,
-        ]);
+        $doctors = PatientDoctor::where('available', 1)
+            ->get()
+            ->map(function ($doctor) {
+                return [
+                    'doctor_id'        => $doctor->doctor_id,
+                    'doctor_name'      => $doctor->doctor_name,
+                    'specialty'        => $doctor->specialty,
+                    'gender'           => $doctor->gender,
+                    'years_experience' => $doctor->years_experience,
+                    'education'        => $doctor->education,
+                    'license'          => $doctor->license,
+                    'fellowship'       => $doctor->fellowship,
+                    'description'      => $doctor->description,
+                    'clinic_room'      => $doctor->clinic_room,
+                    'profile_image'    => $doctor->profile_image,
+                    'available'        => $doctor->available,
+                    'schedules'        => [], // placeholder until schedules relationship is wired up
+                ];
+            });
+
+        return response()->json($doctors);
     }
 
     // POST /api/doctors
@@ -49,7 +65,7 @@ public function index()
 
         $validated['status'] = $validated['status'] ?? 'Active';
 
-        $doctor = Doctor::create($validated);
+        $doctor = PatientDoctor::create($validated);
 
         return response()->json([
             'success' => true,
@@ -61,7 +77,7 @@ public function index()
     // PUT /api/doctors/{id}
     public function update(Request $request, $id)
     {
-        $doctor = Doctor::find($id);
+        $doctor = PatientDoctor::find($id);
         if (!$doctor) {
             return response()->json(['success' => false, 'message' => 'Doctor not found.'], 404);
         }
@@ -86,7 +102,7 @@ public function index()
     // PATCH /api/doctors/{id}/toggle
     public function toggleStatus($id)
     {
-        $doctor = Doctor::find($id);
+        $doctor = PatientDoctor::find($id);
         if (!$doctor) {
             return response()->json(['success' => false, 'message' => 'Doctor not found.'], 404);
         }
@@ -104,7 +120,7 @@ public function index()
     // DELETE /api/doctors/{id}
     public function destroy($id)
     {
-        $doctor = Doctor::find($id);
+        $doctor = PatientDoctor::find($id);
         if (!$doctor) {
             return response()->json(['success' => false, 'message' => 'Doctor not found.'], 404);
         }

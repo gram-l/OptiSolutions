@@ -13,6 +13,7 @@ use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\ChatbotLogController;
 
+require __DIR__.'/admin_acc/api.php';
 // ── Auth ──
 Route::post('/login', [ApiAuthController::class, 'login']);
 
@@ -44,3 +45,5 @@ Route::post('/schedule-visit', [AppointmentController::class, 'store']);
 Route::post('/complaints', [ComplaintController::class, 'store']);
 Route::post('/feedback', [FeedbackController::class, 'store']);
 Route::post('/chatbot-logs', [ChatbotLogController::class, 'store']);
+
+

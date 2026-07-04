@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -45,9 +46,9 @@ class User extends Authenticatable
 
     public function generateOtp(): string
     {
-        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $this->otp_code = $otp;
-        $this->otp_expires_at = now()->addMinutes(10);
+        $this->otp_expires_at = Carbon::instance(now()->addMinutes(10));
         $this->save();
         return $otp;
     }

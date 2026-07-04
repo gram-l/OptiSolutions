@@ -10,7 +10,7 @@ use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\InquiryController;
 use App\Http\Controllers\Api\NotificationController;
 use Illuminate\Support\Facades\Route;
-require __DIR__.'/admin_acc/api.php';
+require __DIR__.'/staff_acc/api.php';
 // --- Public ---
 Route::post('/login', [AuthController::class, 'login']);
 

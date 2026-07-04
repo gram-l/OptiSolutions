@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
+import 'side_panel.dart';
+import '../main.dart' show appMenuItems;
 // ─────────────────────────────────────────────────────────────
 //  COLORS
 // ─────────────────────────────────────────────────────────────
@@ -89,6 +91,10 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
   ];
   static const _statuses = ['All', 'Active', 'Inactive'];
 
+  void _navigateTo(String route) {
+    if (route != '/patients') Navigator.pushNamed(context, route);
+  }
+
   List<PatientModel> get _filtered => _patients.where((p) {
         final q = _search.toLowerCase();
         final matchSearch = p.name.toLowerCase().contains(q) ||
@@ -102,6 +108,11 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: SidePanel(
+        items: appMenuItems,
+        currentRoute: '/patients',
+        onItemTap: _navigateTo,
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

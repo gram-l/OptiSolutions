@@ -45,22 +45,78 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     if (route != '/appointments') Navigator.pushNamed(context, route);
   }
 
+final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      drawer: SidePanel(
-        items: appMenuItems,
-        currentRoute: '/appointments',
-        onItemTap: _navigateTo,
-      ),
+   return Scaffold(
+  key: _scaffoldKey,
+  backgroundColor: AppColors.background,
+  drawer: SidePanel(
+    items: appMenuItems,
+    currentRoute: '/appointments',
+    onItemTap: _navigateTo,
+  ),
+
       body: SafeArea(
         child: Column(
           children: [
-            _TopBar(
-              weekLabel: _weekLabel,
-              onMenuTap: () => Scaffold.of(context).openDrawer(),
+        Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.menu_rounded),
+                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.event_note_rounded,
+                  size: 24,
+                  color: AppColors.textDark,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Appointments',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textDark,
+              ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () => Navigator.pushNamed(context, '/notifications'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            onPressed: () => Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/',
+              (_) => false,
+            ),
+          ),
+        ],
+      ),
+      const Padding(
+        padding: EdgeInsets.only(left: 40),
+        child: Text(
+          'Review & manage patient requests',
+          style: TextStyle(
+            color: AppColors.textGrey,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    ],
+  ),
+),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -70,25 +126,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     const SizedBox(height: 16),
 
                     // Page title
-                    Row(
-                      children: const [
-                        Icon(Icons.event_note_rounded, color: AppColors.textDark, size: 22),
-                        SizedBox(width: 8),
-                        Text(
-                          'Appointments',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textDark,
-                          ),
-                        ),
-                      ],
-                    ),
+                  
                     const SizedBox(height: 2),
-                    const Text(
-                      'Review & manage patient requests',
-                      style: TextStyle(fontSize: 13, color: AppColors.textGrey),
-                    ),
+                    
                     const SizedBox(height: 18),
 
                     // Search + filter row
@@ -182,71 +222,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 }
 
 // ── Top Bar ───────────────────────────────────────────────────────────────────
-class _TopBar extends StatelessWidget {
-  final String weekLabel;
-  final VoidCallback onMenuTap;
-  const _TopBar({required this.weekLabel, required this.onMenuTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppColors.textDark),
-            onPressed: onMenuTap,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          const SizedBox(width: 10),
-          // Logo image
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              'assets/polyclinic_logo.png',
-              width: 32,
-              height: 32,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE3F2FD),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.local_hospital, color: AppColors.primary, size: 18),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'Polyclinic',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textDark),
-          ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark, size: 22),
-            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          const SizedBox(width: 12),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.textDark, size: 22),
-            onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ── Filter chip / dropdown ────────────────────────────────────────────────────
-class _FilterChip extends StatelessWidget {
+class _FilterChip extends StatefulWidget {
   final String value;
   final List<String> options;
   final ValueChanged<String> onChanged;
@@ -254,23 +232,42 @@ class _FilterChip extends StatelessWidget {
   const _FilterChip({required this.value, required this.options, required this.onChanged});
 
   @override
+  State<_FilterChip> createState() => _FilterChipState();
+}
+
+class _FilterChipState extends State<_FilterChip> {
+  final GlobalKey _chipKey = GlobalKey();
+
+  Future<void> _openMenu() async {
+    final renderBox = _chipKey.currentContext?.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (renderBox == null || overlay == null) return;
+
+    final chipTopLeft = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final chipSize = renderBox.size;
+
+    final position = RelativeRect.fromLTRB(
+      chipTopLeft.dx,
+      chipTopLeft.dy + chipSize.height + 6,
+      overlay.size.width - (chipTopLeft.dx + chipSize.width),
+      0,
+    );
+
+    final picked = await showMenu<String>(
+      context: context,
+      position: position,
+      items: widget.options
+          .map((o) => PopupMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13))))
+          .toList(),
+    );
+    if (picked != null) widget.onChanged(picked);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () async {
-        final picked = await showMenu<String>(
-          context: context,
-          position: RelativeRect.fromLTRB(
-            MediaQuery.of(context).size.width,
-            kToolbarHeight + 80,
-            0,
-            0,
-          ),
-          items: options
-              .map((o) => PopupMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13))))
-              .toList(),
-        );
-        if (picked != null) onChanged(picked);
-      },
+      key: _chipKey,
+      onTap: _openMenu,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
@@ -281,7 +278,7 @@ class _FilterChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(value, style: const TextStyle(fontSize: 12, color: AppColors.textDark)),
+            Text(widget.value, style: const TextStyle(fontSize: 12, color: AppColors.textDark)),
             const SizedBox(width: 4),
             const Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: AppColors.textGrey),
           ],

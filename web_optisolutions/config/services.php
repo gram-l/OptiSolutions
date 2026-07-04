@@ -13,6 +13,13 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'botman' => [
+    'web' => [
+        'matchingData' => [
+            'driver' => 'web'
+        ]
+    ]
+],
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),

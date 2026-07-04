@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'side_panel.dart';
-import 'main.dart' show appMenuItems;
+import '../main.dart' show appMenuItems;
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

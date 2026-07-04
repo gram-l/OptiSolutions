@@ -164,13 +164,7 @@
             });
         });
 
-        // Logout button
-        document.querySelector('.logout-btn').addEventListener('click', function() {
-            if (confirm('Are you sure you want to logout?')) {
-               
-            
-            window.location.href = "patient/home.html";}
-        });
+       
 
         // Animate sentiment bars on load
         window.addEventListener('load', function() {

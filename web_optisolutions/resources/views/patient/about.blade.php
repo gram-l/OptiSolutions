@@ -109,24 +109,13 @@
 <!-- ========== FOOTER ========== -->
 <footer class="footer"><p>© 2026 PolyClinic Lipa · TM Kalaw St., Lipa City, Batangas 4217</p></footer>
 
-<!-- ========== CHATBOT ========== -->
-<button class="chatbot-trigger" onclick="toggleChat()"><i class="fas fa-comment-dots"></i></button>
-<div class="chatbot-panel" id="chatbot">
-  <div class="chat-header">
-    <div class="chat-header-left">
-      <div class="chat-avatar"><i class="fas fa-headset"></i></div>
-      <div class="chat-header-info"><strong>PolyClinic Assistant</strong><span>● Online</span></div>
-    </div>
-    <button onclick="toggleChat()" style="background:none; border:none; color:var(--gray-500); font-size:22px; cursor:pointer;">✕</button>
-  </div>
-  <div class="chat-messages" id="chatMessages"></div>
-  <div class="chat-input-area">
-    <button class="attach-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
-    <input type="text" class="chat-input" id="chatInput" placeholder="Type a message...">
-    <button class="chat-send" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
-    <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="handleImageUpload(event)">
-  </div>
-</div>
+<script>
+    var botmanWidget = {
+        aboutText: 'PolyClinic Assistant',
+        introMessage: "✋ Hi! I'm your PolyClinic Assistant."
+    };
+</script>
+<script src='https://cdn.jsdelivr.net/npm/botman-web-widget@0/build/js/widget.js'></script>
 
 @vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
 

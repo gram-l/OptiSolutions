@@ -202,7 +202,7 @@
         <a href="{{ route('contact') }}" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
       </div>
       <div class="cta-banner-map">
-        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2476.678207385253!2d121.156253!3d13.941975!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33bd5e6e2c64b2c9%3A0x8c7e5e6e2c64b2c9!2sLipa%20City%2C%20Batangas!5e0!3m2!1sen!2sph!4v1700000000000!5m2!1sen!2sph" allowfullscreen loading="lazy"></iframe>
+        <iframe src="https://www.google.com/maps?q=PolyClinic+Lipa,+41+TM+Kalaw+St,+Lipa+City,+4217+Batangas&output=embed" allowfullscreen loading="lazy"></iframe>
       </div>
     </div>
   </div>

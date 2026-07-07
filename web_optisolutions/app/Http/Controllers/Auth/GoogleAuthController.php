@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\admin_models\User;
 use Google_Client;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 
 class GoogleAuthController extends Controller
 {
@@ -25,31 +24,34 @@ class GoogleAuthController extends Controller
         }
 
         $email = $payload['email'];
-        $name  = $payload['name'] ?? $email;
         $googleId = $payload['sub'];
 
-        // Adjust to your actual users table columns (user_id, user_role, etc.)
+        // Only allow login for pre-existing accounts
         $user = User::where('email', $email)->first();
 
         if (!$user) {
-            $user = User::create([
-                'email' => $email,
-                'name' => $name,
-                'google_id' => $googleId,
-                'password' => Hash::make(Str::random(24)), // unused, but keep column satisfied
-                'user_role' => 'patient', // default role — adjust per your business rules
-            ]);
-        } elseif (!$user->google_id) {
-            // Link existing account to Google
+            return response()->json([
+                'message' => 'No account found for this Google email. Please contact your administrator.'
+            ], 404);
+        }
+
+        // Link the Google ID on first-time Google login, so future logins can match on google_id too
+        if (!$user->google_id) {
             $user->update(['google_id' => $googleId]);
         }
 
-        $token = $user->createToken('mobile-app')->plainTextToken;
+        // Establish session for web (Blade) side
+        Auth::login($user, true);
+        $request->session()->regenerate();
+
+        // Also issue a token for mobile clients
+        $token = $user->createToken('web-or-mobile')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful',
             'token' => $token,
             'user' => $user,
+            'redirect' => '/dashboard', // adjust to your actual staff landing route
         ]);
     }
 }

@@ -89,3 +89,8 @@ Route::post('/admin_acc/user_management',              [UserManagementController
 Route::put('/admin_acc/user_management/{id}',          [UserManagementController::class, 'update']);
 Route::patch('/admin_acc/user_management/{id}/toggle', [UserManagementController::class, 'toggleStatus']);
 Route::delete('/admin_acc/user_management/{id}',       [UserManagementController::class, 'destroy']);
+
+//google login route
+use App\Http\Controllers\Auth\GoogleAuthController;
+
+Route::post('/auth/google', [GoogleAuthController::class, 'googleLogin'])->name('auth.google');

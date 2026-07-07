@@ -30,3 +30,6 @@ Route::post('/doctors', [DoctorController::class, 'store']);
 Route::put('/doctors/{id}', [DoctorController::class, 'update']);
 Route::patch('/doctors/{id}/toggle', [DoctorController::class, 'toggleStatus']);
 Route::delete('/doctors/{id}', [DoctorController::class, 'destroy']);
+
+//google login
+Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'googleLogin']);

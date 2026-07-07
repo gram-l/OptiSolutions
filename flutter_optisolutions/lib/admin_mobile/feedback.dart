@@ -114,6 +114,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     'Dermatology',
   ];
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   List<FeedbackModel> get _filtered => _feedbackList.where((f) {
         final q = _search.toLowerCase();
         final matchSearch = f.patientName.toLowerCase().contains(q) ||
@@ -129,7 +131,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
+      key: _scaffoldKey,
+      backgroundColor: AppColors.background,
       drawer: SidePanel(
         items: appMenuItems,
         currentRoute: '/feedback',
@@ -139,7 +142,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildTopBar(),
             _buildHeader(),
             _buildFilterRow(),
             Expanded(
@@ -162,85 +164,45 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     );
   }
 
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          Builder(
-            builder: (ctx) => IconButton(
-              icon: const Icon(Icons.menu, color: AppColors.textDark),
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
-            ),
-          ),
-          const CircleAvatar(
-            radius: 13,
-            backgroundColor: Color(0xFFE3F2FD),
-            child: Icon(Icons.local_hospital,
-                color: AppColors.primary, size: 14),
-          ),
-          const SizedBox(width: 6),
-          const Text('Polyclinic',
-              style:
-                  TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark, size: 22),
-            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.logout_outlined,
-              color: AppColors.textGrey, size: 20),
-        ],
-      ),
-    );
-  }
-
+  // ── Merged header: hamburger + icon box + title + subtitle ──
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      padding: const EdgeInsets.fromLTRB(8, 10, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: () => Navigator.maybePop(context),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.arrow_back_ios_new_rounded,
-                      size: 12, color: Colors.white),
-                  SizedBox(width: 4),
-                  Text('Dashboard',
-                      style:
-                          TextStyle(color: Colors.white, fontSize: 12)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Row(
+          Row(
             children: [
-              Icon(Icons.star_border_rounded,
-                  color: AppColors.primary, size: 22),
-              SizedBox(width: 8),
-              Text('Feedback',
+              IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppColors.iconColor),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
+              Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.star_border_rounded,
+                  size: 15,
+                  color: AppColors.iconColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text('Feedback',
                   style: TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold)),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkNavy,
+                  )),
             ],
           ),
-          const SizedBox(height: 2),
-          const Text('Patient reviews & sentiment',
-              style: TextStyle(
-                  color: AppColors.textGrey, fontSize: 12.5)),
+          const Padding(
+            padding: EdgeInsets.only(left: 48, top: 4),
+            child: Text('Patient reviews & sentiment',
+                style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+          ),
         ],
       ),
     );
@@ -465,7 +427,7 @@ class _SearchField extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(color: AppColors.border),
       ),
       child: TextField(
         onChanged: onChanged,
@@ -501,7 +463,7 @@ class _DropdownChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(color: AppColors.border),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(

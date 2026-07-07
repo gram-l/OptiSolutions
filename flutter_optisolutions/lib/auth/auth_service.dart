@@ -3,11 +3,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_optisolutions/config/api_config.dart';
+import 'package:flutter_optisolutions/auth/google_auth.dart';
 
 class AuthService {
-
-
-
   static Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await http.post(
@@ -22,13 +20,9 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_id', data['user']['user_id'].toString());
-        await prefs.setString('user_email', data['user']['email'] ?? '');
-        await prefs.setString('user_role', data['user']['user_role'] ?? '');
+        await _saveSession(data['user'], data['token']);
         return data;
       } else {
-        // NEW: distinguish common server error cases
         if (response.statusCode == 401) {
           throw Exception(data['message'] ?? 'Incorrect email or password.');
         } else if (response.statusCode == 422) {
@@ -40,15 +34,12 @@ class AuthService {
         }
       }
     } on SocketException {
-      // NEW: no internet / server unreachable
       print('ERROR: SocketException');
       throw Exception('Could not connect to server. Check your internet connection.');
     } on FormatException {
-      // NEW: response wasn't valid JSON (e.g. server returned HTML error page)
       print('ERROR: FormatException');
       throw Exception('Unexpected response from server.');
     } catch (e) {
-      // existing fallback — still catches timeouts and anything else
       print('ERROR: $e');
       if (e.toString().contains('TimeoutException')) {
         throw Exception('Connection timed out. Please try again.');
@@ -57,10 +48,37 @@ class AuthService {
     }
   }
 
+  /// NEW: Google Sign-In, mirrors login() so login.dart can call it the same way
+  static Future<Map<String, dynamic>> loginWithGoogle() async {
+    final googleAuthService = GoogleAuthService();
+    final result = await googleAuthService.signInWithGoogle();
+
+    if (result == null) {
+      throw Exception('Google sign-in was cancelled.');
+    }
+
+    if (result['user'] != null) {
+      await _saveSession(result['user'], result['token']);
+    }
+
+    return result;
+  }
+
+  static Future<void> _saveSession(Map<String, dynamic> user, String? token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', user['user_id'].toString());
+    await prefs.setString('user_email', user['email'] ?? '');
+    await prefs.setString('user_role', user['user_role'] ?? '');
+    if (token != null) {
+      await prefs.setString('auth_token', token);
+    }
+  }
+
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_id');
     await prefs.remove('user_email');
     await prefs.remove('user_role');
+    await prefs.remove('auth_token');
   }
 }

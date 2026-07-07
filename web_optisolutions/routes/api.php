@@ -14,6 +14,7 @@ use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\ChatbotLogController;
 
 require __DIR__.'/admin_acc/api.php';
+require __DIR__.'/staff_acc/api.php';
 // ── Auth ──
 Route::post('/login', [ApiAuthController::class, 'login']);
 

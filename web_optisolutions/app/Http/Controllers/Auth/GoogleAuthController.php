@@ -51,7 +51,7 @@ class GoogleAuthController extends Controller
             'message' => 'Login successful',
             'token' => $token,
             'user' => $user,
-            'redirect' => '/dashboard', // adjust to your actual staff landing route
+            'redirect' => $user->dashboardRoute(), // adjust to your actual staff landing route
         ]);
     }
 }

@@ -144,3 +144,4 @@ Route::get('/admin-css/{file}', function ($file) {
     return response(file_get_contents($path), 200)
         ->header('Content-Type', 'text/css');
 })->where('file', '.*\.css');
+

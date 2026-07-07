@@ -202,7 +202,7 @@
         <a href="{{ route('contact') }}" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
       </div>
       <div class="cta-banner-map">
-        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2476.678207385253!2d121.156253!3d13.941975!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33bd5e6e2c64b2c9%3A0x8c7e5e6e2c64b2c9!2sLipa%20City%2C%20Batangas!5e0!3m2!1sen!2sph!4v1700000000000!5m2!1sen!2sph" allowfullscreen loading="lazy"></iframe>
+        <iframe src="https://www.google.com/maps?q=PolyClinic+Lipa,+41+TM+Kalaw+St,+Lipa+City,+4217+Batangas&output=embed" allowfullscreen loading="lazy"></iframe>
       </div>
     </div>
   </div>
@@ -228,35 +228,20 @@
   </div>
 </div>
 
-<!-- ========== CHATBOT ========== -->
-<button class="chatbot-trigger" onclick="toggleChat()"><i class="fas fa-comment-dots"></i></button>
-<div class="chatbot-panel" id="chatbot">
-  <div class="chat-header">
-    <div class="chat-header-left">
-      <div class="chat-avatar"><i class="fas fa-headset"></i></div>
-      <div class="chat-header-info"><strong>PolyClinic Assistant</strong><span>● Online</span></div>
-    </div>
-    <button onclick="toggleChat()" style="background:none; border:none; color:var(--gray-500); font-size:22px; cursor:pointer;">✕</button>
-  </div>
-  <div class="chat-messages" id="chatMessages"></div>
-  <div class="chat-input-area">
-    <button class="attach-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
-    <input type="text" class="chat-input" id="chatInput" placeholder="Type a message...">
-    <button class="chat-send" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
-    <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="handleImageUpload(event)">
-  </div>
-</div>
+<script>
+    var botmanWidget = {
+        aboutText: 'PolyClinic Assistant',
+        introMessage: "✋ Hi! I'm your PolyClinic Assistant."
+    };
+</script>
+<script src='https://cdn.jsdelivr.net/npm/botman-web-widget@0/build/js/widget.js'></script>
 
 @vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
 
 <script>
   function openChatForReview() {
-    const panel = document.getElementById('chatbot');
-    if (!panel.classList.contains('open')) { toggleChat(); }
-    setTimeout(function() {
-      if (typeof startReviewRating === 'function') { startReviewRating(); }
-    }, 400);
-  }
+  document.querySelector('.desktop-closed-message-avatar')?.click();
+}
 
   function filterDoctorsLive(query) {
     const q = query.trim().toLowerCase();
@@ -288,5 +273,6 @@
     }
   }
 </script>
+
 </body>
 </html>

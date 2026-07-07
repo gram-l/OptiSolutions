@@ -180,7 +180,6 @@ function showDoctorDetails(id) {
         <div class="section-label"><i class="fas fa-heartbeat"></i> Biography</div>
         <div class="bio-text">${doc.bio}</div>
       </div>
-      <button class="modal-book-btn" onclick="bookDoctorFromModal('${doc.name}')">Schedule Visit with ${doc.name}</button>
     </div>`;
   document.getElementById('doctorModal').classList.add('active');
   document.body.style.overflow = 'hidden';
@@ -224,9 +223,6 @@ function openServiceModal(serviceKey) {
           <div class="service-modal-info-item"><span class="label">Schedule</span><span class="value">${service.schedule}</span></div>
         </div>
       </div>
-      <button class="service-modal-book-btn" onclick="bookService('${service.title}')">
-        <i class="fas fa-calendar-check"></i> Schedule Visit for ${service.title}
-      </button>
     </div>`;
   document.getElementById('serviceModal').classList.add('active');
   document.body.style.overflow = 'hidden';
@@ -246,61 +242,7 @@ document.addEventListener('keydown', function(event) {
   if (event.key === 'Escape') closeServiceModal();
 });
 
-// ============ CHATBOT CORE (REWRITTEN FOR BOTMAN) ============
-
-let botUserId = localStorage.getItem('botman_user_id');
-if (!botUserId) {
-  botUserId = 'user_' + Math.random().toString(36).substring(2) + Date.now();
-  localStorage.setItem('botman_user_id', botUserId);
-}
-
-let chatStarted = false;
-
-function addMessage(text, sender, isHtml = false) {
-  const container = document.getElementById('chatMessages');
-  if (!container) return;
-  const div = document.createElement('div');
-  div.className = `chat-message ${sender}`;
-  const bubble = document.createElement('div');
-  bubble.className = 'chat-bubble';
-  if (isHtml) bubble.innerHTML = text;
-  else bubble.textContent = text;
-  div.appendChild(bubble);
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
-
-function addUserMessage(text, isHtml = false) {
-  addMessage(text, 'user', isHtml);
-}
-
-// Renders one or more buttons as a bot bubble, styled like your old menu/service buttons.
-function renderButtons(buttons) {
-  const html = `<div class="menu-grid"><div class="menu-row">` +
-    buttons.map(b =>
-      `<button class="menu-btn" data-value="${encodeURIComponent(b.value)}">${b.text}</button>`
-    ).join('') +
-    `</div></div>`;
-  addMessage(html, 'bot', true);
-
-  const container = document.getElementById('chatMessages');
-  const lastBubble = container.lastElementChild.querySelector('.chat-bubble');
-  lastBubble.querySelectorAll('button[data-value]').forEach(btn => {
-    btn.onclick = () => {
-      const value = decodeURIComponent(btn.dataset.value);
-      sendToBotman(value, btn.textContent.trim());
-    };
-  });
-}
-
-// Core call to BotMan.
-
 // ============ GLOBAL FUNCTIONS ============
-window.sendChatMessage      = sendChatMessage;
-window.toggleChat           = toggleChat;
-window.handleImageUpload    = handleImageUpload;
-window.bookDoctorFromModal  = bookDoctorFromModal;
-window.bookService          = bookService;
 window.showDoctorDetails    = showDoctorDetails;
 window.closeDoctorModal     = closeDoctorModal;
 window.openServiceModal     = openServiceModal;

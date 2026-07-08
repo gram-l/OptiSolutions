@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'cliniclogin.dart';
+
 import 'dashboard.dart';
 import 'inquiries.dart';
 import 'doctors.dart';

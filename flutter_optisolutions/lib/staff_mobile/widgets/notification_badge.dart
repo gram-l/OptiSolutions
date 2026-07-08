@@ -1,94 +1,46 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import '../screens/notifications.dart';
 
-class ApiService {
-  // Android emulator: http://10.0.2.2:8000/api
-  // iOS simulator: http://localhost:8000/api
-  // Physical phone: http://YOUR_COMPUTER_LOCAL_IP:8000/api (same WiFi)
-  static const String baseUrl = 'http://192.168.1.10:8000/api';
+class NotificationBadge extends StatelessWidget {
+  final VoidCallback onTap;
 
-  static Future<String?> _token() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
-  }
+  const NotificationBadge({super.key, required this.onTap});
 
-  static Future<Map<String, String>> _headers() async {
-    final token = await _token();
-    return {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
-  }
+  @override
+  Widget build(BuildContext context) {
+    final unreadCount = NotificationData.getUnreadCount();
 
-  static Future<Map<String, dynamic>> login(
-    String email,
-    String password,
-  ) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/login'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({'email': email, 'password': password}),
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications, color: Color(0xFF1A237E)),
+          onPressed: onTap,
+          tooltip: 'Notifications',
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            right: 6,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              child: Text(
+                unreadCount > 9 ? '9+' : '$unreadCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
     );
-    final data = jsonDecode(res.body);
-    if (res.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Login failed');
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', data['token']);
-    return data['user'];
-  }
-
-  static Future<void> logout() async {
-    try {
-      await http.post(Uri.parse('$baseUrl/logout'), headers: await _headers());
-    } catch (_) {
-      // even if the request fails, still clear the local token below
-    }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
-  }
-
-  static Future<dynamic> get(String path) async {
-    final res = await http.get(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(),
-    );
-    final data = jsonDecode(res.body);
-    if (res.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Request failed');
-    }
-    return data;
-  }
-
-  static Future<dynamic> patch(String path, Map<String, dynamic> body) async {
-    final res = await http.patch(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(),
-      body: jsonEncode(body),
-    );
-    final data = jsonDecode(res.body);
-    if (res.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Request failed');
-    }
-    return data;
-  }
-
-  static Future<dynamic> post(String path, Map<String, dynamic> body) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(),
-      body: jsonEncode(body),
-    );
-    final data = jsonDecode(res.body);
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception(data['message'] ?? 'Request failed');
-    }
-    return data;
   }
 }

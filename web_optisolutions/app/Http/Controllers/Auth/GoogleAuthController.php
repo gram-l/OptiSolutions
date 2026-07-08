@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\admin_models\User;
 use Google_Client;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class GoogleAuthController extends Controller
 {
@@ -40,18 +39,14 @@ class GoogleAuthController extends Controller
             $user->update(['google_id' => $googleId]);
         }
 
-        // Establish session for web (Blade) side
-        Auth::login($user, true);
-        $request->session()->regenerate();
-
-        // Also issue a token for mobile clients
-        $token = $user->createToken('web-or-mobile')->plainTextToken;
+        // Issue a Sanctum token for the mobile client — this is the auth mechanism, no session needed
+        $token = $user->createToken('mobile-app')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful',
             'token' => $token,
             'user' => $user,
-            'redirect' => $user->dashboardRoute(), // adjust to your actual staff landing route
+            'redirect' => $user->dashboardRoute(),
         ]);
     }
 }

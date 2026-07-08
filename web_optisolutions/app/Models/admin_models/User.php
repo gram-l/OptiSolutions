@@ -44,7 +44,7 @@ class User extends Authenticatable
 {
     return match (strtolower(trim($this->user_role))) {
         'admin' => '/admin_acc/dashboard',
-        'staff' => '/staff_acc/dashboard',
+        'staff' => '/staff/dashboard',
         default => '/auth/login', // fallback
     };
 }

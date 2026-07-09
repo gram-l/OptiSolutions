@@ -1,10 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\ApiForgotPasswordController;
-use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\PatientDoctorController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ClinicInfoController;
@@ -14,6 +14,7 @@ use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\ChatbotLogController;
 
 require __DIR__.'/admin_acc/api.php';
+require __DIR__.'/staff_acc/api.php';
 // ── Auth ──
 Route::post('/login', [ApiAuthController::class, 'login']);
 

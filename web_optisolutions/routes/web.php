@@ -3,9 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\EmailController;
-use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
-use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\PolyclinicController;
 use App\Http\Controllers\ChatbotController;
@@ -17,6 +17,9 @@ use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\ChatbotLogController;
 use App\Http\Controllers\BotManController;
 
+
+require __DIR__.'/admin_acc/web.php';
+require __DIR__.'/staff_acc/web.php';
 
 
 // NOTE: dating "return view('welcome')" ito, pinalitan para gamitin ang PolyclinicController.

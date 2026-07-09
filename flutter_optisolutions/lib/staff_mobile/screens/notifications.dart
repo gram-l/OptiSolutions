@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'cliniclogin.dart';
+
 import '../services/api_service.dart';
 
 class NotificationData {

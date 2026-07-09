@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'cliniclogin.dart';
+
 import 'dashboard.dart';
 import 'inquiry_chat.dart';
-import 'appointments.dart';
+import 'appointment.dart';
 import 'doctors.dart';
 import 'patients.dart';
 import 'profile.dart';

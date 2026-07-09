@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'cliniclogin.dart';
+
 import 'inquiries.dart';
 import 'appointments.dart';
 import 'doctors.dart';

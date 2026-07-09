@@ -321,7 +321,8 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _loading = false);
 
       if (result['success'] == true) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        final role = (result['user']?['user_role'] ?? '').toString().toLowerCase();
+        _navigateByRole(role);
       }
     } catch (e) {
       if (!mounted) return;
@@ -346,7 +347,8 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _loading = false);
 
       if (result['user'] != null) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        final role = (result['user']['user_role'] ?? '').toString().toLowerCase();
+        _navigateByRole(role);
       }
     } catch (e) {
       if (!mounted) return;
@@ -354,6 +356,24 @@ class _LoginScreenState extends State<LoginScreen> {
         _loading = false;
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
+    }
+  }
+
+  // NEW: routes admin to DashboardScreen ('/dashboard') and staff to
+  // AppointmentsScreen ('/appointments'), matching this app's existing
+  // RBAC convention (both routes already registered in main.dart).
+  void _navigateByRole(String role) {
+    switch (role) {
+      case 'admin':
+        Navigator.pushReplacementNamed(context, '/dashboard');
+        break;
+      case 'staff':
+        Navigator.pushReplacementNamed(context, '/appointments');
+        break;
+      default:
+        setState(() {
+          _errorMessage = 'Unrecognized account role. Please contact your administrator.';
+        });
     }
   }
 

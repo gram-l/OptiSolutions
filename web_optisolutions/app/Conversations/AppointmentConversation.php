@@ -225,14 +225,23 @@ class AppointmentConversation extends Conversation
             return;
         }
 
-        $buttons = $doctors->map(fn($d) => Button::create("{$d->doctor_name} — {$d->specialty}")->value($d->doctor_id))->toArray();
+        // IMPORTANT: i-cast ang doctor_id to string dito. Ang mga button values ay
+        // laging bumabalik bilang STRING mula sa frontend/BotMan web driver, kaya kung
+        // integer ang naka-store na value (galing DB), hindi ito matu-tugma (strict
+        // type check sa BotMan) sa string na natatanggap pagbalik ng sagot ng user.
+        $buttons = $doctors->map(
+            fn($d) => Button::create("{$d->doctor_name} — {$d->specialty}")->value((string) $d->doctor_id)
+        )->toArray();
 
         $question = Question::create("Great! Here are our specialists for {$this->service}:")
             ->fallback('Please select a doctor from the buttons above.')
             ->addButtons($buttons);
 
         $this->ask($question, function (Answer $answer) {
-            $doc = DB::table('doctors')->where('doctor_id', $answer->getValue())->first();
+            // I-cast pabalik sa integer bago i-query, dahil ang column na doctor_id
+            // ay int sa database.
+            $doctorId = (int) $answer->getValue();
+            $doc = DB::table('doctors')->where('doctor_id', $doctorId)->first();
             if (!$doc) {
                 $this->say("Sorry, I couldn't find this doctor. Please try again.");
                 return $this->askDoctor();

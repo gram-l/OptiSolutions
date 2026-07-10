@@ -26,7 +26,7 @@
       <p class="hero-flutter-desc">Experience compassionate, accessible healthcare with our team of board-certified specialists. We're here for every Filipino family.</p>
       <div class="hero-flutter-actions">
         <div class="hero-rating-badge">
-          <span class="hero-rating-num">4.9</span>
+          <span class="hero-rating-num">{{ $avgRating ?? '4.9' }}</span>
           <span class="hero-rating-stars">★★★★★</span>
           <span class="hero-rating-label">Patient Rating</span>
         </div>
@@ -54,12 +54,12 @@
         <span class="stat-modern-desc">Trusted by families across Batangas</span>
       </div>
       <div class="stat-modern-item">
-        <span class="stat-modern-number">12+</span>
+        <span class="stat-modern-number">{{ $specialistsCount }}+</span>
         <span class="stat-modern-label">Specialists</span>
         <span class="stat-modern-desc">Board-certified medical experts</span>
       </div>
       <div class="stat-modern-item">
-        <span class="stat-modern-number">4.9</span>
+        <span class="stat-modern-number">{{ $avgRating ?? '4.9' }}</span>
         <span class="stat-modern-label">Patient Rating</span>
         <span class="stat-modern-desc">★★★★★ from 800+ reviews</span>
       </div>
@@ -71,7 +71,6 @@
 <section class="services-modern-section" id="services">
   <div class="container">
     <div class="services-modern-header">
-      <span class="services-modern-tag">Our Services</span>
       <h2 class="services-modern-title">Comprehensive Medical Care<br>For You & Your Family</h2>
       <p class="services-modern-subtitle">We offer a wide range of specialized healthcare services delivered with compassion and expertise.</p>
     </div>
@@ -80,43 +79,43 @@
         <div class="service-card-icon"><i class="fas fa-child"></i></div>
         <h3>Pediatrics</h3>
         <p>Comprehensive care for children from newborn to adolescent.</p>
-        <span class="service-card-link">Learn More →</span>
+        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('obgyne')">
         <div class="service-card-icon"><i class="fas fa-female"></i></div>
         <h3>OB-Gyne</h3>
         <p>Women's health, prenatal care, and reproductive health services.</p>
-        <span class="service-card-link">Learn More →</span>
+        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('surgery')">
         <div class="service-card-icon"><i class="fas fa-scalpel"></i></div>
         <h3>Surgery</h3>
         <p>General surgical procedures and consultations.</p>
-        <span class="service-card-link">Learn More →</span>
+        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('pulmonology')">
         <div class="service-card-icon"><i class="fas fa-lungs"></i></div>
         <h3>IM-Pulmonology</h3>
         <p>Respiratory and pulmonary care for lung health.</p>
-        <span class="service-card-link">Learn More →</span>
+        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('ophthalmology')">
         <div class="service-card-icon"><i class="fas fa-eye"></i></div>
         <h3>Ophthalmology / ENT</h3>
         <p>Eye care, ear, nose, and throat consultations.</p>
-        <span class="service-card-link">Learn More →</span>
+        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('cardiology')">
         <div class="service-card-icon"><i class="fas fa-heartbeat"></i></div>
         <h3>IM-Cardiology</h3>
         <p>Heart health and cardiovascular care.</p>
-        <span class="service-card-link">Learn More →</span>
+        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('adultmedicine')">
         <div class="service-card-icon"><i class="fas fa-user-md"></i></div>
         <h3>General / Adult Medicine</h3>
         <p>Comprehensive medical care for adults.</p>
-        <span class="service-card-link">Learn More →</span>
+        <span class="service-card-link"></span>
       </div>
     </div>
     <div class="services-modern-footer">
@@ -129,7 +128,6 @@
 <section class="doctors-modern-section" id="doctors">
   <div class="container">
     <div class="doctors-modern-header">
-      <span class="doctors-modern-tag">Our Team</span>
       <h2 class="doctors-modern-title">Meet Our Medical Experts</h2>
       <p class="doctors-modern-subtitle">Our board-certified physicians bring years of specialized experience and compassionate care to help you achieve optimal health.</p>
     </div>
@@ -182,20 +180,20 @@
       <div class="cta-banner-content">
         <span class="cta-banner-tag">📍 Lipa City, Batangas</span>
         <h2 class="cta-banner-title">Visit Our Clinic Today</h2>
-        <p class="cta-banner-desc">We're conveniently located at TM Kalaw St., Lipa City. Walk-ins are welcome!</p>
+        <p class="cta-banner-desc">We're conveniently located at {{ $clinicInfo->address ?? 'TM Kalaw St., Lipa City' }}. Walk-ins are welcome!</p>
         <div class="cta-banner-info">
           <div class="cta-info-item">
             <i class="fas fa-phone-alt"></i>
             <div>
               <span class="cta-info-label">Call Us</span>
-              <span class="cta-info-value">0985 475 5511</span>
+              <span class="cta-info-value">{{ $clinicInfo->contact_no ?? '0985 475 5511' }}</span>
             </div>
           </div>
           <div class="cta-info-item">
             <i class="fas fa-clock"></i>
             <div>
               <span class="cta-info-label">Clinic Hours</span>
-              <span class="cta-info-value">Mon-Fri 8AM-6PM · Sat 9AM-1PM</span>
+              <span class="cta-info-value">{{ $clinicInfo->operating_hours ?? 'Mon-Fri 8AM-6PM · Sat 9AM-1PM' }}</span>
             </div>
           </div>
         </div>
@@ -228,20 +226,14 @@
   </div>
 </div>
 
-<script>
-    var botmanWidget = {
-        aboutText: 'PolyClinic Assistant',
-        introMessage: "✋ Hi! I'm your PolyClinic Assistant."
-    };
-</script>
-<script src='https://cdn.jsdelivr.net/npm/botman-web-widget@0/build/js/widget.js'></script>
+@include('patient.partials.chatbot-widget')
 
 @vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
 
 <script>
   function openChatForReview() {
-  document.querySelector('.desktop-closed-message-avatar')?.click();
-}
+    document.getElementById('chatbotTrigger')?.click();
+  }
 
   function filterDoctorsLive(query) {
     const q = query.trim().toLowerCase();

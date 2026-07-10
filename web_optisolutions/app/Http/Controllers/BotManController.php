@@ -80,7 +80,6 @@ class BotManController extends Controller
 
     /**
      * Fetches clinic info dynamically from the `clinic_info` table
-     * and sends it as a clean, readable formatted message.
      */
     protected function sendClinicInfo($bot)
     {
@@ -93,8 +92,6 @@ class BotManController extends Controller
 
         $data = (array) $info;
 
-        // 👉 IMPORTANT: Palitan ang mga keys sa kaliwa (hal. 'clinic_name')
-        // ng ACTUAL column names ng clinic_info table mo.
         $order = [
             'clinic_name'     => '🏥',
             'address'         => '📍',
@@ -115,7 +112,6 @@ class BotManController extends Controller
             }
         }
 
-        // Fallback: kung may column na hindi kasama sa $order, idagdag pa rin
         foreach ($data as $key => $value) {
             if (!isset($order[$key]) && $key !== 'id' && $value !== null && $value !== '') {
                 $label = ucwords(str_replace('_', ' ', $key));

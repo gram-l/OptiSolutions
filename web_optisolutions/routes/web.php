@@ -8,13 +8,11 @@ use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\PolyclinicController;
-use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ClinicInfoController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\FeedbackController;
-use App\Http\Controllers\ChatbotLogController;
 use App\Http\Controllers\BotManController;
 
 
@@ -114,10 +112,6 @@ Route::get('/doctors',  [PolyclinicController::class, 'doctors'])->name('doctors
 Route::get('/contact',  [PolyclinicController::class, 'contact'])->name('contact');
 Route::get('/chatbot',  [PolyclinicController::class, 'chatbot'])->name('chatbot');
 
-// Chatbot db routes
-Route::post('/save-appointment', [ChatbotController::class, 'saveAppointment'])->name('save.appointment');
-Route::post('/save-feedback',    [ChatbotController::class, 'saveFeedback'])->name('save.feedback');
-
 // ===== BotMan route =====
 // Receives messages from the chat widget (script.js) and returns BotMan's reply
 Route::post('/botman', [BotManController::class, 'handle'])->name('botman.handle');
@@ -144,4 +138,3 @@ Route::get('/admin-css/{file}', function ($file) {
     return response(file_get_contents($path), 200)
         ->header('Content-Type', 'text/css');
 })->where('file', '.*\.css');
-

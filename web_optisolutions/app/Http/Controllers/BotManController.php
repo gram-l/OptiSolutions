@@ -39,7 +39,7 @@ class BotManController extends Controller
 
             $botman->fallback(function ($bot) {
                 Log::info('FALLBACK - Received text: "' . $bot->getMessage()->getText() . '"');
-                $bot->reply("I'm not sure how to respond to that yet. Try 'schedule visit' to book an appointment.");
+                $bot->reply("Would you like to schedule a visit? Please type 'Schedule Visit' to start the process.");
             });
 
             $botman->listen();

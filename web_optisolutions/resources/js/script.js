@@ -70,7 +70,8 @@ async function loadServicesData() {
       };
     });
 
-    renderServiceCards();
+    renderServiceCards('servicesGrid');       // para sa services.blade.php
+    renderServiceCards('serviceCardsHome');   // para sa home.blade.php (kung meron)
   } catch (err) {
     console.error('Failed to load services:', err);
   }
@@ -82,10 +83,11 @@ function renderServiceCards(containerId = 'servicesGrid') {
   grid.innerHTML = Object.keys(servicesData).map(key => {
     const svc = servicesData[key];
     return `
-      <div class="service-card" onclick="openServiceModal('${key}')">
-        <div class="service-card-icon"><i class="fas ${svc.icon}"></i></div>
+      <div class="service-page-card" onclick="openServiceModal('${key}')">
+        <div class="service-page-icon"><i class="fas ${svc.icon}"></i></div>
         <h3>${svc.title}</h3>
         <p>${svc.description}</p>
+        <span class="service-page-link">Learn More →</span>
       </div>`;
   }).join('');
 }
@@ -247,3 +249,5 @@ window.showDoctorDetails    = showDoctorDetails;
 window.closeDoctorModal     = closeDoctorModal;
 window.openServiceModal     = openServiceModal;
 window.closeServiceModal    = closeServiceModal;
+window.loadServicesData     = loadServicesData; 
+window.loadDoctorsData      = loadDoctorsData;

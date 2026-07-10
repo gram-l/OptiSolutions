@@ -478,6 +478,28 @@ body {
   margin-top: 5px;
 }
 
+/* Close (X) button in chat header */
+.chat-close {
+  background: transparent;
+  border: none;
+  color: var(--gray-500);
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.2s;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.chat-close:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
 /* ============================================
    CHAT MESSAGES
    ============================================ */
@@ -606,6 +628,10 @@ body {
   transition: 0.2s;
   flex: 1;
   min-width: 120px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .menu-btn:hover {

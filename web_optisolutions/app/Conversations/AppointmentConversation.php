@@ -179,14 +179,10 @@ class AppointmentConversation extends Conversation
 
     public function askDoctor()
     {
-        // Doctors tied to this service (mirrors your service_doctors join)
-        $doctorNames = DB::table('service_doctors')
-            ->where('service_id', $this->serviceId)
-            ->pluck('doctor_name');
-
+        // Doctors matched directly by specialty (no more service_doctors table needed)
         $doctors = DB::table('doctors')
             ->where('available', 1)
-            ->whereIn('doctor_name', $doctorNames)
+            ->where('specialty', $this->service)
             ->get();
 
         if ($doctors->isEmpty()) {

@@ -7,6 +7,7 @@ use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
+use App\Http\Controllers\admin_acc\ProfileController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -94,3 +95,9 @@ Route::delete('/admin_acc/user_management/{id}',       [UserManagementController
 use App\Http\Controllers\Auth\GoogleAuthController;
 
 Route::post('/auth/google', [GoogleAuthController::class, 'googleLogin'])->name('auth.google');
+
+//admin profile routes
+
+
+Route::get('/admin_acc/profile', [ProfileController::class, 'show'])->name('profile.show');
+Route::post('/admin_acc/profile', [ProfileController::class, 'update'])->name('profile.update');

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-
+import 'package:flutter_optisolutions/login.dart';
 import 'inquiries.dart';
 import 'appointments.dart';
 import 'doctors.dart';
@@ -693,7 +693,7 @@ class _DashboardState extends State<Dashboard> {
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const PCLogin()),
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
             );
           }),
         ],
@@ -824,7 +824,7 @@ class _DashboardState extends State<Dashboard> {
               if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const PCLogin()),
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
             style: ElevatedButton.styleFrom(

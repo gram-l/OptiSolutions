@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter_optisolutions/login.dart';
 import '../services/api_service.dart';
 
 class NotificationData {
@@ -446,7 +446,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const PCLogin()),
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
             style: ElevatedButton.styleFrom(

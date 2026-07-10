@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'dashboard.dart';
 import 'inquiries.dart';
-import 'appointment.dart';
+import 'appointments.dart';
 import 'doctors.dart';
 import 'profile.dart';
 import 'notifications.dart';

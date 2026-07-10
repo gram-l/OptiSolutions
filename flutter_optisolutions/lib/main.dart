@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'admin_mobile/colors.dart';
 import 'admin_mobile/side_panel.dart';
-import 'admin_mobile/login.dart';
+import 'login.dart';
 import 'admin_mobile/dashboard.dart';
 import 'admin_mobile/appointments.dart';
 import 'admin_mobile/doctors.dart';

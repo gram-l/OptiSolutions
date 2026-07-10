@@ -15,7 +15,9 @@ class AppointmentConversation extends Conversation
     protected $doctor, $doctorId, $scheduleDay, $scheduleSlotIndex = 0;
     protected $scheduleSuggestion;
 
-    // ---------- Validation (ported 1:1 from your JS) ----------
+    // ================================================================
+    // VALIDATION HELPERS
+    // ================================================================
 
     protected function validateName($name)
     {
@@ -51,26 +53,46 @@ class AppointmentConversation extends Conversation
     {
         $trimmed = trim($dob);
         if (!$trimmed) return "⚠️ Date of birth cannot be empty.";
-        $normalized = preg_replace('/[.\-\/]/', '-', $trimmed);
 
-        $parsed = null;
-        if (preg_match('/^\d{4}-\d{1,2}-\d{1,2}$/', $normalized)) {
-            [$y, $m, $d] = explode('-', $normalized);
-            $parsed = \DateTime::createFromFormat('Y-n-j', "$y-$m-$d");
-        } elseif (preg_match('/^\d{1,2}-\d{1,2}-\d{4}$/', $normalized)) {
-            [$m, $d, $y] = explode('-', $normalized);
-            $parsed = \DateTime::createFromFormat('Y-n-j', "$y-$m-$d");
-        } else {
-            return "⚠️ Please enter a valid date (MM/DD/YYYY or YYYY-MM-DD).";
-        }
-
-        if (!$parsed) return "⚠️ That doesn't appear to be a valid date.";
+        $parsed = $this->parseDOB($trimmed);
+        if (!$parsed) return "⚠️ Please enter a valid date (MM/DD/YYYY, YYYY-MM-DD, or e.g. March 15, 2005).";
 
         $today = new \DateTime('today');
         if ($parsed > $today) return "⚠️ Date of birth cannot be in the future.";
 
         $age = $today->diff($parsed)->y;
         if ($age > 120) return "⚠️ Please enter a valid date of birth (age must be 120 or below).";
+
+        return null;
+    }
+
+    protected function parseDOB($dob)
+    {
+        $trimmed = trim($dob);
+        $normalized = preg_replace('/[.\-\/]/', '-', $trimmed);
+
+        if (preg_match('/^\d{4}-\d{1,2}-\d{1,2}$/', $normalized)) {
+            [$y, $m, $d] = explode('-', $normalized);
+            $parsed = \DateTime::createFromFormat('Y-n-j', "$y-$m-$d");
+            if ($parsed) return $parsed;
+        }
+
+        if (preg_match('/^\d{1,2}-\d{1,2}-\d{4}$/', $normalized)) {
+            [$m, $d, $y] = explode('-', $normalized);
+            $parsed = \DateTime::createFromFormat('Y-n-j', "$y-$m-$d");
+            if ($parsed) return $parsed;
+        }
+
+        if (preg_match('/^[A-Za-z]+\s+\d{1,2},?\s+\d{4}$/', $trimmed) ||
+            preg_match('/^\d{1,2}\s+[A-Za-z]+\s+\d{4}$/', $trimmed)) {
+            $timestamp = strtotime($trimmed);
+            if ($timestamp !== false) {
+                $parsed = new \DateTime();
+                $parsed->setTimestamp($timestamp);
+                $parsed->setTime(0, 0, 0);
+                return $parsed;
+            }
+        }
 
         return null;
     }
@@ -86,12 +108,18 @@ class AppointmentConversation extends Conversation
         return null;
     }
 
-    // ---------- Flow ----------
+    // ================================================================
+    // STEP 0: ENTRY POINT
+    // ================================================================
 
     public function run()
     {
         $this->askName();
     }
+
+    // ================================================================
+    // STEP 1: PATIENT INFO (name → phone → dob → email)
+    // ================================================================
 
     public function askName()
     {
@@ -124,10 +152,10 @@ class AppointmentConversation extends Conversation
 
     public function askDob()
     {
-        $this->ask('Please provide your date of birth (MM/DD/YYYY or YYYY-MM-DD):', function (Answer $answer) {
+        $this->ask('Please provide your date of birth (e.g. 05/15/1990 or May 15, 1990):', function (Answer $answer) {
             $error = $this->validateDOB($answer->getText());
             if ($error) {
-                $this->say($error . "\n\nPlease enter your date of birth (e.g. 05/15/1990):");
+                $this->say($error . "\n\nPlease enter your date of birth (e.g. 05/15/1990 or May 15, 1990):");
                 return $this->askDob();
             }
             $this->dob = trim($answer->getText());
@@ -144,9 +172,13 @@ class AppointmentConversation extends Conversation
                 return $this->askEmail();
             }
             $this->email = trim($answer->getText());
-            $this->askService();
+            $this->askService(); // → move to Step 2
         });
     }
+
+    // ================================================================
+    // STEP 2: SERVICE SELECTION
+    // ================================================================
 
     public function askService()
     {
@@ -173,13 +205,16 @@ class AppointmentConversation extends Conversation
             $this->service = $svc->title;
             $this->serviceKey = $svc->service_key;
             $this->serviceId = $svc->service_id;
-            $this->askDoctor();
+            $this->askDoctor(); // → move to Step 3
         });
     }
 
+    // ================================================================
+    // STEP 3: DOCTOR SELECTION (matched by specialty = service title)
+    // ================================================================
+
     public function askDoctor()
     {
-        // Doctors matched directly by specialty (no more service_doctors table needed)
         $doctors = DB::table('doctors')
             ->where('available', 1)
             ->where('specialty', $this->service)
@@ -204,9 +239,13 @@ class AppointmentConversation extends Conversation
             }
             $this->doctor = $doc->doctor_name;
             $this->doctorId = $doc->doctor_id;
-            $this->suggestSchedule();
+            $this->suggestSchedule(); // → move to Step 4
         });
     }
+
+    // ================================================================
+    // STEP 4: SCHEDULE SUGGESTION + CONFIRMATION
+    // ================================================================
 
     protected function suggestSchedule()
     {
@@ -231,13 +270,15 @@ class AppointmentConversation extends Conversation
 
         $this->ask($question, function (Answer $answer) {
             if ($answer->getValue() === 'confirm_yes') {
-                $this->submitAppointment();
+                $this->submitAppointment(); // → move to Step 5
             } else {
                 $this->scheduleSlotIndex++;
                 $this->suggestSchedule();
             }
         });
     }
+
+    // ---------- Date/time helpers ----------
 
     protected function getNextAvailableDate($dayStr)
     {
@@ -278,14 +319,14 @@ class AppointmentConversation extends Conversation
 
     protected function normalizeDOB($dob)
     {
-        $normalized = preg_replace('/[.\-\/]/', '-', trim($dob));
-        if (preg_match('/^\d{4}-\d{1,2}-\d{1,2}$/', $normalized)) {
-            [$y, $m, $d] = explode('-', $normalized);
-        } else {
-            [$m, $d, $y] = explode('-', $normalized);
-        }
-        return sprintf('%04d-%02d-%02d', $y, $m, $d);
+        $parsed = $this->parseDOB(trim($dob));
+        if ($parsed) return $parsed->format('Y-m-d');
+        return trim($dob);
     }
+
+    // ================================================================
+    // STEP 5: SUBMIT & SAVE TO DATABASE
+    // ================================================================
 
     protected function submitAppointment()
     {
@@ -311,7 +352,6 @@ class AppointmentConversation extends Conversation
                 'scheduled_at' => now(),
             ]);
 
-            // store for downstream complaint/review conversations
             $this->bot->userStorage()->save([
                 'patient_id' => $patientId,
                 'patient_name' => "{$this->fname} {$this->lname}",
@@ -327,12 +367,15 @@ class AppointmentConversation extends Conversation
                 . "📅 Scheduled: {$this->scheduleSuggestion}\n\n"
                 . "A confirmation will be sent within 24 hours.");
 
-            $this->askPostAppointment();
-
+            $this->askPostAppointment(); // → move to Step 6
         } catch (\Exception $e) {
             $this->say("⚠️ We couldn't save your appointment right now. Please try again, or contact us directly at 0985 475 5511.");
         }
     }
+
+    // ================================================================
+    // STEP 6: POST-APPOINTMENT ACTIONS (complaint / review / done)
+    // ================================================================
 
     protected function askPostAppointment()
     {

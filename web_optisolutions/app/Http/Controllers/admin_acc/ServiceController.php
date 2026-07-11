@@ -3,21 +3,23 @@
 namespace App\Http\Controllers\admin_acc;
 
 use App\Http\Controllers\Controller;
-use App\Models\Service;
+use App\Models\admin_acc\Service;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Str;
 class ServiceController extends Controller
 {
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
+            'title'       => 'required|string|max:100',
+            'icon'        => 'required|string|max:50',
             'description' => 'nullable|string',
-            'icon'        => 'nullable|string|max:100',
+            'room'        => 'nullable|string|max:50',
+            'schedule'    => 'nullable|string|max:255',
         ]);
 
-        $validated['sort_order'] = (Service::max('sort_order') ?? 0) + 1;
-        $validated['is_active']  = true;
+        $validated['service_key'] = Str::slug($validated['title'], '_');
+        $validated['available']   = true;
 
         Service::create($validated);
 
@@ -27,12 +29,14 @@ class ServiceController extends Controller
     public function update(Request $request, Service $service)
     {
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
+            'title'       => 'required|string|max:100',
+            'icon'        => 'required|string|max:50',
             'description' => 'nullable|string',
-            'icon'        => 'nullable|string|max:100',
+            'room'        => 'nullable|string|max:50',
+            'schedule'    => 'nullable|string|max:255',
         ]);
 
-        $validated['is_active'] = $request->boolean('is_active');
+        $validated['available'] = $request->boolean('available');
 
         $service->update($validated);
 

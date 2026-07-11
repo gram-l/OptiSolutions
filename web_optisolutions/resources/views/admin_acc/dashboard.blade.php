@@ -32,7 +32,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="welcome-banner">
-                <h2>Welcome back, Dr. Lara!</h2>
+                <h2>Welcome, {{ Auth::user()->name }}!</h2>
                 <p>Here's what's happening with your clinic today.</p>
             </div>
 

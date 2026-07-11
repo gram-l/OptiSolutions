@@ -38,5 +38,11 @@
             <div class="nav-icon"><i class="fa-solid fa-users"></i></div>
             <span>User Management</span>
         </div>
+        <div class="nav-item {{ request()->is('admin_acc/system_settings*') ? 'active' : '' }}"
+             onclick="window.location.href='/admin_acc/system_settings'">
+            <div class="nav-icon"><i class="fa-solid fa-cog"></i></div>
+            <span>System Settings</span>
+        </div>
+    </nav>
     </nav>
 </aside>

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter_optisolutions/login.dart';
 import 'notifications.dart';
 import '../widgets/notification_badge.dart';
 import '../models/profile_data.dart';
@@ -684,7 +684,7 @@ class _SettingsPageState extends State<SettingsPage> {
               Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const PCLogin()),
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
             style: ElevatedButton.styleFrom(

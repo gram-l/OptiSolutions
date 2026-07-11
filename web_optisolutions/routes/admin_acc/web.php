@@ -7,6 +7,9 @@ use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
+use App\Http\Controllers\admin_acc\ProfileController;
+use App\Http\Controllers\admin_acc\SystemSettingsController;
+use App\Http\Controllers\admin_acc\ServiceController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -94,3 +97,21 @@ Route::delete('/admin_acc/user_management/{id}',       [UserManagementController
 use App\Http\Controllers\Auth\GoogleAuthController;
 
 Route::post('/auth/google', [GoogleAuthController::class, 'googleLogin'])->name('auth.google');
+
+//admin profile routes
+Route::get('/admin_acc/profile', [ProfileController::class, 'show'])->name('profile.show');
+Route::post('/admin_acc/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+// system settings routes
+
+Route::prefix('admin_acc/system_settings')->name('system_settings.')->group(function () {
+    Route::get('/', [SystemSettingsController::class, 'index'])->name('index');
+
+    Route::post('/{group}', [SystemSettingsController::class, 'updateGroup'])
+        ->whereIn('group', ['hours', 'about', 'contact'])
+        ->name('update');
+
+    Route::post('/services', [ServiceController::class, 'store'])->name('services.store');
+    Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
+    Route::delete('/services/{service}', [ServiceController::class, 'destroy'])->name('services.destroy');
+});

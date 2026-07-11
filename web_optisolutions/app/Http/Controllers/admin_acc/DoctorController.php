@@ -1,54 +1,38 @@
 <?php
 
 namespace App\Http\Controllers\admin_acc;
-
 use App\Http\Controllers\Controller;
+use App\Models\admin_models\Doctor;
 use Illuminate\Http\Request;
 
 class DoctorController extends Controller
 {
     // Used by the Blade admin page
-    public function index()
-    {
-        $doctors = PatientDoctor::all()->map(function ($doctor) {
-            return [
-                'id' => $doctor->doctor_id,
-                'name' => $doctor->doctor_name,
-                'specialty' => $doctor->specialty,
-                'schedule' => $doctor->schedule,
-                'description' => $doctor->description,
-                'phone' => $doctor->contact_number,
-                'active' => $doctor->status === 'Active',
-            ];
-        });
+// Used by the Blade admin page
+public function index()
+{
+    $doctors = Doctor::all()->map(function ($doctor) {
+        return [
+            'id' => $doctor->doctor_id,
+            'name' => $doctor->doctor_name,
+            'specialty' => $doctor->specialty,
+            'schedule' => $doctor->schedule,
+            'description' => $doctor->description,
+            'phone' => $doctor->contact_number,
+            'active' => $doctor->status === 'Active',
+        ];
+    });
 
-        return view('admin_acc.doctors', compact('doctors'));
-    }
-
-    // GET /api/doctors — used by the patient-facing website
+    return view('admin_acc.doctors', compact('doctors'));
+}
+    // GET /api/doctors — used by Flutter
     public function apiIndex()
     {
-        $doctors = PatientDoctor::where('available', 1)
-            ->get()
-            ->map(function ($doctor) {
-                return [
-                    'doctor_id'        => $doctor->doctor_id,
-                    'doctor_name'      => $doctor->doctor_name,
-                    'specialty'        => $doctor->specialty,
-                    'gender'           => $doctor->gender,
-                    'years_experience' => $doctor->years_experience,
-                    'education'        => $doctor->education,
-                    'license'          => $doctor->license,
-                    'fellowship'       => $doctor->fellowship,
-                    'description'      => $doctor->description,
-                    'clinic_room'      => $doctor->clinic_room,
-                    'profile_image'    => $doctor->profile_image,
-                    'available'        => $doctor->available,
-                    'schedules'        => [], // placeholder until schedules relationship is wired up
-                ];
-            });
-
-        return response()->json($doctors);
+        $doctors = Doctor::all();
+        return response()->json([
+            'success' => true,
+            'doctors' => $doctors,
+        ]);
     }
 
     // POST /api/doctors
@@ -65,7 +49,7 @@ class DoctorController extends Controller
 
         $validated['status'] = $validated['status'] ?? 'Active';
 
-        $doctor = PatientDoctor::create($validated);
+        $doctor = Doctor::create($validated);
 
         return response()->json([
             'success' => true,
@@ -77,7 +61,7 @@ class DoctorController extends Controller
     // PUT /api/doctors/{id}
     public function update(Request $request, $id)
     {
-        $doctor = PatientDoctor::find($id);
+        $doctor = Doctor::find($id);
         if (!$doctor) {
             return response()->json(['success' => false, 'message' => 'Doctor not found.'], 404);
         }
@@ -102,7 +86,7 @@ class DoctorController extends Controller
     // PATCH /api/doctors/{id}/toggle
     public function toggleStatus($id)
     {
-        $doctor = PatientDoctor::find($id);
+        $doctor = Doctor::find($id);
         if (!$doctor) {
             return response()->json(['success' => false, 'message' => 'Doctor not found.'], 404);
         }
@@ -120,7 +104,7 @@ class DoctorController extends Controller
     // DELETE /api/doctors/{id}
     public function destroy($id)
     {
-        $doctor = PatientDoctor::find($id);
+        $doctor = Doctor::find($id);
         if (!$doctor) {
             return response()->json(['success' => false, 'message' => 'Doctor not found.'], 404);
         }

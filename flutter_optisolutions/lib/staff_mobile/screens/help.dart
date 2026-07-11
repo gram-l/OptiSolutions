@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_optisolutions/login.dart';
 
 
 class HelpPage extends StatefulWidget {
@@ -478,7 +479,7 @@ class _HelpPageState extends State<HelpPage> {
               Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const PCLogin()),
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
             style: ElevatedButton.styleFrom(

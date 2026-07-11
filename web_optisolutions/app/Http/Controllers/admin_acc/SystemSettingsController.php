@@ -4,8 +4,8 @@
 namespace App\Http\Controllers\admin_acc;
 
 use App\Http\Controllers\Controller;
-use App\Models\ClinicInfo;
-use App\Models\Service;
+use App\Models\admin_models\ClinicInfo;
+use App\Models\admin_models\Service;
 use Illuminate\Http\Request;
 
 class SystemSettingsController extends Controller
@@ -13,9 +13,9 @@ class SystemSettingsController extends Controller
     public function index()
     {
         $clinic   = ClinicInfo::firstOrFail();
-        $services = Service::orderBy('sort_order')->get();
+        $services = Service::orderBy('service_id')->get();
 
-        return view('admin_acc.system_settings.index', compact('clinic', 'services'));
+        return view('admin_acc.system_settings', compact('clinic', 'services'));
     }
 
     public function updateGroup(Request $request, string $group)

@@ -104,7 +104,6 @@ Route::post('/admin_acc/profile', [ProfileController::class, 'update'])->name('p
 
 // system settings routes
 
-
 Route::prefix('admin_acc/system_settings')->name('system_settings.')->group(function () {
     Route::get('/', [SystemSettingsController::class, 'index'])->name('index');
 

@@ -15,7 +15,7 @@ class DoctorService {
   static Future<Map<String, dynamic>> fetchDoctors() async {
     try {
       final res = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}/doctors'), headers: _headers)
+          .get(Uri.parse('${ApiConfig.baseUrl}/admin/doctors'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {
@@ -34,7 +34,7 @@ class DoctorService {
     try {
       final res = await http
           .post(
-            Uri.parse('${ApiConfig.baseUrl}/doctors'),
+            Uri.parse('${ApiConfig.baseUrl}/admin/doctors'),
             headers: _headers,
             body: jsonEncode({
               'doctor_name': name,
@@ -63,7 +63,7 @@ class DoctorService {
     try {
       final res = await http
           .put(
-            Uri.parse('${ApiConfig.baseUrl}/doctors/$id'),
+            Uri.parse('${ApiConfig.baseUrl}/admin/doctors/$id'),
             headers: _headers,
             body: jsonEncode({
               'doctor_name': name,
@@ -84,7 +84,7 @@ class DoctorService {
   static Future<Map<String, dynamic>> toggleDoctorStatus(int id) async {
     try {
       final res = await http
-          .patch(Uri.parse('${ApiConfig.baseUrl}/doctors/$id/toggle'), headers: _headers)
+          .patch(Uri.parse('${ApiConfig.baseUrl}/admin/doctors/$id/toggle'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {
@@ -96,7 +96,7 @@ class DoctorService {
   static Future<Map<String, dynamic>> deleteDoctor(int id) async {
     try {
       final res = await http
-          .delete(Uri.parse('${ApiConfig.baseUrl}/doctors/$id'), headers: _headers)
+          .delete(Uri.parse('${ApiConfig.baseUrl}/admin/doctors/$id'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {

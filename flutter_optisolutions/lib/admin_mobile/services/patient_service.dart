@@ -6,7 +6,7 @@ class PatientService {
 
   static Future<List<Map<String, dynamic>>> getPatients() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/get_patients.php'),
+      Uri.parse('$baseUrl/admin/get_patients.php'),
     ).timeout(const Duration(seconds: 10));
 
     final data = jsonDecode(response.body);

@@ -8,6 +8,19 @@ use Illuminate\Support\Facades\Storage;
 
 class ApiProfileController extends Controller
 {
+    public function show(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'user_id'       => $user->user_id,
+            'name'          => $user->name,
+            'email'         => $user->email,
+            'user_role'     => $user->user_role,
+            'profile_photo' => $user->profile_photo,
+        ]);
+    }
+
     public function updatePhoto(Request $request)
     {
         $user = $request->user();

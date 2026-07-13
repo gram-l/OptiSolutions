@@ -12,13 +12,17 @@ class PatientController extends Controller
     /** GET /api/patients */
     public function index()
     {
-        return Patient::all()->map->toApiArray();
+        $patients = Patient::with('latestVisit.doctor')->get();
+
+        return response()->json($patients->map->toApiArray());
     }
 
     /** GET /api/patients/{patient} */
     public function show(Patient $patient)
     {
-        return $patient->toApiArray();
+        $patient->load('latestVisit.doctor');
+
+        return response()->json($patient->toApiArray());
     }
 
     /** PATCH /api/patients/{patient} — used by the "edit patient" feature in patients.dart */
@@ -32,16 +36,20 @@ class PatientController extends Controller
             'notes'      => 'sometimes|string',
         ]);
 
-        // I-map ang mga pangalan mula sa Flutter papunta sa totoong column
-        // names sa database (halimbawa: 'name' -> 'patient_name')
         $data = [];
-        if (isset($incoming['name']))       $data['patient_name']    = $incoming['name'];
-        if (isset($incoming['department'])) $data['department']      = $incoming['department'];
-        if (isset($incoming['doctor']))     $data['assigned_doctor'] = $incoming['doctor'];
-        if (isset($incoming['contact']))    $data['phone']           = $incoming['contact'];
+        if (isset($incoming['name'])) {
+            $parts = preg_split('/\s+/', trim($incoming['name']), 2);
+            $data['patient_fname'] = $parts[0] ?? '';
+            $data['patient_lname'] = $parts[1] ?? '';
+        }
+        if (isset($incoming['contact'])) {
+            $data['patient_contact'] = $incoming['contact'];
+        }
 
-        $patient->update($data);
+        if (!empty($data)) {
+            $patient->update($data);
+        }
 
-        return $patient->toApiArray();
+        return response()->json($patient->fresh('latestVisit.doctor')->toApiArray());
     }
 }

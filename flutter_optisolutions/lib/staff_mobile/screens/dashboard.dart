@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'cliniclogin.dart';
 import 'inquiries.dart';
 import 'appointments.dart';
@@ -31,6 +32,58 @@ class _DashboardState extends State<Dashboard> {
   int _activeDoctorsCount = 0;
   int _patientsCount = 0;
 
+  // ---- Chart data ----
+
+  // 1) Service Distribution — [{ 'service_type': 'General Checkup', 'total': 12 }, ...]
+  List<Map<String, dynamic>> _serviceDistribution = [];
+
+  // 2) Weekly Patient Visits — count of schedule_visit records per week (last 6 weeks)
+  static const int _weekCount = 6;
+  List<int> _weeklyVisits = List.filled(_weekCount, 0);
+  List<String> _weekLabels = List.generate(
+    _weekCount,
+    (i) => i == _weekCount - 1 ? 'This wk' : 'W-${_weekCount - 1 - i}',
+  );
+
+  // 3) Sentiment Analysis (custom bars) — from /feedback star_rating
+  Map<String, double> _sentimentPercents = const {
+    'Positive': 65,
+    'Neutral': 25,
+    'Negative': 10,
+  };
+  bool _sentimentFromApi = false;
+
+  // 4) Inquiry Volume per week — count of inquiries per weekday (Mon..Sun)
+  List<int> _inquiryVolumeByDay = List.filled(7, 0);
+  bool _inquiryVolumeFromApi = false;
+
+  static const List<String> _weekdayLabels = [
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
+
+  static const Map<String, Color> _sentimentColors = {
+    'Positive': Colors.green,
+    'Neutral': Colors.orange,
+    'Negative': Colors.red,
+  };
+
+  static const List<Color> _serviceColors = [
+    Color(0xFF1A237E),
+    Color(0xFF3949AB),
+    Color(0xFF5C6BC0),
+    Color(0xFF7986CB),
+    Color(0xFF9FA8DA),
+    Color(0xFF00897B),
+    Color(0xFF43A047),
+    Color(0xFFFB8C00),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +114,116 @@ class _DashboardState extends State<Dashboard> {
     return Color(int.parse('FF$cleanHex', radix: 16));
   }
 
+  // ---------- Data fetch helpers (each fails quietly so one missing
+  // endpoint never breaks the rest of the dashboard) ----------
+
+  Future<List?> _tryGet(String path) async {
+    try {
+      final data = await ApiService.get(path);
+      return data as List;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Tries a few common key names since exact field names weren't confirmed
+  // for every table — adjust here if your API uses different keys.
+  DateTime? _parseDate(Map item, List<String> keys) {
+    for (final key in keys) {
+      final raw = item[key];
+      if (raw != null) {
+        final parsed = DateTime.tryParse(raw.toString());
+        if (parsed != null) return parsed;
+      }
+    }
+    return null;
+  }
+
+  List<int>? _computeInquiryVolume(List? inquiries) {
+    if (inquiries == null || inquiries.isEmpty) return null;
+    final counts = List<int>.filled(7, 0); // index 0 = Monday
+    var matched = false;
+    for (final item in inquiries) {
+      if (item is! Map) continue;
+      final date = _parseDate(item, ['created_at', 'date', 'createdAt']);
+      if (date == null) continue;
+      counts[date.weekday - 1]++; // DateTime.weekday: Mon=1 .. Sun=7
+      matched = true;
+    }
+    return matched ? counts : null;
+  }
+
+  List<int>? _computeWeeklyVisits(List? visits) {
+    if (visits == null || visits.isEmpty) return null;
+    final counts = List<int>.filled(_weekCount, 0);
+    final now = DateTime.now();
+    final startOfThisWeek = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: now.weekday - 1));
+
+    var matched = false;
+    for (final item in visits) {
+      if (item is! Map) continue;
+      final date = _parseDate(item, [
+        'visit_date',
+        'scheduled_date',
+        'schedule_date',
+        'date',
+        'created_at',
+      ]);
+      if (date == null) continue;
+      final weekStart = DateTime(
+        date.year,
+        date.month,
+        date.day,
+      ).subtract(Duration(days: date.weekday - 1));
+      final weeksAgo = startOfThisWeek.difference(weekStart).inDays ~/ 7;
+      final index = _weekCount - 1 - weeksAgo;
+      if (index >= 0 && index < _weekCount) {
+        counts[index]++;
+        matched = true;
+      }
+    }
+    return matched ? counts : null;
+  }
+
+  Map<String, double>? _computeSentiment(List? feedback) {
+    if (feedback == null || feedback.isEmpty) return null;
+    int positive = 0, neutral = 0, negative = 0;
+    for (final item in feedback) {
+      if (item is! Map) continue;
+      final rating = num.tryParse('${item['star_rating']}') ?? 0;
+      if (rating >= 4) {
+        positive++;
+      } else if (rating == 3) {
+        neutral++;
+      } else if (rating > 0) {
+        negative++;
+      }
+    }
+    final total = positive + neutral + negative;
+    if (total == 0) return null;
+    return {
+      'Positive': positive / total * 100,
+      'Neutral': neutral / total * 100,
+      'Negative': negative / total * 100,
+    };
+  }
+
+  List<Map<String, dynamic>>? _parseServiceDistribution(List? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final result = <Map<String, dynamic>>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final type = item['service_type'] ?? item['serviceType'] ?? 'Unknown';
+      final total = num.tryParse('${item['total']}') ?? 0;
+      result.add({'service_type': type.toString(), 'total': total});
+    }
+    return result.isEmpty ? null : result;
+  }
+
   Future<void> _preloadNotifications() async {
     try {
       await NotificationData.load();
@@ -77,7 +240,8 @@ class _DashboardState extends State<Dashboard> {
     });
 
     try {
-      // Run all the requests in parallel instead of one-by-one
+      // Core stats — required for the app to be usable, so these stay in
+      // the main Future.wait and a failure here surfaces the retry screen.
       final results = await Future.wait([
         ApiService.get('/appointments'),
         ApiService.get('/inquiries'),
@@ -92,6 +256,17 @@ class _DashboardState extends State<Dashboard> {
       final patients = results[3] as List;
       final notifications = results[4] as List;
 
+      // Chart data — each endpoint may not exist yet on the backend, so
+      // these are fetched independently and allowed to fail gracefully.
+      final feedback = await _tryGet('/feedback');
+      final serviceDistribution = await _tryGet('/service-distribution');
+      final scheduleVisits = await _tryGet('/schedule-visits');
+
+      final sentiment = _computeSentiment(feedback);
+      final services = _parseServiceDistribution(serviceDistribution);
+      final weeklyVisits = _computeWeeklyVisits(scheduleVisits);
+      final inquiryVolume = _computeInquiryVolume(inquiries);
+
       setState(() {
         _appointmentsCount = appointments.length;
         _pendingInquiriesCount = inquiries
@@ -101,6 +276,21 @@ class _DashboardState extends State<Dashboard> {
             .where((d) => d['status'] == 'Available')
             .length;
         _patientsCount = patients.length;
+
+        if (sentiment != null) {
+          _sentimentPercents = sentiment;
+          _sentimentFromApi = true;
+        }
+        if (services != null) {
+          _serviceDistribution = services;
+        }
+        if (weeklyVisits != null) {
+          _weeklyVisits = weeklyVisits;
+        }
+        if (inquiryVolume != null) {
+          _inquiryVolumeByDay = inquiryVolume;
+          _inquiryVolumeFromApi = true;
+        }
 
         // Reuse the notifications feed as the "Recent Activities" list —
         // swap this for a dedicated /activities endpoint later if you add one.
@@ -160,25 +350,56 @@ class _DashboardState extends State<Dashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Greeting with colored background - NO CIRCLE
                     _buildGreetingCard(),
                     const SizedBox(height: 20),
-                    // Stats Cards - 4 cards in 2 rows
                     _buildStatsGrid(),
                     const SizedBox(height: 20),
-                    // Inquiry Volume Chart
-                    _buildInquiryVolume(),
+                    _buildServiceDistribution(),
                     const SizedBox(height: 20),
-                    // Sentiment Analysis - renamed to "Patient Feedback Overview"
+                    _buildWeeklyPatientVisits(),
+                    const SizedBox(height: 20),
                     _buildSentimentAnalysis(),
                     const SizedBox(height: 20),
-                    // Recent Activities
+                    _buildInquiryVolume(),
+                    const SizedBox(height: 20),
                     _buildRecentActivities(),
                   ],
                 ),
               ),
             ),
       bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withValues(alpha: 0.1),
+          spreadRadius: 1,
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
+  Widget _cardHeader(IconData icon, String title) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF1A237E), size: 20),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A237E),
+          ),
+        ),
+      ],
     );
   }
 
@@ -283,18 +504,7 @@ class _DashboardState extends State<Dashboard> {
   ) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -326,162 +536,361 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _buildInquiryVolume() {
+  // ---------------- 1) Service Distribution — doughnut (PieChart) ----------------
+  Widget _buildServiceDistribution() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.bar_chart, color: Color(0xFF1A237E), size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Inquiry Volume',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A237E),
+          _cardHeader(Icons.pie_chart, 'Service Distribution'),
+          const SizedBox(height: 4),
+          Text(
+            'Distribution of patient visits by services',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 16),
+          if (_serviceDistribution.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'No service data available yet.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+            )
+          else ...[
+            SizedBox(
+              height: 160,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 32,
+                  sections: List.generate(_serviceDistribution.length, (i) {
+                    final entry = _serviceDistribution[i];
+                    return PieChartSectionData(
+                      value: (entry['total'] as num).toDouble(),
+                      color: _serviceColors[i % _serviceColors.length],
+                      radius: 42,
+                      showTitle: false,
+                    );
+                  }),
                 ),
               ),
-            ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              children: List.generate(_serviceDistribution.length, (i) {
+                final entry = _serviceDistribution[i];
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: _serviceColors[i % _serviceColors.length],
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${entry['service_type']} (${entry['total']})',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                );
+              }),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ---------------- 2) Weekly Patient Visits — line chart ----------------
+  Widget _buildWeeklyPatientVisits() {
+    final maxVal = _weeklyVisits.isEmpty
+        ? 0
+        : _weeklyVisits.reduce((a, b) => a > b ? a : b);
+    final maxY = maxVal == 0 ? 5.0 : (maxVal * 1.25).ceilToDouble();
+    final interval = maxY <= 5 ? 1.0 : (maxY / 5).ceilToDouble();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _cardHeader(Icons.show_chart, 'Weekly Patient Visits'),
+          const SizedBox(height: 4),
+          Text(
+            'Visits over the last $_weekCount weeks',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              'Mon',
-              'Tue',
-              'Wed',
-              'Thu',
-              'Fri',
-              'Sat',
-              'Sun',
-            ].map((day) => _buildDayBar(day)).toList(),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 180,
+            child: LineChart(
+              LineChartData(
+                minY: 0,
+                maxY: maxY,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: interval,
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 26,
+                      interval: interval,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final i = value.toInt();
+                        if (i < 0 || i >= _weekLabels.length) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            _weekLabels[i],
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: List.generate(
+                      _weeklyVisits.length,
+                      (i) => FlSpot(i.toDouble(), _weeklyVisits[i].toDouble()),
+                    ),
+                    isCurved: true,
+                    color: const Color(0xFF1A237E),
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: const Color(0xFF1A237E).withValues(alpha: 0.08),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDayBar(String day) {
-    return Column(
-      children: [
-        Container(
-          width: 20,
-          height:
-              40 +
-              [5, 15, 10, 25, 20, 8, 12][[
-                    'Mon',
-                    'Tue',
-                    'Wed',
-                    'Thu',
-                    'Fri',
-                    'Sat',
-                    'Sun',
-                  ].indexOf(day)]
-                  .toDouble(),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A237E),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(day, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-      ],
-    );
-  }
-
-  // CHANGED: "Sentiment Analysis" to "Patient Feedback Overview"
+  // ---------------- 3) Sentiment Analysis — custom bars ----------------
   Widget _buildSentimentAnalysis() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.feedback, color: Color(0xFF1A237E), size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Patient Feedback Overview',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A237E),
-                ),
-              ),
-            ],
-          ),
+          _cardHeader(Icons.feedback, 'Sentiment Analysis'),
           const SizedBox(height: 4),
-          const Text(
-            'Based on recent patient interactions',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+          Text(
+            _sentimentFromApi
+                ? 'Based on recent patient feedback'
+                : 'Sample data — connect the /feedback endpoint for live figures',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildSentimentCard('Positive', 65, Colors.green),
-              const SizedBox(width: 8),
-              _buildSentimentCard('Neutral', 25, Colors.orange),
-              const SizedBox(width: 8),
-              _buildSentimentCard('Negative', 10, Colors.red),
-            ],
+          const SizedBox(height: 16),
+          ..._sentimentPercents.entries.map(
+            (entry) => _buildSentimentBar(entry.key, entry.value),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSentimentCard(String label, int percentage, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              '$percentage%',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color,
+  Widget _buildSentimentBar(String label, double percent) {
+    final color = _sentimentColors[label] ?? Colors.blueGrey;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              Text(
+                '${percent.toStringAsFixed(0)}%',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: (percent / 100).clamp(0, 1),
+              minHeight: 10,
+              backgroundColor: color.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- 4) Inquiry Volume per week — bar chart ----------------
+  Widget _buildInquiryVolume() {
+    final maxCount = _inquiryVolumeByDay.isEmpty
+        ? 0
+        : _inquiryVolumeByDay.reduce((a, b) => a > b ? a : b);
+    final maxY = maxCount == 0 ? 5.0 : (maxCount * 1.25).ceilToDouble();
+    final interval = maxY <= 5 ? 1.0 : (maxY / 5).ceilToDouble();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _cardHeader(Icons.bar_chart, 'Inquiry Volume per Week'),
+          const SizedBox(height: 4),
+          Text(
+            _inquiryVolumeFromApi
+                ? 'Inquiries received per day this week'
+                : 'Sample data — inquiry dates not yet available from the API',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 180,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxY,
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${_weekdayLabels[group.x]}\n${rod.toY.toInt()} inquiries',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 26,
+                      interval: interval,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final i = value.toInt();
+                        if (i < 0 || i >= _weekdayLabels.length) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            _weekdayLabels[i],
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: interval,
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                barGroups: List.generate(7, (i) {
+                  return BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: _inquiryVolumeByDay[i].toDouble(),
+                        color: const Color(0xFF1A237E),
+                        width: 18,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ],
+                  );
+                }),
               ),
             ),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -490,35 +899,11 @@ class _DashboardState extends State<Dashboard> {
   Widget _buildRecentActivities() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.access_time, color: Color(0xFF1A237E), size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Recent Activities',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A237E),
-                ),
-              ),
-            ],
-          ),
+          _cardHeader(Icons.access_time, 'Recent Activities'),
           const SizedBox(height: 12),
           ..._recentActivities.map((activity) => _buildActivityItem(activity)),
         ],

@@ -3,14 +3,14 @@
 @section('content')
 <div class="container">
     <div class="action-bar">
-        <h3>Manage Appointments</h3>
+        <h3>Manage Schedule Visit</h3>
     </div>
 
     @if($appointments->count() > 0)
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Appointment ID</th>
+                    <th>Visit ID</th>
                     <th>Doctor</th>
                     <th>Service</th>
                     <th>Date</th>
@@ -19,10 +19,10 @@
             <tbody>
                 @foreach($appointments as $apt)
                 <tr>
-                    <td>{{ $apt->appointment_id }}</td>
-                    <td>{{ $apt->doctor }}</td>
-                    <td>{{ $apt->service}}</td>
-                    <td>{{ \Carbon\Carbon::parse($apt->date)->format('Y-m-d') }}</td>
+                    <td>{{ $apt->visit_id }}</td>
+                    <td>{{ $apt->doctor_name }}</td>
+                    <td>{{ $apt->service }}</td>
+                    <td>{{ \Carbon\Carbon::parse($apt->visit_date)->format('Y-m-d') }}</td>
                 </tr>
                 @endforeach
             </tbody>

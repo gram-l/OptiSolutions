@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_optisolutions/auth/google_auth.dart';// adjust path to wherever you put it
 import 'models/user_model.dart';     // for AppUser
 
@@ -16,6 +16,22 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _userName = prefs.getString('user_name') ?? '';
+    });
+  }
+
   void _navigateTo(String route) {
     if (route != '/dashboard') {
       Navigator.pushNamed(context, route);
@@ -38,7 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               const _TopBar(),
               const SizedBox(height: 16),
-              const _WelcomeCard(),
+              _WelcomeCard(userName: _userName),
               const SizedBox(height: 16),
               const _StatGrid(),
               const SizedBox(height: 16),
@@ -125,10 +141,13 @@ class _TopBar extends StatelessWidget {
 
 //WELCOME CARd
 class _WelcomeCard extends StatelessWidget {
-  const _WelcomeCard();
+  final String userName;
+  const _WelcomeCard({required this.userName});
 
   @override
   Widget build(BuildContext context) {
+    final displayName = userName.isNotEmpty ? userName : 'there';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -143,8 +162,8 @@ class _WelcomeCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Welcome back, Dr. Lara',
-              style: TextStyle(
+          Text('Welcome back, $displayName',
+              style: const TextStyle(
                   color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text("Here's what's happening with your clinic today.",

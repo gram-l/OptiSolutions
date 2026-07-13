@@ -10,7 +10,7 @@ class ApiService {
 
   static Future<String?> _token() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    return prefs.getString('auth_token');
   }
 
   static Future<Map<String, String>> _headers() async {
@@ -40,7 +40,7 @@ class ApiService {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', data['token']);
+    await prefs.setString('auth_token', data['token']);
     return data['user'];
   }
 
@@ -51,7 +51,7 @@ class ApiService {
       // even if the request fails, still clear the local token below
     }
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
+    await prefs.remove('auth_token');
   }
 
   static Future<dynamic> get(String path) async {

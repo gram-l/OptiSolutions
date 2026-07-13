@@ -6,6 +6,7 @@ use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\ApiForgotPasswordController;
 use App\Http\Controllers\admin_acc\DoctorController;
+use App\Http\Controllers\admin_acc\AdminDashboardController;
 
  
 // ── Auth ──
@@ -30,3 +31,5 @@ Route::post('/doctors', [DoctorController::class, 'store']);
 Route::put('/doctors/{id}', [DoctorController::class, 'update']);
 Route::patch('/doctors/{id}/toggle', [DoctorController::class, 'toggleStatus']);
 Route::delete('/doctors/{id}', [DoctorController::class, 'destroy']);
+
+Route::get('/admin/dashboard-data', [AdminDashboardController::class, 'data']);

@@ -12,8 +12,10 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\ChatbotLogController;
+use App\Http\Controllers\ChartController;
 
 require __DIR__.'/admin_acc/api.php';
+require __DIR__.'/staff_acc/api.php';
 // ── Auth ──
 Route::post('/login', [ApiAuthController::class, 'login']);
 
@@ -46,4 +48,9 @@ Route::post('/complaints', [ComplaintController::class, 'store']);
 Route::post('/feedback', [FeedbackController::class, 'store']);
 Route::post('/chatbot-logs', [ChatbotLogController::class, 'store']);
 
-
+Route::prefix('charts')->group(function () {
+    Route::get('/service-distribution', [ChartController::class, 'serviceDistribution']);
+    Route::get('/weekly-visits', [ChartController::class, 'weeklyVisits']);
+    Route::get('/sentiment-analysis', [ChartController::class, 'sentimentAnalysis']);
+    Route::get('/inquiry-volume', [ChartController::class, 'inquiryVolume']);
+});

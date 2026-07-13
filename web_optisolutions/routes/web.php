@@ -18,6 +18,7 @@ use App\Http\Controllers\ChatbotLogController;
 use App\Http\Controllers\BotManController;
 
 require __DIR__.'/admin_acc/web.php';
+require __DIR__.'/staff_acc/web.php';
 // NOTE: dating "return view('welcome')" ito, pinalitan para gamitin ang PolyclinicController.
 // Ibalik na lang sa dati kung mali ang assumption:
 Route::get('/', [PolyclinicController::class, 'home']);
@@ -143,4 +144,3 @@ Route::get('/admin-css/{file}', function ($file) {
     return response(file_get_contents($path), 200)
         ->header('Content-Type', 'text/css');
 })->where('file', '.*\.css');
-

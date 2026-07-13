@@ -7,6 +7,7 @@ use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
+use App\Http\Controllers\admin_acc\AdminDashboardController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -89,3 +90,11 @@ Route::post('/admin_acc/user_management',              [UserManagementController
 Route::put('/admin_acc/user_management/{id}',          [UserManagementController::class, 'update']);
 Route::patch('/admin_acc/user_management/{id}/toggle', [UserManagementController::class, 'toggleStatus']);
 Route::delete('/admin_acc/user_management/{id}',       [UserManagementController::class, 'destroy']);
+
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/data', [AdminDashboardController::class, 'data'])->name('dashboard.data');
+    });

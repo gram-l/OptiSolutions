@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_optisolutions/config/api_config.dart';
 import 'package:flutter_optisolutions/auth/google_auth.dart';
+import 'package:http_parser/http_parser.dart';
 
 class AuthService {
   static Future<Map<String, dynamic>> login(String email, String password) async {
@@ -80,5 +81,62 @@ class AuthService {
     await prefs.remove('user_email');
     await prefs.remove('user_role');
     await prefs.remove('auth_token');
+  }
+
+    static Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
+  }
+
+  /// Fetches the current user's profile fresh from the DB (name, email, role, photo)
+static Future<Map<String, dynamic>> fetchProfile() async {
+  final token = await getToken();
+  if (token == null) throw Exception('Not logged in.');
+
+  final response = await http.get(
+    Uri.parse('${ApiConfig.baseUrl}/admin/me'),
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    },
+  ).timeout(const Duration(seconds: 10));
+
+  final data = jsonDecode(response.body);
+
+  if (response.statusCode == 200) {
+    return data; // flat object now, no wrapper
+  } else {
+    throw Exception(data['message'] ?? 'Failed to load profile.');
+  }
+}
+
+  /// Uploads a new profile photo. Returns the updated photo path.
+  static Future<String> uploadProfilePhoto(File imageFile) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Not logged in.');
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiConfig.baseUrl}/admin/profile/photo'),
+    );
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'photo',
+        imageFile.path,
+        contentType: MediaType('image', 'jpeg'),
+      ),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return data['profile_photo'];
+    } else {
+      throw Exception(data['message'] ?? 'Failed to upload photo.');
+    }
   }
 }

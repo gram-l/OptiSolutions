@@ -48,15 +48,15 @@
   </div>
 </div>
 
-<script>
-    var botmanWidget = {
-        aboutText: 'PolyClinic Assistant',
-        introMessage: "✋ Hi! I'm your PolyClinic Assistant."
-    };
-</script>
-<script src='https://cdn.jsdelivr.net/npm/botman-web-widget@0/build/js/widget.js'></script>
+@include('patient.partials.chatbot-widget')
 
 @vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDoctorsData();
+  });
+</script>
 
 </body>
 </html>

@@ -26,19 +26,19 @@
       <div class="contact-info-grid">
         <div class="contact-info-card">
           <div class="contact-info-icon"><i class="fas fa-map-marker-alt"></i></div>
-          <div><h4>Address</h4><p>TM Kalaw St., Lipa City, Batangas, 4217</p></div>
+          <div><h4>Address</h4><p>{{ $clinicInfo->address ?? 'TM Kalaw St., Lipa City, Batangas, 4217' }}</p></div>
         </div>
         <div class="contact-info-card">
           <div class="contact-info-icon"><i class="fas fa-phone-alt"></i></div>
-          <div><h4>Phone</h4><p>0985 475 5511 · (043) 123-4567</p></div>
+          <div><h4>Phone</h4><p>{{ $clinicInfo->contact_no ?? '0985 475 5511' }}</p></div>
         </div>
         <div class="contact-info-card">
           <div class="contact-info-icon"><i class="fas fa-envelope"></i></div>
-          <div><h4>Email</h4><p>info@polycliniclipa.ph</p></div>
+          <div><h4>Email</h4><p>{{ $clinicInfo->email ?? 'info@polycliniclipa.ph' }}</p></div>
         </div>
         <div class="contact-info-card">
           <div class="contact-info-icon"><i class="fas fa-clock"></i></div>
-          <div><h4>Hours</h4><p>Mon-Fri: 8AM-6PM · Sat: 9AM-1PM</p></div>
+          <div><h4>Hours</h4><p>{{ $clinicInfo->operating_hours ?? 'Mon-Fri: 8AM-6PM · Sat: 9AM-1PM' }}</p></div>
         </div>
       </div>
       <div class="map-container">
@@ -51,19 +51,13 @@
 <!-- ========== FOOTER ========== -->
 <footer class="footer"><p>© 2026 PolyClinic Lipa · TM Kalaw St., Lipa City, Batangas 4217</p></footer>
 
-<script>
-    var botmanWidget = {
-        aboutText: 'PolyClinic Assistant',
-        introMessage: "✋ Hi! I'm your PolyClinic Assistant."
-    };
-</script>
-<script src='https://cdn.jsdelivr.net/npm/botman-web-widget@0/build/js/widget.js'></script>
+@include('patient.partials.chatbot-widget')
 
 @vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
 
 <script>
   function openChatForReview() {
-    document.querySelector('.desktop-closed-message-avatar')?.click();
+    document.getElementById('chatbotTrigger')?.click();
   }
 </script>
 </body>

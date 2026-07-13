@@ -8,8 +8,8 @@ use BotMan\BotMan\Cache\LaravelCache;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Conversations\AppointmentConversation;
+use App\Services\ClinicInfoService;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class BotManController extends Controller
@@ -30,6 +30,10 @@ class BotManController extends Controller
             $botman = BotManFactory::create(config('botman'), new LaravelCache(), $request);
 
             // ---------- Entry points ----------
+            // NOTE: these only fire when there is NO active conversation waiting
+            // on an ask(). Once AppointmentConversation starts, mid-flow
+            // interception for these same commands is handled INSIDE
+            // AppointmentConversation (see handleGlobalCommand()).
             $botman->hears('schedule visit', function ($bot) {
                 Log::info('MATCHED: schedule visit');
                 $bot->startConversation(new AppointmentConversation());
@@ -37,7 +41,7 @@ class BotManController extends Controller
 
             $botman->hears('general information', function ($bot) {
                 Log::info('MATCHED: general information');
-                $this->sendClinicInfo($bot);
+                $bot->reply(ClinicInfoService::infoCardMessage());
             });
 
             $botman->hears('menu', function ($bot) {
@@ -76,50 +80,5 @@ class BotManController extends Controller
                 Button::create('ℹ️ General Information')->value('general information'),
             ]);
         $bot->reply($question);
-    }
-
-    /**
-     * Fetches clinic info dynamically from the `clinic_info` table
-     */
-    protected function sendClinicInfo($bot)
-    {
-        $info = DB::table('clinic_info')->first();
-
-        if (!$info) {
-            $bot->reply("⚠️ Sorry, we couldn't load our clinic information right now. Please try again later.");
-            return;
-        }
-
-        $data = (array) $info;
-
-        $order = [
-            'clinic_name'     => '🏥',
-            'address'         => '📍',
-            'contact_number'  => '📞',
-            'email'           => '📧',
-            'operating_hours' => '🕒',
-            'about_us'        => '📝',
-            'facebook_link'   => '🔗',
-        ];
-
-        $lines = ["🏥 PolyClinic Lipa - Clinic Information", ""];
-
-        foreach ($order as $key => $emoji) {
-            if (!empty($data[$key])) {
-                $label = ucwords(str_replace('_', ' ', $key));
-                $lines[] = "{$emoji} {$label}: {$data[$key]}";
-                $lines[] = "";
-            }
-        }
-
-        foreach ($data as $key => $value) {
-            if (!isset($order[$key]) && $key !== 'id' && $value !== null && $value !== '') {
-                $label = ucwords(str_replace('_', ' ', $key));
-                $lines[] = "• {$label}: {$value}";
-                $lines[] = "";
-            }
-        }
-
-        $bot->reply(rtrim(implode("\n", $lines)));
     }
 }

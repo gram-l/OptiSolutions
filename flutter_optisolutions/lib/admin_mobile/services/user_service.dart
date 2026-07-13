@@ -14,7 +14,7 @@ class UserService {
   static Future<Map<String, dynamic>> fetchUsers() async {
     try {
       final res = await http
-          .get(Uri.parse('$baseUrl/users'), headers: _headers)
+          .get(Uri.parse('$baseUrl/admin/users'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {
@@ -33,7 +33,7 @@ class UserService {
     try {
       final res = await http
           .post(
-            Uri.parse('$baseUrl/users'),
+            Uri.parse('$baseUrl/admin/users'),
             headers: _headers,
             body: jsonEncode({
               'name': name,
@@ -72,7 +72,7 @@ class UserService {
 
       final res = await http
           .put(
-            Uri.parse('$baseUrl/users/$id'),
+            Uri.parse('$baseUrl/admin/users/$id'),
             headers: _headers,
             body: jsonEncode(body),
           )
@@ -87,7 +87,7 @@ class UserService {
   static Future<Map<String, dynamic>> toggleStatus(int id) async {
     try {
       final res = await http
-          .patch(Uri.parse('$baseUrl/users/$id/toggle'), headers: _headers)
+          .patch(Uri.parse('$baseUrl/admin/users/$id/toggle'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) { //error messages
@@ -99,7 +99,7 @@ class UserService {
   static Future<Map<String, dynamic>> deleteUser(int id) async {
     try {
       final res = await http
-          .delete(Uri.parse('$baseUrl/users/$id'), headers: _headers)
+          .delete(Uri.parse('$baseUrl/admin/users/$id'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {

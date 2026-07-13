@@ -89,7 +89,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       ),
                       const SizedBox(width: 10),
                       const Text(
-                        'Appointments',
+                        'Scheduled Visits',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,

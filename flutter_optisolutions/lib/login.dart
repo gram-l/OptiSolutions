@@ -321,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _loading = false);
 
       if (result['success'] == true) {
-        final role = (result['user']?['user_role'] ?? '').toString().toLowerCase();
+        final role = (result['user']?['user_role'] ?? '').toString().trim().toLowerCase();
         _navigateByRole(role);
       }
     } catch (e) {
@@ -368,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacementNamed(context, '/dashboard');
         break;
       case 'staff':
-        Navigator.pushReplacementNamed(context, '/appointments');
+        Navigator.pushReplacementNamed(context, '/staff/dashboard');
         break;
       default:
         setState(() {

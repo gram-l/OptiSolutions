@@ -3,91 +3,7 @@ import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
 
-// ─────────────────────────────────────────────────────────────
-//  DATA MODEL
-// ─────────────────────────────────────────────────────────────
-enum Sentiment { positive, neutral, negative }
-
-class FeedbackModel {
-  final String patientName;
-  final String specialty;
-  final String doctorName;
-  final String date;
-  final int rating; // 1–5
-  final String comment;
-  final Sentiment sentiment;
-
-  const FeedbackModel({
-    required this.patientName,
-    required this.specialty,
-    required this.doctorName,
-    required this.date,
-    required this.rating,
-    required this.comment,
-    required this.sentiment,
-  });
-}
-
-const _feedbackList = <FeedbackModel>[
-  FeedbackModel(
-    patientName: 'Maria Santos',
-    specialty: 'Ophthalmology',
-    doctorName: 'Dr. Maria Reyes',
-    date: 'May 20',
-    rating: 5,
-    comment:
-        'Excellent service! Dr. Reyes was very thorough and explained everything clearly. The staff was friendly and the wait time was minimal.',
-    sentiment: Sentiment.positive,
-  ),
-  FeedbackModel(
-    patientName: 'John Dela Cruz',
-    specialty: 'Pediatrics',
-    doctorName: 'Dr. Jose Mendoza',
-    date: 'May 19',
-    rating: 4,
-    comment:
-        'Good experience overall. The doctor was great with my son. Only downside was the waiting area was crowded.',
-    sentiment: Sentiment.positive,
-  ),
-  FeedbackModel(
-    patientName: 'Anna Rivera',
-    specialty: 'ENT',
-    doctorName: 'Dr. Anna Garcia',
-    date: 'May 18',
-    rating: 2,
-    comment:
-        'Long waiting time at reception, waited over an hour just to be seen. The doctor was rushed and didn\'t fully address my concerns.',
-    sentiment: Sentiment.negative,
-  ),
-  FeedbackModel(
-    patientName: 'Carlos Gomez',
-    specialty: 'Cardiology',
-    doctorName: 'Dr. Carlos Santos',
-    date: 'May 17',
-    rating: 5,
-    comment:
-        'Dr. Santos is amazing! Very professional and caring. The clinic is well-organized and clean.',
-    sentiment: Sentiment.positive,
-  ),
-  FeedbackModel(
-    patientName: 'Elena Garcia',
-    specialty: 'Dermatology',
-    doctorName: 'Dr. Elena Lopez',
-    date: 'May 16',
-    rating: 3,
-    comment:
-        'The treatment was effective but scheduling was difficult. Had to wait 3 weeks for an appointment.',
-    sentiment: Sentiment.neutral,
-  ),
-];
-
-const _specialtyColors = <String, Color>{
-  'Ophthalmology': Color(0xFF1565C0),
-  'Pediatrics': Color(0xFF2E7D32),
-  'ENT': Color(0xFF00838F),
-  'Cardiology': Color(0xFFB71C1C),
-  'Dermatology': Color(0xFF6A1B9A),
-};
+import 'services/feedback_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  SCREEN
@@ -100,33 +16,37 @@ class FeedbackScreen extends StatefulWidget {
 }
 
 class _FeedbackScreenState extends State<FeedbackScreen> {
+  final FeedbackService _service = FeedbackService();
+  late Future<List<FeedbackItem>> _feedbackFuture;
+
   String _search = '';
   String _sentimentFilter = 'All';
-  String _deptFilter = 'All dept';
 
   static const _sentiments = ['All', 'Positive', 'Neutral', 'Negative'];
-  static const _depts = [
-    'All dept',
-    'Ophthalmology',
-    'Pediatrics',
-    'ENT',
-    'Cardiology',
-    'Dermatology',
-  ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  List<FeedbackModel> get _filtered => _feedbackList.where((f) {
-        final q = _search.toLowerCase();
-        final matchSearch = f.patientName.toLowerCase().contains(q) ||
-            f.comment.toLowerCase().contains(q);
-        final matchSentiment = _sentimentFilter == 'All' ||
-            f.sentiment.name.toLowerCase() ==
-                _sentimentFilter.toLowerCase();
-        final matchDept =
-            _deptFilter == 'All dept' || f.specialty == _deptFilter;
-        return matchSearch && matchSentiment && matchDept;
-      }).toList();
+  @override
+  void initState() {
+    super.initState();
+    _feedbackFuture = _service.getFeedback();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _feedbackFuture = _service.getFeedback();
+    });
+  }
+
+  List<FeedbackItem> _applyFilters(List<FeedbackItem> data) {
+    return data.where((f) {
+      final q = _search.toLowerCase();
+      final matchSearch = f.comment.toLowerCase().contains(q);
+      final matchSentiment = _sentimentFilter == 'All' ||
+          f.sentiment.toLowerCase() == _sentimentFilter.toLowerCase();
+      return matchSearch && matchSentiment;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -145,18 +65,37 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
             _buildHeader(),
             _buildFilterRow(),
             Expanded(
-              child: _filtered.isEmpty
-                  ? const Center(
+              child: FutureBuilder<List<FeedbackItem>>(
+                future: _feedbackFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Failed to load feedback: ${snapshot.error}',
+                          style: const TextStyle(color: AppColors.textGrey)),
+                    );
+                  }
+                  final filtered = _applyFilters(snapshot.data ?? []);
+                  if (filtered.isEmpty) {
+                    return const Center(
                       child: Text('No feedback found.',
                           style: TextStyle(color: AppColors.textGrey)),
-                    )
-                  : ListView.builder(
+                    );
+                  }
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView.builder(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
-                      itemCount: _filtered.length,
+                      itemCount: filtered.length,
                       itemBuilder: (_, i) =>
-                          _FeedbackCard(feedback: _filtered[i]),
+                          _FeedbackCard(feedback: filtered[i]),
                     ),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -164,7 +103,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     );
   }
 
-  // ── Merged header: hamburger + icon box + title + subtitle ──
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 10, 16, 12),
@@ -215,7 +153,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         children: [
           Expanded(
             child: _SearchField(
-              hint: 'Search patient or comment...',
+              hint: 'Search comment...',
               onChanged: (v) => setState(() => _search = v),
             ),
           ),
@@ -224,12 +162,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
             value: _sentimentFilter,
             items: _sentiments,
             onChanged: (v) => setState(() => _sentimentFilter = v!),
-          ),
-          const SizedBox(width: 6),
-          _DropdownChip(
-            value: _deptFilter,
-            items: _depts,
-            onChanged: (v) => setState(() => _deptFilter = v!),
           ),
         ],
       ),
@@ -241,14 +173,11 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 //  FEEDBACK CARD
 // ─────────────────────────────────────────────────────────────
 class _FeedbackCard extends StatelessWidget {
-  final FeedbackModel feedback;
+  final FeedbackItem feedback;
   const _FeedbackCard({required this.feedback});
 
   @override
   Widget build(BuildContext context) {
-    final accentColor =
-        _specialtyColors[feedback.specialty] ?? AppColors.primary;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -267,13 +196,14 @@ class _FeedbackCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header row ──
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Text(
-                    feedback.patientName,
+                    feedback.patientId != null
+                        ? 'Patient #${feedback.patientId}'
+                        : 'Anonymous',
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.bold),
                   ),
@@ -285,38 +215,7 @@ class _FeedbackCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            // ── Specialty + Doctor ──
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    feedback.specialty,
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        color: accentColor,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.person_outline_rounded,
-                    size: 12, color: AppColors.textGrey),
-                const SizedBox(width: 3),
-                Text(
-                  feedback.doctorName,
-                  style: const TextStyle(
-                      fontSize: 11.5, color: AppColors.textGrey),
-                ),
-              ],
-            ),
             const SizedBox(height: 8),
-            // ── Star rating ──
             Row(
               children: List.generate(5, (i) {
                 return Icon(
@@ -331,7 +230,6 @@ class _FeedbackCard extends StatelessWidget {
               }),
             ),
             const SizedBox(height: 8),
-            // ── Comment ──
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(10),
@@ -348,7 +246,6 @@ class _FeedbackCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            // ── Sentiment badge ──
             _SentimentBadge(sentiment: feedback.sentiment),
           ],
         ),
@@ -361,29 +258,35 @@ class _FeedbackCard extends StatelessWidget {
 //  SENTIMENT BADGE
 // ─────────────────────────────────────────────────────────────
 class _SentimentBadge extends StatelessWidget {
-  final Sentiment sentiment;
+  final String sentiment;
   const _SentimentBadge({required this.sentiment});
 
   @override
   Widget build(BuildContext context) {
-    final (label, icon, bg, fg) = switch (sentiment) {
-      Sentiment.positive => (
+    final (label, icon, bg, fg) = switch (sentiment.toLowerCase()) {
+      'positive' => (
           'POSITIVE',
           '😊',
           const Color(0xFFE8F5E9),
           const Color(0xFF2E7D32),
         ),
-      Sentiment.neutral => (
+      'neutral' => (
           'NEUTRAL',
           '😐',
           const Color(0xFFFFF8E1),
           const Color(0xFFF57F17),
         ),
-      Sentiment.negative => (
+      'negative' => (
           'NEGATIVE',
           '😟',
           const Color(0xFFFFEBEE),
           const Color(0xFFB71C1C),
+        ),
+      _ => (
+          'PENDING',
+          '⏳',
+          const Color(0xFFF0F0F0),
+          const Color(0xFF757575),
         ),
     };
 
@@ -413,7 +316,7 @@ class _SentimentBadge extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  LOCAL REUSABLE WIDGETS
+//  LOCAL REUSABLE WIDGETS (unchanged from your original)
 // ─────────────────────────────────────────────────────────────
 class _SearchField extends StatelessWidget {
   final String hint;

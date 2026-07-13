@@ -8,7 +8,7 @@ use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\ApiForgotPasswordController;
 use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\admin_acc\ApiProfileController;
-
+use App\Http\Controllers\admin_acc\FeedbackController;
 Route::prefix('admin')->group(function () {
 
  
@@ -32,11 +32,10 @@ Route::put('/doctors/{id}', [DoctorController::class, 'update']);
 Route::patch('/doctors/{id}/toggle', [DoctorController::class, 'toggleStatus']);
 Route::delete('/doctors/{id}', [DoctorController::class, 'destroy']);
 
-
-
 //mobile profile
-
-
 Route::middleware('auth:sanctum')->get('/me', [ApiProfileController::class, 'show']);
 Route::middleware('auth:sanctum')->post('/profile/photo', [ApiProfileController::class, 'updatePhoto']);
+
+//feedback list
+Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
 });

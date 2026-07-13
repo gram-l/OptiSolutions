@@ -4,6 +4,9 @@ import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
 
+import 'package:flutter_optisolutions/auth/google_auth.dart';// adjust path to wherever you put it
+import 'models/user_model.dart';     // for AppUser
+
 // ---------- MAIN SCREEN ----------
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -62,6 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+//TOP BAR 
 // ---------- TOP BAR ----------
 class _TopBar extends StatelessWidget {
   const _TopBar();
@@ -81,8 +85,7 @@ class _TopBar extends StatelessWidget {
           CircleAvatar(
             radius: 24,
             backgroundColor: const Color(0xFFE3F2FD),
-            child: Image.asset('assets/polyclinic_logo.png', fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/polyclinic_logo.png', fit: BoxFit.cover),
           ),
           const SizedBox(width: 8),
           const Text('Polyclinic',
@@ -106,10 +109,13 @@ class _TopBar extends StatelessWidget {
               ),
             ],
           ),
-          const CircleAvatar(
-            radius: 14,
-            backgroundColor: AppColors.darkNavy,
-            child: Icon(Icons.person, color: Colors.white, size: 16),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/profile'),
+            child: const CircleAvatar(
+              radius: 14,
+              backgroundColor: AppColors.darkNavy,
+              child: Icon(Icons.person, color: Colors.white, size: 16),
+            ),
           ),
         ],
       ),
@@ -117,7 +123,7 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-// ---------- WELCOME CARD ----------
+//WELCOME CARd
 class _WelcomeCard extends StatelessWidget {
   const _WelcomeCard();
 

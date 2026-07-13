@@ -1,15 +1,16 @@
 <?php
- 
+
+//admin_acc/api.php
  
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\ApiForgotPasswordController;
 use App\Http\Controllers\admin_acc\DoctorController;
+use App\Http\Controllers\admin_acc\ApiProfileController;
+use App\Http\Controllers\admin_acc\FeedbackController;
+Route::prefix('admin')->group(function () {
 
- 
-// ── Auth ──
-Route::post('/login', [ApiAuthController::class, 'login']);
  
 // ── User management ──
 Route::get('/users',                    [UserManagementController::class, 'getUsers']);
@@ -31,5 +32,10 @@ Route::put('/doctors/{id}', [DoctorController::class, 'update']);
 Route::patch('/doctors/{id}/toggle', [DoctorController::class, 'toggleStatus']);
 Route::delete('/doctors/{id}', [DoctorController::class, 'destroy']);
 
-//google login
-Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'googleLogin']);
+//mobile profile
+Route::middleware('auth:sanctum')->get('/me', [ApiProfileController::class, 'show']);
+Route::middleware('auth:sanctum')->post('/profile/photo', [ApiProfileController::class, 'updatePhoto']);
+
+//feedback list
+Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
+});

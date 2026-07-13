@@ -62,9 +62,7 @@ Route::middleware('auth')->group(function () {
         return view('admin_acc.patients');
     });
 
-    Route::get('/admin_acc/feedback', function () {
-        return view('admin_acc.feedback');
-    });
+   
 
     Route::get('/admin_acc/user_management', [UserManagementController::class, 'index']);
 

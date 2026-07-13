@@ -36,7 +36,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _TopBar(onMenuTap: () => Scaffold.of(context).openDrawer()),
               const SizedBox(height: 16),
 
               // Page title
@@ -211,67 +210,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
-
-// ── Top Bar ──────────────────────────────────────────────────────────────────
-class _TopBar extends StatelessWidget {
-  final VoidCallback onMenuTap;
-  const _TopBar({required this.onMenuTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppColors.textDark),
-            onPressed: onMenuTap,
-          ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              'assets/polyclinic_logo.png',
-              width: 28,
-              height: 28,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE3F2FD),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.local_hospital, color: AppColors.primary, size: 16),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'Polyclinic',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textDark),
-          ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark, size: 22),
-            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.textDark, size: 22),
-            onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-    );
-  }
-}
-
 
 // ── Profile Card ─────────────────────────────────────────────────────────────
 class _ProfileCard extends StatelessWidget {

@@ -32,7 +32,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="welcome-banner">
-                <h2>Welcome back, Dr. Lara!</h2>
+                <h2>Welcome, {{ Auth::user()->name }}!</h2>
                 <p>Here's what's happening with your clinic today.</p>
             </div>
 
@@ -40,22 +40,22 @@
             <div class="analytics-grid">
                 <div class="analytics-card">
                     <div class="card-title">Total Inquiries</div>
-                    <div class="card-value">342</div>
+                    <div class="card-value">0</div>
                     <div class="card-subtitle">↑ 12% from last week</div>
                 </div>
                 <div class="analytics-card">
                     <div class="card-title">Today's Appointments</div>
-                    <div class="card-value">24</div>
-                    <div class="card-subtitle">6 pending approval</div>
+                    <div class="card-value">0</div>
+                    <div class="card-subtitle">0 pending approval</div>
                 </div>
                 <div class="analytics-card">
                     <div class="card-title">Active Patients</div>
-                    <div class="card-value">1,284</div>
+                    <div class="card-value">0</div>
                     <div class="card-subtitle">18 new this month</div>
                 </div>
                 <div class="analytics-card">
                     <div class="card-title">Patient Satisfaction</div>
-                    <div class="card-value">4.8</div>
+                    <div class="card-value">0</div>
                     <div class="card-subtitle">⭐ Average rating</div>
                 </div>
             </div>

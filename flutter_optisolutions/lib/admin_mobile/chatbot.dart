@@ -42,11 +42,13 @@ class ChatThread {
 
 // ─────────────────────────────────────────────────────────────
 //  SAMPLE DATA
+//  (unchanged content — only avatarColor values updated to the
+//  new navy/blue palette so the list reads as one cohesive theme)
 // ─────────────────────────────────────────────────────────────
 final _threads = <ChatThread>[
   ChatThread(
     id: 'CHAT-001', patientName: 'Maria Santos', initials: 'MS',
-    avatarColor: const Color(0xFF1565C0),
+    avatarColor: const Color(0xFF2E5AAC),
     lastMessage: 'When will my eye consultation be scheduled?',
     date: 'May 22', specialty: 'Ophthalmology', patientId: 'P-12345',
     hasNew: false, isActive: true,
@@ -61,7 +63,7 @@ final _threads = <ChatThread>[
   ),
   ChatThread(
     id: 'CHAT-002', patientName: 'John Dela Cruz', initials: 'JD',
-    avatarColor: const Color(0xFF00838F),
+    avatarColor: const Color(0xFF3B6FC4),
     lastMessage: 'My son has a fever, what should I do?',
     date: 'May 22', specialty: 'Pediatrics', patientId: 'P-12346',
     hasNew: true, isActive: false,
@@ -72,7 +74,7 @@ final _threads = <ChatThread>[
   ),
   ChatThread(
     id: 'CHAT-003', patientName: 'Anna Rivera', initials: 'AR',
-    avatarColor: const Color(0xFF5E35B1),
+    avatarColor: const Color(0xFF16294D),
     lastMessage: 'Thank you for the information!',
     date: 'May 21', specialty: 'ENT', patientId: 'P-12347',
     hasNew: false, isActive: false,
@@ -84,7 +86,7 @@ final _threads = <ChatThread>[
   ),
   ChatThread(
     id: 'CHAT-004', patientName: 'Carlos Gomez', initials: 'CG',
-    avatarColor: const Color(0xFFB71C1C),
+    avatarColor: const Color(0xFF1B3B6F),
     lastMessage: 'Can I get a prescription refill?',
     date: 'May 21', specialty: 'Cardiology', patientId: 'P-12348',
     hasNew: false, isActive: false,
@@ -95,7 +97,7 @@ final _threads = <ChatThread>[
   ),
   ChatThread(
     id: 'CHAT-005', patientName: 'Elena Guzman', initials: 'EG',
-    avatarColor: const Color(0xFF2E7D32),
+    avatarColor: const Color(0xFF16294D),
     lastMessage: 'Is my appointment still confirmed?',
     date: 'May 20', specialty: 'Dermatology', patientId: 'P-12349',
     hasNew: true, isActive: false,
@@ -138,8 +140,8 @@ class _InquiriesScreenState extends State<InquiriesScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Top bar ──
-            _buildTopBar(),
+            // ── Single merged header: menu + icon + title ──
+            _buildHeader(),
             // ── Card with list ──
             Expanded(
               child: Padding(
@@ -158,7 +160,6 @@ class _InquiriesScreenState extends State<InquiriesScreen> {
                   ),
                   child: Column(
                     children: [
-                      _buildListHeader(),
                       _buildSearchBar(),
                       const Divider(height: 1, color: AppColors.border),
                       Expanded(
@@ -189,57 +190,34 @@ class _InquiriesScreenState extends State<InquiriesScreen> {
     );
   }
 
-  Widget _buildTopBar() {
+  // ── Merged header: hamburger + chat icon + "Inquiries" ──
+  Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(8, 10, 16, 10),
       child: Row(
         children: [
           Builder(
             builder: (ctx) => IconButton(
-              icon: const Icon(Icons.menu, color: AppColors.textDark),
+              icon: const Icon(Icons.menu_rounded, color: AppColors.iconColor),
               onPressed: () => Scaffold.of(ctx).openDrawer(),
             ),
           ),
-          _AppIcon(),
-          const SizedBox(width: 8),
-          const Text('Polyclinic',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark, size: 22),
-            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          const SizedBox(width: 4),
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.primary,
-            child: const Text('DL',
-                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildListHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: Row(
-        children: [
           Container(
-            width: 32, height: 32,
+            width: 30, height: 30,
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.chat_bubble_outline_rounded,
-                color: AppColors.primary, size: 16),
+                color: AppColors.primary, size: 15),
           ),
           const SizedBox(width: 10),
           const Text('Inquiries',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkNavy,
+              )),
         ],
       ),
     );
@@ -305,7 +283,8 @@ class _ChatTile extends StatelessWidget {
                     children: [
                       Text(thread.id,
                           style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 13.5)),
+                              fontWeight: FontWeight.bold, fontSize: 13.5,
+                              color: AppColors.darkNavy)),
                       const Spacer(),
                       Text(thread.date,
                           style: const TextStyle(
@@ -417,7 +396,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -446,7 +425,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                size: 18, color: AppColors.textDark),
+                size: 18, color: AppColors.iconColor),
             onPressed: () => Navigator.pop(context),
           ),
           CircleAvatar(
@@ -465,12 +444,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   children: [
                     Text(widget.thread.id,
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                            fontWeight: FontWeight.bold, fontSize: 14,
+                            color: AppColors.darkNavy)),
                     const SizedBox(width: 5),
                     Container(
                       width: 7, height: 7,
                       decoration: const BoxDecoration(
-                          color: Colors.red, shape: BoxShape.circle),
+                          color: AppColors.primary, shape: BoxShape.circle),
                     ),
                   ],
                 ),
@@ -510,7 +490,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0F2F8),
+                color: AppColors.background,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: AppColors.border),
               ),
@@ -528,11 +508,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         contentPadding: EdgeInsets.symmetric(vertical: 11),
                       ),
                     ),
-                  ),
-                  Container(
-                    width: 6, height: 6,
-                    decoration: const BoxDecoration(
-                        color: Colors.red, shape: BoxShape.circle),
                   ),
                 ],
               ),
@@ -608,7 +583,7 @@ class _MessageBubble extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _isPatient
                         ? AppColors.patientBubble
-                        : const Color(0xFFE8F0FE),
+                        : AppColors.botBubble,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
@@ -635,40 +610,6 @@ class _MessageBubble extends StatelessWidget {
                 style: const TextStyle(fontSize: 10.5, color: AppColors.textGrey)),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-//  APP ICON (4-quadrant)
-// ─────────────────────────────────────────────────────────────
-class _AppIcon extends StatelessWidget {
-  const _AppIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 32, height: 32,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4)],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: GridView.count(
-          crossAxisCount: 2,
-          padding: const EdgeInsets.all(5),
-          mainAxisSpacing: 2, crossAxisSpacing: 2,
-          physics: const NeverScrollableScrollPhysics(),
-          children: const [
-            Icon(Icons.favorite_outline,    color: Color(0xFFE53935), size: 10),
-            Icon(Icons.medical_services,    color: Color(0xFF1565C0), size: 10),
-            Icon(Icons.chat_bubble_outline, color: Color(0xFF43A047), size: 10),
-            Icon(Icons.local_hospital,      color: Color(0xFFFF9800), size: 10),
-          ],
-        ),
       ),
     );
   }

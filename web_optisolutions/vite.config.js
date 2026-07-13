@@ -10,6 +10,18 @@ export default defineConfig({
                 'resources/css/login.css',
 
                 'resources/css/admin_css/dashboard.css',
+                'resources/css/admin_css/appointments.css',
+                
+                'resources/css/admin_css/profile.css', //wala pa
+                'resources/css/admin_css/settings.css',//wala pa
+                'resources/css/admin_css/chatbot_logs.css',
+                'resources/css/admin_css/doctors.css',
+                'resources/css/admin_css/patients.css',
+                'resources/css/admin_css/feedback.css',
+                'resources/css/admin_css/header.css',
+                'resources/css/admin_css/sidebar.css',
+                'resources/css/admin_css/user_management.css',
+
 
                 'resources/css/patient_css/about.css',
                 'resources/css/patient_css/app.css',
@@ -34,3 +46,5 @@ export default defineConfig({
         },
     },
 });
+
+//

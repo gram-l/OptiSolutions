@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'services/auth_service.dart';
-import 'services/forgot_password_service.dart';
+import 'package:flutter_optisolutions/auth/auth_service.dart';
+import 'package:flutter_optisolutions/auth/forgot_password_service.dart';
+import 'package:flutter_optisolutions/auth/google_auth.dart';
 
 
 // ─────────────────────────────────────────────────────────────
@@ -245,6 +246,38 @@ class _PrimaryButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  GOOGLE SIGN-IN BUTTON  (NEW — this was missing, causing the error)
+// ─────────────────────────────────────────────────────────────
+class _GoogleSignInButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  const _GoogleSignInButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.g_mobiledata, size: 26, color: Colors.red),
+        label: const Text(
+          'Sign in with Google',
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1A1A2E),
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: _C.border),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 //  1.  LOGIN SCREEN  (with inline error message UI)
 // ─────────────────────────────────────────────────────────────
 
@@ -288,7 +321,8 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _loading = false);
 
       if (result['success'] == true) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        final role = (result['user']?['user_role'] ?? '').toString().trim().toLowerCase();
+        _navigateByRole(role);
       }
     } catch (e) {
       if (!mounted) return;
@@ -296,6 +330,50 @@ class _LoginScreenState extends State<LoginScreen> {
         _loading = false;
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
+    }
+  }
+
+  // NEW: handles the Google Sign-In button tap
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final result = await AuthService.loginWithGoogle();
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (result['user'] != null) {
+        final role = (result['user']['user_role'] ?? '').toString().toLowerCase();
+        _navigateByRole(role);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  // NEW: routes admin to DashboardScreen ('/dashboard') and staff to
+  // AppointmentsScreen ('/appointments'), matching this app's existing
+  // RBAC convention (both routes already registered in main.dart).
+  void _navigateByRole(String role) {
+    switch (role) {
+      case 'admin':
+        Navigator.pushReplacementNamed(context, '/dashboard');
+        break;
+      case 'staff':
+        Navigator.pushReplacementNamed(context, '/staff/dashboard');
+        break;
+      default:
+        setState(() {
+          _errorMessage = 'Unrecognized account role. Please contact your administrator.';
+        });
     }
   }
 
@@ -396,9 +474,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Spacer(),
                 GestureDetector(
                   onTap: () {
-  print("Forgot Password clicked");
-  Navigator.pushNamed(context, '/reset');
-},
+                    Navigator.pushNamed(context, '/reset');
+                  },
                   child: const Text('Forgot Password?',
                       style: TextStyle(
                           fontSize: 12.5,
@@ -417,10 +494,39 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: CircularProgressIndicator(),
                     ),
                   )
-                : _PrimaryButton(
-                    label: 'Sign In',
-                    icon: Icons.login_rounded,
-                    onTap: _login,
+                : Column(
+                    children: [
+                      _PrimaryButton(
+                        label: 'Sign In',
+                        icon: Icons.login_rounded,
+                        onTap: _login,
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      const Row(
+                        children: [
+                          Expanded(child: Divider()),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              "OR",
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Expanded(child: Divider()),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      _GoogleSignInButton(
+                        onTap: _loginWithGoogle,
+                      ),
+                    ],
                   ),
           ],
         ),
@@ -938,12 +1044,11 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       ),
     );
   }
-  
+
 }
 
 // ─────────────────────────────────────────────────────────────
-//  OTP DIGIT BOX  (add this back at the very bottom of the file,
-//  after NewPasswordScreen — it was accidentally dropped)
+//  OTP DIGIT BOX
 // ─────────────────────────────────────────────────────────────
 class _OtpBox extends StatelessWidget {
   final TextEditingController controller;
@@ -992,4 +1097,3 @@ class _OtpBox extends StatelessWidget {
     );
   }
 }
-  

@@ -9,33 +9,30 @@ use Illuminate\Support\Facades\DB;
 class VisitController extends Controller
 {
     // GET /admin/appointments?week_start=2026-07-13&week_end=2026-07-19
-    public function apiIndex(Request $request)
-    {
-        $weekStart = $request->query('week_start');
-        $weekEnd   = $request->query('week_end');
+   // VisitController.php
+public function apiIndex(Request $request)
+{
+    $date = $request->query('date'); // e.g. 2026-07-14
 
-        $query = DB::table('visits')
-            ->leftJoin('doctors', 'visits.doctor_id', '=', 'doctors.doctor_id')
-            ->leftJoin('users as patients', 'visits.patient_id', '=', 'patients.user_id') // adjust if patients live in a separate table, not users
-            ->select(
-                'visits.visit_id',
-                'visits.service_type',
-                'visits.visit_date',
-                'visits.notes',
-                'visits.scheduled_at',
-                'doctors.doctor_name',
-                'patients.name as patient_name'
-            );
+    $query = DB::table('schedule_visit')
+        ->leftJoin('doctors', 'schedule_visit.doctor_id', '=', 'doctors.doctor_id')
+        ->leftJoin('patients', 'schedule_visit.patient_id', '=', 'patients.patient_id')
+        ->select(
+            'schedule_visit.visit_id',
+            'schedule_visit.service_type',
+            'schedule_visit.visit_date',
+            'schedule_visit.notes',
+            'schedule_visit.scheduled_at',
+            'doctors.doctor_name',
+            DB::raw("CONCAT(patients.patient_fname, ' ', patients.patient_lname) as patient_name")
+        );
 
-        if ($weekStart && $weekEnd) {
-            $query->whereBetween('visits.visit_date', [$weekStart, $weekEnd]);
-        }
-
-        $visits = $query->orderBy('visits.visit_date')->get();
-
-        return response()->json([
-            'success' => true,
-            'visits'  => $visits,
-        ]);
+    if ($date) {
+        $query->whereDate('schedule_visit.visit_date', $date);
     }
+
+    $visits = $query->orderBy('schedule_visit.scheduled_at')->get();
+
+    return response()->json(['success' => true, 'visits' => $visits]);
+}
 }

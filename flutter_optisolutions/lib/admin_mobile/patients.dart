@@ -2,74 +2,61 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
-// ─────────────────────────────────────────────────────────────
-//  COLORS
-// ─────────────────────────────────────────────────────────────
-
-// specialty → accent color
-const _specialtyColors = <String, Color>{
-  'Ophthalmology': Color(0xFF1565C0),
-  'Pediatrics':    Color(0xFF2E7D32),
-  'ENT':           Color(0xFF00838F),
-  'Cardiology':    Color(0xFFB71C1C),
-  'Dermatology':   Color(0xFF6A1B9A),
-};
+import 'services/patient_service.dart';
+import 'dart:io';
+import 'package:csv/csv.dart';
+import 'package:excel/excel.dart' as xls;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  DATA MODEL
+//  DATA MODEL — matches the real `patients` table exactly
 // ─────────────────────────────────────────────────────────────
 class PatientModel {
-  final String id;            // P-1001
-  final String name;
-  final String specialty;
-  final String doctor;
-  final int    age;
-  final String phone;
-  final String notes;
+  final int id;
+  final String fname;
+  final String lname;
+  final DateTime? birthdate;
+  final String? email;
+  final String? contact;
 
   const PatientModel({
     required this.id,
-    required this.name,
-    required this.specialty,
-    required this.doctor,
-    required this.age,
-    required this.phone,
-    required this.notes,
+    required this.fname,
+    required this.lname,
+    this.birthdate,
+    this.email,
+    this.contact,
   });
-}
 
-const _patients = <PatientModel>[
-  PatientModel(
-    id: 'P-1001', name: 'Maria Santos',
-    specialty: 'Ophthalmology', doctor: 'Dr. Maria Reyes',
-    age: 34, phone: '09123456789',
-    notes: 'Cataract surgery scheduled for June 15. No known allergies.',
-  ),
-  PatientModel(
-    id: 'P-1002', name: 'John Dela Cruz',
-    specialty: 'Pediatrics', doctor: 'Dr. Jose Mendoza',
-    age: 5, phone: '09234567890',
-    notes: 'Routine vaccination. Mild fever last week.',
-  ),
-  PatientModel(
-    id: 'P-1003', name: 'Anna Rivera',
-    specialty: 'ENT', doctor: 'Dr. Anna Garcia',
-    age: 28, phone: '09345678901',
-    notes: 'Chronic sinusitis. Prescribed antibiotics.',
-  ),
-  PatientModel(
-    id: 'P-1004', name: 'Carlos Gomez',
-    specialty: 'Cardiology', doctor: 'Dr. Carlos Santos',
-    age: 58, phone: '09456789012',
-    notes: 'Hypertension. Regular blood pressure monitoring.',
-  ),
-  PatientModel(
-    id: 'P-1005', name: 'Elena Reyes',
-    specialty: 'Dermatology', doctor: 'Dr. Elena Lopez',
-    age: 41, phone: '09567890123',
-    notes: 'Eczema flare-up. Topical steroid prescribed.',
-  ),
-];
+  factory PatientModel.fromJson(Map<String, dynamic> json) {
+    return PatientModel(
+      id: json['patient_id'],
+      fname: json['patient_fname'] ?? '',
+      lname: json['patient_lname'] ?? '',
+      birthdate: json['patient_birthdate'] != null
+          ? DateTime.tryParse(json['patient_birthdate'])
+          : null,
+      email: json['patient_email'],
+      contact: json['patient_contact'],
+    );
+  }
+
+  String get fullName => '$fname $lname'.trim();
+
+  int? get age {
+    if (birthdate == null) return null;
+    final now = DateTime.now();
+    int years = now.year - birthdate!.year;
+    if (now.month < birthdate!.month ||
+        (now.month == birthdate!.month && now.day < birthdate!.day)) {
+      years--;
+    }
+    return years;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 //  SCREEN
@@ -82,24 +69,37 @@ class PatientRecordsScreen extends StatefulWidget {
 }
 
 class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
-  String _search     = '';
-  String _deptFilter = 'All Depts';
-  String _statusFilter = 'All';
-
-  static const _depts = [
-    'All Depts', 'Ophthalmology', 'Pediatrics', 'ENT', 'Cardiology', 'Dermatology',
-  ];
-  static const _statuses = ['All', 'Active', 'Inactive'];
+  String _search = '';
+  List<PatientModel> _patients = [];
+  bool _loading = true;
+  String? _error;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchPatients();
+  }
+
+  Future<void> _fetchPatients() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final data = await PatientService.fetchAll();
+      setState(() {
+        _patients = data.map((j) => PatientModel.fromJson(j)).toList();
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() { _error = e.toString().replaceFirst('Exception: ', ''); _loading = false; });
+    }
+  }
+
   List<PatientModel> get _filtered => _patients.where((p) {
         final q = _search.toLowerCase();
-        final matchSearch = p.name.toLowerCase().contains(q) ||
-            p.id.toLowerCase().contains(q) ||
-            p.doctor.toLowerCase().contains(q);
-        final matchDept = _deptFilter == 'All Depts' || p.specialty == _deptFilter;
-        return matchSearch && matchDept;
+        return p.fullName.toLowerCase().contains(q) ||
+            (p.email ?? '').toLowerCase().contains(q) ||
+            (p.contact ?? '').toLowerCase().contains(q);
       }).toList();
 
   @override
@@ -118,13 +118,33 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
           children: [
             _buildHeader(),
             _buildFilterRow(),
-            _buildExportButton(),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                itemCount: _filtered.length,
-                itemBuilder: (_, i) => _PatientCard(patient: _filtered[i]),
-              ),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_error!, textAlign: TextAlign.center),
+                              const SizedBox(height: 12),
+                              ElevatedButton(onPressed: _fetchPatients, child: const Text('Retry')),
+                            ],
+                          ),
+                        )
+                      : _filtered.isEmpty
+                          ? const _EmptyState()
+                          : RefreshIndicator(
+                              onRefresh: _fetchPatients,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                                itemCount: _filtered.length,
+                                itemBuilder: (_, i) => _PatientCard(
+                                  patient: _filtered[i],
+                                  onEdited: _fetchPatients,
+                                ),
+                              ),
+                            ),
             ),
           ],
         ),
@@ -132,7 +152,93 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
     );
   }
 
-  // ── Merged header: hamburger + icon box + title + subtitle ──
+  void _showExportSheet() {
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+    builder: (context) => SafeArea(
+      child: Wrap(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.table_chart_outlined, color: AppColors.primary),
+            title: const Text('Export as CSV'),
+            onTap: () { Navigator.pop(context); _exportCsv(); },
+          ),
+          ListTile(
+            leading: const Icon(Icons.grid_on_rounded, color: AppColors.primary),
+            title: const Text('Export as Excel'),
+            onTap: () { Navigator.pop(context); _exportExcel(); },
+          ),
+          ListTile(
+            leading: const Icon(Icons.picture_as_pdf_outlined, color: AppColors.primary),
+            title: const Text('Export as PDF'),
+            onTap: () { Navigator.pop(context); _exportPdf(); },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+List<List<String>> get _exportRows {
+  final rows = <List<String>>[
+    ['Patient ID', 'Name', 'Age', 'Email', 'Contact'],
+  ];
+  for (final p in _filtered) {
+    rows.add([
+      'P-${p.id}',
+      p.fullName,
+      p.age?.toString() ?? '',
+      p.email ?? '',
+      p.contact ?? '',
+    ]);
+  }
+  return rows;
+}
+
+Future<File> _writeToDownloads(String filename, List<int> bytes) async {
+  final dir = await getApplicationDocumentsDirectory();
+  final file = File('${dir.path}/$filename');
+  await file.writeAsBytes(bytes);
+  return file;
+}
+
+Future<void> _exportCsv() async {
+  final csv = const ListToCsvConverter().convert(_exportRows);
+  final file = await _writeToDownloads('patients.csv', csv.codeUnits);
+  await Share.shareXFiles([XFile(file.path)], text: 'Patient records export');
+}
+
+Future<void> _exportExcel() async {
+  final workbook = xls.Excel.createExcel();
+  final sheet = workbook['Patients'];
+  for (final row in _exportRows) {
+    sheet.appendRow(row.map((c) => xls.TextCellValue(c)).toList());
+  }
+  final bytes = workbook.encode();
+  if (bytes == null) return;
+  final file = await _writeToDownloads('patients.xlsx', bytes);
+  await Share.shareXFiles([XFile(file.path)], text: 'Patient records export');
+}
+
+Future<void> _exportPdf() async {
+  final doc = pw.Document();
+  doc.addPage(
+    pw.Page(
+      pageFormat: PdfPageFormat.a4.landscape,
+      build: (context) => pw.Table.fromTextArray(
+        headers: _exportRows.first,
+        data: _exportRows.skip(1).toList(),
+        cellStyle: const pw.TextStyle(fontSize: 9),
+        headerStyle: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+      ),
+    ),
+  );
+  final bytes = await doc.save();
+  final file = await _writeToDownloads('patients.pdf', bytes);
+  await Share.shareXFiles([XFile(file.path)], text: 'Patient records export');
+}
+
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 10, 16, 12),
@@ -151,19 +257,11 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
-                  Icons.folder_shared_outlined,
-                  size: 15,
-                  color: AppColors.iconColor,
-                ),
+                child: const Icon(Icons.folder_shared_outlined, size: 15, color: AppColors.iconColor),
               ),
               const SizedBox(width: 10),
               const Text('Patients',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkNavy,
-                  )),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkNavy)),
             ],
           ),
           const Padding(
@@ -176,78 +274,31 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
     );
   }
 
-  // ── Search + filters + Add ──
   Widget _buildFilterRow() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
-        children: [
-          // Search
-          Expanded(
-            flex: 3,
-            child: _SearchField(onChanged: (v) => setState(() => _search = v)),
-          ),
-          const SizedBox(width: 8),
-          // Dept dropdown
-          _DropdownBox(
-            value: _deptFilter,
-            items: _depts,
-            onChanged: (v) => setState(() => _deptFilter = v!),
-          ),
-          const SizedBox(width: 6),
-          // Status dropdown
-          _DropdownBox(
-            value: _statusFilter,
-            items: _statuses,
-            onChanged: (v) => setState(() => _statusFilter = v!),
-          ),
-          const SizedBox(width: 6),
-          // Add button
-          _AddButton(onTap: () => _showAddDialog(context)),
-        ],
-      ),
-    );
-  }
-
-  // ── Export row ──
-  Widget _buildExportButton() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Material(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () {},
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.download_rounded, color: Colors.white, size: 15),
-                  SizedBox(width: 5),
-                  Text('Export',
-                      style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+    child: Row(
+      children: [
+        Expanded(
+          child: _SearchField(onChanged: (v) => setState(() => _search = v)),
         ),
-      ),
-    );
-  }
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.ios_share_rounded, color: AppColors.primary),
+          onPressed: _filtered.isEmpty ? null : _showExportSheet,
+        ),
+        _AddButton(onTap: () => _showAddDialog(context)),
+      ],
+    ),
+  );
+}
 
-  // ── Add Patient Dialog ──
   void _showAddDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => const _AddPatientSheet(),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _AddEditPatientSheet(onSaved: _fetchPatients),
     );
   }
 }
@@ -257,12 +308,11 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
 // ─────────────────────────────────────────────────────────────
 class _PatientCard extends StatelessWidget {
   final PatientModel patient;
-  const _PatientCard({required this.patient});
+  final VoidCallback onEdited;
+  const _PatientCard({required this.patient, required this.onEdited});
 
   @override
   Widget build(BuildContext context) {
-    final accent = _specialtyColors[patient.specialty] ?? AppColors.primary;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -277,58 +327,41 @@ class _PatientCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Name ──
-            Text(patient.name,
+            Text(patient.fullName.isNotEmpty ? patient.fullName : 'Unnamed patient',
                 style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-
-            // ── ID + Specialty ──
-            Row(
-              children: [
-                _IdChip(id: patient.id),
-                const SizedBox(width: 8),
-                _SpecialtyChip(label: patient.specialty, color: accent),
-              ],
-            ),
+            _IdChip(id: 'P-${patient.id}'),
             const SizedBox(height: 8),
-
-            // ── Doctor + Age + Phone ──
             Row(
               children: [
-                const Icon(Icons.person_outline_rounded, size: 13, color: AppColors.textGrey),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(patient.doctor,
-                      style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
-                ),
-                const SizedBox(width: 10),
-                const Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.textGrey),
-                const SizedBox(width: 3),
-                Text('${patient.age} yrs',
-                    style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
-                const SizedBox(width: 10),
-                const Icon(Icons.phone_outlined, size: 12, color: AppColors.textGrey),
-                const SizedBox(width: 3),
-                Text(patient.phone,
-                    style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
+                if (patient.age != null) ...[
+                  const Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.textGrey),
+                  const SizedBox(width: 3),
+                  Text('${patient.age} yrs', style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
+                  const SizedBox(width: 10),
+                ],
+                if (patient.contact != null && patient.contact!.isNotEmpty) ...[
+                  const Icon(Icons.phone_outlined, size: 12, color: AppColors.textGrey),
+                  const SizedBox(width: 3),
+                  Text(patient.contact!, style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
+                ],
               ],
             ),
-            const SizedBox(height: 10),
-
-            // ── Notes ──
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4F6FB),
-                borderRadius: BorderRadius.circular(8),
+            if (patient.email != null && patient.email!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.email_outlined, size: 12, color: AppColors.textGrey),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(patient.email!,
+                        style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
               ),
-              child: Text(patient.notes,
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textDark, height: 1.4)),
-            ),
+            ],
             const SizedBox(height: 10),
-
-            // ── Action buttons ──
             Row(
               children: [
                 _CardButton(
@@ -342,7 +375,12 @@ class _PatientCard extends StatelessWidget {
                   label: 'Edit',
                   icon: Icons.edit_outlined,
                   color: AppColors.editBlue,
-                  onTap: () {},
+                  onTap: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                    builder: (_) => _AddEditPatientSheet(patient: patient, onSaved: onEdited),
+                  ),
                 ),
               ],
             ),
@@ -356,8 +394,7 @@ class _PatientCard extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _ViewPatientSheet(patient: p),
     );
   }
@@ -372,11 +409,10 @@ class _ViewPatientSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = _specialtyColors[patient.specialty] ?? AppColors.primary;
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.55,
-      maxChildSize: 0.85,
+      initialChildSize: 0.5,
+      maxChildSize: 0.8,
       builder: (_, ctrl) => Padding(
         padding: const EdgeInsets.all(20),
         child: ListView(
@@ -385,10 +421,7 @@ class _ViewPatientSheet extends StatelessWidget {
             Center(
               child: Container(
                 width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDDE1E8),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                decoration: BoxDecoration(color: const Color(0xFFDDE1E8), borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: 16),
@@ -396,41 +429,35 @@ class _ViewPatientSheet extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: accent.withValues(alpha: 0.15),
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                   child: Text(
-                    patient.name.substring(0, 1),
-                    style: TextStyle(color: accent, fontSize: 20, fontWeight: FontWeight.bold),
+                    patient.fname.isNotEmpty ? patient.fname.substring(0, 1) : '?',
+                    style: const TextStyle(color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(patient.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(patient.id,
-                        style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
+                    Text(patient.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('P-${patient.id}', style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 18),
-            _DetailRow(icon: Icons.local_hospital_outlined, label: 'Specialty', value: patient.specialty),
-            _DetailRow(icon: Icons.person_outline_rounded, label: 'Doctor', value: patient.doctor),
-            _DetailRow(icon: Icons.calendar_today_outlined, label: 'Age', value: '${patient.age} years old'),
-            _DetailRow(icon: Icons.phone_outlined, label: 'Phone', value: patient.phone),
-            const SizedBox(height: 12),
-            const Text('Notes', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4F6FB),
-                borderRadius: BorderRadius.circular(10),
+            if (patient.age != null)
+              _DetailRow(icon: Icons.calendar_today_outlined, label: 'Age', value: '${patient.age} years old'),
+            if (patient.birthdate != null)
+              _DetailRow(
+                icon: Icons.cake_outlined,
+                label: 'Birthdate',
+                value: '${patient.birthdate!.month}/${patient.birthdate!.day}/${patient.birthdate!.year}',
               ),
-              child: Text(patient.notes,
-                  style: const TextStyle(fontSize: 13, height: 1.5)),
-            ),
+            if (patient.contact != null && patient.contact!.isNotEmpty)
+              _DetailRow(icon: Icons.phone_outlined, label: 'Contact', value: patient.contact!),
+            if (patient.email != null && patient.email!.isNotEmpty)
+              _DetailRow(icon: Icons.email_outlined, label: 'Email', value: patient.email!),
           ],
         ),
       ),
@@ -453,10 +480,7 @@ class _DetailRow extends StatelessWidget {
           Icon(icon, size: 16, color: AppColors.primary),
           const SizedBox(width: 8),
           Text('$label: ', style: const TextStyle(color: AppColors.textGrey, fontSize: 12.5)),
-          Expanded(
-            child: Text(value,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5)),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
         ],
       ),
     );
@@ -464,10 +488,95 @@ class _DetailRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  ADD PATIENT BOTTOM SHEET
+//  ADD / EDIT PATIENT BOTTOM SHEET
 // ─────────────────────────────────────────────────────────────
-class _AddPatientSheet extends StatelessWidget {
-  const _AddPatientSheet();
+class _AddEditPatientSheet extends StatefulWidget {
+  final PatientModel? patient; // null = add mode, non-null = edit mode
+  final VoidCallback onSaved;
+  const _AddEditPatientSheet({this.patient, required this.onSaved});
+
+  @override
+  State<_AddEditPatientSheet> createState() => _AddEditPatientSheetState();
+}
+
+class _AddEditPatientSheetState extends State<_AddEditPatientSheet> {
+  late final TextEditingController _fnameCtrl;
+  late final TextEditingController _lnameCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _contactCtrl;
+  DateTime? _birthdate;
+  bool _saving = false;
+  String? _error;
+
+  bool get _isEdit => widget.patient != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _fnameCtrl = TextEditingController(text: widget.patient?.fname ?? '');
+    _lnameCtrl = TextEditingController(text: widget.patient?.lname ?? '');
+    _emailCtrl = TextEditingController(text: widget.patient?.email ?? '');
+    _contactCtrl = TextEditingController(text: widget.patient?.contact ?? '');
+    _birthdate = widget.patient?.birthdate;
+  }
+
+  @override
+  void dispose() {
+    _fnameCtrl.dispose();
+    _lnameCtrl.dispose();
+    _emailCtrl.dispose();
+    _contactCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickBirthdate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _birthdate ?? DateTime(2000),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _birthdate = picked);
+  }
+
+  Future<void> _save() async {
+    if (_fnameCtrl.text.trim().isEmpty || _lnameCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'First and last name are required.');
+      return;
+    }
+
+    setState(() { _saving = true; _error = null; });
+
+    final bdateStr = _birthdate != null
+        ? '${_birthdate!.year}-${_birthdate!.month.toString().padLeft(2, '0')}-${_birthdate!.day.toString().padLeft(2, '0')}'
+        : null;
+
+    try {
+      if (_isEdit) {
+        await PatientService.update(
+          id: widget.patient!.id,
+          fname: _fnameCtrl.text.trim(),
+          lname: _lnameCtrl.text.trim(),
+          birthdate: bdateStr,
+          email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+          contact: _contactCtrl.text.trim().isEmpty ? null : _contactCtrl.text.trim(),
+        );
+      } else {
+        await PatientService.create(
+          fname: _fnameCtrl.text.trim(),
+          lname: _lnameCtrl.text.trim(),
+          birthdate: bdateStr,
+          email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+          contact: _contactCtrl.text.trim().isEmpty ? null : _contactCtrl.text.trim(),
+        );
+      }
+      if (!mounted) return;
+      widget.onSaved();
+      Navigator.pop(context);
+    } catch (e) {
+      setState(() { _saving = false; _error = e.toString().replaceFirst('Exception: ', ''); });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -483,34 +592,68 @@ class _AddPatientSheet extends StatelessWidget {
           Center(
             child: Container(
               width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDDE1E8),
-                borderRadius: BorderRadius.circular(2),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFFDDE1E8), borderRadius: BorderRadius.circular(2)),
             ),
           ),
           const SizedBox(height: 16),
-          const Text('Add New Patient',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          Text(_isEdit ? 'Edit Patient' : 'Add New Patient',
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
-          _SheetField(hint: 'Full Name', icon: Icons.person_outline_rounded),
+
+          if (_error != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(color: const Color(0xFFFDEAEA), borderRadius: BorderRadius.circular(10)),
+              child: Text(_error!, style: const TextStyle(color: Color(0xFFD32F2F), fontSize: 12.5)),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          _SheetField(hint: 'First Name', icon: Icons.person_outline_rounded, controller: _fnameCtrl),
           const SizedBox(height: 10),
-          _SheetField(hint: 'Phone Number', icon: Icons.phone_outlined,
+          _SheetField(hint: 'Last Name', icon: Icons.person_outline_rounded, controller: _lnameCtrl),
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: _pickBirthdate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F6FB),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.cake_outlined, size: 18, color: AppColors.textGrey),
+                  const SizedBox(width: 10),
+                  Text(
+                    _birthdate != null
+                        ? '${_birthdate!.month}/${_birthdate!.day}/${_birthdate!.year}'
+                        : 'Birthdate (optional)',
+                    style: TextStyle(fontSize: 13.5, color: _birthdate != null ? AppColors.textDark : AppColors.textGrey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _SheetField(hint: 'Email (optional)', icon: Icons.email_outlined, controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress),
+          const SizedBox(height: 10),
+          _SheetField(hint: 'Contact Number (optional)', icon: Icons.phone_outlined, controller: _contactCtrl,
               keyboardType: TextInputType.phone),
-          const SizedBox(height: 10),
-          _SheetField(hint: 'Age', icon: Icons.calendar_today_outlined,
-              keyboardType: TextInputType.number),
-          const SizedBox(height: 10),
-          _SheetField(hint: 'Notes / Diagnosis', icon: Icons.notes_outlined, maxLines: 3),
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.add, color: Colors.white, size: 18),
-              label: const Text('Add Patient',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Icon(_isEdit ? Icons.save_outlined : Icons.add, color: Colors.white, size: 18),
+              label: Text(_isEdit ? 'Save Changes' : 'Add Patient',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -526,11 +669,13 @@ class _AddPatientSheet extends StatelessWidget {
 class _SheetField extends StatelessWidget {
   final String hint;
   final IconData icon;
+  final TextEditingController? controller;
   final TextInputType keyboardType;
   final int maxLines;
   const _SheetField({
     required this.hint,
     required this.icon,
+    this.controller,
     this.keyboardType = TextInputType.text,
     this.maxLines = 1,
   });
@@ -538,6 +683,7 @@ class _SheetField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
       style: const TextStyle(fontSize: 13.5),
@@ -548,18 +694,9 @@ class _SheetField extends StatelessWidget {
         filled: true,
         fillColor: const Color(0xFFF4F6FB),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
       ),
     );
   }
@@ -576,33 +713,9 @@ class _IdChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F2F8),
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFFF0F2F8), borderRadius: BorderRadius.circular(6)),
       child: Text(id,
-          style: const TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textGrey, letterSpacing: 0.3)),
-    );
-  }
-}
-
-class _SpecialtyChip extends StatelessWidget {
-  final String label;
-  final Color color;
-  const _SpecialtyChip({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: color, letterSpacing: 0.2)),
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textGrey, letterSpacing: 0.3)),
     );
   }
 }
@@ -628,8 +741,7 @@ class _CardButton extends StatelessWidget {
             children: [
               Icon(icon, size: 14, color: color),
               const SizedBox(width: 5),
-              Text(label,
-                  style: TextStyle(fontSize: 12.5, color: color, fontWeight: FontWeight.w600)),
+              Text(label, style: TextStyle(fontSize: 12.5, color: color, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -646,11 +758,7 @@ class _SearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 38,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
       child: TextField(
         onChanged: onChanged,
         style: const TextStyle(fontSize: 13),
@@ -660,36 +768,6 @@ class _SearchField extends StatelessWidget {
           hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 12),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 10),
-        ),
-      ),
-    );
-  }
-}
-
-class _DropdownBox extends StatelessWidget {
-  final String value;
-  final List<String> items;
-  final ValueChanged<String?> onChanged;
-  const _DropdownBox({required this.value, required this.items, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          items: items.map((e) =>
-              DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 11.5)))).toList(),
-          onChanged: onChanged,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textGrey),
-          style: const TextStyle(fontSize: 11.5, color: AppColors.textDark),
         ),
       ),
     );
@@ -707,15 +785,33 @@ class _AddButton extends StatelessWidget {
       child: Container(
         height: 38,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(10),
-        ),
+        decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
         child: const Row(
           children: [
             Icon(Icons.add, color: Colors.white, size: 16),
             SizedBox(width: 4),
             Text('Add', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('👥', style: TextStyle(fontSize: 52)),
+            SizedBox(height: 16),
+            Text('No patients found', style: TextStyle(fontSize: 15, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
           ],
         ),
       ),

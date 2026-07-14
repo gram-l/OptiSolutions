@@ -11,6 +11,7 @@ use App\Http\Controllers\admin_acc\AdminDashboardController;
 use App\Http\Controllers\admin_acc\ApiProfileController;
 use App\Http\Controllers\admin_acc\FeedbackController;
 use App\Http\Controllers\admin_acc\VisitController;
+use App\Http\Controllers\admin_acc\PatientListController;
 
 Route::prefix('admin')->group(function () {
 
@@ -46,4 +47,10 @@ Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
 
 //schedule visit list
 Route::get('/appointments', [VisitController::class, 'apiIndex']);
+
+//Patient list
+
+Route::get('/patients', [PatientListController::class, 'apiIndex']);
+Route::post('/patients', [PatientListController::class, 'store']);
+Route::put('/patients/{id}', [PatientListController::class, 'update']);
 });

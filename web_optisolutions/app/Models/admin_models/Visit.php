@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Visit extends Model
 {
-    protected $table = 'visits'; // adjust if your table name differs
+    protected $table = 'schedule_visit'; // adjust if your table name differs
     protected $primaryKey = 'visit_id';
     public $timestamps = false;
 

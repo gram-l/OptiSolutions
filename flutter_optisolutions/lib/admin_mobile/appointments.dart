@@ -23,26 +23,15 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   String _searchQuery = '';
   String _selectedDept = 'All dept';
 
-  DateTime _weekStart = _getWeekStart(DateTime.now());
+  DateTime _selectedDate = DateTime.now();
   List<Map<String, dynamic>> _visits = [];
   bool _loading = true;
   String? _error;
 
-  static DateTime _getWeekStart(DateTime date) {
-    final d = DateTime(date.year, date.month, date.day);
-    return d.subtract(Duration(days: d.weekday - 1));
-  }
+  static const _months = ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  DateTime get _weekEnd => _weekStart.add(const Duration(days: 6));
-
-  String get _weekLabel {
-    final end = _weekEnd;
-    final months = ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    if (_weekStart.month == end.month) {
-      return '${months[_weekStart.month]} ${_weekStart.day}–${end.day}';
-    }
-    return '${months[_weekStart.month]} ${_weekStart.day} – ${months[end.month]} ${end.day}';
-  }
+  String get _dateLabel =>
+      '${_months[_selectedDate.month]} ${_selectedDate.day}, ${_selectedDate.year}';
 
   @override
   void initState() {
@@ -53,21 +42,34 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   Future<void> _fetchVisits() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final visits = await VisitService.fetchWeek(_weekStart, _weekEnd);
+      final visits = await VisitService.fetchDay(_selectedDate);
       setState(() { _visits = visits; _loading = false; });
     } catch (e) {
       setState(() { _error = e.toString().replaceFirst('Exception: ', ''); _loading = false; });
     }
   }
 
-  void _prevWeek() {
-    setState(() => _weekStart = _weekStart.subtract(const Duration(days: 7)));
+  void _prevDay() {
+    setState(() => _selectedDate = _selectedDate.subtract(const Duration(days: 1)));
     _fetchVisits();
   }
 
-  void _nextWeek() {
-    setState(() => _weekStart = _weekStart.add(const Duration(days: 7)));
+  void _nextDay() {
+    setState(() => _selectedDate = _selectedDate.add(const Duration(days: 1)));
     _fetchVisits();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+      _fetchVisits();
+    }
   }
 
   List<Map<String, dynamic>> get _filtered {
@@ -79,17 +81,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       final matchesDept = _selectedDept == 'All dept' || v['service_type'] == _selectedDept;
       return matchesSearch && matchesDept;
     }).toList();
-  }
-
-  // Groups the filtered visits by visit_date (YYYY-MM-DD) for per-day display
-  Map<String, List<Map<String, dynamic>>> get _groupedByDay {
-    final map = <String, List<Map<String, dynamic>>>{};
-    for (final v in _filtered) {
-      final date = (v['visit_date'] ?? '').toString().split('T').first;
-      map.putIfAbsent(date, () => []).add(v);
-    }
-    final sortedKeys = map.keys.toList()..sort();
-    return {for (final k in sortedKeys) k: map[k]!};
   }
 
   void _navigateTo(String route) {
@@ -134,7 +125,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     for (final v in _filtered) {
       rows.add([
         (v['visit_date'] ?? '').toString().split('T').first,
-        v['patient_name']?.toString() ?? 'Unassigned',
+        v['patient_name']?.toString().trim().isNotEmpty == true ? v['patient_name'] : 'Unassigned',
         v['doctor_name']?.toString() ?? 'Unassigned',
         v['service_type']?.toString() ?? '',
         v['notes']?.toString() ?? '',
@@ -150,10 +141,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     return file;
   }
 
+  String get _exportFileSafeDate =>
+      '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+
   Future<void> _exportCsv() async {
     final csv = const ListToCsvConverter().convert(_exportRows);
-    final file = await _writeToDownloads('appointments_$_weekLabel.csv', csv.codeUnits);
-    await Share.shareXFiles([XFile(file.path)], text: 'Appointments export ($_weekLabel)');
+    final file = await _writeToDownloads('appointments_$_exportFileSafeDate.csv', csv.codeUnits);
+    await Share.shareXFiles([XFile(file.path)], text: 'Appointments export ($_dateLabel)');
   }
 
   Future<void> _exportExcel() async {
@@ -164,8 +158,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     }
     final bytes = workbook.encode();
     if (bytes == null) return;
-    final file = await _writeToDownloads('appointments_$_weekLabel.xlsx', bytes);
-    await Share.shareXFiles([XFile(file.path)], text: 'Appointments export ($_weekLabel)');
+    final file = await _writeToDownloads('appointments_$_exportFileSafeDate.xlsx', bytes);
+    await Share.shareXFiles([XFile(file.path)], text: 'Appointments export ($_dateLabel)');
   }
 
   Future<void> _exportPdf() async {
@@ -182,8 +176,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       ),
     );
     final bytes = await doc.save();
-    final file = await _writeToDownloads('appointments_$_weekLabel.pdf', bytes);
-    await Share.shareXFiles([XFile(file.path)], text: 'Appointments export ($_weekLabel)');
+    final file = await _writeToDownloads('appointments_$_exportFileSafeDate.pdf', bytes);
+    await Share.shareXFiles([XFile(file.path)], text: 'Appointments export ($_dateLabel)');
   }
 
   @override
@@ -270,28 +264,42 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 16),
+
+                                // ── Day nav + date picker ──
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    _WeekNavButton(icon: Icons.chevron_left, onTap: _prevWeek),
+                                    _NavButton(icon: Icons.chevron_left, onTap: _prevDay),
                                     const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                      decoration: BoxDecoration(color: AppColors.darkNavy, borderRadius: BorderRadius.circular(20)),
-                                      child: Text(_weekLabel, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                                    GestureDetector(
+                                      onTap: _pickDate,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.darkNavy,
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(_dateLabel,
+                                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                                            const SizedBox(width: 4),
+                                            const Icon(Icons.calendar_month_rounded, size: 14, color: Colors.white),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 6),
-                                    _WeekNavButton(icon: Icons.chevron_right, onTap: _nextWeek),
+                                    _NavButton(icon: Icons.chevron_right, onTap: _nextDay),
                                   ],
                                 ),
                                 const SizedBox(height: 24),
 
-                                if (_groupedByDay.isEmpty) const _EmptyState(),
-
-                                ..._groupedByDay.entries.map((entry) => _DaySection(
-                                      dateLabel: entry.key,
-                                      visits: entry.value,
-                                    )),
+                                if (_filtered.isEmpty)
+                                  const _EmptyState()
+                                else
+                                  ..._filtered.map((v) => _VisitCard(visit: v)),
 
                                 const SizedBox(height: 24),
                               ],
@@ -306,56 +314,53 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 }
 
-// ── Day section (groups visits under a date header) ──
-class _DaySection extends StatelessWidget {
-  final String dateLabel;
-  final List<Map<String, dynamic>> visits;
-  const _DaySection({required this.dateLabel, required this.visits});
+// ── Visit card (single visit row) ──
+class _VisitCard extends StatelessWidget {
+  final Map<String, dynamic> visit;
+  const _VisitCard({required this.visit});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final patientName = visit['patient_name']?.toString().trim();
+    final hasPatient = patientName != null && patientName.isNotEmpty && patientName != 'null null';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
         children: [
-          Text(dateLabel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.darkNavy)),
-          const SizedBox(height: 8),
-          ...visits.map((v) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(v['patient_name']?.toString() ?? 'Unassigned patient',
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                          const SizedBox(height: 2),
-                          Text('${v['service_type'] ?? ''} · ${v['doctor_name'] ?? 'Unassigned doctor'}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(hasPatient ? patientName : 'Unassigned patient',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: 2),
+                Text('${visit['service_type'] ?? ''} · ${visit['doctor_name'] ?? 'Unassigned doctor'}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
+                if ((visit['notes'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(visit['notes'].toString(),
+                      style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey, fontStyle: FontStyle.italic)),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _WeekNavButton extends StatelessWidget {
+class _NavButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  const _WeekNavButton({required this.icon, required this.onTap});
+  const _NavButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -383,7 +388,7 @@ class _EmptyState extends StatelessWidget {
           children: [
             Text('📬', style: TextStyle(fontSize: 52)),
             SizedBox(height: 16),
-            Text('No appointments this week', style: TextStyle(fontSize: 15, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
+            Text('No appointments this day', style: TextStyle(fontSize: 15, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
           ],
         ),
       ),

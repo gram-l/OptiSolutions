@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:flutter_optisolutions/config/api_config.dart';
 
 class DashboardService {
-  static const String baseUrl = 'http://10.145.123.34:8000/api';
+  static const String baseUrl = ApiConfig.baseUrl;
 
   static Future<Map<String, dynamic>> getDashboardData() async {
     try {

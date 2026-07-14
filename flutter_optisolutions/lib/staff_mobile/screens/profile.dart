@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'cliniclogin.dart';
+
+import 'package:flutter_optisolutions/login.dart';
 import '../models/profile_data.dart';
 import '../widgets/notification_badge.dart';
 import 'notifications.dart';
@@ -333,7 +334,7 @@ class _ProfilePageState extends State<ProfilePage> {
               if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const PCLogin()),
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
             style: ElevatedButton.styleFrom(

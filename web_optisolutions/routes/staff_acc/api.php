@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\NotificationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ForgotPasswordController;
 // --- Public ---
-Route::post('/login', [AuthController::class, 'login']);
+/*Route::post('/login', [AuthController::class, 'login']);*/
 
 // --- Protected: requires "Authorization: Bearer <token>" ---
 Route::middleware('auth:sanctum')->group(function () {

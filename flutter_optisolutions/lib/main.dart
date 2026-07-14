@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'admin_mobile/colors.dart';
 import 'admin_mobile/side_panel.dart';
-import 'admin_mobile/login.dart';
+import 'login.dart';
 import 'admin_mobile/dashboard.dart';
 import 'admin_mobile/appointments.dart';
 import 'admin_mobile/doctors.dart';
@@ -12,6 +12,7 @@ import 'admin_mobile/feedback.dart';
 import 'admin_mobile/user_management.dart';
 import 'admin_mobile/settings.dart';
 import 'admin_mobile/notifications.dart';
+import 'admin_mobile/profile.dart';
 
 // Staff-side screens. No alias needed — class names here (AppointmentsPage,
 // Dashboard, DoctorsPage, etc.) don't collide with the admin_mobile classes
@@ -60,6 +61,7 @@ class PolyclinicApp extends StatelessWidget {
         '/user_management': (_) => const UserManagementScreen(),
         '/settings':        (_) => const SettingsScreen(),
         '/notifications':   (_) => const NotificationsScreen(),
+        '/profile':         (_) => const ProfileScreen(),
 
         // ── Staff routes ──
         // Note: InquiryChatPage needs specific arguments (inquiryId, patientId,

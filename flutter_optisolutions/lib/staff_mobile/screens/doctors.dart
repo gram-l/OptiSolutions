@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'cliniclogin.dart';
+import 'package:flutter_optisolutions/login.dart';
 import 'dashboard.dart';
 import 'inquiries.dart';
 import 'appointments.dart';
@@ -492,7 +492,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const PCLogin()),
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
             );
           }),
         ],
@@ -965,7 +965,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
               if (!context.mounted) return;
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const PCLogin()),
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
             style: ElevatedButton.styleFrom(

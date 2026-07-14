@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>PolyClinic | About Us</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -21,8 +22,8 @@
 
     <div class="about-grid-modern">
       <div class="about-text">
-        <p><strong>PolyClinic Lipa</strong> is a multi-specialty clinic located at <strong>TM Kalaw St., Lipa City, Batangas, 4217</strong>. We are committed to providing comprehensive and compassionate healthcare to the Lipa community and surrounding areas.</p>
-        <p>We offer a wide range of services including <strong>Pediatrics, Adult Medicine, Ophthalmology, OB-GYN, and Surgery</strong> consults. Our team of experienced specialists ensures that every patient receives personalized attention and the highest quality of care.</p>
+        <p><strong>{{ $clinicInfo->clinic_name ?? 'PolyClinic Lipa' }}</strong> is a multi-specialty clinic located at <strong>{{ $clinicInfo->address ?? 'TM Kalaw St., Lipa City, Batangas, 4217' }}</strong>. We are committed to providing comprehensive and compassionate healthcare to the Lipa community and surrounding areas.</p>
+        <p>{{ $clinicInfo->about_us ?? 'We offer a wide range of services including Pediatrics, Adult Medicine, Ophthalmology, OB-GYN, and Surgery consults. Our team of experienced specialists ensures that every patient receives personalized attention and the highest quality of care.' }}</p>
 
         <div class="about-stats-modern">
           <div class="stat-item">
@@ -34,11 +35,11 @@
             <span class="stat-label">Happy Patients</span>
           </div>
           <div class="stat-item">
-            <span class="stat-number">12+</span>
+            <span class="stat-number">{{ $specialistsCount }}+</span>
             <span class="stat-label">Specialists</span>
           </div>
           <div class="stat-item">
-            <span class="stat-number">4.9</span>
+            <span class="stat-number">{{ $avgRating ?? '4.9' }}</span>
             <span class="stat-label">Patient Rating</span>
           </div>
         </div>
@@ -109,24 +110,7 @@
 <!-- ========== FOOTER ========== -->
 <footer class="footer"><p>© 2026 PolyClinic Lipa · TM Kalaw St., Lipa City, Batangas 4217</p></footer>
 
-<!-- ========== CHATBOT ========== -->
-<button class="chatbot-trigger" onclick="toggleChat()"><i class="fas fa-comment-dots"></i></button>
-<div class="chatbot-panel" id="chatbot">
-  <div class="chat-header">
-    <div class="chat-header-left">
-      <div class="chat-avatar"><i class="fas fa-headset"></i></div>
-      <div class="chat-header-info"><strong>PolyClinic Assistant</strong><span>● Online</span></div>
-    </div>
-    <button onclick="toggleChat()" style="background:none; border:none; color:var(--gray-500); font-size:22px; cursor:pointer;">✕</button>
-  </div>
-  <div class="chat-messages" id="chatMessages"></div>
-  <div class="chat-input-area">
-    <button class="attach-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
-    <input type="text" class="chat-input" id="chatInput" placeholder="Type a message...">
-    <button class="chat-send" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
-    <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="handleImageUpload(event)">
-  </div>
-</div>
+@include('patient.partials.chatbot-widget')
 
 @vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
 

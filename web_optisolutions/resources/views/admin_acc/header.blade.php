@@ -54,20 +54,32 @@
 
         {{-- Avatar / Profile --}}
         <div class="avatar-wrapper">
-            <button class="avatar-btn" id="avatarBtn" aria-label="Profile menu">DL</button>
+            <button class="avatar-btn" id="avatarBtn" aria-label="Profile menu">
+    @if (Auth::user()->profile_photo)
+        <img src="{{ asset('storage/' . Auth::user()->profile_photo) }}" alt="Profile" class="avatar-img">
+    @else
+        {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+    @endif
+</button>
 
             <div class="dropdown" id="avatarDropdown">
                 <div class="profile-header">
-                    <div class="profile-avatar-lg">DL</div>
-                    <div>
-                        <div class="profile-name">Dr. Lara</div>
-                        <div class="profile-role">Administrator</div>
+                    <div class="profile-avatar-lg">
+                        @if (Auth::user()->profile_photo)
+                            <img src="{{ asset('storage/' . Auth::user()->profile_photo) }}" alt="Profile" class="avatar-img">
+                        @else
+                            {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                        @endif
+                    </div>
+                    <div class="profile-info">
+                        <p class="profile-name">{{ Auth::user()->name }}</p>
+                        <p class="profile-email">{{ Auth::user()->email }}</p>
                     </div>
                 </div>
 
-                <a class="menu-item" href="/admin_acc/profile">
-                    <i class="bi bi-person"></i> Profile
-                </a>
+                <a class="menu-item" href="#" onclick="openProfileModal(); return false;">
+    <i class="bi bi-person"></i> Profile
+</a>
                 <a class="menu-item" href="/admin_acc/settings">
                     <i class="bi bi-gear"></i> Settings
                 </a>
@@ -78,6 +90,7 @@
         </div>
 
     </div>
+    @include('admin_acc.partials.profile')
 </header>
 
 <script>

@@ -48,26 +48,15 @@
   </div>
 </div>
 
-<!-- ========== CHATBOT ========== -->
-<button class="chatbot-trigger" onclick="toggleChat()"><i class="fas fa-comment-dots"></i></button>
-<div class="chatbot-panel" id="chatbot">
-  <div class="chat-header">
-    <div class="chat-header-left">
-      <div class="chat-avatar"><i class="fas fa-headset"></i></div>
-      <div class="chat-header-info"><strong>PolyClinic Assistant</strong><span>● Online</span></div>
-    </div>
-    <button onclick="toggleChat()" style="background:none; border:none; color:var(--gray-500); font-size:22px; cursor:pointer;">✕</button>
-  </div>
-  <div class="chat-messages" id="chatMessages"></div>
-  <div class="chat-input-area">
-    <button class="attach-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
-    <input type="text" class="chat-input" id="chatInput" placeholder="Type a message...">
-    <button class="chat-send" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
-    <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="handleImageUpload(event)">
-  </div>
-</div>
+@include('patient.partials.chatbot-widget')
 
 @vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDoctorsData();
+  });
+</script>
 
 </body>
 </html>

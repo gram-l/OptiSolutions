@@ -21,9 +21,9 @@
                 @foreach($patients as $p)
                 <tr>
                     <td>{{ $p->patient_id }}</td>
-                    <td>{{ $p->patient_name }}</td>
-                    <td>{{ $p->department }}</td>
-                    <td>{{ $p->assigned_doctor }}</td>
+                    <td>{{ $p->full_name }}</td>
+                    <td>{{ $p->latestVisit->doctor->specialty ?? 'N/A' }}</td>
+                    <td>{{ $p->latestVisit->doctor->doctor_name ?? 'N/A' }}</td>
                     <td>
                         <a href="{{ route('staff.patients.show', $p->patient_id) }}" class="btn-sm btn-primary">View</a>
                         <a href="{{ route('staff.patients.edit', $p->patient_id) }}" class="btn-sm btn-warning">Edit</a>

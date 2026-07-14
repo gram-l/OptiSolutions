@@ -6,13 +6,18 @@
 
         <h3 style="color: var(--text-dark); margin-bottom: 1.5rem;">Edit Doctor</h3>
 
-        <form method="POST" action="{{ route('staff.doctors.update', $doctor->id) }}">
+        @php
+            // Kinukuha yung unang schedule entry ng doctor (kung meron)
+            $sched = $doctor->schedules->first();
+        @endphp
+
+        <form method="POST" action="{{ route('staff.doctors.update', $doctor->doctor_id) }}">
             @csrf
             @method('PUT')
 
             <div style="margin-bottom: 1rem;">
                 <label style="display:block; font-weight:600; margin-bottom:0.3rem;">Name</label>
-                <input type="text" value="{{ $doctor->name }}" disabled
+                <input type="text" value="{{ $doctor->doctor_name }}" disabled
                     style="width:100%; padding:0.7rem 1rem; border:1px solid var(--light-gray); border-radius:10px; background:#f5f5f5;">
             </div>
 
@@ -23,16 +28,34 @@
             </div>
 
             <div style="margin-bottom: 1rem;">
-                <label style="display:block; font-weight:600; margin-bottom:0.3rem;">Schedule</label>
-                <input type="text" name="schedule" value="{{ old('schedule', $doctor->schedule) }}"
-                    style="width:100%; padding:0.7rem 1rem; border:1px solid var(--light-gray); border-radius:10px;" required>
+                <label style="display:block; font-weight:600; margin-bottom:0.3rem;">Day</label>
+                <select name="day" style="width:100%; padding:0.7rem 1rem; border:1px solid var(--light-gray); border-radius:10px;" required>
+                    @foreach(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] as $day)
+                        <option value="{{ $day }}" {{ old('day', $sched->day ?? '') === $day ? 'selected' : '' }}>{{ $day }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div style="margin-bottom: 1rem; display:flex; gap:1rem;">
+                <div style="flex:1;">
+                    <label style="display:block; font-weight:600; margin-bottom:0.3rem;">Start Time</label>
+                    <input type="time" name="start_time"
+                        value="{{ old('start_time', $sched ? \Carbon\Carbon::parse($sched->start_time)->format('H:i') : '') }}"
+                        style="width:100%; padding:0.7rem 1rem; border:1px solid var(--light-gray); border-radius:10px;" required>
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; font-weight:600; margin-bottom:0.3rem;">End Time</label>
+                    <input type="time" name="end_time"
+                        value="{{ old('end_time', $sched ? \Carbon\Carbon::parse($sched->end_time)->format('H:i') : '') }}"
+                        style="width:100%; padding:0.7rem 1rem; border:1px solid var(--light-gray); border-radius:10px;" required>
+                </div>
             </div>
 
             <div style="margin-bottom: 1.5rem;">
                 <label style="display:block; font-weight:600; margin-bottom:0.3rem;">Status</label>
-                <select name="status" style="width:100%; padding:0.7rem 1rem; border:1px solid var(--light-gray); border-radius:10px;">
-                    <option value="Available" {{ $doctor->status === 'Available' ? 'selected' : '' }}>Available</option>
-                    <option value="Unavailable" {{ $doctor->status === 'Unavailable' ? 'selected' : '' }}>Unavailable</option>
+                <select name="available" style="width:100%; padding:0.7rem 1rem; border:1px solid var(--light-gray); border-radius:10px;">
+                    <option value="1" {{ $doctor->available == 1 ? 'selected' : '' }}>Available</option>
+                    <option value="0" {{ $doctor->available == 0 ? 'selected' : '' }}>Unavailable</option>
                 </select>
             </div>
 

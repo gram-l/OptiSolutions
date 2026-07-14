@@ -8,6 +8,7 @@ use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
+use App\Http\Controllers\admin_acc\AdminDashboardController;
 use App\Http\Controllers\admin_acc\ProfileController;
 use App\Http\Controllers\admin_acc\SystemSettingsController;
 use App\Http\Controllers\admin_acc\ServiceController;
@@ -120,3 +121,11 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
+
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/data', [AdminDashboardController::class, 'data'])->name('dashboard.data');
+    });

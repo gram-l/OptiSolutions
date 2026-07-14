@@ -2,17 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Service;
+use Illuminate\Support\Facades\DB;
 
 class ServiceController extends Controller
 {
+    // GET /api/services — used by the patient-facing website
     public function index()
     {
-        $services = Service::with(['conditions', 'doctorsList'])
+        $services = DB::table('services')
             ->where('available', 1)
+            ->orderBy('title')
             ->get();
 
-        $result = $services->map(function ($svc) {
+        $conditions = DB::table('service_conditions')->get()->groupBy('service_id');
+
+        $result = $services->map(function ($svc) use ($conditions) {
+            $doctorNames = DB::table('doctors')
+                ->where('specialty', $svc->title)
+                ->where('available', 1)
+                ->pluck('doctor_name');
+
             return [
                 'service_id'  => $svc->service_id,
                 'service_key' => $svc->service_key,
@@ -22,8 +31,9 @@ class ServiceController extends Controller
                 'room'        => $svc->room,
                 'schedule'    => $svc->schedule,
                 'available'   => $svc->available,
-                'conditions'  => $svc->conditions->pluck('condition_name'),
-                'doctors'     => $svc->doctorsList->pluck('doctor_name'),
+                'conditions'  => $conditions->get($svc->service_id, collect())
+                                    ->pluck('condition_name')->values(),
+                'doctors'     => $doctorNames->values(),
             ];
         });
 

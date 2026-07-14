@@ -20,17 +20,23 @@
             <tbody>
                 @foreach($doctors as $doc)
                 <tr>
-                    <td>{{ $doc->name }}</td>
+                    <td>{{ $doc->doctor_name }}</td>
                     <td>{{ $doc->specialty }}</td>
-                    <td>{{ $doc->schedule ?? 'N/A' }}</td>
                     <td>
-                        <span class="status-badge {{ $doc->status === 'Available' ? 'status-confirmed' : 'status-pending' }}">
-                            {{ $doc->status }}
+                        @forelse($doc->schedules as $sched)
+                            {{ $sched->day }} {{ \Carbon\Carbon::parse($sched->start_time)->format('h:i A') }}–{{ \Carbon\Carbon::parse($sched->end_time)->format('h:i A') }}<br>
+                        @empty
+                            N/A
+                        @endforelse
+                    </td>
+                    <td>
+                        <span class="status-badge {{ $doc->available ? 'status-confirmed' : 'status-pending' }}">
+                            {{ $doc->available ? 'Available' : 'Unavailable' }}
                         </span>
                     </td>
                     <td>
-                        <button class="btn-sm btn-warning" onclick="toggleStatus({{ $doc->id }})">Availability</button>
-                        <a href="{{ route('staff.doctors.edit', $doc->id) }}" class="btn-sm btn-secondary">Edit</a>
+                        <button class="btn-sm btn-warning" onclick="toggleStatus({{ $doc->doctor_id }})">Availability</button>
+                        <a href="{{ route('staff.doctors.edit', $doc->doctor_id) }}" class="btn-sm btn-secondary">Edit</a>
                     </td>
                 </tr>
                 @endforeach

@@ -6,40 +6,54 @@ use Illuminate\Database\Eloquent\Model;
 
 class Inquiry extends Model
 {
+    protected $table = 'inquiries';
     protected $primaryKey = 'inquiry_id';
+    public $timestamps = false; // palitan sa true kung may created_at/updated_at ang table mo
 
     protected $fillable = [
-        'patient',
-        'message',
-        'status',
-        'staff_id',
+        'patient_id',
+        'log_id',
+        'inquiry_type',
+        'resolved_status',
+        'inquiry_reply',
+        'replied_at',
     ];
 
-    public function messages()
+    /**
+     * Kumuha ng chatbot log entry na may kaugnayan sa inquiry na ito
+     */
+    public function log()
     {
-        return $this->hasMany(InquiryReply::class, 'inquiry_id', 'inquiry_id')
-                    ->orderBy('created_at');
+        return $this->belongsTo(ChatbotLog::class, 'log_id', 'log_id');
     }
 
     /**
-     * Alias para sa 'messages' relation — ginagamit ito ng web controller
-     * (Staff\InquiryController) na may Inquiry::with('replies').
+     * I-convert ang inquiry data papunta sa array format na inaasahan ng
+     * Flutter app (InquiriesPage). Palaging may fallback value ang bawat
+     * field para hindi mag-crash ang app kapag null sa database.
      */
-    public function replies()
-    {
-        return $this->messages();
-    }
-
     public function toApiArray()
     {
+        $log = $this->log;
+
+        // Hatiin ang chat_time papunta sa hiwalay na date at time string
+        $date = '';
+        $time = '';
+        if ($log && $log->chat_time) {
+            $chatTime = \Carbon\Carbon::parse($log->chat_time);
+            $date = $chatTime->format('Y-m-d');
+            $time = $chatTime->format('h:i A');
+        }
+
         return [
-            'id'         => (string) $this->inquiry_id,
-            'patientId'  => $this->patient ?? '',
-            'department' => $this->status ?? '',   // walang department column, status muna gamit
-            'message'    => $this->message ?? '',
-            'date'       => $this->created_at?->format('Y-m-d') ?? '',
-            'time'       => $this->created_at?->format('h:i A') ?? '',
-            'isNew'      => $this->status === 'Pending',   // walang is_new column, gamitin status bilang panghalili
+            'dbId'       => $this->inquiry_id,
+            'id'         => 'INQ-' . str_pad((string) $this->inquiry_id, 3, '0', STR_PAD_LEFT),
+            'patientId'  => (string) ($this->patient_id ?? ''),
+            'department' => $this->inquiry_type ?? 'General',
+            'message'    => $log->user_message ?? '',
+            'date'       => $date,
+            'time'       => $time,
+            'isNew'      => $this->resolved_status === 'Pending',
         ];
     }
 }

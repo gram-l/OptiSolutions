@@ -44,6 +44,11 @@ class _InquiriesPageState extends State<InquiriesPage> {
         _allInquiries = (result as List).map<Map<String, dynamic>>((inq) {
           return {
             'id': inq['id'],
+            // ✅ FIX: raw database ID, hiwalay sa naka-format na 'id'
+            // (hal. "INQ-123"). Ginagamit ito para sa API calls papunta
+            // sa /inquiries/{dbId}/messages dahil hindi maiintindihan ni
+            // Laravel ang naka-prefix na string sa route model binding.
+            'dbId': inq['dbId'],
             'patientId': inq['patientId'],
             'department': inq['department'],
             'message': inq['message'],
@@ -135,6 +140,9 @@ class _InquiriesPageState extends State<InquiriesPage> {
                                 MaterialPageRoute(
                                   builder: (context) => InquiryChatPage(
                                     inquiryId: inquiry['id'],
+                                    // ✅ FIX: ipasa ang raw dbId para gamitin
+                                    // sa API calls sa InquiryChatPage
+                                    dbId: inquiry['dbId'].toString(),
                                     patientId: inquiry['patientId'],
                                     department: inquiry['department'],
                                     initialMessage: inquiry['message'],

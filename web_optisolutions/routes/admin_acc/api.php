@@ -7,6 +7,7 @@ use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\ApiForgotPasswordController;
 use App\Http\Controllers\admin_acc\DoctorController;
+use App\Http\Controllers\admin_acc\AdminDashboardController;
 use App\Http\Controllers\admin_acc\ApiProfileController;
 use App\Http\Controllers\admin_acc\FeedbackController;
 Route::prefix('admin')->group(function () {
@@ -31,6 +32,8 @@ Route::post('/doctors', [DoctorController::class, 'store']);
 Route::put('/doctors/{id}', [DoctorController::class, 'update']);
 Route::patch('/doctors/{id}/toggle', [DoctorController::class, 'toggleStatus']);
 Route::delete('/doctors/{id}', [DoctorController::class, 'destroy']);
+
+Route::get('/admin/dashboard-data', [AdminDashboardController::class, 'data']);
 
 //mobile profile
 Route::middleware('auth:sanctum')->get('/me', [ApiProfileController::class, 'show']);

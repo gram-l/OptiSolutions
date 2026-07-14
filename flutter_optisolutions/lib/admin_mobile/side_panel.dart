@@ -1,7 +1,7 @@
 // side_panel.dart
 import 'package:flutter/material.dart';
 import 'colors.dart'; 
-import 'services/auth_service.dart';
+import 'package:flutter_optisolutions/auth/auth_service.dart';
 
 class SideMenuItem {
   final IconData icon;
@@ -109,25 +109,17 @@ class SidePanel extends StatelessWidget {
             const Divider(height: 1),
 
 ListTile(
-  leading: const Icon(
-    Icons.logout,
-    color: Colors.red,
-  ),
+  leading: const Icon(Icons.logout, color: Colors.red),
   title: const Text(
     'Logout',
-    style: TextStyle(
-      color: Colors.red,
-      fontWeight: FontWeight.w600,
-    ),
+    style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
   ),
   onTap: () async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Logout'),
-        content: const Text(
-          'Are you sure you want to logout?',
-        ),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -147,7 +139,7 @@ ListTile(
       if (context.mounted) {
         Navigator.pushNamedAndRemoveUntil(
           context,
-          '/login',
+          '/',   // ← fixed from '/login'
           (route) => false,
         );
       }

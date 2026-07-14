@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_optisolutions/config/api_config.dart';
+
 
 class DoctorService {
-  static const String baseUrl = 'http://10.145.123.34:8000/api';
+
 
   static Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -13,7 +15,7 @@ class DoctorService {
   static Future<Map<String, dynamic>> fetchDoctors() async {
     try {
       final res = await http
-          .get(Uri.parse('$baseUrl/doctors'), headers: _headers)
+          .get(Uri.parse('${ApiConfig.baseUrl}/admin/doctors'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {
@@ -32,7 +34,7 @@ class DoctorService {
     try {
       final res = await http
           .post(
-            Uri.parse('$baseUrl/doctors'),
+            Uri.parse('${ApiConfig.baseUrl}/admin/doctors'),
             headers: _headers,
             body: jsonEncode({
               'doctor_name': name,
@@ -61,7 +63,7 @@ class DoctorService {
     try {
       final res = await http
           .put(
-            Uri.parse('$baseUrl/doctors/$id'),
+            Uri.parse('${ApiConfig.baseUrl}/admin/doctors/$id'),
             headers: _headers,
             body: jsonEncode({
               'doctor_name': name,
@@ -82,7 +84,7 @@ class DoctorService {
   static Future<Map<String, dynamic>> toggleDoctorStatus(int id) async {
     try {
       final res = await http
-          .patch(Uri.parse('$baseUrl/doctors/$id/toggle'), headers: _headers)
+          .patch(Uri.parse('${ApiConfig.baseUrl}/admin/doctors/$id/toggle'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {
@@ -94,7 +96,7 @@ class DoctorService {
   static Future<Map<String, dynamic>> deleteDoctor(int id) async {
     try {
       final res = await http
-          .delete(Uri.parse('$baseUrl/doctors/$id'), headers: _headers)
+          .delete(Uri.parse('${ApiConfig.baseUrl}/admin/doctors/$id'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {

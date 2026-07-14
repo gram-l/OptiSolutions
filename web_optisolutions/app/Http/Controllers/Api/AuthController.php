@@ -40,11 +40,18 @@ class AuthController extends Controller
     /**
      * Return the currently authenticated user.
      * Matches fields expected by ProfileData.load() in Flutter:
-     * name, email, contact, staff_id, department, shift
+     * user_id, name, email, phone_number
      */
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+
+        return response()->json([
+            'user_id'      => $user->user_id,
+            'name'         => $user->name,
+            'email'        => $user->email,
+            'phone_number' => $user->phone_number,
+        ]);
     }
 
     /**
@@ -60,21 +67,21 @@ class AuthController extends Controller
             'email' => [
                 'sometimes',
                 'email',
-                Rule::unique('users', 'email')->ignore($user->id),
+                Rule::unique('users', 'email')->ignore($user->user_id, 'user_id'),
             ],
-            'contact' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'department' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'shift' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'phone_number' => ['sometimes', 'nullable', 'string', 'max:50'],
         ]);
 
         $user->update($validated);
 
-        return response()->json($user->fresh());
+        return response()->json([
+            'user_id'      => $user->user_id,
+            'name'         => $user->name,
+            'email'        => $user->email,
+            'phone_number' => $user->phone_number,
+        ]);
     }
 
-    /**
-     * Revoke the current access token (logout).
-     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

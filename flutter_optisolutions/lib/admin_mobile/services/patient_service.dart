@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class PatientService {
-  static const String baseUrl = 'http://192.168.1.6:8000/api';
+  static const String baseUrl = 'http://192.168.197.115:8000/api';
 
   static Future<List<Map<String, dynamic>>> getPatients() async {
     final response = await http

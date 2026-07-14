@@ -129,7 +129,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       child: ClipOval(
                         child: Image.asset(
-                          'assets/PCLOGO.png',
+                          'assets/polyclinic_logo.png',
                           width: 120,
                           height: 120,
                           fit: BoxFit.contain,

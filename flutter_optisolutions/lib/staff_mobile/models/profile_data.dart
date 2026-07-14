@@ -12,10 +12,13 @@ class ProfileData {
     final result = await ApiService.get('/me');
     name = result['name'] ?? 'Staff';
     email = result['email'] ?? '';
-    contact = result['contact'] ?? 'N/A';
-    staffId = result['staff_id']?.toString() ?? 'N/A';
-    department = result['department'] ?? 'N/A';
-    shift = result['shift'] ?? 'N/A';
+    contact = result['phone_number']?.toString() ?? 'N/A';
+    staffId = result['user_id']?.toString() ?? 'N/A';
+
+    // Work Details: wala pa itong mga column sa database,
+    // kaya iwan muna as N/A hanggang meron nang backend support
+    department = 'N/A';
+    shift = 'N/A';
   }
 
   // Saves edits from the Settings page back to the database, then updates
@@ -30,15 +33,14 @@ class ProfileData {
     final result = await ApiService.patch('/me', {
       'name': name,
       'email': email,
-      'contact': contact,
-      'department': department,
-      'shift': shift,
+      'phone_number': contact,
+      // department / shift: hindi pa ito ipapadala hangga't wala pang
+      // column sa users table para dito
     });
 
     ProfileData.name = result['name'] ?? name;
     ProfileData.email = result['email'] ?? email;
-    ProfileData.contact = result['contact'] ?? contact;
-    ProfileData.department = result['department'] ?? department;
-    ProfileData.shift = result['shift'] ?? shift;
+    ProfileData.contact = result['phone_number']?.toString() ?? contact;
+    // department at shift: hindi pa nagbabago, laging N/A
   }
 }

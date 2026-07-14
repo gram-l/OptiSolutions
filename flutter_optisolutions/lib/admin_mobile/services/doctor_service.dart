@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class DoctorService {
-  static const String baseUrl = 'http://192.168.1.6:8000/api';
+  static const String baseUrl = 'http://192.168.197.115:8000/api';
 
   static Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   // GET /api/doctors
   static Future<Map<String, dynamic>> fetchDoctors() async {
@@ -101,4 +101,4 @@ class DoctorService {
       return {'success': false, 'message': 'Could not connect to server.'};
     }
   }
-} 
+}

@@ -4,16 +4,20 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
+  static const String baseUrl = 'http://192.168.197.115:8000/api';
 
-  static const String baseUrl = 'http://192.168.1.6:8000/api';
-
-  static Future<Map<String, dynamic>> login(String email, String password) async {
+  static Future<Map<String, dynamic>> login(
+    String email,
+    String password,
+  ) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 10));
 
       print('STATUS: ${response.statusCode}');
       print('BODY: ${response.body}');
@@ -39,7 +43,9 @@ class AuthService {
         if (response.statusCode == 401) {
           throw Exception(data['message'] ?? 'Incorrect email or password.');
         } else if (response.statusCode == 422) {
-          throw Exception(data['message'] ?? 'Please check your input and try again.');
+          throw Exception(
+            data['message'] ?? 'Please check your input and try again.',
+          );
         } else if (response.statusCode >= 500) {
           throw Exception('Server error. Please try again later.');
         } else {
@@ -49,7 +55,9 @@ class AuthService {
     } on SocketException {
       // NEW: no internet / server unreachable
       print('ERROR: SocketException');
-      throw Exception('Could not connect to server. Check your internet connection.');
+      throw Exception(
+        'Could not connect to server. Check your internet connection.',
+      );
     } on FormatException {
       // NEW: response wasn't valid JSON (e.g. server returned HTML error page)
       print('ERROR: FormatException');

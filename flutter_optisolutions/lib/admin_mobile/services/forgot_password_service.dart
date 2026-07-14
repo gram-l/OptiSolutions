@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ForgotPasswordService {
-  static const String baseUrl = 'http://192.168.1.6:8000/api';
+  static const String baseUrl = 'http://192.168.197.115:8000/api';
 
   static Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   static Future<Map<String, dynamic>> sendOtp(String email) async {
     try {
@@ -24,7 +24,10 @@ class ForgotPasswordService {
     }
   }
 
-  static Future<Map<String, dynamic>> verifyOtp(String email, String otp) async {
+  static Future<Map<String, dynamic>> verifyOtp(
+    String email,
+    String otp,
+  ) async {
     try {
       final res = await http
           .post(
@@ -35,7 +38,7 @@ class ForgotPasswordService {
           .timeout(const Duration(seconds: 10));
       return jsonDecode(res.body);
     } catch (e) {
-      return {'success': false,   'message': e.toString(),};
+      return {'success': false, 'message': e.toString()};
     }
   }
 

@@ -5,7 +5,37 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: [
+                'resources/css/app.css',
+                'resources/css/login.css',
+
+                'resources/css/admin_css/dashboard.css',
+                'resources/css/admin_css/appointments.css',
+                
+                'resources/css/admin_css/profile.css', //wala pa
+                'resources/css/admin_css/settings.css',//wala pa
+                'resources/css/admin_css/chatbot_logs.css',
+                'resources/css/admin_css/doctors.css',
+                'resources/css/admin_css/patients.css',
+                'resources/css/admin_css/feedback.css',
+                'resources/css/admin_css/header.css',
+                'resources/css/admin_css/sidebar.css',
+                'resources/css/admin_css/user_management.css',
+
+
+                'resources/css/patient_css/about.css',
+                'resources/css/patient_css/app.css',
+                'resources/css/patient_css/chatbot.css',
+                'resources/css/patient_css/contact.css',
+                'resources/css/patient_css/doctors.css',
+                'resources/css/patient_css/home.css',
+                'resources/css/patient_css/services.css',
+
+                'resources/js/app.js',
+                'resources/js/bootstrap.js',
+                'resources/js/navbar-loader.js',
+                'resources/js/script.js',
+            ],
             refresh: true,
         }),
         tailwindcss(),
@@ -16,3 +46,5 @@ export default defineConfig({
         },
     },
 });
+
+//

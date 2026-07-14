@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_optisolutions/auth/google_auth.dart';// adjust path to wherever you put it
+import 'models/user_model.dart';     // for AppUser
 
 // ---------- MAIN SCREEN ----------
 class DashboardScreen extends StatefulWidget {
@@ -13,6 +16,22 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _userName = prefs.getString('user_name') ?? '';
+    });
+  }
+
   void _navigateTo(String route) {
     if (route != '/dashboard') {
       Navigator.pushNamed(context, route);
@@ -35,7 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               const _TopBar(),
               const SizedBox(height: 16),
-              const _WelcomeCard(),
+              _WelcomeCard(userName: _userName),
               const SizedBox(height: 16),
               const _StatGrid(),
               const SizedBox(height: 16),
@@ -62,6 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+//TOP BAR 
 // ---------- TOP BAR ----------
 class _TopBar extends StatelessWidget {
   const _TopBar();
@@ -81,8 +101,7 @@ class _TopBar extends StatelessWidget {
           CircleAvatar(
             radius: 24,
             backgroundColor: const Color(0xFFE3F2FD),
-            child: Image.asset('assets/polyclinic_logo.png', fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/polyclinic_logo.png', fit: BoxFit.cover),
           ),
           const SizedBox(width: 8),
           const Text('Polyclinic',
@@ -106,10 +125,13 @@ class _TopBar extends StatelessWidget {
               ),
             ],
           ),
-          const CircleAvatar(
-            radius: 14,
-            backgroundColor: AppColors.darkNavy,
-            child: Icon(Icons.person, color: Colors.white, size: 16),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/profile'),
+            child: const CircleAvatar(
+              radius: 14,
+              backgroundColor: AppColors.darkNavy,
+              child: Icon(Icons.person, color: Colors.white, size: 16),
+            ),
           ),
         ],
       ),
@@ -117,12 +139,15 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-// ---------- WELCOME CARD ----------
+//WELCOME CARd
 class _WelcomeCard extends StatelessWidget {
-  const _WelcomeCard();
+  final String userName;
+  const _WelcomeCard({required this.userName});
 
   @override
   Widget build(BuildContext context) {
+    final displayName = userName.isNotEmpty ? userName : 'there';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -137,8 +162,8 @@ class _WelcomeCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Welcome back, Dr. Lara',
-              style: TextStyle(
+          Text('Welcome back, $displayName',
+              style: const TextStyle(
                   color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text("Here's what's happening with your clinic today.",

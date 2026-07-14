@@ -12,13 +12,13 @@ use Illuminate\Queue\SerializesModels;
 
 class AppointmentConfirmation extends Mailable
 {
+    use Queueable, SerializesModels;
+
     public $name;
     public $date;
     public $doctor;
-    use Queueable, SerializesModels;
 
-    
-    public function __construct()
+    public function __construct($name, $date, $doctor)
     {
         $this->name = $name;
         $this->date = $date;

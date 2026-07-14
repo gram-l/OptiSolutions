@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'package:flutter_optisolutions/config/api_config.dart';
 class PatientService {
-  static const String baseUrl = 'http://192.168.193.172/polyclinic';
+  static const String baseUrl = ApiConfig.baseUrl;
 
   static Future<List<Map<String, dynamic>>> getPatients() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/get_patients.php'),
+      Uri.parse('$baseUrl/admin/get_patients.php'),
     ).timeout(const Duration(seconds: 10));
 
     final data = jsonDecode(response.body);

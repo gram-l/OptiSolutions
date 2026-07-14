@@ -1,5 +1,6 @@
 <?php
 
+//admin_acc/web.php
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\EmailController;
@@ -7,10 +8,12 @@ use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
+use App\Http\Controllers\admin_acc\ProfileController;
+use App\Http\Controllers\admin_acc\SystemSettingsController;
+use App\Http\Controllers\admin_acc\ServiceController;
+use App\Http\Controllers\admin_acc\FeedbackController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
 
 Route::get('/sample', function () {
     return view('sample');
@@ -41,10 +44,6 @@ Route::get('/admin_acc/doctors', [DoctorController::class, 'index']);
 
 Route::get('/admin_acc/patients', function () {
     return view('admin_acc.patients');
-});
-
-Route::get('/admin_acc/feedback', function () {
-    return view('admin_acc.feedback');
 });
 
 Route::get('/admin_acc/user_management', [UserManagementController::class, 'index']);
@@ -89,3 +88,35 @@ Route::post('/admin_acc/user_management',              [UserManagementController
 Route::put('/admin_acc/user_management/{id}',          [UserManagementController::class, 'update']);
 Route::patch('/admin_acc/user_management/{id}/toggle', [UserManagementController::class, 'toggleStatus']);
 Route::delete('/admin_acc/user_management/{id}',       [UserManagementController::class, 'destroy']);
+
+//google login route
+
+
+Route::post('/auth/google', [GoogleAuthController::class, 'googleLogin'])->name('auth.google');
+
+//admin profile routes
+Route::get('/admin_acc/profile', [ProfileController::class, 'show'])->name('profile.show');
+Route::post('/admin_acc/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+// system settings routes
+
+Route::prefix('admin_acc/system_settings')->name('system_settings.')->group(function () {
+    Route::get('/', [SystemSettingsController::class, 'index'])->name('index');
+
+    Route::post('/{group}', [SystemSettingsController::class, 'updateGroup'])
+        ->whereIn('group', ['hours', 'about', 'contact'])
+        ->name('update');
+
+    Route::post('/services', [ServiceController::class, 'store'])->name('services.store');
+    Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
+    Route::delete('/services/{service}', [ServiceController::class, 'destroy'])->name('services.destroy');
+});
+
+
+Route::middleware('auth')->group(function () {
+    Route::get('/admin_acc/feedback', [FeedbackController::class, 'index'])->name('admin_acc.feedback.index');
+    Route::post('/admin_acc/feedback', [FeedbackController::class, 'store'])->name('admin_acc.feedback.store');
+    
+});
+
+Route::get('/feedback', [FeedbackController::class, 'apiIndex']);

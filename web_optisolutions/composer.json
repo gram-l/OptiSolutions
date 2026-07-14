@@ -10,8 +10,9 @@
         "botman/botman": "^2.8",
         "botman/driver-web": "^1.5",
         "doctrine/dbal": "^4.4",
+        "google/apiclient": "^2.0",
         "laravel/framework": "^12.0",
-        "laravel/sanctum": "^4.0",
+        "laravel/sanctum": "*",
         "laravel/tinker": "^2.10.1"
     },
     "require-dev": {

@@ -3,6 +3,7 @@ import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
 import 'services/patient_service.dart';
+import 'center_snackbar.dart';
 import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:excel/excel.dart' as xls;
@@ -204,39 +205,64 @@ Future<File> _writeToDownloads(String filename, List<int> bytes) async {
 }
 
 Future<void> _exportCsv() async {
-  final csv = const ListToCsvConverter().convert(_exportRows);
-  final file = await _writeToDownloads('patients.csv', csv.codeUnits);
-  await Share.shareXFiles([XFile(file.path)], text: 'Patient records export');
+  try {
+    final csv = const ListToCsvConverter().convert(_exportRows);
+    final file = await _writeToDownloads('patients.csv', csv.codeUnits);
+    await Share.shareXFiles([XFile(file.path)], text: 'Patient records export');
+    if (!mounted) return;
+    showCenterSnackBar(context, 'CSV exported successfully.');
+  } catch (e) {
+    if (!mounted) return;
+    showCenterSnackBar(context, 'CSV export failed. Please try again.', isError: true);
+  }
 }
 
 Future<void> _exportExcel() async {
-  final workbook = xls.Excel.createExcel();
-  final sheet = workbook['Patients'];
-  for (final row in _exportRows) {
-    sheet.appendRow(row.map((c) => xls.TextCellValue(c)).toList());
+  try {
+    final workbook = xls.Excel.createExcel();
+    final sheet = workbook['Patients'];
+    for (final row in _exportRows) {
+      sheet.appendRow(row.map((c) => xls.TextCellValue(c)).toList());
+    }
+    final bytes = workbook.encode();
+    if (bytes == null) {
+      if (!mounted) return;
+      showCenterSnackBar(context, 'Excel export failed. Please try again.', isError: true);
+      return;
+    }
+    final file = await _writeToDownloads('patients.xlsx', bytes);
+    await Share.shareXFiles([XFile(file.path)], text: 'Patient records export');
+    if (!mounted) return;
+    showCenterSnackBar(context, 'Excel file exported successfully.');
+  } catch (e) {
+    if (!mounted) return;
+    showCenterSnackBar(context, 'Excel export failed. Please try again.', isError: true);
   }
-  final bytes = workbook.encode();
-  if (bytes == null) return;
-  final file = await _writeToDownloads('patients.xlsx', bytes);
-  await Share.shareXFiles([XFile(file.path)], text: 'Patient records export');
 }
 
 Future<void> _exportPdf() async {
-  final doc = pw.Document();
-  doc.addPage(
-    pw.Page(
-      pageFormat: PdfPageFormat.a4.landscape,
-      build: (context) => pw.Table.fromTextArray(
-        headers: _exportRows.first,
-        data: _exportRows.skip(1).toList(),
-        cellStyle: const pw.TextStyle(fontSize: 9),
-        headerStyle: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+  try {
+    final doc = pw.Document();
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4.landscape,
+        build: (context) => pw.Table.fromTextArray(
+          headers: _exportRows.first,
+          data: _exportRows.skip(1).toList(),
+          cellStyle: const pw.TextStyle(fontSize: 9),
+          headerStyle: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+        ),
       ),
-    ),
-  );
-  final bytes = await doc.save();
-  final file = await _writeToDownloads('patients.pdf', bytes);
-  await Share.shareXFiles([XFile(file.path)], text: 'Patient records export');
+    );
+    final bytes = await doc.save();
+    final file = await _writeToDownloads('patients.pdf', bytes);
+    await Share.shareXFiles([XFile(file.path)], text: 'Patient records export');
+    if (!mounted) return;
+    showCenterSnackBar(context, 'PDF exported successfully.');
+  } catch (e) {
+    if (!mounted) return;
+    showCenterSnackBar(context, 'PDF export failed. Please try again.', isError: true);
+  }
 }
 
   Widget _buildHeader() {
@@ -572,6 +598,7 @@ class _AddEditPatientSheetState extends State<_AddEditPatientSheet> {
       }
       if (!mounted) return;
       widget.onSaved();
+      showCenterSnackBar(context, _isEdit ? 'Patient updated successfully.' : 'Patient added successfully.');
       Navigator.pop(context);
     } catch (e) {
       setState(() { _saving = false; _error = e.toString().replaceFirst('Exception: ', ''); });

@@ -22,7 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      //backgroundColor: AppColors.background,
       drawer: SidePanel(
         items: appMenuItems,
         currentRoute: '/settings',

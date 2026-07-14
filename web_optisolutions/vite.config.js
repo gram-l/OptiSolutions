@@ -22,7 +22,6 @@ export default defineConfig({
                 'resources/css/admin_css/sidebar.css',
                 'resources/css/admin_css/user_management.css',
 
-
                 'resources/css/patient_css/about.css',
                 'resources/css/patient_css/app.css',
                 'resources/css/patient_css/chatbot.css',
@@ -41,10 +40,15 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
+        host: '0.0.0.0',
+        port: 5173,
+        strictPort: true,
+        hmr: {
+            host: '192.168.193.172',
+        },
+        cors: true,
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },
     },
 });
-
-//

@@ -4,7 +4,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
-import '../admin_mobile/services/dashboard_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_optisolutions/auth/google_auth.dart';// adjust path to wherever you put it
+import 'models/user_model.dart';     // for AppUser
 
 // ---------- MAIN SCREEN ----------
 class DashboardScreen extends StatefulWidget {

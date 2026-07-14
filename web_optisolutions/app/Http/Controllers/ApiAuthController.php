@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\admin_models\User;
 use Illuminate\Support\Facades\Hash;
 
 class ApiAuthController extends Controller
@@ -16,7 +16,7 @@ class ApiAuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = DB::table('users')->where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
@@ -34,21 +34,39 @@ class ApiAuthController extends Controller
         }
 
         // Update last login timestamp if the column exists
-        if (isset($user->last_login_at) || \Schema::hasColumn('users', 'last_login_at')) {
-            DB::table('users')->where('user_id', $user->user_id)->update([
-                'last_login_at' => now(),
-            ]);
+        if (\Schema::hasColumn('users', 'last_login_at')) {
+            $user->forceFill(['last_login_at' => now()])->save();
         }
+
+        // Revoke old tokens for this device/app so we don't pile up stale ones,
+        // then issue a fresh Sanctum token for the Flutter app to use on
+        // every subsequent request (Authorization: Bearer <token>).
+        $user->tokens()->delete();
+        $token = $user->createToken('flutter-app')->plainTextToken;
 
         return response()->json([
             'success' => true,
             'message' => 'Login successful.',
+            'token'   => $token,
             'user' => [
                 'user_id'   => $user->user_id,
                 'name'      => $user->name,
                 'email'     => $user->email,
                 'user_role' => $user->user_role,
             ],
+        ]);
+    }
+
+    // POST /api/logout
+    public function logout(Request $request)
+    {
+        if ($request->user()) {
+            $request->user()->currentAccessToken()->delete();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Logged out successfully.',
         ]);
     }
 }

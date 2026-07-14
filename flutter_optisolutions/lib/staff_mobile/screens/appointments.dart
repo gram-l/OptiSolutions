@@ -172,7 +172,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return AppBar(
       title: Row(
         children: [
-          Image.asset('assets/PCLOGO.png', width: 35, height: 35),
+          Image.asset('assets/polyclinic_logo.png', width: 35, height: 35),
           const SizedBox(width: 12),
           const Text(
             'Polyclinic',
@@ -222,7 +222,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      'assets/PCLOGO.png',
+                      'assets/polyclinic_logo.png',
                       fit: BoxFit.contain,
                     ),
                   ),

@@ -75,7 +75,7 @@ class _PCLoginState extends State<PCLogin> {
               children: [
                 // Logo
                 Image.asset(
-                  'assets/PCLOGO.png',
+                  'assets/polyclinic_logo.png',
                   width: 120,
                   height: 120,
                   fit: BoxFit.contain,

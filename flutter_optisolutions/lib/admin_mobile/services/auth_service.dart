@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
 
-  static const String baseUrl = 'http://10.145.123.34:8000/api';
+  static const String baseUrl = 'http://192.168.1.6:8000/api';
 
   static Future<Map<String, dynamic>> login(String email, String password) async {
     try {
@@ -25,6 +25,14 @@ class AuthService {
         await prefs.setString('user_id', data['user']['user_id'].toString());
         await prefs.setString('user_email', data['user']['email'] ?? '');
         await prefs.setString('user_role', data['user']['user_role'] ?? '');
+
+        // NEW: save the Sanctum token returned by the backend so ApiService
+        // (used by the staff dashboard and other screens) can send it as
+        // "Authorization: Bearer <token>" on every subsequent request.
+        if (data['token'] != null) {
+          await prefs.setString('token', data['token']);
+        }
+
         return data;
       } else {
         // NEW: distinguish common server error cases
@@ -61,5 +69,6 @@ class AuthService {
     await prefs.remove('user_id');
     await prefs.remove('user_email');
     await prefs.remove('user_role');
+    await prefs.remove('token');
   }
 }

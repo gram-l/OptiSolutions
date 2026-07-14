@@ -1,46 +1,86 @@
 <?php
-// app/Http/Controllers/Api/AuthController.php
 
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Staff\User;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
+    /**
+     * Handle login and issue a Sanctum token.
+     */
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('email', $request->email)->first();
-
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (! Auth::attempt($credentials)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
-        $token = $user->createToken('mobile-app')->plainTextToken;
+        $user = User::where('email', $credentials['email'])->firstOrFail();
+
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
+            'user' => $user,
             'token' => $token,
-            'user' => [
-                'id' => $user->user_id,
-                'name' => $user->first_name . ' ' . $user->last_name,
-                'email' => $user->email,
-            ],
         ]);
     }
 
+    /**
+     * Return the currently authenticated user.
+     * Matches fields expected by ProfileData.load() in Flutter:
+     * name, email, contact, staff_id, department, shift
+     */
+    public function me(Request $request)
+    {
+        return response()->json($request->user());
+    }
+
+    /**
+     * Update the currently authenticated user's profile.
+     * Matches fields sent by ProfileData.updateProfile() in Flutter.
+     */
+    public function updateMe(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'email' => [
+                'sometimes',
+                'email',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'contact' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'department' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'shift' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+
+        $user->update($validated);
+
+        return response()->json($user->fresh());
+    }
+
+    /**
+     * Revoke the current access token (logout).
+     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logged out']);
+
+        return response()->json([
+            'message' => 'Logged out successfully',
+        ]);
     }
 }

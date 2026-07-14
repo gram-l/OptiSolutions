@@ -16,7 +16,25 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-            return redirect('/admin_acc/dashboard');
+
+            $role = strtolower(Auth::user()->user_role ?? '');
+
+            if ($role === 'staff') {
+                return redirect('/staff/dashboard');
+            }
+
+            if ($role === 'admin') {
+                return redirect('/admin_acc/dashboard');
+            }
+
+            // Fallback: unknown role, log out and send back with an error
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Your account role is not recognized. Please contact an administrator.']);
         }
 
         return back()

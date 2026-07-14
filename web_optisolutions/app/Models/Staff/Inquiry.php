@@ -22,9 +22,9 @@ class Inquiry extends Model
     /**
      * Kumuha ng chatbot log entry na may kaugnayan sa inquiry na ito
      */
-    public function log()
+        public function log()
     {
-        return $this->belongsTo(ChatbotLog::class, 'log_id', 'log_id');
+        return $this->belongsTo(\App\Models\ChatbotLog::class, 'log_id', 'log_id');
     }
 
     /**

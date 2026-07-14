@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class UserService {
   // Same base URL as auth_service.dart — keep these in sync.
-  static const String baseUrl = 'http://10.145.123.34:8000/api';
+  static const String baseUrl = 'http://192.168.1.6:8000/api';
 
   static Map<String, String> get _headers => {
         'Content-Type': 'application/json',

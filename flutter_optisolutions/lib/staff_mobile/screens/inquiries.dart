@@ -184,7 +184,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
       title: Row(
         children: [
           Image.asset(
-            'assets/PCLOGO.png',
+            'assets/polyclinic_logo.png',
             width: 35,
             height: 35,
             fit: BoxFit.contain,
@@ -247,7 +247,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      'assets/PCLOGO.png',
+                      'assets/polyclinic_logo.png',
                       width: 80,
                       height: 80,
                       fit: BoxFit.contain,

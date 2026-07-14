@@ -741,7 +741,7 @@ class _PatientsPageState extends State<PatientsPage> {
       title: Row(
         children: [
           Image.asset(
-            'assets/PCLOGO.png',
+            'assets/polyclinic_logo.png',
             width: 35,
             height: 35,
             fit: BoxFit.contain,
@@ -807,7 +807,7 @@ class _PatientsPageState extends State<PatientsPage> {
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      'assets/PCLOGO.png',
+                      'assets/polyclinic_logo.png',
                       width: 80,
                       height: 80,
                       fit: BoxFit.contain,

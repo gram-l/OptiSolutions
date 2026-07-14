@@ -4,19 +4,18 @@ import 'package:flutter/services.dart';
 import 'services/auth_service.dart';
 import 'services/forgot_password_service.dart';
 
-
 // ─────────────────────────────────────────────────────────────
 //  SHARED CONSTANTS
 // ─────────────────────────────────────────────────────────────
 class _C {
-  static const bgTop    = Color(0xFF0D3B72);
+  static const bgTop = Color(0xFF0D3B72);
   static const bgBottom = Color(0xFF0A2A52);
-  static const card     = Colors.white;
-  static const btn      = Color(0xFF0D3B72);
-  static const hint     = Color(0xFFBEC3CC);
-  static const label    = Color(0xFF4A5568);
-  static const link     = Color(0xFF1565C0);
-  static const border   = Color(0xFFDDE1E8);
+  static const card = Colors.white;
+  static const btn = Color(0xFF0D3B72);
+  static const hint = Color(0xFFBEC3CC);
+  static const label = Color(0xFF4A5568);
+  static const link = Color(0xFF1565C0);
+  static const border = Color(0xFFDDE1E8);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -56,7 +55,10 @@ class _AuthScaffold extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 8,
+                          ),
                         ],
                       ),
                       child: const _AppIcon(),
@@ -65,13 +67,18 @@ class _AuthScaffold extends StatelessWidget {
                     const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('PolyClinic',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold)),
-                        Text('Secure Inquiry System',
-                            style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        Text(
+                          'PolyClinic',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Secure Inquiry System',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
                       ],
                     ),
                   ],
@@ -85,7 +92,10 @@ class _AuthScaffold extends StatelessWidget {
                     color: _C.card,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 20,
+                      ),
                     ],
                   ),
                   child: child,
@@ -105,11 +115,7 @@ class _AppIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/polyclinic_logo.png',
-      width: 100,
-      height: 100,
-    );
+    return Image.asset('assets/polyclinic_logo.png', width: 100, height: 100);
   }
 }
 
@@ -119,8 +125,7 @@ class _QuadIcon extends StatelessWidget {
   const _QuadIcon(this.icon, this.color);
 
   @override
-  Widget build(BuildContext context) =>
-      Icon(icon, size: 13, color: color);
+  Widget build(BuildContext context) => Icon(icon, size: 13, color: color);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -161,11 +166,14 @@ class _FormFieldState extends State<_FormField> {
           children: [
             Icon(widget.prefixIcon, size: 14, color: _C.label),
             const SizedBox(width: 5),
-            Text(widget.label,
-                style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: _C.label)),
+            Text(
+              widget.label,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: _C.label,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -181,14 +189,19 @@ class _FormFieldState extends State<_FormField> {
             suffixIcon: widget.isPassword
                 ? IconButton(
                     icon: Icon(
-                      _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      _obscure
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       size: 18,
                       color: _C.hint,
                     ),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   )
                 : null,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 13,
+            ),
             filled: true,
             fillColor: const Color(0xFFF8F9FB),
             border: OutlineInputBorder(
@@ -201,7 +214,10 @@ class _FormFieldState extends State<_FormField> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF1565C0), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF1565C0),
+                width: 1.5,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -231,12 +247,19 @@ class _PrimaryButton extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onTap,
         icon: Icon(icon, size: 18, color: Colors.white),
-        label: Text(label,
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: _C.btn,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           elevation: 0,
         ),
       ),
@@ -257,11 +280,11 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl    = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _rememberMe = false;
   bool _loading = false;
-  String? _errorMessage;   // NEW: holds the error text to display inline
+  String? _errorMessage; // NEW: holds the error text to display inline
 
   @override
   void dispose() {
@@ -288,7 +311,28 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _loading = false);
 
       if (result['success'] == true) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        // ── NEW: role-based redirect ──
+        // AuthService.login() already saves 'user_role' into
+        // SharedPreferences, and also returns it inline in result['user'].
+        // We read it straight from the response here so we don't need an
+        // extra async SharedPreferences read before navigating.
+        final role = (result['user']?['user_role'] ?? '')
+            .toString()
+            .toLowerCase();
+
+        if (role == 'staff') {
+          // Matches the '/staff/dashboard' route registered in main.dart,
+          // which points to the staff_mobile Dashboard screen.
+          Navigator.pushReplacementNamed(context, '/staff/dashboard');
+        } else if (role == 'admin') {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        } else {
+          // Unknown/missing role — don't guess, show an error instead.
+          setState(() {
+            _errorMessage =
+                'Your account role is not recognized. Please contact an administrator.';
+          });
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -310,22 +354,33 @@ class _LoginScreenState extends State<LoginScreen> {
             // ── Heading ──
             const Row(
               children: [
-                Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF1A1A2E)),
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 20,
+                  color: Color(0xFF1A1A2E),
+                ),
                 SizedBox(width: 8),
-                Text('Sign In',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(
+                  'Sign In',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 4),
-            const Text('Welcome back to PolyClinic',
-                style: TextStyle(color: Color(0xFF8A8FA3), fontSize: 13)),
+            const Text(
+              'Welcome back to PolyClinic',
+              style: TextStyle(color: Color(0xFF8A8FA3), fontSize: 13),
+            ),
             const SizedBox(height: 18),
 
             // ── NEW: Inline error banner ──
             if (_errorMessage != null) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFDEAEA),
                   borderRadius: BorderRadius.circular(10),
@@ -334,8 +389,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.error_outline_rounded,
-                        size: 18, color: Color(0xFFD32F2F)),
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 18,
+                      color: Color(0xFFD32F2F),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -360,8 +418,9 @@ class _LoginScreenState extends State<LoginScreen> {
               prefixIcon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
               controller: _emailCtrl,
-              validator: (v) =>
-                  (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+              validator: (v) => (v == null || !v.contains('@'))
+                  ? 'Enter a valid email'
+                  : null,
             ),
             const SizedBox(height: 16),
 
@@ -387,23 +446,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     value: _rememberMe,
                     onChanged: (v) => setState(() => _rememberMe = v ?? false),
                     activeColor: _C.btn,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Text('Remember me',
-                    style: TextStyle(fontSize: 12.5, color: Color(0xFF4A5568))),
+                const Text(
+                  'Remember me',
+                  style: TextStyle(fontSize: 12.5, color: Color(0xFF4A5568)),
+                ),
                 const Spacer(),
                 GestureDetector(
                   onTap: () {
-  print("Forgot Password clicked");
-  Navigator.pushNamed(context, '/reset');
-},
-                  child: const Text('Forgot Password?',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          color: _C.link,
-                          fontWeight: FontWeight.w600)),
+                    print("Forgot Password clicked");
+                    Navigator.pushNamed(context, '/reset');
+                  },
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: _C.link,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -431,7 +497,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
 //  2.  RESET PASSWORD SCREEN (Step 1 — enter email, send OTP)
 
-
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
 
@@ -440,8 +505,8 @@ class ResetPasswordScreen extends StatefulWidget {
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
-  final _formKey  = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();   // CHANGED: phone → email
+  final _formKey = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController(); // CHANGED: phone → email
   bool _loading = false;
   String? _errorMessage;
 
@@ -467,7 +532,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (result['success'] == true) {
       Navigator.pushNamed(context, '/verify-otp', arguments: email);
     } else {
-      setState(() => _errorMessage = result['message'] ?? 'Failed to send code.');
+      setState(
+        () => _errorMessage = result['message'] ?? 'Failed to send code.',
+      );
     }
   }
 
@@ -484,8 +551,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               children: [
                 Icon(Icons.key_rounded, size: 20, color: Color(0xFF1A1A2E)),
                 SizedBox(width: 8),
-                Text('Reset Password',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(
+                  'Reset Password',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 18),
@@ -493,7 +562,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             if (_errorMessage != null) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFDEAEA),
                   borderRadius: BorderRadius.circular(10),
@@ -502,12 +574,21 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFD32F2F)),
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 18,
+                      color: Color(0xFFD32F2F),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(_errorMessage!,
-                          style: const TextStyle(
-                              fontSize: 12.5, color: Color(0xFFD32F2F), fontWeight: FontWeight.w500)),
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFFD32F2F),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -522,8 +603,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               prefixIcon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
               controller: _emailCtrl,
-              validator: (v) =>
-                  (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+              validator: (v) => (v == null || !v.contains('@'))
+                  ? 'Enter a valid email'
+                  : null,
             ),
             const SizedBox(height: 24),
 
@@ -546,8 +628,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             Center(
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: const Text('← Back to Login',
-                    style: TextStyle(fontSize: 13, color: _C.link, fontWeight: FontWeight.w500)),
+                child: const Text(
+                  '← Back to Login',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _C.link,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ),
           ],
@@ -569,10 +657,11 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  final List<TextEditingController> _otpCtrl =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes =
-      List.generate(6, (_) => FocusNode());
+  final List<TextEditingController> _otpCtrl = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
   static const _totalSeconds = 95;
   int _remaining = _totalSeconds;
@@ -580,7 +669,7 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _loading = false;
   bool _resending = false;
   String? _errorMessage;
-  String _email = '';   // passed in via Navigator arguments
+  String _email = ''; // passed in via Navigator arguments
 
   @override
   void didChangeDependencies() {
@@ -654,10 +743,7 @@ class _OtpScreenState extends State<OtpScreen> {
       Navigator.pushNamed(
         context,
         '/new-password',
-        arguments: {
-          'email': _email,
-          'reset_token': result['reset_token'],
-        },
+        arguments: {'email': _email, 'reset_token': result['reset_token']},
       );
     } else {
       setState(() => _errorMessage = result['message'] ?? 'Invalid code.');
@@ -689,11 +775,15 @@ class _OtpScreenState extends State<OtpScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Heading ──
-          const Text('One-Time-Password (OTP)',
-              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+          const Text(
+            'One-Time-Password (OTP)',
+            style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
-          Text('Sent to $_email',
-              style: const TextStyle(fontSize: 12.5, color: Color(0xFF8A8FA3))),
+          Text(
+            'Sent to $_email',
+            style: const TextStyle(fontSize: 12.5, color: Color(0xFF8A8FA3)),
+          ),
           const SizedBox(height: 18),
 
           if (_errorMessage != null) ...[
@@ -708,12 +798,21 @@ class _OtpScreenState extends State<OtpScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFD32F2F)),
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 18,
+                    color: Color(0xFFD32F2F),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(_errorMessage!,
-                        style: const TextStyle(
-                            fontSize: 12.5, color: Color(0xFFD32F2F), fontWeight: FontWeight.w500)),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFFD32F2F),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -726,7 +825,11 @@ class _OtpScreenState extends State<OtpScreen> {
             alignment: Alignment.centerRight,
             child: Text(
               _timerText,
-              style: const TextStyle(fontSize: 13, color: _C.link, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 13,
+                color: _C.link,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -734,11 +837,14 @@ class _OtpScreenState extends State<OtpScreen> {
           // ── 6-digit OTP boxes ──
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(6, (i) => _OtpBox(
-              controller: _otpCtrl[i],
-              focusNode: _focusNodes[i],
-              onChanged: (v) => _onOtpDigitChanged(v, i),
-            )),
+            children: List.generate(
+              6,
+              (i) => _OtpBox(
+                controller: _otpCtrl[i],
+                focusNode: _focusNodes[i],
+                onChanged: (v) => _onOtpDigitChanged(v, i),
+              ),
+            ),
           ),
           const SizedBox(height: 22),
 
@@ -761,7 +867,8 @@ class _OtpScreenState extends State<OtpScreen> {
           Center(
             child: _resending
                 ? const SizedBox(
-                    width: 16, height: 16,
+                    width: 16,
+                    height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : GestureDetector(
@@ -781,9 +888,16 @@ class _OtpScreenState extends State<OtpScreen> {
           // ── Back to login ──
           Center(
             child: GestureDetector(
-              onTap: () => Navigator.popUntil(context, ModalRoute.withName('/')),
-              child: const Text('← Back to Login',
-                  style: TextStyle(fontSize: 13, color: _C.link, fontWeight: FontWeight.w500)),
+              onTap: () =>
+                  Navigator.popUntil(context, ModalRoute.withName('/')),
+              child: const Text(
+                '← Back to Login',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: _C.link,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ),
         ],
@@ -805,7 +919,7 @@ class NewPasswordScreen extends StatefulWidget {
 class _NewPasswordScreenState extends State<NewPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _passwordCtrl = TextEditingController();
-  final _confirmCtrl  = TextEditingController();
+  final _confirmCtrl = TextEditingController();
   bool _loading = false;
   String? _errorMessage;
 
@@ -852,7 +966,9 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       );
       Navigator.popUntil(context, ModalRoute.withName('/'));
     } else {
-      setState(() => _errorMessage = result['message'] ?? 'Could not reset password.');
+      setState(
+        () => _errorMessage = result['message'] ?? 'Could not reset password.',
+      );
     }
   }
 
@@ -866,10 +982,16 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
           children: [
             const Row(
               children: [
-                Icon(Icons.lock_reset_rounded, size: 20, color: Color(0xFF1A1A2E)),
+                Icon(
+                  Icons.lock_reset_rounded,
+                  size: 20,
+                  color: Color(0xFF1A1A2E),
+                ),
                 SizedBox(width: 8),
-                Text('Set New Password',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(
+                  'Set New Password',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 18),
@@ -877,7 +999,10 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
             if (_errorMessage != null) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFDEAEA),
                   borderRadius: BorderRadius.circular(10),
@@ -886,12 +1011,21 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFD32F2F)),
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 18,
+                      color: Color(0xFFD32F2F),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(_errorMessage!,
-                          style: const TextStyle(
-                              fontSize: 12.5, color: Color(0xFFD32F2F), fontWeight: FontWeight.w500)),
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFFD32F2F),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -938,12 +1072,10 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       ),
     );
   }
-  
 }
 
 // ─────────────────────────────────────────────────────────────
-//  OTP DIGIT BOX  (add this back at the very bottom of the file,
-//  after NewPasswordScreen — it was accidentally dropped)
+//  OTP DIGIT BOX
 // ─────────────────────────────────────────────────────────────
 class _OtpBox extends StatelessWidget {
   final TextEditingController controller;
@@ -969,7 +1101,10 @@ class _OtpBox extends StatelessWidget {
         maxLength: 1,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         style: const TextStyle(
-            fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF1A1A2E),
+        ),
         decoration: InputDecoration(
           counterText: '',
           contentPadding: EdgeInsets.zero,
@@ -992,4 +1127,3 @@ class _OtpBox extends StatelessWidget {
     );
   }
 }
-  

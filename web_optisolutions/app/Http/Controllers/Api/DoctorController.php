@@ -16,7 +16,11 @@ class DoctorController extends Controller
     {
         $doctors = Doctor::with('schedules')->get();
 
-        return response()->json($doctors->map->toApiArray());
+        $result = $doctors->map(function ($doctor) {
+            return $doctor->toApiArray();
+        })->values();
+
+        return response()->json($result);
     }
 
     /** GET /api/doctors/{doctor} */
@@ -27,27 +31,24 @@ class DoctorController extends Controller
         return response()->json($doctor->toApiArray());
     }
 
-    /** PATCH /api/doctors/{doctor} — used by the "edit availability" / "edit schedule" features in doctors.dart */
+    /** PATCH /api/doctors/{doctor} */
     public function update(Request $request, Doctor $doctor)
     {
         $incoming = $request->validate([
             'status'   => 'sometimes|in:Available,Unavailable',
-            'schedule' => 'sometimes|string', // hal. "Mon - Fri"
-            'time'     => 'sometimes|string', // hal. "8:00am - 3:00pm"
+            'schedule' => 'sometimes|string',
+            'time'     => 'sometimes|string',
         ]);
 
-        // Ang 'available' column sa DB ay boolean, hindi 'Available'/'Unavailable' string
         if (isset($incoming['status'])) {
             $doctor->available = $incoming['status'] === 'Available';
             $doctor->save();
         }
 
-        // I-update ang schedule kung binigyan ng bago
         if (isset($incoming['schedule']) || isset($incoming['time'])) {
             $days = $this->parseDayRange($incoming['schedule'] ?? null, $doctor);
             [$startTime, $endTime] = $this->parseTimeRange($incoming['time'] ?? null, $doctor);
 
-            // Palitan ang lumang schedule rows ng doktor ng bagong set
             DoctorSchedule::where('doctor_id', $doctor->doctor_id)->delete();
 
             foreach ($days as $day) {
@@ -63,10 +64,6 @@ class DoctorController extends Controller
         return response()->json($doctor->fresh('schedules')->toApiArray());
     }
 
-    /**
-     * I-parse ang "Mon - Fri" o "Monday - Friday" papunta sa listahan ng
-     * indibidwal na araw. Kung hindi ma-parse, panatilihin ang dating days.
-     */
     private function parseDayRange(?string $input, Doctor $doctor): array
     {
         $weekOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -94,14 +91,9 @@ class DoctorController extends Controller
             }
         }
 
-        // Hindi ma-parse bilang range — ituring na single day o list na pinaghiwalay ng comma
         return array_map($normalize, array_map('trim', explode(',', $input)));
     }
 
-    /**
-     * I-parse ang "8:00am - 3:00pm" papunta sa ['08:00:00', '15:00:00'].
-     * Kung hindi ma-parse, panatilihin ang dating oras.
-     */
     private function parseTimeRange(?string $input, Doctor $doctor): array
     {
         if (!$input) {
@@ -119,7 +111,7 @@ class DoctorController extends Controller
                     Carbon::parse($parts[1])->format('H:i:s'),
                 ];
             } catch (\Exception $e) {
-                // babagsak sa default sa ibaba
+                //
             }
         }
 

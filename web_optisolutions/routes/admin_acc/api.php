@@ -10,6 +10,7 @@ use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\admin_acc\AdminDashboardController;
 use App\Http\Controllers\admin_acc\ApiProfileController;
 use App\Http\Controllers\admin_acc\FeedbackController;
+use App\Http\Controllers\admin_acc\VisitController;
 
 Route::prefix('admin')->group(function () {
 
@@ -42,4 +43,7 @@ Route::middleware('auth:sanctum')->post('/profile/photo', [ApiProfileController:
 
 //feedback list
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
+
+//schedule visit list
+Route::get('/appointments', [VisitController::class, 'apiIndex']);
 });

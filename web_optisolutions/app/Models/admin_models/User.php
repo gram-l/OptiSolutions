@@ -5,10 +5,11 @@ namespace App\Models\admin_models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasApiTokens;
 
     protected $table = 'users';
 
@@ -24,6 +25,7 @@ class User extends Authenticatable
         'email',
         'password',
         'user_role',
+        'google_id',
     ];
 
     protected $hidden = [
@@ -38,4 +40,12 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    public function dashboardRoute(): string
+{
+    return match (strtolower(trim($this->user_role))) {
+        'admin' => '/admin_acc/dashboard',
+        'staff' => '/staff/dashboard',
+        default => '/auth/login', // fallback
+    };
+}
 }

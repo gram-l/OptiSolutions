@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+
 class LoginController extends Controller
 {
     public function login(Request $request)
@@ -16,7 +17,8 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-            return redirect('/admin_acc/dashboard');
+            $user = Auth::user();
+            return redirect($user->dashboardRoute());
         }
 
         return back()

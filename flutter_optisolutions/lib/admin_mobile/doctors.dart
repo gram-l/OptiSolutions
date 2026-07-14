@@ -3,6 +3,7 @@ import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
 import 'services/doctor_service.dart';
+import 'center_snackbar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  DATA MODEL
@@ -194,14 +195,14 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                         Navigator.pop(ctx);
                         _loadDoctors();
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(result['message'] ?? 'Saved.')),
-                          );
+                          showCenterSnackBar(context, result['message'] ?? 'Saved.');
                         }
                       } else {
                         setModalState(() => isSaving = false);
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          SnackBar(content: Text(result['message'] ?? 'Something went wrong.')),
+                        showCenterSnackBar(
+                          ctx,
+                          result['message'] ?? 'Something went wrong.',
+                          isError: true,
                         );
                       }
                     },
@@ -223,12 +224,12 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
     if (!mounted) return;
     if (result['success'] == true) {
       _loadDoctors();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Status updated.')),
-      );
+      showCenterSnackBar(context, result['message'] ?? 'Status updated.');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Could not update status.')),
+      showCenterSnackBar(
+        context,
+        result['message'] ?? 'Could not update status.',
+        isError: true,
       );
     }
   }
@@ -257,12 +258,12 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
     if (!mounted) return;
     if (result['success'] == true) {
       _loadDoctors();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Doctor removed.')),
-      );
+      showCenterSnackBar(context, result['message'] ?? 'Doctor removed.');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Could not remove doctor.')),
+      showCenterSnackBar(
+        context,
+        result['message'] ?? 'Could not remove doctor.',
+        isError: true,
       );
     }
   }

@@ -31,6 +31,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  http: ^1.6.0
+  shared_preferences: ^2.5.5
+  fl_chart: ^0.68.0
+
 
   google_sign_in: ^6.2.1
   
@@ -41,8 +45,6 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  http: ^1.6.0
-  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
@@ -72,8 +74,6 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/polyclinic_logo.png
-    - assets/PCLOGO.png
-
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

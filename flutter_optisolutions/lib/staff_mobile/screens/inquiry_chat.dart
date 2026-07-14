@@ -6,6 +6,11 @@ import '../services/api_service.dart';
 
 class InquiryChatPage extends StatefulWidget {
   final String inquiryId;
+  // ✅ FIX: raw database ID (hal. "123"), hiwalay sa naka-format na
+  // inquiryId (hal. "INQ-123"). Ginagamit ito sa API calls dahil hindi
+  // maiintindihan ni Laravel ang naka-prefix na string sa route model
+  // binding (findOrFail expects the raw primary key).
+  final String dbId;
   final String patientId;
   final String department;
   final String initialMessage;
@@ -16,6 +21,7 @@ class InquiryChatPage extends StatefulWidget {
   const InquiryChatPage({
     super.key,
     required this.inquiryId,
+    required this.dbId,
     required this.patientId,
     required this.department,
     required this.initialMessage,
@@ -49,9 +55,10 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
       _loadError = null;
     });
     try {
-      final result = await ApiService.get(
-        '/inquiries/${widget.inquiryId}/messages',
-      );
+      // ✅ FIX: gamitin ang dbId (raw integer), hindi ang inquiryId
+      // (naka-format na "INQ-123" string) para gumana ang route model
+      // binding sa Laravel
+      final result = await ApiService.get('/inquiries/${widget.dbId}/messages');
       setState(() {
         _messages = [
           // Ang orihinal na inquiry message ay hindi bahagi ng
@@ -116,7 +123,8 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
     _scrollToBottom();
 
     try {
-      await ApiService.post('/inquiries/${widget.inquiryId}/messages', {
+      // ✅ FIX: gamitin din dito ang dbId
+      await ApiService.post('/inquiries/${widget.dbId}/messages', {
         'message': message,
       });
 

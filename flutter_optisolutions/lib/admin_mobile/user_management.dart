@@ -3,6 +3,7 @@ import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
 import 'services/user_service.dart';
+import 'center_snackbar.dart';
 
 class UserModel {
   final int    id;
@@ -124,7 +125,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       _loadUsers();
       _showSnack(result['message']);
     } else {
-      _showSnack(result['message'] ?? 'Action failed.');
+      _showSnack(result['message'] ?? 'Action failed.', isError: true);
     }
   }
 
@@ -151,13 +152,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       _loadUsers();
       _showSnack(result['message']);
     } else {
-      _showSnack(result['message'] ?? 'Delete failed.');
+      _showSnack(result['message'] ?? 'Delete failed.', isError: true);
     }
   }
 
-  void _showSnack(String? msg) {
+  void _showSnack(String? msg, {bool isError = false}) {
     if (msg == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showCenterSnackBar(context, msg, isError: isError);
   }
 
   void _openAddDialog() => _openUserForm();

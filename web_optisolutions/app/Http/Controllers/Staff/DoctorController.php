@@ -10,13 +10,13 @@ class DoctorController extends Controller
 {
     public function index()
     {
-        $doctors = Doctor::all();
+        $doctors = Doctor::with('schedules')->get();
         return view('staff.doctors.index', compact('doctors'));
     }
 
     public function edit($id)
     {
-        $doctor = Doctor::findOrFail($id);
+        $doctor = Doctor::with('schedules')->findOrFail($id);
         return view('staff.doctors.edit', compact('doctor'));
     }
 
@@ -24,10 +24,15 @@ class DoctorController extends Controller
     {
         $doctor = Doctor::findOrFail($id);
 
-        // Schedule at Status lang ang i-a-update
-        $doctor->schedule = $request->schedule;
-        $doctor->status = $request->status;
+        // I-update ang availability status
+        $doctor->available = $request->available;
         $doctor->save();
+
+        // I-update o gumawa ng schedule entry sa doctor_schedules table
+        $doctor->schedules()->updateOrCreate(
+            ['doctor_id' => $doctor->doctor_id, 'day' => $request->day],
+            ['start_time' => $request->start_time, 'end_time' => $request->end_time]
+        );
 
         return redirect()->route('staff.doctors')->with('success', 'Doctor updated successfully!');
     }
@@ -35,8 +40,9 @@ class DoctorController extends Controller
     public function toggleStatus($id)
     {
         $doctor = Doctor::findOrFail($id);
-        $doctor->status = $doctor->status === 'Available' ? 'Unavailable' : 'Available';
+        $doctor->available = $doctor->available ? 0 : 1;
         $doctor->save();
-        return response()->json(['success' => true, 'status' => $doctor->status]);
+
+        return response()->json(['success' => true, 'available' => $doctor->available]);
     }
 }

@@ -20,10 +20,12 @@
                 @foreach($inquiries as $inq)
                 <tr>
                     <td>{{ $inq->inquiry_id }}</td>
-                    <td>{{ Str::limit($inq->message, 50) }}</td>
                     <td>
-                        <span class="status-badge {{ $inq->status === 'Pending' ? 'status-pending' : ($inq->status === 'Resolved' ? 'status-confirmed' : 'status-pending') }}">
-                            {{ $inq->status }}
+                        {{ $inq->log ? Str::limit($inq->log->user_message, 50) : '—' }}
+                    </td>
+                    <td>
+                        <span class="status-badge {{ $inq->resolved_status === 'Pending' ? 'status-pending' : ($inq->resolved_status === 'Resolved' ? 'status-confirmed' : 'status-pending') }}">
+                            {{ $inq->resolved_status }}
                         </span>
                     </td>
                     <td>

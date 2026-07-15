@@ -44,8 +44,9 @@ export default defineConfig({
         port: 5173,
         strictPort: true,
         hmr: {
-           // host: '10.241.235.34', //galaxy
-            host: '192.168.193.172', //lipa bsu
+           // host: '192.168.254.147',
+            host: '10.241.235.34',
+            // lipa bsu 192.168.193.172
         },
         cors: true,
         watch: {

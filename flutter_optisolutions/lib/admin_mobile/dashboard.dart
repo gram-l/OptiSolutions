@@ -217,7 +217,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(height: 16),
                           _SentimentCard(sentimentPercents: _sentimentPercents),
                           const SizedBox(height: 16),
-                          const _RecentActivityCard(),
+                          //const _RecentActivityCard(),
                           const SizedBox(height: 16),
                           const _ActionButtonsGrid(),
                           const SizedBox(height: 16),
@@ -869,7 +869,7 @@ class _ActivityItem {
   const _ActivityItem(this.icon, this.iconBg, this.iconColor, this.title, this.subtitle);
 }
 
-class _RecentActivityCard extends StatelessWidget {
+/*class _RecentActivityCard extends StatelessWidget {
   const _RecentActivityCard();
 
   static const items = [
@@ -928,7 +928,7 @@ class _RecentActivityCard extends StatelessWidget {
       ),
     );
   }
-}
+}*/
 
 // ---------- ACTION BUTTONS GRID ----------
 class _ActionButtonsGrid extends StatelessWidget {

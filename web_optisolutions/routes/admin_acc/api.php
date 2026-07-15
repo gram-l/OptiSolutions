@@ -12,6 +12,7 @@ use App\Http\Controllers\admin_acc\ApiProfileController;
 use App\Http\Controllers\admin_acc\FeedbackController;
 use App\Http\Controllers\admin_acc\VisitController;
 use App\Http\Controllers\admin_acc\PatientListController;
+use App\Http\Controllers\admin_acc\NotificationController;
 
 Route::prefix('admin')->group(function () {
 
@@ -53,4 +54,10 @@ Route::get('/appointments', [VisitController::class, 'apiIndex']);
 Route::get('/patients', [PatientListController::class, 'apiIndex']);
 Route::post('/patients', [PatientListController::class, 'store']);
 Route::put('/patients/{id}', [PatientListController::class, 'update']);
+
+
+
+Route::get('/notifications', [NotificationController::class, 'apiIndex']);
+Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 });

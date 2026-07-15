@@ -21,4 +21,9 @@ class Doctor extends Model
         'schedule',
         'contact_number'
     ];
+
+    public function schedules()
+{
+    return $this->hasMany(\App\Models\admin_models\DoctorSchedule::class, 'doctor_id', 'doctor_id');
+}
 }

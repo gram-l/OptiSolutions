@@ -13,6 +13,8 @@ import 'admin_mobile/user_management.dart';
 import 'admin_mobile/settings.dart';
 import 'admin_mobile/notifications.dart';
 import 'admin_mobile/profile.dart';
+import 'admin_mobile/terms_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Staff-side screens. No alias needed — class names here (AppointmentsPage,
 // Dashboard, DoctorsPage, etc.) don't collide with the admin_mobile classes
@@ -66,7 +68,9 @@ class PolyclinicApp extends StatelessWidget {
           initialRoute: '/',
           routes: {
             // ── Admin routes ──
-            '/':                (_) => const LoginScreen(),
+            '/':                (_) => const StartupDecider(),
+            '/terms':           (_) => const TermsScreen(),
+            '/login':           (_) => const LoginScreen(),
             '/reset':           (_) => const ResetPasswordScreen(),
             '/verify-otp':      (_) => const OtpScreen(),
             '/new-password':    (_) => const NewPasswordScreen(),
@@ -115,3 +119,38 @@ const appMenuItems = <SideMenuItem>[
   SideMenuItem(icon: Icons.manage_accounts_outlined,   label: 'User Management',  route: '/user_management'),
   SideMenuItem(icon: Icons.settings_outlined,          label: 'Settings',         route: '/settings'),
 ];
+
+
+
+class StartupDecider extends StatelessWidget {
+  const StartupDecider({super.key});
+
+  Future<String> _resolveInitialRoute() async {
+    final prefs = await SharedPreferences.getInstance();
+    final acceptedTerms = prefs.getBool('terms_accepted') ?? false;
+    if (!acceptedTerms) return '/terms';
+    return '/login';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _resolveInitialRoute(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        // Defer navigation until after first frame to avoid
+        // calling Navigator during build.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context).pushReplacementNamed(snapshot.data!);
+        });
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      },
+    );
+  }
+}

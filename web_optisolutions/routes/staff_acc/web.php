@@ -16,6 +16,13 @@ use App\Http\Controllers\Staff\PatientController;
 
     // DASHBOARD & LOGOUT
     Route::get('/staff/dashboard', [StaffController::class, 'dashboard'])->name('staff.dashboard');
+
+    // NEW: JSON endpoint for live chart polling (dashboard.blade.php fetches this every 30s)
+    // FIX: previously pointed to DashboardController, which was never imported/used here.
+    // The dashboard logic actually lives in StaffController, so this now calls
+    // StaffController::data() — the same class already used for ->dashboard().
+    Route::get('/staff/dashboard/data', [StaffController::class, 'data'])->name('staff.dashboard.data');
+
     Route::post('/staff/logout', [StaffController::class, 'logout'])->name('staff.logout');
 
     // APPOINTMENTS - VIEW ONLY
@@ -35,7 +42,7 @@ use App\Http\Controllers\Staff\PatientController;
 
     // PATIENTS - VIEW, SHOW, EDIT, UPDATE (NO ADD, NO DELETE)
     Route::get('/staff/patients', [PatientController::class, 'index'])->name('staff.patients');
-    Route::get('/staff/patients/{id}', [PatientController::class, 'show'])->name('staff.patients.show');   // ← IDAGDAG ITO
+    Route::get('/staff/patients/{id}', [PatientController::class, 'show'])->name('staff.patients.show');
     Route::get('/staff/patients/{id}/edit', [PatientController::class, 'edit'])->name('staff.patients.edit');
     Route::put('/staff/patients/{id}', [PatientController::class, 'update'])->name('staff.patients.update');
 });

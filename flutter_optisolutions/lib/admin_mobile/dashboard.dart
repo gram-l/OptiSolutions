@@ -1,11 +1,11 @@
 // dashboard.dart
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
-
-import 'package:flutter_optisolutions/auth/google_auth.dart';// adjust path to wherever you put it
-import 'models/user_model.dart';     // for AppUser
+import '../admin_mobile/services/dashboard_service.dart';
 
 // ---------- MAIN SCREEN ----------
 class DashboardScreen extends StatefulWidget {
@@ -16,6 +16,136 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  bool _loading = true;
+  String? _loadError;
+
+  // ---- User ----
+  String _userName = '';
+
+  // ---- Stat cards ----
+  int _totalInquiries = 0;
+  int _todaysAppointments = 0;
+  int _pendingApproval = 0;
+  int _activePatients = 0;
+  int _newPatientsThisMonth = 0;
+  double _avgRating = 0;
+
+  // ---- 1) Service Distribution ----
+  List<Map<String, dynamic>> _serviceDistribution = [];
+
+  // ---- 2) Weekly Patient Visits ----
+  static const int _weekCount = 6;
+  List<int> _weeklyVisits = List.filled(_weekCount, 0);
+  List<String> _weekLabels = List.generate(
+    _weekCount,
+    (i) => i == _weekCount - 1 ? 'This wk' : 'W-${_weekCount - 1 - i}',
+  );
+
+  // ---- 3) Sentiment Analysis ----
+  Map<String, double> _sentimentPercents = const {
+    'Positive': 0,
+    'Neutral': 0,
+    'Negative': 0,
+  };
+
+  // ---- 4) Inquiry Volume per weekday ----
+  List<int> _inquiryVolumeByDay = List.filled(7, 0);
+
+  static const List<String> _weekdayLabels = [
+    'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+  ];
+
+  static const List<Color> _serviceColors = [
+    Color(0xFF0E62AA),
+    Color(0xFF3969A8),
+    Color(0xFF5C8BC0),
+    Color(0xFF79A8CB),
+    Color(0xFF9DBCD4),
+    Color(0xFF00897B),
+    Color(0xFF43A047),
+    Color(0xFFFB8C00),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _userName = prefs.getString('user_name') ?? '';
+    });
+  }
+
+  List<Map<String, dynamic>>? _parseServiceDistribution(dynamic raw) {
+    if (raw is! List || raw.isEmpty) return null;
+    final result = <Map<String, dynamic>>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final type = item['service_type'] ?? 'Unknown';
+      final total = num.tryParse('${item['total']}') ?? 0;
+      result.add({'service_type': type.toString(), 'total': total});
+    }
+    return result.isEmpty ? null : result;
+  }
+
+  List<int> _parseIntList(dynamic raw, int fallbackLength) {
+    if (raw is! List || raw.isEmpty) return List.filled(fallbackLength, 0);
+    return raw.map((e) => num.tryParse('$e')?.toInt() ?? 0).toList();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+
+    try {
+      final data = await DashboardService.getDashboardData();
+
+      final services = _parseServiceDistribution(data['serviceDistribution']);
+      final weekly = _parseIntList(data['weeklyVisits'], _weekCount);
+      final inquiryVolume = _parseIntList(data['inquiryVolumeByDay'], 7);
+      final rawWeekLabels = data['weekLabels'];
+
+      setState(() {
+        _totalInquiries = num.tryParse('${data['totalInquiries']}')?.toInt() ?? 0;
+        _todaysAppointments = num.tryParse('${data['todaysAppointments']}')?.toInt() ?? 0;
+        _pendingApproval = num.tryParse('${data['pendingApproval']}')?.toInt() ?? 0;
+        _activePatients = num.tryParse('${data['activePatients']}')?.toInt() ?? 0;
+        _newPatientsThisMonth = num.tryParse('${data['newPatientsThisMonth']}')?.toInt() ?? 0;
+        _avgRating = num.tryParse('${data['avgRating']}')?.toDouble() ?? 0;
+
+        if (services != null) _serviceDistribution = services;
+        _weeklyVisits = weekly;
+        if (rawWeekLabels is List) {
+          _weekLabels = rawWeekLabels.map((e) => e.toString()).toList();
+        }
+        _inquiryVolumeByDay = inquiryVolume;
+
+        final positive = num.tryParse('${data['positivePercent']}')?.toDouble() ?? 0;
+        final neutral = num.tryParse('${data['neutralPercent']}')?.toDouble() ?? 0;
+        final negative = num.tryParse('${data['negativePercent']}')?.toDouble() ?? 0;
+        _sentimentPercents = {
+          'Positive': positive,
+          'Neutral': neutral,
+          'Negative': negative,
+        };
+
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
   void _navigateTo(String route) {
     if (route != '/dashboard') {
       Navigator.pushNamed(context, route);
@@ -31,41 +161,82 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onItemTap: _navigateTo,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _TopBar(),
-              const SizedBox(height: 16),
-              const _WelcomeCard(),
-              const SizedBox(height: 16),
-              const _StatGrid(),
-              const SizedBox(height: 16),
-              const _InquiryVolumeCard(),
-              const SizedBox(height: 16),
-              const _SentimentCard(),
-              const SizedBox(height: 16),
-              const _RecentActivityCard(),
-              const SizedBox(height: 16),
-              const _ActionButtonsGrid(),
-              const SizedBox(height: 16),
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: Text('Polyclinic Admin v2.0',
-                      style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _loadError != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(_loadError!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.red)),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _loadDashboardData,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadDashboardData,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _TopBar(),
+                          const SizedBox(height: 16),
+                          _WelcomeCard(userName: _userName),
+                          const SizedBox(height: 16),
+                          _StatGrid(
+                            totalInquiries: _totalInquiries,
+                            todaysAppointments: _todaysAppointments,
+                            pendingApproval: _pendingApproval,
+                            activePatients: _activePatients,
+                            newPatientsThisMonth: _newPatientsThisMonth,
+                            avgRating: _avgRating,
+                          ),
+                          const SizedBox(height: 16),
+                          _ServiceDistributionCard(
+                            services: _serviceDistribution,
+                            colors: _serviceColors,
+                          ),
+                          const SizedBox(height: 16),
+                          _WeeklyVisitsCard(
+                            weeklyVisits: _weeklyVisits,
+                            weekLabels: _weekLabels,
+                          ),
+                          const SizedBox(height: 16),
+                          _InquiryVolumeCard(inquiryVolumeByDay: _inquiryVolumeByDay),
+                          const SizedBox(height: 16),
+                          _SentimentCard(sentimentPercents: _sentimentPercents),
+                          const SizedBox(height: 16),
+                          //const _RecentActivityCard(),
+                          const SizedBox(height: 16),
+                          const _ActionButtonsGrid(),
+                          const SizedBox(height: 16),
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.only(bottom: 12),
+                              child: Text('Polyclinic Admin v2.0',
+                                  style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
       ),
     );
   }
 }
 
-//TOP BAR 
 // ---------- TOP BAR ----------
 class _TopBar extends StatelessWidget {
   const _TopBar();
@@ -123,12 +294,15 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-//WELCOME CARd
+// ---------- WELCOME CARD ----------
 class _WelcomeCard extends StatelessWidget {
-  const _WelcomeCard();
+  final String userName;
+  const _WelcomeCard({required this.userName});
 
   @override
   Widget build(BuildContext context) {
+    final displayName = userName.isNotEmpty ? userName : 'there';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -143,8 +317,8 @@ class _WelcomeCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Welcome back, Dr. Lara',
-              style: TextStyle(
+          Text('Welcome back, $displayName',
+              style: const TextStyle(
                   color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text("Here's what's happening with your clinic today.",
@@ -157,56 +331,64 @@ class _WelcomeCard extends StatelessWidget {
 
 // ---------- STAT GRID ----------
 class _StatGrid extends StatelessWidget {
-  const _StatGrid();
+  final int totalInquiries;
+  final int todaysAppointments;
+  final int pendingApproval;
+  final int activePatients;
+  final int newPatientsThisMonth;
+  final double avgRating;
+
+  const _StatGrid({
+    required this.totalInquiries,
+    required this.todaysAppointments,
+    required this.pendingApproval,
+    required this.activePatients,
+    required this.newPatientsThisMonth,
+    required this.avgRating,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: _StatCard(
-            label: 'TOTAL INQUIRIES',
-            value: '342',
-            trend: '↑ 12% from last week',
-            trendUp: true,
-          ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            label: "TODAY'S APPTS",
-            value: '24',
-            trend: '6 pending approval',
-          ),
-        ),
-      ],
-    ).withBottomRow(const [
-      _StatCard(
-        label: 'ACTIVE PATIENTS',
-        value: '1,284',
-        trend: '18 new this month',
-      ),
-      _StatCard(
-        label: 'SATISFACTION',
-        value: '4.8',
-        trend: 'Average rating',
-        showStar: true,
-      ),
-    ]);
-  }
-}
-
-extension on Row {
-  Widget withBottomRow(List<Widget> bottomChildren) {
     return Column(
       children: [
-        this,
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                label: 'TOTAL INQUIRIES',
+                value: '$totalInquiries',
+                trend: 'Live count',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                label: "TODAY'S APPTS",
+                value: '$todaysAppointments',
+                trend: '$pendingApproval pending approval',
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: bottomChildren[0]),
+            Expanded(
+              child: _StatCard(
+                label: 'ACTIVE PATIENTS',
+                value: '$activePatients',
+                trend: '$newPatientsThisMonth new this month',
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: bottomChildren[1]),
+            Expanded(
+              child: _StatCard(
+                label: 'SATISFACTION',
+                value: avgRating.toStringAsFixed(1),
+                trend: 'Average rating',
+                showStar: true,
+              ),
+            ),
           ],
         ),
       ],
@@ -281,16 +463,200 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// ---------- INQUIRY VOLUME (BAR CHART) ----------
-class _InquiryVolumeCard extends StatelessWidget {
-  const _InquiryVolumeCard();
+// ---------- 1) SERVICE DISTRIBUTION (doughnut) ----------
+class _ServiceDistributionCard extends StatelessWidget {
+  final List<Map<String, dynamic>> services;
+  final List<Color> colors;
 
-  static const List<double> heights = [0.45, 0.5, 0.85, 0.4, 0.55, 0.95, 0.3];
-  static const List<String> days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  static const int highlightIndex = 5;
+  const _ServiceDistributionCard({required this.services, required this.colors});
 
   @override
   Widget build(BuildContext context) {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.pie_chart_rounded, size: 18, color: AppColors.primary),
+              SizedBox(width: 6),
+              Text('Service Distribution',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('Distribution of patient visits by service',
+              style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600)),
+          const SizedBox(height: 16),
+          if (services.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text('No service data available yet.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+            )
+          else ...[
+            SizedBox(
+              height: 160,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 32,
+                  sections: List.generate(services.length, (i) {
+                    final entry = services[i];
+                    return PieChartSectionData(
+                      value: (entry['total'] as num).toDouble(),
+                      color: colors[i % colors.length],
+                      radius: 42,
+                      showTitle: false,
+                    );
+                  }),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              children: List.generate(services.length, (i) {
+                final entry = services[i];
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: colors[i % colors.length],
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text('${entry['service_type']} (${entry['total']})',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+                  ],
+                );
+              }),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ---------- 2) WEEKLY PATIENT VISITS (line) ----------
+class _WeeklyVisitsCard extends StatelessWidget {
+  final List<int> weeklyVisits;
+  final List<String> weekLabels;
+
+  const _WeeklyVisitsCard({required this.weeklyVisits, required this.weekLabels});
+
+  @override
+  Widget build(BuildContext context) {
+    final maxVal = weeklyVisits.isEmpty ? 0 : weeklyVisits.reduce((a, b) => a > b ? a : b);
+    final maxY = maxVal == 0 ? 5.0 : (maxVal * 1.25).ceilToDouble();
+    final interval = maxY <= 5 ? 1.0 : (maxY / 5).ceilToDouble();
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.show_chart_rounded, size: 18, color: AppColors.primary),
+              SizedBox(width: 6),
+              Text('Weekly Patient Visits',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('Visits over the last ${weekLabels.length} weeks',
+              style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600)),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 160,
+            child: LineChart(
+              LineChartData(
+                minY: 0,
+                maxY: maxY,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: interval,
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 26,
+                      interval: interval,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final i = value.toInt();
+                        if (i < 0 || i >= weekLabels.length) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(weekLabels[i],
+                              style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: List.generate(
+                      weeklyVisits.length,
+                      (i) => FlSpot(i.toDouble(), weeklyVisits[i].toDouble()),
+                    ),
+                    isCurved: true,
+                    color: AppColors.darkNavy,
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: AppColors.darkNavy.withValues(alpha: 0.08),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------- 3) INQUIRY VOLUME (bar) ----------
+class _InquiryVolumeCard extends StatelessWidget {
+  final List<int> inquiryVolumeByDay;
+
+  const _InquiryVolumeCard({required this.inquiryVolumeByDay});
+
+  static const List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  @override
+  Widget build(BuildContext context) {
+    final maxCount = inquiryVolumeByDay.isEmpty
+        ? 0
+        : inquiryVolumeByDay.reduce((a, b) => a > b ? a : b);
+    final maxY = maxCount == 0 ? 5.0 : (maxCount * 1.25).ceilToDouble();
+    final interval = maxY <= 5 ? 1.0 : (maxY / 5).ceilToDouble();
+
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,31 +679,77 @@ class _InquiryVolumeCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           SizedBox(
-            height: 110,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(heights.length, (i) {
-                final isHighlight = i == highlightIndex || i == 2;
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Container(
-                      width: 26,
-                      height: 90 * heights[i],
-                      decoration: BoxDecoration(
-                        color: isHighlight ? AppColors.darkNavy : AppColors.lightBlue,
-                        borderRadius: BorderRadius.circular(6),
+            height: 160,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxY,
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${days[group.x]}\n${rod.toY.toInt()} inquiries',
+                        const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                      );
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 26,
+                      interval: interval,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(days[i],
-                        style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
-                  ],
-                );
-              }),
+                  ),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final i = value.toInt();
+                        if (i < 0 || i >= days.length) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(days[i],
+                              style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: interval,
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                barGroups: List.generate(7, (i) {
+                  return BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: i < inquiryVolumeByDay.length
+                            ? inquiryVolumeByDay[i].toDouble()
+                            : 0,
+                        color: AppColors.darkNavy,
+                        width: 18,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ],
+                  );
+                }),
+              ),
             ),
           ),
         ],
@@ -346,12 +758,19 @@ class _InquiryVolumeCard extends StatelessWidget {
   }
 }
 
-// ---------- SENTIMENT ANALYSIS ----------
+// ---------- 4) SENTIMENT ANALYSIS ----------
 class _SentimentCard extends StatelessWidget {
-  const _SentimentCard();
+  final Map<String, double> sentimentPercents;
+
+  const _SentimentCard({required this.sentimentPercents});
 
   @override
   Widget build(BuildContext context) {
+    final positive = sentimentPercents['Positive'] ?? 0;
+    final neutral = sentimentPercents['Neutral'] ?? 0;
+    final negative = sentimentPercents['Negative'] ?? 0;
+    final hasData = (positive + neutral + negative) > 0;
+
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,35 +784,31 @@ class _SentimentCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const _SentimentRow(label: 'Positive', percent: 0.75, percentText: '75%', color: AppColors.positive),
-          const SizedBox(height: 10),
-          const _SentimentRow(label: 'Neutral',  percent: 0.18, percentText: '18%', color: AppColors.neutral),
-          const SizedBox(height: 10),
-          const _SentimentRow(label: 'Negative', percent: 0.07, percentText: '7%',  color: AppColors.negative),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF6F8FC),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: RichText(
-              text: const TextSpan(
-                style: TextStyle(fontSize: 12, color: AppColors.textDark),
-                children: [
-                  WidgetSpan(
-                    child: Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange),
-                    alignment: PlaceholderAlignment.middle,
-                  ),
-                  TextSpan(
-                      text: '  Top complaint: ',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  TextSpan(text: 'Long waiting times at reception'),
-                ],
-              ),
-            ),
-          ),
+          if (!hasData)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text('No feedback data available yet.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+            )
+          else ...[
+            _SentimentRow(
+                label: 'Positive',
+                percent: positive / 100,
+                percentText: '${positive.toStringAsFixed(0)}%',
+                color: AppColors.positive),
+            const SizedBox(height: 10),
+            _SentimentRow(
+                label: 'Neutral',
+                percent: neutral / 100,
+                percentText: '${neutral.toStringAsFixed(0)}%',
+                color: AppColors.neutral),
+            const SizedBox(height: 10),
+            _SentimentRow(
+                label: 'Negative',
+                percent: negative / 100,
+                percentText: '${negative.toStringAsFixed(0)}%',
+                color: AppColors.negative),
+          ],
         ],
       ),
     );
@@ -419,14 +834,13 @@ class _SentimentRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 60,
-          child: Text(label,
-              style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
+          child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
         ),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: percent,
+              value: percent.clamp(0, 1),
               minHeight: 8,
               backgroundColor: const Color(0xFFEDEFF5),
               valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -435,7 +849,7 @@ class _SentimentRow extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         SizedBox(
-          width: 32,
+          width: 36,
           child: Text(percentText,
               textAlign: TextAlign.right,
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
@@ -445,7 +859,7 @@ class _SentimentRow extends StatelessWidget {
   }
 }
 
-// ---------- RECENT ACTIVITY ----------
+// ---------- RECENT ACTIVITY (static placeholder, unchanged) ----------
 class _ActivityItem {
   final IconData icon;
   final Color iconBg;
@@ -455,7 +869,7 @@ class _ActivityItem {
   const _ActivityItem(this.icon, this.iconBg, this.iconColor, this.title, this.subtitle);
 }
 
-class _RecentActivityCard extends StatelessWidget {
+/*class _RecentActivityCard extends StatelessWidget {
   const _RecentActivityCard();
 
   static const items = [
@@ -500,12 +914,10 @@ class _RecentActivityCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(item.title,
-                              style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w500)),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                           const SizedBox(height: 2),
                           Text(item.subtitle,
-                              style: const TextStyle(
-                                  fontSize: 11.5, color: AppColors.textGrey)),
+                              style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
                         ],
                       ),
                     ),
@@ -516,7 +928,7 @@ class _RecentActivityCard extends StatelessWidget {
       ),
     );
   }
-}
+}*/
 
 // ---------- ACTION BUTTONS GRID ----------
 class _ActionButtonsGrid extends StatelessWidget {
@@ -609,10 +1021,7 @@ class _ActionButton extends StatelessWidget {
               Icon(icon, size: 16, color: textColor),
               const SizedBox(width: 6),
               Text(label,
-                  style: TextStyle(
-                      color: textColor,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13)),
+                  style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 13)),
             ],
           ),
         ),

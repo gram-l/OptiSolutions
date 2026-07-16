@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
-use App\Models\Staff\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -11,13 +10,14 @@ class AppointmentController extends Controller
 {
     public function index()
     {
-        $appointments = DB::table('appointments')
-            ->leftJoin('doctors', 'appointments.doctor', '=', 'doctors.name')
+        $appointments = DB::table('schedule_visit')
+            ->leftJoin('doctors', 'schedule_visit.doctor_id', '=', 'doctors.doctor_id')
             ->select(
-                'appointments.appointment_id',
-                'appointments.doctor',
-                'appointments.date',
-                'appointments.status',
+                'schedule_visit.visit_id',
+                'schedule_visit.doctor_id',
+                'doctors.doctor_name as doctor_name',
+                'schedule_visit.visit_date',
+                'schedule_visit.service_type',
                 'doctors.specialty as service'
             )
             ->get();

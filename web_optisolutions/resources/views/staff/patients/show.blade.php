@@ -18,29 +18,41 @@
             </div>
             <div>
                 <label style="font-weight: 600; color: var(--text-dark);">Patient Name</label>
-                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->patient_name }}</p>
+                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->full_name }}</p>
             </div>
             <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Department</label>
-                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->department }}</p>
+                <label style="font-weight: 600; color: var(--text-dark);">Department (latest visit)</label>
+                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->latestVisit->doctor->specialty ?? 'N/A' }}</p>
             </div>
             <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Assigned Doctor</label>
-                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->assigned_doctor }}</p>
+                <label style="font-weight: 600; color: var(--text-dark);">Assigned Doctor (latest visit)</label>
+                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->latestVisit->doctor->doctor_name ?? 'N/A' }}</p>
             </div>
             <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Age</label>
-                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->age }}</p>
+                <label style="font-weight: 600; color: var(--text-dark);">Birthday</label>
+                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ \Carbon\Carbon::parse($patient->patient_birthdate)->format('M d, Y') }}</p>
             </div>
             <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Phone</label>
-                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->phone }}</p>
+                <label style="font-weight: 600; color: var(--text-dark);">Contact</label>
+                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->patient_contact }}</p>
+            </div>
+            <div style="grid-column: span 2;">
+                <label style="font-weight: 600; color: var(--text-dark);">Email</label>
+                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->patient_email }}</p>
             </div>
         </div>
 
-        <div style="margin-top: 1rem;">
-            <label style="font-weight: 600; color: var(--text-dark);">Last Visit</label>
-            <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;">{{ $patient->last_visit ?? 'No record' }}</p>
+        <div style="margin-top: 1.5rem;">
+            <label style="font-weight: 600; color: var(--text-dark);">Visit History</label>
+            @forelse($patient->visits as $visit)
+                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px; margin-top: 0.5rem;">
+                    {{ \Carbon\Carbon::parse($visit->visit_date)->format('M d, Y') }} —
+                    {{ $visit->service_type }} with {{ $visit->doctor->doctor_name ?? 'N/A' }}
+                    ({{ $visit->notes }})
+                </p>
+            @empty
+                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px; margin-top: 0.5rem;">No visit records.</p>
+            @endforelse
         </div>
     </div>
 </div>

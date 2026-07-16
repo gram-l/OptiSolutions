@@ -20,33 +20,28 @@
             </div>
 
             <div class="form-group">
-                <label>Patient Name</label>
-                <input type="text" name="patient_name" value="{{ $patient->patient_name }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                <label>First Name</label>
+                <input type="text" name="patient_fname" value="{{ $patient->patient_fname }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
             </div>
 
             <div class="form-group">
-                <label>Department</label>
-                <input type="text" name="department" value="{{ $patient->department }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
-            </div>
-
-            <div class="form-group">
-                <label>Assigned Doctor</label>
-                <input type="text" name="assigned_doctor" value="{{ $patient->assigned_doctor }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                <label>Last Name</label>
+                <input type="text" name="patient_lname" value="{{ $patient->patient_lname }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
             </div>
 
             <div class="form-group">
                 <label>Birthday</label>
-                <input type="date" name="birthday" value="{{ $patient->birthday }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                <input type="date" name="patient_birthdate" value="{{ \Carbon\Carbon::parse($patient->patient_birthdate)->format('Y-m-d') }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
+            </div>
+
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="patient_email" value="{{ $patient->patient_email }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
             </div>
 
             <div class="form-group">
                 <label>Contact Number</label>
-                <input type="text" name="contact_number" value="{{ $patient->contact_number }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
-            </div>
-
-            <div class="form-group">
-                <label>Remarks</label>
-                <textarea name="remarks" rows="3" style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">{{ $patient->remarks }}</textarea>
+                <input type="text" name="patient_contact" value="{{ $patient->patient_contact }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
             </div>
 
             <button type="submit" class="btn-sm btn-success" style="padding: 0.7rem 2rem; margin-top: 0.5rem;">Update Patient</button>

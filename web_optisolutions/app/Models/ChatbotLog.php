@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Staff;
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -8,9 +8,17 @@ class ChatbotLog extends Model
 {
     protected $table = 'chatbot_logs';
     protected $primaryKey = 'log_id';
+    public $timestamps = false; // change if there's created_at/updated_at on your table
 
-    const CREATED_AT = 'chat_time';
-    const UPDATED_AT = null;
+    protected $fillable = [
+        'user_id',
+        'user_message',
+        'bot_message',
+        'chat_time',
+    ];
 
-    protected $fillable = ['user_id', 'user_message', 'bot_message'];
+    public function inquiry()
+    {
+        return $this->hasOne(Inquiry::class, 'log_id', 'log_id');
+    }
 }

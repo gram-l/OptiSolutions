@@ -70,6 +70,7 @@ class AuthService {
     await prefs.setString('user_id', user['user_id'].toString());
     await prefs.setString('user_email', user['email'] ?? '');
     await prefs.setString('user_role', user['user_role'] ?? '');
+    await prefs.setString('user_name', user['name'] ?? user['email'] ?? '');
     if (token != null) {
       await prefs.setString('auth_token', token);
     }
@@ -80,6 +81,7 @@ class AuthService {
     await prefs.remove('user_id');
     await prefs.remove('user_email');
     await prefs.remove('user_role');
+    await prefs.remove('user_name'); //added this line to remove user_name on logout
     await prefs.remove('auth_token');
   }
 

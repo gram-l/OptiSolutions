@@ -473,7 +473,11 @@ class _DoctorCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                _ActionBtn(label: 'Edit', icon: Icons.edit_outlined, color: AppColors.editBlue, onTap: onEdit),
+                _ActionBtn(
+                    label: 'Edit',
+                    icon: Icons.edit_outlined,
+                    color: AppColors.editBlue,
+                    onTap: doctor.isActive ? onEdit : null),
                 const SizedBox(width: 6),
                 doctor.isActive
                     ? _ActionBtn(
@@ -530,13 +534,16 @@ class _ActionBtn extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _ActionBtn({required this.label, required this.icon, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final bool disabled = onTap == null;
+    final Color effectiveColor = disabled ? AppColors.textGrey : color;
+
     return Material(
-      color: color.withValues(alpha: 0.12),
+      color: effectiveColor.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -545,9 +552,9 @@ class _ActionBtn extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(
             children: [
-              Icon(icon, size: 13, color: color),
+              Icon(icon, size: 13, color: effectiveColor),
               const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+              Text(label, style: TextStyle(fontSize: 12, color: effectiveColor, fontWeight: FontWeight.w600)),
             ],
           ),
         ),

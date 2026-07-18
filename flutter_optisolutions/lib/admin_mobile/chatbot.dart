@@ -227,7 +227,7 @@ class _InquiriesScreenState extends State<InquiriesScreen> {
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Container(
-        height: 36,
+        height: 38,
         decoration: BoxDecoration(
           color: AppColors.background,
           borderRadius: BorderRadius.circular(10),
@@ -237,11 +237,12 @@ class _InquiriesScreenState extends State<InquiriesScreen> {
           onChanged: (v) => setState(() => _search = v),
           style: const TextStyle(fontSize: 13),
           decoration: const InputDecoration(
+            isDense: true,
             prefixIcon: Icon(Icons.search, size: 16, color: AppColors.textGrey),
             hintText: 'Search...',
             hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 13),
             border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(vertical: 9),
+            contentPadding: EdgeInsets.symmetric(vertical: 9, horizontal: 4),
           ),
         ),
       ),

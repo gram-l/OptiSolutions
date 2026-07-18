@@ -7,6 +7,7 @@ class ProfileData {
   static String staffId = 'N/A';
   static String department = 'N/A';
   static String shift = 'N/A';
+  static String? photoUrl;
 
   static Future<void> load() async {
     final result = await ApiService.get('/me');
@@ -16,6 +17,7 @@ class ProfileData {
     staffId = result['staff_id']?.toString() ?? 'N/A';
     department = result['department'] ?? 'N/A';
     shift = result['shift'] ?? 'N/A';
+    photoUrl = result['profile_photo'];
   }
 
   // Saves edits from the Settings page back to the database, then updates

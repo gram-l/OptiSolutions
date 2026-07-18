@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/center_snackbar.dart';
 
 // ✅ InquiryChatStorage removed — messages now come from and are saved to
 // the database via ApiService instead of being kept only in memory.
@@ -136,12 +137,7 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showCenterSnackBar(context, 'Failed to send: $e', isError: true);
       }
     }
 

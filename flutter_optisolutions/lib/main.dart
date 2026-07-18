@@ -28,6 +28,7 @@ import 'staff_mobile/screens/notifications.dart' as staffnotif;
 import 'staff_mobile/screens/patients.dart';
 import 'staff_mobile/screens/profile.dart';
 import 'staff_mobile/screens/settings.dart' as staffsettings;
+import 'staff_mobile/screens/staffcolor.dart';
 
 // App-wide theme mode, changeable from anywhere (e.g. SettingsScreen)
 // via themeModeNotifier.value = ThemeMode.dark;

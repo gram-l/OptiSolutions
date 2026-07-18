@@ -8,9 +8,26 @@ use Illuminate\Http\Request;
 
 class PatientController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $patients = Patient::with('latestVisit.doctor')->get();
+        $query = Patient::with('latestVisit.doctor');
+
+        // Filter by visit_date range (walang date_registered column sa
+        // patients table, kaya ang ginagamit natin ay petsa ng visits nila
+        // sa schedule_visit table)
+        if ($request->filled('date_from') || $request->filled('date_to')) {
+            $query->whereHas('visits', function ($q) use ($request) {
+                if ($request->filled('date_from')) {
+                    $q->whereDate('visit_date', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $q->whereDate('visit_date', '<=', $request->date_to);
+                }
+            });
+        }
+
+        $patients = $query->get();
+
         return view('staff.patients.index', compact('patients'));
     }
 

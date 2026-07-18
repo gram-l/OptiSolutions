@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Staff\Doctor;
 use App\Models\DoctorSchedule;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 
 class DoctorController extends Controller
 {
@@ -27,13 +26,31 @@ class DoctorController extends Controller
         return response()->json($doctor->toApiArray());
     }
 
-    /** PATCH /api/doctors/{doctor} — used by the "edit availability" / "edit schedule" features in doctors.dart */
+    /**
+     * PATCH /api/doctors/{doctor} — used by the "edit availability" / "edit schedule"
+     * features in doctors.dart.
+     *
+     * Expected body for schedule updates:
+     * {
+     *   "schedules": [
+     *     {"day": "Monday", "start_time": "08:00", "end_time": "11:00"},
+     *     {"day": "Monday", "start_time": "14:00", "end_time": "18:00"},
+     *     {"day": "Tuesday", "start_time": "08:00", "end_time": "17:00"}
+     *   ]
+     * }
+     *
+     * Each entry is one row in `doctor_schedules`, so a single day can have
+     * multiple sessions (e.g. split shifts) by simply repeating the day.
+     * Sending "schedules": [] clears all schedules for the doctor.
+     */
     public function update(Request $request, Doctor $doctor)
     {
         $incoming = $request->validate([
-            'status'   => 'sometimes|in:Available,Unavailable',
-            'schedule' => 'sometimes|string', // hal. "Mon - Fri"
-            'time'     => 'sometimes|string', // hal. "8:00am - 3:00pm"
+            'status'                    => 'sometimes|in:Available,Unavailable',
+            'schedules'                 => 'sometimes|array',
+            'schedules.*.day'           => 'required_with:schedules|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+            'schedules.*.start_time'    => 'nullable|date_format:H:i',
+            'schedules.*.end_time'      => 'nullable|date_format:H:i',
         ]);
 
         // Ang 'available' column sa DB ay boolean, hindi 'Available'/'Unavailable' string
@@ -42,87 +59,30 @@ class DoctorController extends Controller
             $doctor->save();
         }
 
-        // I-update ang schedule kung binigyan ng bago
-        if (isset($incoming['schedule']) || isset($incoming['time'])) {
-            $days = $this->parseDayRange($incoming['schedule'] ?? null, $doctor);
-            [$startTime, $endTime] = $this->parseTimeRange($incoming['time'] ?? null, $doctor);
+        // ✅ 'available' huwag payagang baguhin ang schedule ng doktor kung
+        // in-mark siyang Unavailable ng admin (available = 0). Ito ay backup
+        // lang sa server side; ang pangunahing pigil ay nasa staff app
+        // (grayed-out button).
+        if (isset($incoming['schedules']) && !$doctor->available) {
+            return response()->json([
+                'message' => "You cannot change this doctor's schedule because the administrator marked the doctor as inactive.",
+            ], 403);
+        }
 
-            // Palitan ang lumang schedule rows ng doktor ng bagong set
+        // Palitan ang buong schedule set ng doktor kung may 'schedules' na ipinadala
+        if (isset($incoming['schedules'])) {
             DoctorSchedule::where('doctor_id', $doctor->doctor_id)->delete();
 
-            foreach ($days as $day) {
+            foreach ($incoming['schedules'] as $entry) {
                 DoctorSchedule::create([
                     'doctor_id'  => $doctor->doctor_id,
-                    'day'        => $day,
-                    'start_time' => $startTime,
-                    'end_time'   => $endTime,
+                    'day'        => $entry['day'],
+                    'start_time' => $entry['start_time'] ?? null,
+                    'end_time'   => $entry['end_time'] ?? null,
                 ]);
             }
         }
 
         return response()->json($doctor->fresh('schedules')->toApiArray());
-    }
-
-    /**
-     * I-parse ang "Mon - Fri" o "Monday - Friday" papunta sa listahan ng
-     * indibidwal na araw. Kung hindi ma-parse, panatilihin ang dating days.
-     */
-    private function parseDayRange(?string $input, Doctor $doctor): array
-    {
-        $weekOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        $aliases = ['Mon' => 'Monday', 'Tue' => 'Tuesday', 'Wed' => 'Wednesday', 'Thu' => 'Thursday', 'Fri' => 'Friday', 'Sat' => 'Saturday', 'Sun' => 'Sunday'];
-
-        if (!$input) {
-            $existing = $doctor->schedules->pluck('day')->unique()->values()->all();
-            return !empty($existing) ? $existing : ['Monday'];
-        }
-
-        $parts = array_map('trim', explode('-', $input));
-        $normalize = fn($d) => $aliases[$d] ?? $d;
-
-        if (count($parts) === 2) {
-            $start = $normalize($parts[0]);
-            $end = $normalize($parts[1]);
-            $startIdx = array_search($start, $weekOrder);
-            $endIdx = array_search($end, $weekOrder);
-
-            if ($startIdx !== false && $endIdx !== false) {
-                if ($startIdx <= $endIdx) {
-                    return array_slice($weekOrder, $startIdx, $endIdx - $startIdx + 1);
-                }
-                return array_merge(array_slice($weekOrder, $startIdx), array_slice($weekOrder, 0, $endIdx + 1));
-            }
-        }
-
-        // Hindi ma-parse bilang range — ituring na single day o list na pinaghiwalay ng comma
-        return array_map($normalize, array_map('trim', explode(',', $input)));
-    }
-
-    /**
-     * I-parse ang "8:00am - 3:00pm" papunta sa ['08:00:00', '15:00:00'].
-     * Kung hindi ma-parse, panatilihin ang dating oras.
-     */
-    private function parseTimeRange(?string $input, Doctor $doctor): array
-    {
-        if (!$input) {
-            $existing = $doctor->schedules->first();
-            return $existing
-                ? [$existing->start_time, $existing->end_time]
-                : ['08:00:00', '17:00:00'];
-        }
-
-        $parts = array_map('trim', explode('-', $input));
-        if (count($parts) === 2) {
-            try {
-                return [
-                    Carbon::parse($parts[0])->format('H:i:s'),
-                    Carbon::parse($parts[1])->format('H:i:s'),
-                ];
-            } catch (\Exception $e) {
-                // babagsak sa default sa ibaba
-            }
-        }
-
-        return ['08:00:00', '17:00:00'];
     }
 }

@@ -1,4 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:csv/csv.dart';
+import 'package:excel/excel.dart' as xls;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'staffcolor.dart';
 import 'package:flutter_optisolutions/login.dart';
 
 import 'dashboard.dart';
@@ -10,6 +18,7 @@ import 'notifications.dart';
 import 'settings.dart';
 import 'help.dart';
 import '../widgets/notification_badge.dart';
+import '../widgets/center_snackbar.dart';
 import '../services/api_service.dart';
 
 class AppointmentsPage extends StatefulWidget {
@@ -27,10 +36,34 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   bool _isLoading = true;
   String? _error;
 
+  // Date Range Filter
+  DateTime? _startDate;
+  DateTime? _endDate;
+  bool _isDateFilterActive = false;
+
+  // Logged-in staff name (shown in the drawer header)
+  String _staffName = 'Staff';
+  String _staffEmail = '';
+
   @override
   void initState() {
     super.initState();
+    _loadStaffName();
     _fetchAppointments();
+  }
+
+  Future<void> _loadStaffName() async {
+    try {
+      final user = await ApiService.getCurrentUser();
+      if (user != null && mounted) {
+        setState(() {
+          if (user['name'] != null) _staffName = user['name'].toString();
+          if (user['email'] != null) _staffEmail = user['email'].toString();
+        });
+      }
+    } catch (e) {
+      print('Error loading staff name: $e');
+    }
   }
 
   Future<void> _fetchAppointments() async {
@@ -81,6 +114,21 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   List<Map<String, dynamic>> get _filteredAppointments {
     List<Map<String, dynamic>> result = List.from(_allAppointments);
 
+    // Filter by date range
+    if (_isDateFilterActive && _startDate != null && _endDate != null) {
+      result = result.where((app) {
+        try {
+          final appDate = DateTime.parse(app['date']);
+          return appDate.isAfter(
+                _startDate!.subtract(const Duration(days: 1)),
+              ) &&
+              appDate.isBefore(_endDate!.add(const Duration(days: 1)));
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+    }
+
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       result = result.where((app) {
@@ -92,6 +140,254 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     }
 
     return result;
+  }
+
+  // Show date range picker
+  Future<void> _selectDateRange() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: StaffColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (picked != null) {
+      final DateTime? endPicked = await showDatePicker(
+        context: context,
+        initialDate: picked,
+        firstDate: picked,
+        lastDate: DateTime(2100),
+        builder: (context, child) {
+          return Theme(
+            data: ThemeData.light().copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: StaffColors.primary,
+                onPrimary: Colors.white,
+                surface: Colors.white,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (endPicked != null) {
+        setState(() {
+          _startDate = picked;
+          _endDate = endPicked;
+          _isDateFilterActive = true;
+        });
+      }
+    }
+  }
+
+  // Clear date filter
+  void _clearDateFilter() {
+    setState(() {
+      _startDate = null;
+      _endDate = null;
+      _isDateFilterActive = false;
+    });
+  }
+
+  // Format date for display (short)
+  String _formatDateShort(DateTime date) {
+    final monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${monthNames[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  // ─────────────────────────────────────────────
+  //  EXPORT (CSV / Excel / PDF)
+  // ─────────────────────────────────────────────
+  void _showExportSheet() {
+    final appointmentsToExport = _filteredAppointments;
+
+    if (appointmentsToExport.isEmpty) {
+      showCenterSnackBar(context, 'No appointments to export', isError: true);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(
+                Icons.table_chart_outlined,
+                color: StaffColors.primary,
+              ),
+              title: const Text('Export as CSV'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportCsv();
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.grid_on_rounded,
+                color: StaffColors.primary,
+              ),
+              title: const Text('Export as Excel'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportExcel();
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.picture_as_pdf_outlined,
+                color: StaffColors.primary,
+              ),
+              title: const Text('Export as PDF'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportPdf();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<List<String>> get _exportRows {
+    final rows = <List<String>>[
+      ['Appointment ID', 'Patient', 'Doctor', 'Status', 'Date'],
+    ];
+    for (final a in _filteredAppointments) {
+      rows.add([
+        (a['id'] ?? '').toString(),
+        (a['patientName'] ?? '').toString(),
+        (a['doctor'] ?? '').toString(),
+        (a['status'] ?? '').toString(),
+        (a['date'] ?? '').toString(),
+      ]);
+    }
+    return rows;
+  }
+
+  Future<File> _writeToDownloads(String filename, List<int> bytes) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  Future<void> _exportCsv() async {
+    try {
+      final csv = const ListToCsvConverter().convert(_exportRows);
+      final file = await _writeToDownloads('appointments.csv', csv.codeUnits);
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'Appointments list export');
+      if (!mounted) return;
+      showCenterSnackBar(context, 'CSV exported successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      showCenterSnackBar(
+        context,
+        'CSV export failed. Please try again.',
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _exportExcel() async {
+    try {
+      final workbook = xls.Excel.createExcel();
+      final sheet = workbook['Appointments'];
+      for (final row in _exportRows) {
+        sheet.appendRow(row.map((c) => xls.TextCellValue(c)).toList());
+      }
+      final bytes = workbook.encode();
+      if (bytes == null) {
+        if (!mounted) return;
+        showCenterSnackBar(
+          context,
+          'Excel export failed. Please try again.',
+          isError: true,
+        );
+        return;
+      }
+      final file = await _writeToDownloads('appointments.xlsx', bytes);
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'Appointments list export');
+      if (!mounted) return;
+      showCenterSnackBar(context, 'Excel file exported successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      showCenterSnackBar(
+        context,
+        'Excel export failed. Please try again.',
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _exportPdf() async {
+    try {
+      final doc = pw.Document();
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (context) => pw.Table.fromTextArray(
+            headers: _exportRows.first,
+            data: _exportRows.skip(1).toList(),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            headerStyle: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+      );
+      final bytes = await doc.save();
+      final file = await _writeToDownloads('appointments.pdf', bytes);
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'Appointments list export');
+      if (!mounted) return;
+      showCenterSnackBar(context, 'PDF exported successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      showCenterSnackBar(
+        context,
+        'PDF export failed. Please try again.',
+        isError: true,
+      );
+    }
   }
 
   void _viewAppointment(Map<String, dynamic> appointment) {
@@ -180,13 +476,13 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              color: Color(0xFF1A237E),
+              color: StaffColors.primary,
             ),
           ),
         ],
       ),
       backgroundColor: Colors.white,
-      foregroundColor: const Color(0xFF1A237E),
+      foregroundColor: StaffColors.primary,
       elevation: 2,
       actions: [
         NotificationBadge(
@@ -196,7 +492,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.logout, color: Color(0xFF1A237E)),
+          icon: const Icon(Icons.logout, color: StaffColors.primary),
           onPressed: () => _showLogoutDialog(context),
         ),
       ],
@@ -210,7 +506,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
-            color: const Color(0xFF1A237E),
+            color: StaffColors.primary,
             child: Column(
               children: [
                 const SizedBox(height: 30),
@@ -229,17 +525,17 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Staff Name',
-                  style: TextStyle(
+                Text(
+                  _staffName,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Text(
-                  'staff@polyclinic.com',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                Text(
+                  _staffEmail.isNotEmpty ? _staffEmail : 'staff@polyclinic.com',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ],
             ),
@@ -268,10 +564,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           const Divider(),
           _buildDrawerItem(Icons.logout, 'Logout', false, () {
             Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-            );
+            _showLogoutDialog(context);
           }),
         ],
       ),
@@ -287,13 +580,13 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade600,
+        color: isActive ? StaffColors.primary : Colors.grey.shade600,
       ),
       title: Text(
         title,
         style: TextStyle(
           fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade800,
+          color: isActive ? StaffColors.primary : Colors.grey.shade800,
         ),
       ),
       onTap: onTap,
@@ -307,14 +600,32 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       color: Colors.white,
       child: Row(
         children: [
-          const Icon(Icons.calendar_today, color: Color(0xFF1A237E), size: 28),
+          const Icon(
+            Icons.calendar_today,
+            color: StaffColors.primary,
+            size: 28,
+          ),
           const SizedBox(width: 12),
           const Text(
-            'Schedule Visits',
+            'Scheduled Visits',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A237E),
+              color: StaffColors.primary,
+            ),
+          ),
+          const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _showExportSheet,
+            icon: const Icon(Icons.download, size: 18),
+            label: const Text('Download'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: StaffColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
         ],
@@ -326,32 +637,96 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: Colors.white,
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: TextField(
-          controller: _searchController,
-          onChanged: (value) => setState(() => _searchQuery = value),
-          decoration: InputDecoration(
-            hintText: 'Search appointments...',
-            hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
-            prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
-            suffixIcon: _searchQuery.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () => setState(() {
-                      _searchController.clear();
-                      _searchQuery = '';
-                    }),
-                  )
-                : null,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    decoration: InputDecoration(
+                      hintText: 'Search appointments...',
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () => setState(() {
+                                _searchController.clear();
+                                _searchQuery = '';
+                              }),
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Date range filter (calendar)
+              Container(
+                height: 40,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: _isDateFilterActive
+                      ? StaffColors.primary
+                      : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  onPressed: _selectDateRange,
+                  tooltip: 'Filter by date range',
+                  icon: Icon(
+                    Icons.calendar_today,
+                    size: 18,
+                    color: _isDateFilterActive
+                        ? Colors.white
+                        : StaffColors.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
+          if (_isDateFilterActive && _startDate != null && _endDate != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.event, size: 16, color: StaffColors.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${_formatDateShort(_startDate!)} - ${_formatDateShort(_endDate!)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: StaffColors.primary,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _clearDateFilter,
+                    child: const Icon(Icons.close, size: 18, color: Colors.red),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -401,7 +776,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A237E),
+              color: StaffColors.primary,
             ),
           ),
           const SizedBox(height: 8),
@@ -437,7 +812,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A237E),
+                backgroundColor: StaffColors.primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 10),
@@ -456,7 +831,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,
-      selectedItemColor: const Color(0xFF1A237E),
+      selectedItemColor: StaffColors.primary,
       unselectedItemColor: Colors.grey.shade400,
       currentIndex: 2,
       onTap: (index) {
@@ -500,17 +875,20 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.question_answer),
-          label: 'Inquiries',
+          label: 'Chatbot Inquiries',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.calendar_today),
-          label: 'Schedule Visits',
+          label: 'Scheduled Visits',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.medical_services),
-          label: 'Doctors',
+          label: 'Manage Doctors',
         ),
-        BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Patients'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.people),
+          label: 'Patient Records',
+        ),
       ],
     );
   }
@@ -518,20 +896,27 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              try {
+                await ApiService.logout();
+              } catch (e) {
+                print('Logout error: $e');
+              }
+              if (!context.mounted) return;
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
               );
             },
             style: ElevatedButton.styleFrom(

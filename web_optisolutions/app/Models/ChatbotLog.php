@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Staff;
+namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -19,6 +19,6 @@ class ChatbotLog extends Model
 
     public function inquiry()
     {
-        return $this->hasOne(Inquiry::class, 'log_id', 'log_id');
+        return $this->hasOne(\App\Models\Staff\Inquiry::class, 'log_id', 'log_id');
     }
 }

@@ -63,9 +63,9 @@ class NotificationData {
     _notifications[index]['isRead'] = true; // update locally immediately
     try {
       await ApiService.patch('/notifications/$dbId/read', {});
-    } catch (_) {
-      // local UI already shows it as read; a failed sync here isn't critical,
-      // next load() call will reconcile with the real server state
+    } catch (e) {
+      // ignore: avoid_print
+      print('markAsRead FAILED for id=$dbId: $e');
     }
   }
 
@@ -75,8 +75,9 @@ class NotificationData {
     }
     try {
       await ApiService.post('/notifications/mark-all-read', {});
-    } catch (_) {
-      // same as above — local state already updated
+    } catch (e) {
+      // ignore: avoid_print
+      print('markAllAsRead FAILED: $e');
     }
   }
 }
@@ -106,6 +107,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
     try {
       await NotificationData.load();
       setState(() => _loading = false);
+
+      // ✅ Pagbukas ng Notifications page, awtomatiko nang i-mark as
+      // read lahat — ganito karaniwang gumagana ang notification
+      // center (bell badge clears once viewed), para hindi na
+      // kailangan i-click pa isa-isa bago mawala ang unread count.
+      if (NotificationData.getUnreadCount() > 0) {
+        await NotificationData.markAllAsRead();
+        if (mounted) setState(() {});
+      }
     } catch (e) {
       setState(() {
         _loadError = e.toString().replaceFirst('Exception: ', '');

@@ -42,7 +42,7 @@ class FeedbackController extends Controller
         ]));
 
         // Call Django sentiment API
-        $response = Http::post('http://192.168.254.147:8000/api/predict/', [
+        $response = Http::post('http://192.168.1.8:8000/api/predict/', [
             'feedback_text' => $feedback->feedback_text,
         ]);
 

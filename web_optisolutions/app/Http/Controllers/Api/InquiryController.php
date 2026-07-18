@@ -4,6 +4,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -27,12 +28,34 @@ class InquiryController extends Controller
     }
 
     /**
-     * GET /api/inquiries/{inquiry}/messages
-     * Ibinabalik ang staff reply bilang listahan ng messages (0 o 1 item
-     * lang, dahil iisang 'inquiry_reply' column lang ang meron tayo sa
-     * ngayon, hindi buong thread). Ang orihinal na patient message ay
-     * hinahandle na sa Flutter side gamit ang widget.initialMessage.
+     * POST /api/inquiries
      */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id'    => 'nullable|integer|exists:patients,patient_id',
+            'inquiry_type'  => 'nullable|string',
+            'user_message'  => 'required|string|min:1',
+        ]);
+
+        $log = ChatbotLog::create([
+            'user_id'      => $validated['patient_id'] ?? null,
+            'user_message' => $validated['user_message'],
+            'bot_message'  => '',
+            'chat_time'    => now(),
+        ]);
+
+        $inquiry = Inquiry::create([
+            'patient_id'      => $validated['patient_id'] ?? null,
+            'log_id'          => $log->log_id,
+            'inquiry_type'    => $validated['inquiry_type'] ?? 'General',
+            'resolved_status' => 'Pending',
+        ]);
+
+        return response()->json($inquiry->fresh('log')->toApiArray(), 201);
+    }
+
+    /** GET /api/inquiries/{inquiry}/messages */
     public function messages($id)
     {
         $inquiry = Inquiry::findOrFail($id);
@@ -55,11 +78,11 @@ class InquiryController extends Controller
 
     /**
      * POST /api/inquiries/{inquiry}/messages
-     * Isusulat ang bagong reply papunta sa 'inquiry_reply' column.
-     * PAALALA: kapag may bago pang reply, papalitan lang nito ang luma
-     * (dahil isang column lang ito) — hindi ito totoong multi-message
-     * thread. Kung kailangan mo ng buong history, gagawa tayo ng hiwalay
-     * na 'inquiry_replies' table.
+     * ✅ FIX: dating sinusubukan nitong i-set ang resolved_status sa
+     * 'In Progress' — value na WALANG suporta ang enum column
+     * (enum('Pending','Resolved') lang ang pwede sa database), kaya
+     * palaging nag-e-error at nabubura ang reply. Tinanggal na ito;
+     * mananatiling 'Pending' hanggang i-resolve nang explicit ng staff.
      */
     public function sendMessage(Request $request, $id)
     {
@@ -71,11 +94,6 @@ class InquiryController extends Controller
 
         $inquiry->inquiry_reply = $request->message;
         $inquiry->replied_at = now();
-
-        if ($inquiry->resolved_status === 'Pending') {
-            $inquiry->resolved_status = 'In Progress';
-        }
-
         $inquiry->save();
 
         return response()->json([

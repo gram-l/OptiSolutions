@@ -8,6 +8,7 @@ use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Services\ClinicInfoService;
 use App\Mail\ConversationTranscriptMail;
+use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -656,6 +657,15 @@ class AppointmentConversation extends Conversation
                 'visit_date'   => $visitDate,
                 'notes'        => $this->scheduleSuggestion,
                 'scheduled_at' => now(),
+            ]);
+
+            AppNotification::create([
+                'icon'    => 'calendar_today',
+                'title'   => 'New Schedule Visit',
+                'message' => "{$this->fname} {$this->lname} scheduled a visit with {$this->doctor} on "
+                    . \Carbon\Carbon::parse($visitDate)->format('M d, Y') . '.',
+                'is_read' => false,
+                'color'   => '4CAF50',
             ]);
 
             $this->bot->userStorage()->save([

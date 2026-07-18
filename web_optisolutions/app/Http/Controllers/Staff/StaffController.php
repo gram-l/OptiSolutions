@@ -4,97 +4,37 @@ namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
 use App\Models\Staff\ScheduleVisit;
-use App\Models\Staff\User;
 use App\Models\Staff\Doctor;
 use App\Models\Staff\Patient;
 use App\Models\Staff\Inquiry;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Carbon;
-use Carbon\CarbonInterface;
 
 class StaffController extends Controller
 {
-    public function login()
-    {
-        return view('staff.login');
-    }
-
-    public function authenticate(Request $request)
-    {
-        $request->validate([
-            'staff_email' => 'required|email',
-            'staff_password' => 'required',
-        ]);
-
-        $user = User::where('email', $request->staff_email)
-                    ->where('user_role', 'staff')
-                    ->first();
-
-        if (!$user || !Hash::check($request->staff_password, $user->password)) {
-            return back()->withErrors([
-                'staff_email' => 'Invalid email or password.',
-            ])->onlyInput('staff_email');
-        }
-
-        if ($user->status !== 'active') {
-            return back()->withErrors([
-                'staff_email' => 'Your account is inactive. Please contact the administrator.',
-            ])->onlyInput('staff_email');
-        }
-
-        Auth::guard('staff')->login($user);
-        $request->session()->regenerate();
-
-        return redirect()->intended('/staff/dashboard');
-    }
-
     public function dashboard()
     {
         return view('staff.dashboard', $this->buildDashboardData());
     }
 
-    /**
-     * JSON endpoint polled every 30s by dashboard.blade.php's JavaScript
-     * to refresh charts without a full page reload.
-     *
-     * Route to add in routes/staff_acc/web.php (inside the 'staff' middleware group):
-     *   Route::get('/staff/dashboard/data', [StaffController::class, 'data'])->name('staff.dashboard.data');
-     */
     public function data()
     {
         return response()->json($this->buildDashboardData());
     }
 
-    /**
-     * Shared data-building logic so dashboard() and data() never drift apart.
-     */
     private function buildDashboardData(): array
     {
-        // -----------------------------------------------------------
-        // Stat cards
-        // -----------------------------------------------------------
         $totalScheduleVisit = ScheduleVisit::count();
         $pendingInquiries   = Inquiry::where('resolved_status', 'Pending')->count();
         $activeDoctors      = Doctor::where('available', 1)->count();
         $totalPatients      = Patient::count();
 
-        // -----------------------------------------------------------
-        // 1) Service Distribution — was hardcoded to collect() (empty).
-        //    Now actually queries schedule_visit.service_type.
-        // -----------------------------------------------------------
         $serviceDistribution = ScheduleVisit::selectRaw('service_type, COUNT(*) as total')
             ->groupBy('service_type')
             ->get();
 
-        // -----------------------------------------------------------
-        // 2) Weekly Patient Visits — was missing entirely.
-        //    Uses visit_date (actual appointment date), last 6 weeks
-        //    including the current week.
-        // -----------------------------------------------------------
         $weekLabels = [];
         $weeklyVisits = [];
         $startOfThisWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
@@ -111,15 +51,9 @@ class StaffController extends Controller
             ])->count();
         }
 
-        // -----------------------------------------------------------
-        // 3) Sentiment Analysis — was hardcoded (75/18/5) regardless of
-        //    real feedback. Now queries the feedback table if it has a
-        //    star_rating column; falls back to the old hardcoded values
-        //    only if the table/column truly isn't there yet.
-        // -----------------------------------------------------------
-        $positivePercent = 75;
-        $neutralPercent  = 18;
-        $negativePercent = 5;
+        $positivePercent = 0;
+        $neutralPercent  = 0;
+        $negativePercent = 0;
 
         if (Schema::hasTable('feedback') && Schema::hasColumn('feedback', 'star_rating')) {
             $feedbackCounts = DB::table('feedback')->selectRaw('
@@ -139,12 +73,7 @@ class StaffController extends Controller
             }
         }
 
-        // -----------------------------------------------------------
-        // 4) Inquiry Volume per Week — was missing entirely.
-        //    inquiries has no date column of its own, so we JOIN to
-        //    chatbot_logs (via log_id) to get chat_time as the date.
-        // -----------------------------------------------------------
-        $inquiryVolumeByDay = array_fill(0, 7, 0); // index 0 = Monday
+        $inquiryVolumeByDay = array_fill(0, 7, 0);
 
         $thisWeekInquiries = DB::table('inquiries')
             ->join('chatbot_logs', 'inquiries.log_id', '=', 'chatbot_logs.log_id')
@@ -155,11 +84,10 @@ class StaffController extends Controller
             ->pluck('chatbot_logs.chat_time');
 
         foreach ($thisWeekInquiries as $chatTime) {
-            $dayIndex = Carbon::parse($chatTime)->dayOfWeekIso - 1; // Mon=0 .. Sun=6
+            $dayIndex = Carbon::parse($chatTime)->dayOfWeekIso - 1;
             $inquiryVolumeByDay[$dayIndex]++;
         }
 
-        // -----------------------------------------------------------
         return [
             'totalScheduleVisit'  => $totalScheduleVisit,
             'pendingInquiries'    => $pendingInquiries,
@@ -172,14 +100,91 @@ class StaffController extends Controller
             'neutralPercent'      => $neutralPercent,
             'negativePercent'     => $negativePercent,
             'inquiryVolumeByDay'  => $inquiryVolumeByDay,
+            'recentActivities'    => $this->buildRecentActivities(),
         ];
     }
 
-    public function logout(Request $request)
+    /**
+     * Pulls the most recent record from patients, schedule visits, and
+     * inquiries (via chatbot_logs for the timestamp), merges them, and
+     * returns the 5 most recent overall — newest first.
+     *
+     * NOTE: adjust the column names below (full_name, doctor_name, service,
+     * message, etc.) if your actual table columns are named differently.
+     */
+    private function buildRecentActivities(int $limit = 5): array
     {
-        Auth::guard('staff')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        return redirect('/staff/login');
+        $items = collect();
+
+        // ---- Recently registered patients ----
+        $patientTable = (new Patient())->getTable();
+        $patientTsCol = Schema::hasColumn($patientTable, 'created_at') ? 'created_at' : null;
+
+        Patient::query()
+            ->when($patientTsCol, fn ($q) => $q->orderByDesc($patientTsCol))
+            ->limit($limit)
+            ->get()
+            ->each(function ($p) use (&$items, $patientTsCol) {
+                $items->push([
+                    'icon'        => 'bi-people',
+                    'color'       => '#8e44ad',
+                    'title'       => 'New patient registered',
+                    'description' => $p->full_name ?? ('Patient #' . ($p->patient_id ?? $p->id)),
+                    'time'        => $patientTsCol ? $p->{$patientTsCol} : now(),
+                ]);
+            });
+
+        // ---- Recently added schedule visits ----
+        $visitTable = (new ScheduleVisit())->getTable();
+        $visitTsCol = Schema::hasColumn($visitTable, 'created_at')
+            ? 'created_at'
+            : (Schema::hasColumn($visitTable, 'visit_date') ? 'visit_date' : null);
+
+        ScheduleVisit::query()
+            ->when($visitTsCol, fn ($q) => $q->orderByDesc($visitTsCol))
+            ->limit($limit)
+            ->get()
+            ->each(function ($v) use (&$items, $visitTsCol) {
+                $desc = trim(($v->doctor_name ?? '') . ' — ' . ($v->service ?? $v->service_type ?? ''), ' —');
+                $items->push([
+                    'icon'        => 'bi-calendar-check',
+                    'color'       => '#2980b9',
+                    'title'       => 'New schedule visit',
+                    'description' => $desc !== '' ? $desc : 'Visit #' . ($v->visit_id ?? $v->id),
+                    'time'        => $visitTsCol ? $v->{$visitTsCol} : now(),
+                ]);
+            });
+
+        // ---- Recent chatbot inquiries (timestamp lives in chatbot_logs) ----
+        if (Schema::hasTable('inquiries') && Schema::hasTable('chatbot_logs')) {
+            $hasMessageCol = Schema::hasColumn('chatbot_logs', 'message');
+
+            DB::table('inquiries')
+                ->join('chatbot_logs', 'inquiries.log_id', '=', 'chatbot_logs.log_id')
+                ->orderByDesc('chatbot_logs.chat_time')
+                ->limit($limit)
+                ->select('inquiries.*', 'chatbot_logs.chat_time', DB::raw($hasMessageCol ? 'chatbot_logs.message as inquiry_message' : 'NULL as inquiry_message'))
+                ->get()
+                ->each(function ($inq) use (&$items) {
+                    $items->push([
+                        'icon'        => 'bi-chat-dots',
+                        'color'       => '#e67e22',
+                        'title'       => 'New chatbot inquiry',
+                        'description' => $inq->inquiry_message ?: ('Inquiry #' . ($inq->inquiry_id ?? '')),
+                        'time'        => $inq->chat_time,
+                    ]);
+                });
+        }
+
+        return $items
+            ->filter(fn ($item) => !empty($item['time']))
+            ->sortByDesc(fn ($item) => Carbon::parse($item['time']))
+            ->take($limit)
+            ->map(function ($item) {
+                $item['time_human'] = Carbon::parse($item['time'])->diffForHumans();
+                return $item;
+            })
+            ->values()
+            ->toArray();
     }
 }

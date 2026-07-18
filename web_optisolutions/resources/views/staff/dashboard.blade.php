@@ -2,6 +2,17 @@
 
 @section('content')
 <div class="container">
+
+    <!-- WELCOME BANNER -->
+    <div style="background: #1A56C4; border-radius: 20px; padding: 2rem 2.5rem; color: white; margin-bottom: 2rem;">
+        <h2 style="margin: 0; font-weight: 700;">
+            Welcome, {{ auth()->user()->name ?? 'Staff' }}!
+        </h2>
+        <p style="margin-top: 0.5rem; opacity: 0.9;">
+            Here's what's happening at the clinic today
+        </p>
+    </div>
+
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-number" id="stat-schedule-visit">{{ $totalScheduleVisit ?? 0 }}</div>
@@ -52,6 +63,9 @@
         // ---- Inquiry Volume defaults ----
         $hasInquiryData = isset($inquiryVolumeByDay) && count($inquiryVolumeByDay) > 0;
         $inquiryVolumeData = $hasInquiryData ? $inquiryVolumeByDay : array_fill(0, 7, 0);
+
+        // ---- Recent Activities defaults ----
+        $recentActivities = $recentActivities ?? [];
     @endphp
 
     <!-- 1) SERVICE DISTRIBUTION (doughnut) -->
@@ -132,17 +146,19 @@
     <!-- RECENT ACTIVITY -->
     <div style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
         <h3 style="color: var(--text-dark);">Recent Activity</h3>
-        <div style="padding: 0.8rem 0; border-bottom:1px solid var(--light-gray);">
-            <i class="bi bi-chat-right-text" style="color:var(--primary-deep-blue); margin-right: 10px;"></i>
-            Welcome to the Staff Dashboard!
-        </div>
-        <div style="padding: 0.8rem 0; border-bottom:1px solid var(--light-gray);">
-            <i class="bi bi-calendar-check" style="color:var(--primary-deep-blue); margin-right: 10px;"></i>
-            <span id="activity-schedule-visit">{{ $totalScheduleVisit ?? 0 }}</span> total schedule visits
-        </div>
-        <div style="padding: 0.8rem 0;">
-            <i class="bi bi-people" style="color:var(--primary-deep-blue); margin-right: 10px;"></i>
-            <span id="activity-total-patients">{{ $totalPatients ?? 0 }}</span> registered patients
+        <div id="recentActivityList">
+            @forelse($recentActivities as $activity)
+                <div style="padding: 0.8rem 0; border-bottom:1px solid var(--light-gray); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <i class="bi {{ $activity['icon'] }}" style="color: {{ $activity['color'] }}; margin-right: 10px;"></i>
+                        <strong>{{ $activity['title'] }}</strong>
+                        <span style="color: #7f8c8d;"> — {{ $activity['description'] }}</span>
+                    </div>
+                    <span style="color: #b0b8c1; font-size: 0.8rem; white-space: nowrap; margin-left: 1rem;">{{ $activity['time_human'] }}</span>
+                </div>
+            @empty
+                <p id="recentActivityEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem;">No recent activity yet.</p>
+            @endforelse
         </div>
     </div>
 </div>
@@ -229,6 +245,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    function renderRecentActivities(activities) {
+        const container = document.getElementById('recentActivityList');
+        if (!Array.isArray(activities) || activities.length === 0) {
+            container.innerHTML = '<p style="color:#7f8c8d; margin-top:10px; font-size:0.85rem;">No recent activity yet.</p>';
+            return;
+        }
+        container.innerHTML = activities.map(a => `
+            <div style="padding: 0.8rem 0; border-bottom:1px solid var(--light-gray); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <i class="bi ${a.icon}" style="color: ${a.color}; margin-right: 10px;"></i>
+                    <strong>${a.title}</strong>
+                    <span style="color: #7f8c8d;"> — ${a.description}</span>
+                </div>
+                <span style="color: #b0b8c1; font-size: 0.8rem; white-space: nowrap; margin-left: 1rem;">${a.time_human}</span>
+            </div>
+        `).join('');
+    }
+
     // ------------------------------------------------------------------
     // Polling: fetch fresh JSON from the server every REFRESH_INTERVAL_MS
     // and update the charts + stat cards WITHOUT reloading the page.
@@ -247,8 +281,6 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('stat-pending-inquiries').textContent = data.pendingInquiries ?? 0;
             document.getElementById('stat-active-doctors').textContent = data.activeDoctors ?? 0;
             document.getElementById('stat-total-patients').textContent = data.totalPatients ?? 0;
-            document.getElementById('activity-schedule-visit').textContent = data.totalScheduleVisit ?? 0;
-            document.getElementById('activity-total-patients').textContent = data.totalPatients ?? 0;
 
             // ---- 1) Service Distribution ----
             const services = Array.isArray(data.serviceDistribution) ? data.serviceDistribution : [];
@@ -303,6 +335,9 @@ document.addEventListener('DOMContentLoaded', function () {
             inquiryChart.data.datasets[0].data = hasInquiry ? inquiryVolume : new Array(7).fill(0);
             inquiryChart.update();
             document.getElementById('inquiryVolumeEmptyNote').style.display = hasInquiry ? 'none' : 'block';
+
+            // ---- Recent Activities ----
+            renderRecentActivities(data.recentActivities);
         } catch (err) {
             console.error('Dashboard refresh failed:', err);
         }

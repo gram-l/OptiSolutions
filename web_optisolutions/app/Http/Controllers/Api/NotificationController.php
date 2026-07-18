@@ -14,10 +14,19 @@ class NotificationController extends Controller
         return AppNotification::orderByDesc('created_at')->get()->map->toApiArray();
     }
 
-    /** PATCH /api/notifications/{notification}/read */
-    public function markRead(AppNotification $notification)
+    /**
+     * PATCH /api/notifications/{id}/read
+     * ✅ FIX: gumagamit na ng manual findOrFail($id) sa halip na
+     * implicit route-model binding — para siguradong gumagana ito
+     * anuman ang pangalan ng route parameter, at para makumpirma
+     * nating talagang na-save ang is_read papuntang database.
+     */
+    public function markRead($id)
     {
-        $notification->update(['is_read' => true]);
+        $notification = AppNotification::findOrFail($id);
+        $notification->is_read = true;
+        $notification->save();
+
         return $notification->toApiArray();
     }
 

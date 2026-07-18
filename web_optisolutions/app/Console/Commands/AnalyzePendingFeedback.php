@@ -1,4 +1,8 @@
 <?php
+//feedback classification testing command
+/* php artisan feedback:analyze
+run everytime there is a new feedback entry in the db*/
+
 
 namespace App\Console\Commands;
 

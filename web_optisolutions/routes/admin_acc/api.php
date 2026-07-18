@@ -54,8 +54,9 @@ Route::get('/appointments', [VisitController::class, 'apiIndex']);
 Route::get('/patients', [PatientListController::class, 'apiIndex']);
 Route::post('/patients', [PatientListController::class, 'store']);
 Route::put('/patients/{id}', [PatientListController::class, 'update']);
-
-
+Route::get('/patients/service-types', [PatientListController::class, 'apiServiceTypes']);
+Route::get('/patients/{id}/visits', [PatientListController::class, 'apiVisits']);
+Route::patch('/visits/{id}/notes', [PatientListController::class, 'updateVisitNotes']);
 
 Route::get('/notifications', [NotificationController::class, 'apiIndex']);
 Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead']);

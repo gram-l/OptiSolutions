@@ -12,7 +12,8 @@ class DoctorModel {
   final int    id;
   final String name;
   final String specialty;
-  final String schedule;
+  final String schedule; // display-only string from the backend
+  final List<_ScheduleSession> scheduleSessions; // structured, editable data
   final String description;
   final String phone;
   final bool   isActive;
@@ -22,6 +23,7 @@ class DoctorModel {
     required this.name,
     required this.specialty,
     required this.schedule,
+    required this.scheduleSessions,
     required this.description,
     required this.phone,
     required this.isActive,
@@ -30,6 +32,18 @@ class DoctorModel {
   // Parses the raw shape returned by GET /api/doctors
   // (matches your Doctor model's actual DB columns)
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
+    final rawSessions = (json['schedule_sessions'] as List?) ?? [];
+    final sessions = rawSessions
+        .whereType<Map>()
+        .map((s) {
+          final start = _parseHHmm(s['start_time']?.toString());
+          final end = _parseHHmm(s['end_time']?.toString());
+          if (start == null || end == null) return null;
+          return _ScheduleSession(day: s['day']?.toString() ?? '', start: start, end: end);
+        })
+        .whereType<_ScheduleSession>()
+        .toList();
+
     return DoctorModel(
       id: json['doctor_id'] is int
           ? json['doctor_id']
@@ -37,11 +51,23 @@ class DoctorModel {
       name: json['doctor_name'] ?? '',
       specialty: json['specialty'] ?? '',
       schedule: json['schedule'] ?? '',
+      scheduleSessions: sessions,
       description: json['description'] ?? '',
       phone: json['contact_number'] ?? '',
       isActive: (json['status'] ?? '') == 'Active',
     );
   }
+}
+
+// Parses "HH:mm" or "HH:mm:ss" into a TimeOfDay. Returns null if unparseable.
+TimeOfDay? _parseHHmm(String? raw) {
+  if (raw == null) return null;
+  final parts = raw.split(':');
+  if (parts.length < 2) return null;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return null;
+  return TimeOfDay(hour: hour, minute: minute);
 }
 
 // specialty → accent color
@@ -52,6 +78,162 @@ const _specialtyColors = <String, Color>{
   'Cardiology':    Color(0xFFB71C1C),
   'Dermatology':   Color(0xFF6A1B9A),
 };
+
+// ─────────────────────────────────────────────────────────────
+//  SCHEDULE PICKER MODEL + HELPERS
+//  Schedule is a flat list of "sessions" (day + start + end), so a doctor
+//  can have multiple sessions on the same day (e.g. a morning shift and
+//  an afternoon shift), each independently editable/removable.
+// ─────────────────────────────────────────────────────────────
+const List<String> _weekdays = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+];
+
+class _ScheduleSession {
+  String day;
+  TimeOfDay start;
+  TimeOfDay end;
+  _ScheduleSession({required this.day, required this.start, required this.end});
+}
+
+// 24-hour "HH:mm" — used for storage/serialization only.
+String _fmtTime(TimeOfDay t) =>
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+// 12-hour "h:mm am/pm" — used for on-screen display.
+String _fmtTime12(TimeOfDay t) {
+  final period = t.period == DayPeriod.am ? 'am' : 'pm';
+  final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+  return '$hour:${t.minute.toString().padLeft(2, '0')} $period';
+}
+
+// Minutes-since-midnight, used for time comparisons/overlap checks below.
+int _minutesOf(TimeOfDay t) => t.hour * 60 + t.minute;
+
+// Two sessions overlap if they're on the same day and their time ranges
+// intersect. Sessions are treated as same-day (no overnight wraparound).
+bool _sessionsOverlap(_ScheduleSession a, _ScheduleSession b) {
+  if (a.day != b.day) return false;
+  final aStart = _minutesOf(a.start);
+  final aEnd = _minutesOf(a.end);
+  final bStart = _minutesOf(b.start);
+  final bEnd = _minutesOf(b.end);
+  return aStart < bEnd && bStart < aEnd;
+}
+
+// Parses e.g. "Monday 08:00-22:00; Tuesday 13:00-17:00" — RETIRED.
+// Schedule now round-trips as structured JSON (schedule_sessions) between
+// the app and the API, so no string parsing/serialization happens here
+// anymore. Kept only as _fmtTime/_fmtTime12 helpers below for display and
+// for building the outgoing schedule_sessions payload.
+
+// Small picker dialog: choose a day + start/end time, then append the
+// resulting session to the list (via setModalState so the parent dialog
+// rebuilds with the grouped display).
+//
+// Validates, before adding:
+//  - end time must be after start time
+//  - the new session must not overlap any existing session on the same day
+Future<void> _openAddSessionDialog(
+  BuildContext context,
+  List<_ScheduleSession> sessions,
+  StateSetter setModalState,
+) async {
+  String day = 'Monday';
+  TimeOfDay start = const TimeOfDay(hour: 8, minute: 0);
+  TimeOfDay end = const TimeOfDay(hour: 17, minute: 0);
+  String? sessionError;
+
+  await showDialog(
+    context: context,
+    builder: (dialogCtx) => StatefulBuilder(
+      builder: (dialogCtx, setDialogState) => AlertDialog(
+        title: const Text('Add Session'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: day,
+              decoration: const InputDecoration(labelText: 'Day'),
+              items: _weekdays
+                  .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                  .toList(),
+              onChanged: (v) => setDialogState(() {
+                day = v!;
+                sessionError = null;
+              }),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _TimeField(
+                    label: 'Start Time',
+                    time: start,
+                    onChanged: (t) => setDialogState(() {
+                      start = t;
+                      sessionError = null;
+                    }),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _TimeField(
+                    label: 'End Time',
+                    time: end,
+                    onChanged: (t) => setDialogState(() {
+                      end = t;
+                      sessionError = null;
+                    }),
+                  ),
+                ),
+              ],
+            ),
+            if (sessionError != null) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  sessionError!,
+                  style: const TextStyle(color: AppColors.deleteRed, fontSize: 12.5),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_minutesOf(end) <= _minutesOf(start)) {
+                setDialogState(() => sessionError = 'End time must be after start time.');
+                return;
+              }
+
+              final candidate = _ScheduleSession(day: day, start: start, end: end);
+              final overlaps = sessions.any((s) => _sessionsOverlap(s, candidate));
+              if (overlaps) {
+                setDialogState(
+                  () => sessionError = 'This session overlaps with an existing session on $day.',
+                );
+                return;
+              }
+
+              setModalState(() {
+                sessions.add(candidate);
+              });
+              Navigator.pop(dialogCtx);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
 // ─────────────────────────────────────────────────────────────
 //  SCREEN
@@ -114,7 +296,11 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
   Future<void> _openDoctorForm({DoctorModel? doctor}) async {
     final nameCtrl = TextEditingController(text: doctor?.name ?? '');
     final specialtyCtrl = TextEditingController(text: doctor?.specialty ?? '');
-    final scheduleCtrl = TextEditingController(text: doctor?.schedule ?? '');
+    // Clone so edits in this dialog don't mutate the original model's
+    // list until the user actually saves.
+    final sessions = (doctor?.scheduleSessions ?? <_ScheduleSession>[])
+        .map((s) => _ScheduleSession(day: s.day, start: s.start, end: s.end))
+        .toList();
     final descCtrl = TextEditingController(text: doctor?.description ?? '');
     final phoneCtrl = TextEditingController(text: doctor?.phone ?? '');
     final formKey = GlobalKey<FormState>();
@@ -134,27 +320,120 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                   TextFormField(
                     controller: nameCtrl,
                     decoration: const InputDecoration(labelText: 'Full Name *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    validator: (v) {
+                      final val = v?.trim() ?? '';
+                      if (val.isEmpty) return 'Required';
+                      if (val.length < 2) return 'Name is too short.';
+                      if (val.length > 100) return 'Name is too long (max 100 characters).';
+                      return null;
+                    },
                   ),
                   TextFormField(
                     controller: specialtyCtrl,
                     decoration: const InputDecoration(labelText: 'Specialty *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    validator: (v) {
+                      final val = v?.trim() ?? '';
+                      if (val.isEmpty) return 'Required';
+                      if (val.length > 60) return 'Specialty is too long (max 60 characters).';
+                      return null;
+                    },
                   ),
-                  TextFormField(
-                    controller: scheduleCtrl,
-                    decoration: const InputDecoration(labelText: 'Schedule *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10, bottom: 6),
+                      child: Text('Schedule *',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textGrey,
+                              fontWeight: FontWeight.w600)),
+                    ),
                   ),
+                  ..._weekdays
+                      .where((day) => sessions.any((s) => s.day == day))
+                      .map((day) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(day,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.darkNavy)),
+                          const SizedBox(height: 6),
+                          ...List.generate(sessions.length, (i) => i)
+                              .where((i) => sessions[i].day == day)
+                              .map((i) {
+                            final s = sessions[i];
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF4F6FB),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '${_fmtTime12(s.start)} - ${_fmtTime12(s.end)}',
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded,
+                                        color: AppColors.deleteRed, size: 20),
+                                    onPressed: () =>
+                                        setModalState(() => sessions.removeAt(i)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    );
+                  }),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () =>
+                          _openAddSessionDialog(ctx, sessions, setModalState),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add session'),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   TextFormField(
                     controller: descCtrl,
                     decoration: const InputDecoration(labelText: 'Description'),
                     maxLines: 2,
+                    maxLength: 500,
+                    validator: (v) {
+                      final val = v?.trim() ?? '';
+                      if (val.length > 500) return 'Description is too long (max 500 characters).';
+                      return null;
+                    },
                   ),
                   TextFormField(
                     controller: phoneCtrl,
-                    decoration: const InputDecoration(labelText: 'Contact Number'),
+                    decoration: const InputDecoration(
+                      labelText: 'Contact Number',
+                      hintText: 'Digits only, e.g. 09171234567',
+                    ),
                     keyboardType: TextInputType.phone,
+                    validator: (v) {
+                      final val = v?.trim() ?? '';
+                      if (val.isEmpty) return null; // optional field
+                      final digitsOnly = RegExp(r'^\+?[0-9]{7,15}$');
+                      if (!digitsOnly.hasMatch(val)) {
+                        return 'Enter a valid phone number (digits only, 7–15 digits).';
+                      }
+                      return null;
+                    },
                   ),
                 ],
               ),
@@ -170,21 +449,68 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                   ? null
                   : () async {
                       if (!formKey.currentState!.validate()) return;
+
+                      if (sessions.isEmpty) {
+                        showCenterSnackBar(
+                          ctx,
+                          'Add at least one schedule session.',
+                          isError: true,
+                        );
+                        return;
+                      }
+
+                      // Belt-and-suspenders: re-check for overlaps across the
+                      // full saved list (guards against any edge case the
+                      // per-add check above might have missed).
+                      for (var i = 0; i < sessions.length; i++) {
+                        for (var j = i + 1; j < sessions.length; j++) {
+                          if (_sessionsOverlap(sessions[i], sessions[j])) {
+                            showCenterSnackBar(
+                              ctx,
+                              'Sessions on ${sessions[i].day} overlap. Please fix before saving.',
+                              isError: true,
+                            );
+                            return;
+                          }
+                        }
+                      }
+
+                      final trimmedName = nameCtrl.text.trim();
+                      final isDuplicate = _doctors.any((d) =>
+                          d.name.trim().toLowerCase() == trimmedName.toLowerCase() &&
+                          (doctor == null || d.id != doctor.id));
+                      if (isDuplicate) {
+                        showCenterSnackBar(
+                          ctx,
+                          'A doctor named "$trimmedName" already exists.',
+                          isError: true,
+                        );
+                        return;
+                      }
+
+                      final scheduleSessionsPayload = sessions
+                          .map((s) => {
+                                'day': s.day,
+                                'start_time': _fmtTime(s.start),
+                                'end_time': _fmtTime(s.end),
+                              })
+                          .toList();
+
                       setModalState(() => isSaving = true);
 
                       final result = doctor == null
                           ? await DoctorService.createDoctor(
-                              name: nameCtrl.text.trim(),
+                              name: trimmedName,
                               specialty: specialtyCtrl.text.trim(),
-                              schedule: scheduleCtrl.text.trim(),
+                              scheduleSessions: scheduleSessionsPayload,
                               description: descCtrl.text.trim(),
                               phone: phoneCtrl.text.trim(),
                             )
                           : await DoctorService.updateDoctor(
                               id: doctor.id,
-                              name: nameCtrl.text.trim(),
+                              name: trimmedName,
                               specialty: specialtyCtrl.text.trim(),
-                              schedule: scheduleCtrl.text.trim(),
+                              scheduleSessions: scheduleSessionsPayload,
                               description: descCtrl.text.trim(),
                               phone: phoneCtrl.text.trim(),
                             );
@@ -445,10 +771,17 @@ class _DoctorCard extends StatelessWidget {
                 style: TextStyle(color: accentColor, fontWeight: FontWeight.w600, fontSize: 12.5)),
             const SizedBox(height: 8),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.access_time_rounded, size: 13, color: AppColors.textGrey),
+                const Padding(
+                  padding: EdgeInsets.only(top: 1),
+                  child: Icon(Icons.access_time_rounded, size: 13, color: AppColors.textGrey),
+                ),
                 const SizedBox(width: 4),
-                Text(doctor.schedule, style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
+                Expanded(
+                  child: Text(doctor.schedule,
+                      style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -563,6 +896,42 @@ class _ActionBtn extends StatelessWidget {
   }
 }
 
+class _TimeField extends StatelessWidget {
+  final String label;
+  final TimeOfDay time;
+  final ValueChanged<TimeOfDay> onChanged;
+  const _TimeField(
+      {required this.label, required this.time, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () async {
+        final picked = await showTimePicker(context: context, initialTime: time);
+        if (picked != null) onChanged(picked);
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          isDense: true,
+          border: const OutlineInputBorder(),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(_fmtTime12(time), style: const TextStyle(fontSize: 13)),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                size: 16, color: AppColors.textGrey),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SearchField extends StatelessWidget {
   final String hint;
   final ValueChanged<String> onChanged;
@@ -581,11 +950,18 @@ class _SearchField extends StatelessWidget {
         onChanged: onChanged,
         style: const TextStyle(fontSize: 13),
         decoration: InputDecoration(
-          prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.textGrey),
+          isDense: true,
+          prefixIcon: const Icon(Icons.search,
+              size: 16, color: AppColors.textGrey),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 36,
+            minHeight: 0,
+          ),
           hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+          hintStyle:
+              const TextStyle(color: AppColors.textGrey, fontSize: 13),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
         ),
       ),
     );

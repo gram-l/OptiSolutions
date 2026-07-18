@@ -52,18 +52,40 @@ class PolyclinicApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           themeMode: currentMode,
           theme: ThemeData(
+            useMaterial3: true,
             fontFamily: 'Roboto',
             brightness: Brightness.light,
-            scaffoldBackgroundColor: const Color(0xFFF4F6FB),
+
+            scaffoldBackgroundColor: AppColors.background,
             primaryColor: AppColors.primary,
-            useMaterial3: true,
+            cardColor: AppColors.cardBg,
+            dividerColor: AppColors.border,
+
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              secondary: AppColors.primaryLight,
+              surface: AppColors.cardBg,
+              onSurface: AppColors.textDark,
+              outline: AppColors.border,
+            ),
           ),
           darkTheme: ThemeData(
+            useMaterial3: true,
             fontFamily: 'Roboto',
             brightness: Brightness.dark,
-            scaffoldBackgroundColor: const Color(0xFF12161F),
-            primaryColor: AppColors.primary,
-            useMaterial3: true,
+
+            scaffoldBackgroundColor: AppColorsDark.background,
+            primaryColor: AppColorsDark.primary,
+            cardColor: AppColorsDark.card,
+            dividerColor: AppColorsDark.border,
+
+            colorScheme: ColorScheme.dark(
+              primary: AppColorsDark.primary,
+              secondary: AppColors.primaryLight,
+              surface: AppColorsDark.card,
+              onSurface: AppColorsDark.textMain,
+              outline: AppColorsDark.border,
+            ),
           ),
           initialRoute: '/',
           routes: {

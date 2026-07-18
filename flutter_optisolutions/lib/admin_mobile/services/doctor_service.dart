@@ -24,10 +24,11 @@ class DoctorService {
   }
 
   // POST /api/doctors
+  // scheduleSessions is a list of {'day': 'Monday', 'start_time': '08:00', 'end_time': '17:00'}
   static Future<Map<String, dynamic>> createDoctor({
     required String name,
     required String specialty,
-    required String schedule,
+    required List<Map<String, String>> scheduleSessions,
     String? description,
     String? phone,
   }) async {
@@ -39,7 +40,7 @@ class DoctorService {
             body: jsonEncode({
               'doctor_name': name,
               'specialty': specialty,
-              'schedule': schedule,
+              'schedule_sessions': scheduleSessions,
               'description': description,
               'contact_number': phone,
             }),
@@ -56,7 +57,7 @@ class DoctorService {
     required int id,
     required String name,
     required String specialty,
-    required String schedule,
+    required List<Map<String, String>> scheduleSessions,
     String? description,
     String? phone,
   }) async {
@@ -68,7 +69,7 @@ class DoctorService {
             body: jsonEncode({
               'doctor_name': name,
               'specialty': specialty,
-              'schedule': schedule,
+              'schedule_sessions': scheduleSessions,
               'description': description,
               'contact_number': phone,
             }),
@@ -103,4 +104,4 @@ class DoctorService {
       return {'success': false, 'message': 'Could not connect to server.'};
     }
   }
-} 
+}

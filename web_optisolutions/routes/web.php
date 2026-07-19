@@ -42,9 +42,12 @@ Route::middleware('auth')->group(function () {
         return view('admin_acc.dashboard');
     });
 
-    Route::get('/admin_acc/chatbot_logs', function () {
-        return view('admin_acc.chatbot_logs');
-    });
+    // NOTE: Ang /admin_acc/chatbot_logs ay INALIS na dito — dating static
+    // closure ito (return view() lang, walang data), at dahil dalawang
+    // beses na-register ang parehong URL, ito (bilang huling na-load) ang
+    // laging nananalo kaysa sa tamang controller-backed na route sa
+    // routes/admin_acc/web.php. Ang route na iyon na lang (na tumatawag sa
+    // ChatbotInquiryController) ang gumagana ngayon para sa page na ito.
 
     Route::get('/admin_acc/sidebar', function () {
         return view('admin_acc.sidebar');

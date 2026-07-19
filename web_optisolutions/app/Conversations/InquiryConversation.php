@@ -27,10 +27,10 @@ class InquiryConversation extends Conversation
         $question = Question::create('What is your inquiry about?')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('💳 Billing')->value('Billing'),
-                Button::create('🩺 Medical')->value('Medical'),
-                Button::create('📅 Appointment')->value('Appointment'),
-                Button::create('❓ General')->value('General'),
+                Button::create('Billing')->value('Billing'),
+                Button::create('Medical')->value('Medical'),
+                Button::create('Appointment')->value('Appointment'),
+                Button::create('General')->value('General'),
             ]);
 
         $this->ask($question, function (Answer $answer) {
@@ -80,7 +80,7 @@ class InquiryConversation extends Conversation
                 'color'   => '2196F3',
             ]);
 
-            $this->say("✅ Thank you! Your {$this->inquiryType} inquiry has been sent to our staff. We'll get back to you as soon as possible.");
+            $this->say("Thank you! Your {$this->inquiryType} inquiry has been sent to our staff. We'll get back to you as soon as possible.");
         } catch (\Exception $e) {
             $this->say("⚠️ We couldn't submit your inquiry right now. Please try again, or contact us directly at 0985 475 5511.");
         }

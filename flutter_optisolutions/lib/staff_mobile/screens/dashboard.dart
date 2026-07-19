@@ -126,13 +126,6 @@ class _DashboardState extends State<Dashboard> {
     return Color(int.parse('FF$cleanHex', radix: 16));
   }
 
-  // ---------------------------------------------------------------------
-  // NOTE: /feedback, /service-distribution and /schedule-visits are NOT
-  // registered in routes/api.php, so they will always 404. Everything the
-  // dashboard needs for the doughnut/line/sentiment charts now comes from
-  // the single '/dashboard-data' endpoint (DashboardController::getDashboardData),
-  // the same one the admin dashboard already uses successfully.
-  // ---------------------------------------------------------------------
 
   Future<Map<String, dynamic>?> _tryGetMap(String path) async {
     try {
@@ -315,9 +308,6 @@ class _DashboardState extends State<Dashboard> {
       final patients = results[3] as List;
       final notifications = results[4] as List;
 
-      // Single consolidated call — replaces the old calls to the
-      // non-existent /feedback, /service-distribution and /schedule-visits
-      // routes. Same endpoint the admin dashboard already relies on.
       final dashboardData = await _tryGetMap('/dashboard-data');
 
       final sentiment =
@@ -371,7 +361,7 @@ class _DashboardState extends State<Dashboard> {
           _sentimentFromApi = false;
         }
 
-        // Service Distribution - kahit walang data, may display
+        // Service Distribution 
         if (services != null && services.isNotEmpty) {
           _serviceDistribution = services;
           _serviceDistributionSource = serviceSource;
@@ -382,14 +372,14 @@ class _DashboardState extends State<Dashboard> {
           _serviceDistributionSource = 'No data available';
         }
 
-        // Weekly Visits - kahit walang data, may display
+        // Weekly Visits
         if (weeklyVisits != null && weeklyVisits.any((v) => v > 0)) {
           _weeklyVisits = weeklyVisits;
           _weeklyVisitsFromApi = true;
           _weeklyVisitsSource = weeklySource;
         } else {
           _weeklyVisits = List.filled(_weekCount, 0);
-          _weeklyVisitsFromApi = true; // Set to true para mag-display ang chart
+          _weeklyVisitsFromApi = true; 
           _weeklyVisitsSource = 'No data available';
         }
 
@@ -400,7 +390,7 @@ class _DashboardState extends State<Dashboard> {
         } else {
           _inquiryVolumeByDay = List.filled(7, 0);
           _inquiryVolumeFromApi =
-              true; // Set to true para mag-display ang chart
+              true; 
         }
 
         _recentActivities = notifications.take(5).map<Map<String, dynamic>>((
@@ -424,7 +414,6 @@ class _DashboardState extends State<Dashboard> {
         _loadError = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
 
-        // Kahit may error, display pa rin ang charts
         _serviceDistribution = [
           {'service_type': 'No Data', 'total': 1},
         ];
@@ -438,9 +427,6 @@ class _DashboardState extends State<Dashboard> {
     }
   }
 
-  // Optional: only used as a last-resort fallback for sentiment if
-  // '/dashboard-data' doesn't include positivePercent/neutralPercent/negativePercent.
-  // Safe no-op if the route still doesn't exist on the backend.
   Future<List?> _safeGetList(String path) async {
     try {
       final data = await ApiService.get(path);
@@ -545,14 +531,14 @@ class _DashboardState extends State<Dashboard> {
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: StaffColors.primary,
+            color: Colors.black87,
           ),
         ),
       ],
     );
   }
 
-  // Empty state message kapag walang data
+  // Empty state message 
   Widget _emptyChartState(String message) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -626,6 +612,7 @@ class _DashboardState extends State<Dashboard> {
               child: _buildStatCard(
                 '$_appointmentsCount',
                 'Schedule Visits',
+                'Scheduled visits',
                 Icons.calendar_today,
                 Colors.blue,
               ),
@@ -635,6 +622,7 @@ class _DashboardState extends State<Dashboard> {
               child: _buildStatCard(
                 '$_pendingInquiriesCount',
                 'Pending Inquiries',
+                'Awaiting reply',
                 Icons.question_answer,
                 Colors.orange,
               ),
@@ -648,6 +636,7 @@ class _DashboardState extends State<Dashboard> {
               child: _buildStatCard(
                 '$_activeDoctorsCount',
                 'Active Doctors',
+                'Currently practicing',
                 Icons.medical_services,
                 Colors.green,
               ),
@@ -657,6 +646,7 @@ class _DashboardState extends State<Dashboard> {
               child: _buildStatCard(
                 '$_patientsCount',
                 'Registered Patients',
+                'Total records',
                 Icons.people,
                 Colors.purple,
               ),
@@ -670,6 +660,7 @@ class _DashboardState extends State<Dashboard> {
   Widget _buildStatCard(
     String number,
     String label,
+    String subLabel,
     IconData icon,
     Color color,
   ) {
@@ -679,27 +670,42 @@ class _DashboardState extends State<Dashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
+
+          Row(
+            children: [
+              Icon(icon, color: color, size: 14),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
+          
           Text(
             number,
             style: const TextStyle(
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: StaffColors.primary,
+              color: Colors.black87,
             ),
           ),
+          const SizedBox(height: 4),
+         
           Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-            maxLines: 2,
+            subLabel,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -716,7 +722,7 @@ class _DashboardState extends State<Dashboard> {
           ]
         : _serviceDistribution;
 
-    // Kung no data, gawing transparent ang color
+
     final isNoData =
         _serviceDistribution.isEmpty ||
         (_serviceDistribution.length == 1 &&
@@ -1186,7 +1192,7 @@ class _DashboardState extends State<Dashboard> {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: StaffColors.primary,
+                    color: Colors.black87,
                   ),
                 ),
                 Text(
@@ -1224,7 +1230,7 @@ class _DashboardState extends State<Dashboard> {
               fontWeight: FontWeight.bold,
               fontSize: 22,
               letterSpacing: 0.5,
-              color: StaffColors.primary,
+              color: Colors.black87,
             ),
           ),
         ],

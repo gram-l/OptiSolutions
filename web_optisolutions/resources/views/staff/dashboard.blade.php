@@ -15,31 +15,46 @@
 
     <div class="stats-grid">
         <div class="stat-card">
+            <div class="stat-label" style="text-transform: uppercase; font-size: 0.75rem; font-weight: 600; color: #7f8c8d; letter-spacing: 0.5px; margin-bottom: 0.6rem;">
+                Total Schedule Visit
+            </div>
             <div class="stat-number" id="stat-schedule-visit">{{ $totalScheduleVisit ?? 0 }}</div>
-            <div class="stat-label">Total Schedule Visit</div>
+            <div class="stat-sublabel" id="stat-schedule-visit-sub" style="font-size: 0.8rem; color: #b0b8c1; margin-top: 0.5rem;">
+                Scheduled visits
+            </div>
         </div>
+
         <div class="stat-card">
+            <div class="stat-label" style="text-transform: uppercase; font-size: 0.75rem; font-weight: 600; color: #7f8c8d; letter-spacing: 0.5px; margin-bottom: 0.6rem;">
+                Pending Inquiries
+            </div>
             <div class="stat-number" id="stat-pending-inquiries">{{ $pendingInquiries ?? 0 }}</div>
-            <div class="stat-label">Pending Inquiries</div>
+            <div class="stat-sublabel" id="stat-pending-inquiries-sub" style="font-size: 0.8rem; color: #b0b8c1; margin-top: 0.5rem;">
+                Awaiting reply
+            </div>
         </div>
+
         <div class="stat-card">
+            <div class="stat-label" style="text-transform: uppercase; font-size: 0.75rem; font-weight: 600; color: #7f8c8d; letter-spacing: 0.5px; margin-bottom: 0.6rem;">
+                Active Doctors
+            </div>
             <div class="stat-number" id="stat-active-doctors">{{ $activeDoctors ?? 0 }}</div>
-            <div class="stat-label">Active Doctors</div>
+            <div class="stat-sublabel" id="stat-active-doctors-sub" style="font-size: 0.8rem; color: #b0b8c1; margin-top: 0.5rem;">
+                Currently practicing
+            </div>
         </div>
+
         <div class="stat-card">
+            <div class="stat-label" style="text-transform: uppercase; font-size: 0.75rem; font-weight: 600; color: #7f8c8d; letter-spacing: 0.5px; margin-bottom: 0.6rem;">
+                Registered Patients
+            </div>
             <div class="stat-number" id="stat-total-patients">{{ $totalPatients ?? 0 }}</div>
-            <div class="stat-label">Registered Patients</div>
+            <div class="stat-sublabel" id="stat-total-patients-sub" style="font-size: 0.8rem; color: #b0b8c1; margin-top: 0.5rem;">
+                Total records
+            </div>
         </div>
     </div>
 
-    {{--
-        NOTE ON DEFAULTS:
-        Each chart below ALWAYS renders its <canvas>, the same way the Flutter
-        (mobile) dashboard always renders PieChart/LineChart/BarChart even when
-        the underlying list is empty. If the controller doesn't pass a variable,
-        or passes an empty collection, we fall back to a zero-filled dataset so
-        the chart still shows its axes/shape instead of just a text message.
-    --}}
     @php
         // ---- Service Distribution defaults ----
         $hasServiceData = isset($serviceDistribution) && $serviceDistribution->count() > 0;
@@ -145,7 +160,7 @@
 
     <!-- RECENT ACTIVITY -->
     <div style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
-        <h3 style="color: var(--text-dark);">Recent Activity</h3>
+        <h3 style="color: var(--text-dark);">Recent Activities</h3>
         <div id="recentActivityList">
             @forelse($recentActivities as $activity)
                 <div style="padding: 0.8rem 0; border-bottom:1px solid var(--light-gray); display: flex; justify-content: space-between; align-items: center;">
@@ -173,16 +188,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const navy = '#1A237E';
     const emptyGrey = '#e0e0e0';
 
-    // ------------------------------------------------------------------
-    // IMPORTANT: this URL must point to a JSON endpoint in your Laravel
-    // app that returns fresh data from the database (see the controller
-    // method + route sample provided separately). Update the path below
-    // to match whatever route you register.
-    // ------------------------------------------------------------------
+
     const DASHBOARD_DATA_URL = '{{ route("staff.dashboard.data") }}';
     const REFRESH_INTERVAL_MS = 30000; // 30 seconds — adjust as needed
 
-    // ---- Initial chart setup using the PHP-rendered values (first paint) ----
+
     const hasServiceData = @json($hasServiceData);
 
     const serviceChart = new Chart(document.getElementById('serviceDistributionChart'), {
@@ -263,10 +273,6 @@ document.addEventListener('DOMContentLoaded', function () {
         `).join('');
     }
 
-    // ------------------------------------------------------------------
-    // Polling: fetch fresh JSON from the server every REFRESH_INTERVAL_MS
-    // and update the charts + stat cards WITHOUT reloading the page.
-    // ------------------------------------------------------------------
     async function refreshDashboard() {
         try {
             const res = await fetch(DASHBOARD_DATA_URL, {

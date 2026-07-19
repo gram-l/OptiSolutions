@@ -20,12 +20,7 @@ class Inquiry extends Model
         'replied_at',
     ];
 
-    /**
-     * ✅ Hindi auto_increment ang inquiry_id sa database — kailangan
-     * manual na i-generate ang susunod na ID bago i-save.
-     * ✅ Pagkatapos ma-save nang matagumpay, saka pa lang gagawin ang
-     * staff notification gamit ang tamang column names.
-     */
+    
     protected static function booted()
     {
         static::creating(function (Inquiry $inquiry) {
@@ -74,10 +69,7 @@ class Inquiry extends Model
             'message'    => $log->user_message ?? '',
             'date'       => $date,
             'time'       => $time,
-            // ✅ FIX: base natin ito sa kung meron nang reply, hindi sa
-            // resolved_status — dahil 'Pending' pa rin ang status kahit
-            // na-reply na (walang 'In Progress' sa enum ng database),
-            // kaya dating hindi nawawala ang "NEW" tag pagkatapos mag-reply.
+           
             'isNew'      => empty($this->inquiry_reply),
         ];
     }

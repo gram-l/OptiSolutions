@@ -9,13 +9,13 @@
     </div>
 
     <div class="inquiries-split">
-        {{-- LEFT: Recent Conversations (naka-highlight yung kasalukuyang bukas) --}}
+    
         @include('staff.inquiries.partials.conversations-list', [
             'inquiries' => $inquiries,
             'selectedId' => $inquiry->inquiry_id,
         ])
 
-        {{-- RIGHT: yung napiling conversation --}}
+    
         <div class="conv-detail-panel">
             <!-- Header -->
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--light-gray, #e0e0e0); padding-bottom: 1rem; margin-bottom: 1rem;">
@@ -45,7 +45,7 @@
             <!-- Messages -->
             <div style="flex: 1; padding: 0.5rem 0; max-height: 500px; overflow-y: auto; min-height: 350px;">
 
-                <!-- Initial Patient Message (galing sa chatbot_logs) -->
+            
                 <div style="display: flex; justify-content: flex-start; margin-bottom: 1rem;">
                     <div style="background: var(--light-gray, #ecf0f1); padding: 0.8rem 1.5rem; border-radius: 18px; max-width: 80%;">
                         <strong style="color: var(--text-dark, #2c3e50);">Patient</strong>
@@ -73,8 +73,12 @@
             </div>
 
             <!-- Reply Form -->
-            @if($inquiry->resolved_status !== 'Resolved')
             <div style="border-top: 1px solid var(--light-gray, #e0e0e0); padding-top: 1rem; margin-top: 1rem;">
+                @if($inquiry->resolved_status === 'Resolved')
+                <p style="color: var(--primary-green, #2ecc71); font-size: 0.9rem; margin-bottom: 0.75rem;">
+                    ✓ This inquiry has been marked as resolved. You can still reply if needed.
+                </p>
+                @endif
                 <form method="POST" action="{{ route('staff.inquiries.reply', $inquiry->inquiry_id) }}">
                     @csrf
                     <div style="display: flex; gap: 0.5rem;">
@@ -83,11 +87,6 @@
                     </div>
                 </form>
             </div>
-            @else
-            <div style="border-top: 1px solid var(--light-gray, #e0e0e0); padding-top: 1rem; margin-top: 1rem;">
-                <p style="color: var(--primary-green, #2ecc71); font-size: 1rem;">✓ This inquiry has been resolved.</p>
-            </div>
-            @endif
         </div>
     </div>
 </div>

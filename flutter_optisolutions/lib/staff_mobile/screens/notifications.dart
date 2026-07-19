@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_optisolutions/login.dart';
 import '../services/api_service.dart';
+import 'inquiries.dart';
+import 'appointments.dart';
+import 'doctors.dart';
+import 'patients.dart';
 
 class NotificationData {
   static List<Map<String, dynamic>> _notifications = [];
@@ -32,8 +36,7 @@ class NotificationData {
     return Color(int.parse('FF$cleanHex', radix: 16));
   }
 
-  // ✅ Fetches the real list from Laravel. Returns the populated list too,
-  // so callers can `await` it directly if they want.
+
   static Future<List<Map<String, dynamic>>> load() async {
     final result = await ApiService.get('/notifications');
     _notifications = (result as List).map<Map<String, dynamic>>((n) {
@@ -45,6 +48,10 @@ class NotificationData {
         'time': n['time'],
         'isRead': n['isRead'],
         'color': _colorFromHex(n['color']),
+        
+        'type': n['type'],
+        'referenceType': n['referenceType'],
+        'referenceId': n['referenceId'],
       };
     }).toList();
     return _notifications;
@@ -60,7 +67,7 @@ class NotificationData {
 
   static Future<void> markAsRead(int index) async {
     final dbId = _notifications[index]['dbId'];
-    _notifications[index]['isRead'] = true; // update locally immediately
+    _notifications[index]['isRead'] = true; 
     try {
       await ApiService.patch('/notifications/$dbId/read', {});
     } catch (e) {
@@ -108,10 +115,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       await NotificationData.load();
       setState(() => _loading = false);
 
-      // ✅ Pagbukas ng Notifications page, awtomatiko nang i-mark as
-      // read lahat — ganito karaniwang gumagana ang notification
-      // center (bell badge clears once viewed), para hindi na
-      // kailangan i-click pa isa-isa bago mawala ang unread count.
       if (NotificationData.getUnreadCount() > 0) {
         await NotificationData.markAllAsRead();
         if (mounted) setState(() {});
@@ -124,45 +127,59 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
+ 
   void _viewNotification(int index) {
-    // ✅ Mark as read using static method (now syncs to the database)
     NotificationData.markAsRead(index);
+    setState(() {});
 
     final notification = NotificationData.getNotifications()[index];
+    final type = notification['type'] as String?;
 
+    _navigateForType(type);
+  }
+
+
+  void _navigateForType(String? type) {
+    switch (type) {
+      case 'inquiry':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const InquiriesPage()),
+        );
+        break;
+      case 'schedule visit':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AppointmentsPage()),
+        );
+        break;
+      case 'patient':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const PatientsPage()),
+        );
+        break;
+      case 'doctor':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const DoctorsPage()),
+        );
+        break;
+      default:
+      
+        _showNotificationDialog(type);
+        break;
+    }
+  }
+
+
+  void _showNotificationDialog(String? type) {
+  
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(notification['icon'], color: notification['color']),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                notification['title'],
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(notification['message'], style: const TextStyle(fontSize: 14)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
-                const SizedBox(width: 4),
-                Text(
-                  notification['time'],
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                ),
-              ],
-            ),
-          ],
-        ),
+        title: const Text('Notification'),
+        content: const Text('Walang kaukulang page para dito.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -199,7 +216,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         actions: [
           TextButton(
             onPressed: () async {
-              // ✅ Mark all as read using static method (syncs to database)
+             
               await NotificationData.markAllAsRead();
               setState(() {});
               if (!context.mounted) return;
@@ -332,7 +349,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return GestureDetector(
       onTap: () {
         _viewNotification(index);
-        setState(() {});
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

@@ -2,15 +2,10 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../widgets/center_snackbar.dart';
 
-// ✅ InquiryChatStorage removed — messages now come from and are saved to
-// the database via ApiService instead of being kept only in memory.
 
 class InquiryChatPage extends StatefulWidget {
   final String inquiryId;
-  // ✅ FIX: raw database ID (hal. "123"), hiwalay sa naka-format na
-  // inquiryId (hal. "INQ-123"). Ginagamit ito sa API calls dahil hindi
-  // maiintindihan ni Laravel ang naka-prefix na string sa route model
-  // binding (findOrFail expects the raw primary key).
+
   final String dbId;
   final String patientId;
   final String department;
@@ -56,15 +51,11 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
       _loadError = null;
     });
     try {
-      // ✅ FIX: gamitin ang dbId (raw integer), hindi ang inquiryId
-      // (naka-format na "INQ-123" string) para gumana ang route model
-      // binding sa Laravel
+    
       final result = await ApiService.get('/inquiries/${widget.dbId}/messages');
       setState(() {
         _messages = [
-          // Ang orihinal na inquiry message ay hindi bahagi ng
-          // inquiry_replies table — nasa `inquiries.message` column ito,
-          // kaya dito muna natin idinaragdag bilang unang bubble.
+      
           {
             'sender': 'Patient',
             'message': widget.initialMessage,
@@ -99,13 +90,13 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
   }
 
   void _sendReply() async {
-    // ✅ SIMPLE LANG - kung hindi pwede magsend, return
+    
     if (!_canSend) return;
 
     final String message = _replyController.text.trim();
     if (message.isEmpty) return;
 
-    // ✅ I-off muna ang send
+   
     setState(() => _canSend = false);
 
     final String currentTime = _getCurrentTime();
@@ -116,7 +107,6 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
       'isStaff': true,
     };
 
-    // Show it immediately for a snappy feel, then sync with the server.
     setState(() {
       _messages.add(newMessage);
     });
@@ -124,7 +114,7 @@ class _InquiryChatPageState extends State<InquiryChatPage> {
     _scrollToBottom();
 
     try {
-      // ✅ FIX: gamitin din dito ang dbId
+     
       await ApiService.post('/inquiries/${widget.dbId}/messages', {
         'message': message,
       });

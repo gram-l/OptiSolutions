@@ -1,14 +1,3 @@
-{{--
-    Reusable "Recent Conversations" left panel.
-    Ginagamit ito ng index.blade.php (walang selected) at show.blade.php
-    (may selected conversation) para magmukhang iisang split-view lang,
-    kahit magkaiba pala ang route.
-
-    Expects:
-    - $inquiries : collection ng inquiries (dapat parehong pinapasa ng
-      controller sa index() AT show() methods)
-    - $selectedId : (optional) yung kasalukuyang binubuksang inquiry_id
---}}
 <div class="conv-list-panel">
     <h4 class="conv-list-title">Recent Conversations</h4>
     <input
@@ -21,8 +10,7 @@
     <div class="conv-list" id="conv-list">
         @forelse($inquiries as $inq)
             @php
-                // Simpleng paraan lang para makakuha ng "initials" gamit
-                // ang patient_id (walang patient name column dito).
+            
                 $rawId = (string) ($inq->patient_id ?? 'P');
                 $initials = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $rawId), 0, 2)) ?: 'P';
                 $isSelected = isset($selectedId) && (string) $selectedId === (string) $inq->inquiry_id;
@@ -56,7 +44,6 @@
 </div>
 
 <script>
-    // Simpleng client-side filter (walang AJAX / walang backend hit).
     function filterConversations(query) {
         query = query.toLowerCase();
         document.querySelectorAll('#conv-list .conv-item').forEach(function (el) {

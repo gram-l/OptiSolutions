@@ -26,11 +26,11 @@ class ComplaintConversation extends Conversation
 
     public function askComplaint()
     {
-        $this->ask('Please describe your concern in detail. Our patient relations team will respond within 24 hours:', function (Answer $answer) {
+        $this->ask('Please describe your concern in detail. We would like to hear your experience from us>', function (Answer $answer) {
             $text = trim($answer->getText());
 
             if (strlen($text) < 10) {
-                $this->say('⚠️ Please provide a more detailed description (at least 10 characters) so we can assist you better:');
+                $this->say('Please provide a more detailed description (at least 10 characters).');
                 return $this->askComplaint();
             }
 
@@ -51,33 +51,27 @@ class ComplaintConversation extends Conversation
                 'patient_id'     => $this->patientId,
                 'log_id'         => $logId,
                 'complaint_text' => $text,
-                'status'         => 'pending',
             ]);
 
-            $this->say("Complaint Recorded\n\nReference #: {$complaintId}\nWe acknowledge receipt of your concern. Our team will reach out within 24 hours.");
+            $this->say("Complaint Recorded\n\nReference #: {$complaintId}\nWe acknowledge receipt of your concern.");
         } catch (\Exception $e) {
-            $this->say("⚠️ We couldn't record your complaint right now. Please try again, or contact us directly.");
+            $this->say("We couldn't record your complaint right now. Please try again, or contact us directly.");
         }
 
-        $this->askWhatsNext();
+        $this->backToMainMenu();
     }
 
-    protected function askWhatsNext()
+    protected function backToMainMenu()
     {
-        $question = Question::create('Is there anything else you\'d like to do?')
-            ->fallback('Please use the buttons above, or type "menu" anytime to return to the main menu.')
+        $question = Question::create('Is there anything else I can help you with?')
+            ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('⭐ Submit Review/Rating')->value('review'),
-                Button::create("✅ No, I'm all set")->value('done'),
+                Button::create('Schedule Visit')->value('schedule visit'),
+                Button::create('General Information')->value('general information'),
+                Button::create('Submit Review/Rating')->value('submit review/rating'),
+                Button::create('Submit Complaint')->value('submit complaint'),
             ]);
 
-        $this->ask($question, function (Answer $answer) {
-            if ($answer->getValue() === 'review') {
-                $this->bot->startConversation(new ReviewConversation($this->patientId, $this->patientName));
-                return;
-            }
-
-            $this->say('Thank you for choosing PolyClinic Lipa! Have a great day! 😊');
-        });
+        $this->bot->reply($question);
     }
 }

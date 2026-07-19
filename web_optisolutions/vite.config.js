@@ -8,6 +8,7 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/css/login.css',
+                'resources/css/staff.css',
 
                 'resources/css/admin_css/dashboard.css',
                 'resources/css/admin_css/appointments.css',
@@ -44,8 +45,13 @@ export default defineConfig({
         port: 5173,
         strictPort: true,
         hmr: {
+<<<<<<< HEAD
+           // host: '192.168.254.147',
+            host: '192.168.1.11',
+=======
             host: '192.168.254.147',
             //host: '10.241.235.34',
+>>>>>>> origin/dev
             // lipa bsu 192.168.193.172
         },
         cors: true,

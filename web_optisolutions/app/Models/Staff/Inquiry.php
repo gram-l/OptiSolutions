@@ -3,6 +3,9 @@
 namespace App\Models\Staff;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\ChatbotLog;
+use App\Models\AppNotification;
+use Carbon\Carbon;
 
 class Inquiry extends Model
 {
@@ -13,19 +16,16 @@ class Inquiry extends Model
     protected $fillable = [
         'inquiry_id',
         'patient_id',
+        'guest_name',
         'log_id',
+        'conversation_id',
         'inquiry_type',
         'resolved_status',
         'inquiry_reply',
         'replied_at',
+        'created_at',
     ];
 
-    /**
-     * ✅ Hindi auto_increment ang inquiry_id sa database — kailangan
-     * manual na i-generate ang susunod na ID bago i-save.
-     * ✅ Pagkatapos ma-save nang matagumpay, saka pa lang gagawin ang
-     * staff notification gamit ang tamang column names.
-     */
     protected static function booted()
     {
         static::creating(function (Inquiry $inquiry) {
@@ -51,7 +51,13 @@ class Inquiry extends Model
 
     public function log()
     {
-        return $this->belongsTo(\App\Models\ChatbotLog::class, 'log_id', 'log_id');
+        return $this->belongsTo(ChatbotLog::class, 'log_id', 'log_id');
+    }
+
+    public function replies()
+    {
+        return $this->hasMany(InquiryReply::class, 'inquiry_id', 'inquiry_id')
+            ->orderBy('created_at', 'asc');
     }
 
     public function toApiArray()
@@ -60,25 +66,37 @@ class Inquiry extends Model
 
         $date = '';
         $time = '';
+
         if ($log && $log->chat_time) {
-            $chatTime = \Carbon\Carbon::parse($log->chat_time);
+            $chatTime = Carbon::parse($log->chat_time);
             $date = $chatTime->format('Y-m-d');
             $time = $chatTime->format('h:i A');
         }
 
+        $latestPatientReply = $this->relationLoaded('replies')
+            ? $this->replies->where('sender', 'Patient')->last()
+            : $this->replies()
+                ->where('sender', 'Patient')
+                ->latest('created_at')
+                ->first();
+
+        $message = $latestPatientReply->message ?? ($log->user_message ?? '');
+
+        $displayName = $this->patient_id
+            ? 'Patient #' . $this->patient_id
+            : ($this->guest_name ?: 'Guest');
+
         return [
-            'dbId'       => $this->inquiry_id,
-            'id'         => 'INQ-' . str_pad((string) $this->inquiry_id, 3, '0', STR_PAD_LEFT),
-            'patientId'  => (string) ($this->patient_id ?? ''),
-            'department' => $this->inquiry_type ?? 'General',
-            'message'    => $log->user_message ?? '',
-            'date'       => $date,
-            'time'       => $time,
-            // ✅ FIX: base natin ito sa kung meron nang reply, hindi sa
-            // resolved_status — dahil 'Pending' pa rin ang status kahit
-            // na-reply na (walang 'In Progress' sa enum ng database),
-            // kaya dating hindi nawawala ang "NEW" tag pagkatapos mag-reply.
-            'isNew'      => empty($this->inquiry_reply),
+            'dbId'        => $this->inquiry_id,
+            'id'          => 'INQ-' . str_pad((string) $this->inquiry_id, 3, '0', STR_PAD_LEFT),
+            'patientId'   => (string) ($this->patient_id ?? 'Guest'),
+            'patientName' => $displayName,
+            'department'  => $this->inquiry_type ?? 'General',
+            'message'     => $message,
+            'date'        => $date,
+            'time'        => $time,
+            'status'      => $this->resolved_status ?? 'Pending',
+            'isNew'       => empty($this->inquiry_reply),
         ];
     }
 }

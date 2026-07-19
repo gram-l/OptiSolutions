@@ -107,7 +107,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   String _formatDate(dynamic rawDate) {
     if (rawDate == null) return 'N/A';
     final str = rawDate.toString();
-    // Kunin lang ang date part (YYYY-MM-DD), tanggalin ang time kung meron
+
     return str.split('T').first;
   }
 

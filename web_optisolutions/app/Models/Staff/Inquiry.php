@@ -26,6 +26,7 @@ class Inquiry extends Model
         'created_at',
     ];
 
+    
     protected static function booted()
     {
         static::creating(function (Inquiry $inquiry) {
@@ -87,16 +88,15 @@ class Inquiry extends Model
             : ($this->guest_name ?: 'Guest');
 
         return [
-            'dbId'        => $this->inquiry_id,
-            'id'          => 'INQ-' . str_pad((string) $this->inquiry_id, 3, '0', STR_PAD_LEFT),
-            'patientId'   => (string) ($this->patient_id ?? 'Guest'),
-            'patientName' => $displayName,
-            'department'  => $this->inquiry_type ?? 'General',
-            'message'     => $message,
-            'date'        => $date,
-            'time'        => $time,
-            'status'      => $this->resolved_status ?? 'Pending',
-            'isNew'       => empty($this->inquiry_reply),
+            'dbId'       => $this->inquiry_id,
+            'id'         => 'INQ-' . str_pad((string) $this->inquiry_id, 3, '0', STR_PAD_LEFT),
+            'patientId'  => (string) ($this->patient_id ?? ''),
+            'department' => $this->inquiry_type ?? 'General',
+            'message'    => $log->user_message ?? '',
+            'date'       => $date,
+            'time'       => $time,
+           
+            'isNew'      => empty($this->inquiry_reply),
         ];
     }
 }

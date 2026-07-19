@@ -31,16 +31,15 @@ class _DoctorsPageState extends State<DoctorsPage> {
   String _searchQuery = '';
   String _selectedDepartment = 'All Departments';
 
-  // ✅ Now loaded from the database via API instead of hardcoded
+  // Loaded from the database via API
   List<Map<String, dynamic>> _allDoctors = [];
   bool _loading = true;
   String? _loadError;
 
-  // Logged-in staff name (shown in the drawer header)
+  // Logged-in staff name 
   String _staffName = 'Staff';
   String _staffEmail = '';
 
-  // ✅ NEW: days used by the weekly schedule checklist
   static const List<String> _weekDays = [
     'Monday',
     'Tuesday',
@@ -82,14 +81,12 @@ class _DoctorsPageState extends State<DoctorsPage> {
       setState(() {
         _allDoctors = (result as List).map<Map<String, dynamic>>((doc) {
           return {
-            // ✅ FIX: safe fallbacks for every field that could come back null
+
             'id': doc['id'],
             'name': (doc['name'] ?? 'Unknown').toString(),
             'specialty': (doc['specialty'] ?? 'General').toString(),
             'status': (doc['status'] ?? 'Unavailable').toString(),
-            // ✅ Full per-session schedule, grouped by day. Each session is
-            // {'start': TimeOfDay?, 'end': TimeOfDay?}. This replaces the
-            // old single 'schedule'/'time' strings for display + editing.
+
             'scheduleByDay': _groupSchedules(doc['schedules'] as List? ?? []),
             'isActive': doc['is_active'] == 1,
             'avatar': (doc['avatar'] ?? '').toString(),
@@ -112,14 +109,14 @@ class _DoctorsPageState extends State<DoctorsPage> {
     try {
       return Color(int.parse('FF$cleanHex', radix: 16));
     } catch (_) {
-      // ✅ FIX: if the hex string is malformed, don't crash — just fall back
+      
       return Colors.blueGrey;
     }
   }
 
   // Get unique departments for filter
   List<String> get _departments {
-    // ✅ FIX: no more "as String" hard cast — use a safe fallback instead
+   
     List<String> depts = _allDoctors
         .map((doc) => (doc['specialty'] ?? 'General').toString())
         .toSet()
@@ -143,7 +140,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       result = result.where((doc) {
-        // ✅ FIX: safe null handling before calling .toLowerCase()
+        
         final name = (doc['name'] ?? '').toString().toLowerCase();
         final specialty = (doc['specialty'] ?? '').toString().toLowerCase();
         return name.contains(query) || specialty.contains(query);
@@ -153,17 +150,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
     return result;
   }
 
-  // ─────────────────────────────────────────────
-  //  ✅ NEW: Weekly schedule (checklist + multiple
-  //  sessions per day) helpers
-  //
-  //  Mirrors the `doctor_schedules` table directly: one row per
-  //  session (day, start_time, end_time). The API sends/receives
-  //  a flat list of these; we group them by day on the client for
-  //  the checklist UI, and flatten back to a list before saving.
-  // ─────────────────────────────────────────────
 
-  /// Converts "HH:mm" (24-hour, as sent by the backend) into a TimeOfDay.
   TimeOfDay? _timeFromHHmm(String? hhmm) {
     if (hhmm == null || hhmm.isEmpty) return null;
     final parts = hhmm.split(':');
@@ -178,7 +165,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
   String _hhmmFromTime(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
-  /// Friendly 12-hour display, e.g. "8:00 AM". Doesn't need BuildContext.
+  /// Friendly 12-hour display, e.g. "8:00 AM".
   String _formatTimeOfDay(TimeOfDay? t) {
     if (t == null) return '';
     final hour12 = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
@@ -187,9 +174,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
     return '$hour12:$minute $period';
   }
 
-  /// Groups the flat `schedules` list from the API (each entry
-  /// {"day":..., "start_time":..., "end_time":...}) into a
-  /// day -> list of {start, end} sessions map.
+
   Map<String, List<Map<String, TimeOfDay?>>> _groupSchedules(
     List apiSchedules,
   ) {
@@ -208,8 +193,6 @@ class _DoctorsPageState extends State<DoctorsPage> {
     return result;
   }
 
-  /// Flattens the day -> sessions map back into the list the API expects
-  /// for saving, e.g. [{"day":"Monday","start_time":"08:00","end_time":"11:00"}, ...]
   List<Map<String, String?>> _flattenSchedule(
     Map<String, List<Map<String, TimeOfDay?>>> schedule,
   ) {
@@ -257,7 +240,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
 
   // Edit Schedule — checklist (Mon-Sun) + multiple sessions per day
   void _editSchedule(Map<String, dynamic> doctor) {
-    // Deep-copy so cancelling the dialog doesn't mutate anything.
+    
     final source =
         doctor['scheduleByDay'] as Map<String, List<Map<String, TimeOfDay?>>>;
     final Map<String, List<Map<String, TimeOfDay?>>> schedule = {
@@ -339,15 +322,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
                               Checkbox(
                                 value: isChecked,
                                 activeColor: StaffColors.primary,
-                                // ✅ FIX: pag na-check ang isang day, wala
-                                // nang hardcoded/default na 8:00-5:00 session
-                                // na idadagdag. Sa halip, buksan agad ang
-                                // time picker (parehong flow ng "Add
-                                // session") para talagang mamili ang user ng
-                                // start/end time. Kung kanselahin ng user ang
-                                // picker, mananatili itong unchecked dahil
-                                // ang isChecked ay galing mismo sa
-                                // sessions.isNotEmpty.
+                                
                                 onChanged: (checked) async {
                                   if (checked == true) {
                                     await addSession(day);
@@ -702,7 +677,6 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  // ✅ UPDATED AppBar with NotificationBadge
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Row(
@@ -731,7 +705,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
       centerTitle: false,
       iconTheme: const IconThemeData(color: StaffColors.primary),
       actions: [
-        // ✅ NOTIFICATION BADGE
+       
         NotificationBadge(
           onTap: () {
             Navigator.push(
@@ -742,7 +716,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
             );
           },
         ),
-        // ✅ LOGOUT BUTTON
+       
         IconButton(
           icon: const Icon(Icons.logout, color: StaffColors.primary),
           onPressed: () {
@@ -753,7 +727,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  // ✅ UPDATED Drawer - REMOVED Notifications
+
   Widget _buildDrawer() {
     return Drawer(
       child: Column(
@@ -804,7 +778,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
               MaterialPageRoute(builder: (context) => const ProfilePage()),
             );
           }),
-          // ❌ REMOVED Notifications from drawer
+          
           _buildDrawerItem(Icons.settings, 'Settings', false, () {
             Navigator.pop(context);
             Navigator.push(
@@ -995,7 +969,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
   Widget _buildDoctorCard(Map<String, dynamic> doctor) {
     final bool isAvailable = doctor['status'] == 'Available';
 
-    // ✅ Friendly summary built from the per-session schedule map.
+    
     final scheduleByDay =
         doctor['scheduleByDay'] as Map<String, List<Map<String, TimeOfDay?>>>;
     final scheduleLabel = _scheduleDaysSummary(scheduleByDay);
@@ -1159,9 +1133,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
             ),
           ),
           const SizedBox(height: 12),
-          // ✅ Edit Schedule is always visible now. It's grayed out and
-          // shows an explanatory message when the admin has marked the
-          // doctor inactive, instead of disappearing entirely.
+          
           Builder(
             builder: (context) {
               final bool doctorActive = doctor['isActive'] == true;
@@ -1316,7 +1288,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  // ✅ ADD Logout Dialog
+ 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,

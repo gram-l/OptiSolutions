@@ -10,7 +10,6 @@
         min-height: 620px;
     }
 
-    /* ---------- LEFT PANEL ---------- */
     .conv-list-panel {
         width: 340px;
         flex-shrink: 0;
@@ -129,7 +128,7 @@
         padding: 2rem 0;
     }
 
-    /* ---------- RIGHT PANEL ---------- */
+
     .conv-detail-panel {
         flex: 1;
         display: flex;

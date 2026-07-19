@@ -36,12 +36,11 @@ class _PatientsPageState extends State<PatientsPage> {
   DateTime? _endDate;
   bool _isDateFilterActive = false;
 
-  // ✅ Now loaded from the database via API instead of hardcoded
   List<Map<String, dynamic>> _allPatients = [];
   bool _loading = true;
   String? _loadError;
 
-  // Logged-in staff name (shown in the drawer header)
+  // Logged-in staff name
   String _staffName = 'Staff';
   String _staffEmail = '';
 
@@ -538,7 +537,7 @@ class _PatientsPageState extends State<PatientsPage> {
     );
   }
 
-  // ==================== EDIT PATIENT FUNCTION ====================
+  // edit patients 
   void _editPatient(Map<String, dynamic> patient) {
     TextEditingController nameController = TextEditingController(
       text: patient['name'],
@@ -577,7 +576,7 @@ class _PatientsPageState extends State<PatientsPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Patient ID - DISPLAY ONLY
+                  
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -633,7 +632,7 @@ class _PatientsPageState extends State<PatientsPage> {
                       Icons.medical_services,
                     ),
                     const SizedBox(height: 8),
-                    // ✅ BIRTHDAY - TEXT FIELD NA LANG (WALANG CALENDAR)
+                    
                     _buildEditField(
                       'Birthday (YYYY-MM-DD)',
                       birthdayController,
@@ -679,11 +678,7 @@ class _PatientsPageState extends State<PatientsPage> {
                   );
                   if (index == -1) return;
 
-                  // Build only the fields the user actually changed.
-                  // Note: Laravel's PatientController currently accepts
-                  // name/department/contact/status/notes. Doctor and
-                  // birthday aren't in that controller's validation list yet —
-                  // add them there if you want this dialog to update those too.
+                
                   final Map<String, dynamic> changes = {};
                   if (nameController.text.trim().isNotEmpty) {
                     changes['name'] = nameController.text.trim();
@@ -931,7 +926,7 @@ class _PatientsPageState extends State<PatientsPage> {
     );
   }
 
-  // ✅ UPDATED AppBar with NotificationBadge
+
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Row(
@@ -960,7 +955,7 @@ class _PatientsPageState extends State<PatientsPage> {
       centerTitle: false,
       iconTheme: const IconThemeData(color: StaffColors.primary),
       actions: [
-        // ✅ NOTIFICATION BADGE
+    
         NotificationBadge(
           onTap: () {
             Navigator.push(
@@ -971,7 +966,7 @@ class _PatientsPageState extends State<PatientsPage> {
             );
           },
         ),
-        // ✅ LOGOUT BUTTON
+    
         IconButton(
           icon: const Icon(Icons.logout, color: StaffColors.primary),
           onPressed: () {
@@ -982,7 +977,7 @@ class _PatientsPageState extends State<PatientsPage> {
     );
   }
 
-  // ✅ UPDATED Drawer - REMOVED Notifications
+
   Widget _buildDrawer() {
     return Drawer(
       child: Column(
@@ -1524,7 +1519,7 @@ class _PatientsPageState extends State<PatientsPage> {
     );
   }
 
-  // ✅ ADD Logout Dialog
+
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,

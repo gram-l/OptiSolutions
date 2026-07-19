@@ -192,8 +192,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // ── Personal Information (read-only; only the
-                      // profile photo above can be changed) ──
+                  
                       _InfoCard(
                         title: 'Personal Information',
                         children: [

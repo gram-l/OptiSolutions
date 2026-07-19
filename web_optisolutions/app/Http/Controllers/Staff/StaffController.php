@@ -7,6 +7,7 @@ use App\Models\Staff\ScheduleVisit;
 use App\Models\Staff\Doctor;
 use App\Models\Staff\Patient;
 use App\Models\Staff\Inquiry;
+use App\Models\Staff\AppNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -27,7 +28,12 @@ class StaffController extends Controller
     private function buildDashboardData(): array
     {
         $totalScheduleVisit = ScheduleVisit::count();
-        $pendingInquiries   = Inquiry::where('resolved_status', 'Pending')->count();
+
+    
+        $pendingInquiries = Inquiry::whereNull('inquiry_reply')
+            ->orWhere('inquiry_reply', '')
+            ->count();
+
         $activeDoctors      = Doctor::where('available', 1)->count();
         $totalPatients      = Patient::count();
 
@@ -104,87 +110,42 @@ class StaffController extends Controller
         ];
     }
 
-    /**
-     * Pulls the most recent record from patients, schedule visits, and
-     * inquiries (via chatbot_logs for the timestamp), merges them, and
-     * returns the 5 most recent overall — newest first.
-     *
-     * NOTE: adjust the column names below (full_name, doctor_name, service,
-     * message, etc.) if your actual table columns are named differently.
-     */
+
     private function buildRecentActivities(int $limit = 5): array
     {
-        $items = collect();
-
-        // ---- Recently registered patients ----
-        $patientTable = (new Patient())->getTable();
-        $patientTsCol = Schema::hasColumn($patientTable, 'created_at') ? 'created_at' : null;
-
-        Patient::query()
-            ->when($patientTsCol, fn ($q) => $q->orderByDesc($patientTsCol))
-            ->limit($limit)
-            ->get()
-            ->each(function ($p) use (&$items, $patientTsCol) {
-                $items->push([
-                    'icon'        => 'bi-people',
-                    'color'       => '#8e44ad',
-                    'title'       => 'New patient registered',
-                    'description' => $p->full_name ?? ('Patient #' . ($p->patient_id ?? $p->id)),
-                    'time'        => $patientTsCol ? $p->{$patientTsCol} : now(),
-                ]);
-            });
-
-        // ---- Recently added schedule visits ----
-        $visitTable = (new ScheduleVisit())->getTable();
-        $visitTsCol = Schema::hasColumn($visitTable, 'created_at')
-            ? 'created_at'
-            : (Schema::hasColumn($visitTable, 'visit_date') ? 'visit_date' : null);
-
-        ScheduleVisit::query()
-            ->when($visitTsCol, fn ($q) => $q->orderByDesc($visitTsCol))
-            ->limit($limit)
-            ->get()
-            ->each(function ($v) use (&$items, $visitTsCol) {
-                $desc = trim(($v->doctor_name ?? '') . ' — ' . ($v->service ?? $v->service_type ?? ''), ' —');
-                $items->push([
-                    'icon'        => 'bi-calendar-check',
-                    'color'       => '#2980b9',
-                    'title'       => 'New schedule visit',
-                    'description' => $desc !== '' ? $desc : 'Visit #' . ($v->visit_id ?? $v->id),
-                    'time'        => $visitTsCol ? $v->{$visitTsCol} : now(),
-                ]);
-            });
-
-        // ---- Recent chatbot inquiries (timestamp lives in chatbot_logs) ----
-        if (Schema::hasTable('inquiries') && Schema::hasTable('chatbot_logs')) {
-            $hasMessageCol = Schema::hasColumn('chatbot_logs', 'message');
-
-            DB::table('inquiries')
-                ->join('chatbot_logs', 'inquiries.log_id', '=', 'chatbot_logs.log_id')
-                ->orderByDesc('chatbot_logs.chat_time')
-                ->limit($limit)
-                ->select('inquiries.*', 'chatbot_logs.chat_time', DB::raw($hasMessageCol ? 'chatbot_logs.message as inquiry_message' : 'NULL as inquiry_message'))
-                ->get()
-                ->each(function ($inq) use (&$items) {
-                    $items->push([
-                        'icon'        => 'bi-chat-dots',
-                        'color'       => '#e67e22',
-                        'title'       => 'New chatbot inquiry',
-                        'description' => $inq->inquiry_message ?: ('Inquiry #' . ($inq->inquiry_id ?? '')),
-                        'time'        => $inq->chat_time,
-                    ]);
-                });
+        if (!Schema::hasTable('app_notifications')) {
+            return [];
         }
 
-        return $items
-            ->filter(fn ($item) => !empty($item['time']))
-            ->sortByDesc(fn ($item) => Carbon::parse($item['time']))
-            ->take($limit)
-            ->map(function ($item) {
-                $item['time_human'] = Carbon::parse($item['time'])->diffForHumans();
-                return $item;
+        return AppNotification::orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(function ($notif) {
+                [$icon, $color] = $this->iconAndColorForType($notif->type);
+
+                return [
+                    'icon'        => $icon,
+                    'color'       => $color,
+                    'title'       => $notif->title,
+                    'description' => $notif->message,
+                    'time'        => $notif->created_at,
+                    'time_human'  => $notif->created_at
+                        ? $notif->created_at->diffForHumans()
+                        : '',
+                ];
             })
             ->values()
             ->toArray();
+    }
+
+    private function iconAndColorForType(?string $type): array
+    {
+        return match ($type) {
+            'inquiry'     => ['bi-chat-dots', '#e67e22'],
+            'schedule visit' => ['bi-calendar-check', '#2980b9'],
+            'patient'     => ['bi-people', '#8e44ad'],
+            'doctor'      => ['bi-person-badge', '#16a085'],
+            default       => ['bi-bell', '#7f8c8d'],
+        };
     }
 }

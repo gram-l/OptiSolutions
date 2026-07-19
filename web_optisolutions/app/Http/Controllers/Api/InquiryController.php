@@ -76,14 +76,7 @@ class InquiryController extends Controller
         return response()->json($messages);
     }
 
-    /**
-     * POST /api/inquiries/{inquiry}/messages
-     * ✅ FIX: dating sinusubukan nitong i-set ang resolved_status sa
-     * 'In Progress' — value na WALANG suporta ang enum column
-     * (enum('Pending','Resolved') lang ang pwede sa database), kaya
-     * palaging nag-e-error at nabubura ang reply. Tinanggal na ito;
-     * mananatiling 'Pending' hanggang i-resolve nang explicit ng staff.
-     */
+
     public function sendMessage(Request $request, $id)
     {
         $request->validate([
@@ -104,7 +97,7 @@ class InquiryController extends Controller
         ]);
     }
 
-    /** POST /api/inquiries/{id}/resolve */
+
     public function resolve($id)
     {
         $inquiry = Inquiry::findOrFail($id);

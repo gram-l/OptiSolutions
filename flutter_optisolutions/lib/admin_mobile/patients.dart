@@ -776,7 +776,6 @@ class _CardButton extends StatelessWidget {
     );
   }
 }
-
 class _SearchField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   const _SearchField({required this.onChanged});
@@ -790,11 +789,13 @@ class _SearchField extends StatelessWidget {
         onChanged: onChanged,
         style: const TextStyle(fontSize: 13),
         decoration: const InputDecoration(
+          isDense: true,
           prefixIcon: Icon(Icons.search, size: 16, color: AppColors.textGrey),
+          prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 0),
           hintText: 'Search patients...',
           hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 12),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 10),
+          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 4),
         ),
       ),
     );

@@ -13,6 +13,7 @@ use App\Http\Controllers\admin_acc\FeedbackController;
 use App\Http\Controllers\admin_acc\VisitController;
 use App\Http\Controllers\admin_acc\PatientListController;
 use App\Http\Controllers\admin_acc\NotificationController;
+use App\Http\Controllers\Api\InquiryController;
 
 Route::prefix('admin')->group(function () {
 
@@ -60,4 +61,13 @@ Route::put('/patients/{id}', [PatientListController::class, 'update']);
 Route::get('/notifications', [NotificationController::class, 'apiIndex']);
 Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead']);
 Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+
+// ── Chatbot Inquiries (patient messages the bot couldn't handle) ──
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/inquiries', [InquiryController::class, 'index']);
+    Route::get('/inquiries/{inquiry}', [InquiryController::class, 'show']);
+    Route::get('/inquiries/{inquiry}/messages', [InquiryController::class, 'messages']);
+    Route::post('/inquiries/{inquiry}/messages', [InquiryController::class, 'sendMessage']);
+    Route::post('/inquiries/{inquiry}/resolve', [InquiryController::class, 'resolve']);
+});
 });

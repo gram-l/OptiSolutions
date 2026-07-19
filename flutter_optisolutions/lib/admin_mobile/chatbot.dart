@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
+import 'services/inquiry_service.dart';
 
 enum MessageSender { patient, bot }
 
@@ -9,104 +10,77 @@ class ChatMessage {
   final MessageSender sender;
   final String text;
   final String time;
-  const ChatMessage({required this.sender, required this.text, required this.time});
-}
-
-class ChatThread {
-  final String id;           // CHAT-001
-  final String patientName;
-  final String initials;
-  final Color  avatarColor;
-  final String lastMessage;
-  final String date;
-  final bool   hasNew;
-  final String specialty;
-  final String patientId;
-  final bool   isActive;
-  final List<ChatMessage> messages;
-
-  const ChatThread({
-    required this.id,
-    required this.patientName,
-    required this.initials,
-    required this.avatarColor,
-    required this.lastMessage,
-    required this.date,
-    required this.specialty,
-    required this.patientId,
-    this.hasNew    = false,
-    this.isActive  = false,
-    this.messages  = const [],
+  final String label; // e.g. "Patient", "Admin", "Staff"
+  const ChatMessage({
+    required this.sender,
+    required this.text,
+    required this.time,
+    this.label = '',
   });
 }
 
-// ─────────────────────────────────────────────────────────────
-//  SAMPLE DATA
-//  (unchanged content — only avatarColor values updated to the
-//  new navy/blue palette so the list reads as one cohesive theme)
-// ─────────────────────────────────────────────────────────────
-final _threads = <ChatThread>[
-  ChatThread(
-    id: 'CHAT-001', patientName: 'Maria Santos', initials: 'MS',
-    avatarColor: const Color(0xFF2E5AAC),
-    lastMessage: 'When will my eye consultation be scheduled?',
-    date: 'May 22', specialty: 'Ophthalmology', patientId: 'P-12345',
-    hasNew: false, isActive: true,
-    messages: const [
-      ChatMessage(sender: MessageSender.patient, text: 'Hello, I need information about my upcoming eye consultation.', time: '10:25 AM'),
-      ChatMessage(sender: MessageSender.bot,     text: "Hello Maria! I'd be happy to help. Could you please provide your patient ID?", time: '10:26 AM'),
-      ChatMessage(sender: MessageSender.patient, text: 'My ID is P-12345', time: '10:27 AM'),
-      ChatMessage(sender: MessageSender.bot,     text: 'Thank you! I see you have a consultation scheduled with Dr. Reyes on May 28th. Would you like to reschedule or ask about preparation?', time: '10:28 AM'),
-      ChatMessage(sender: MessageSender.patient, text: 'When will my eye consultation be scheduled?', time: '10:30 AM'),
-      ChatMessage(sender: MessageSender.bot,     text: 'Based on your records, the consultation is tentatively scheduled for June 15th. Would you like me to connect you with an admin for confirmation?', time: '10:31 AM'),
-    ],
-  ),
-  ChatThread(
-    id: 'CHAT-002', patientName: 'John Dela Cruz', initials: 'JD',
-    avatarColor: const Color(0xFF3B6FC4),
-    lastMessage: 'My son has a fever, what should I do?',
-    date: 'May 22', specialty: 'Pediatrics', patientId: 'P-12346',
-    hasNew: true, isActive: false,
-    messages: const [
-      ChatMessage(sender: MessageSender.patient, text: 'My son has a fever, what should I do?', time: '09:10 AM'),
-      ChatMessage(sender: MessageSender.bot,     text: 'I understand your concern. For a fever, ensure he stays hydrated and rested. If it exceeds 38.5°C, please consult a doctor immediately.', time: '09:11 AM'),
-    ],
-  ),
-  ChatThread(
-    id: 'CHAT-003', patientName: 'Anna Rivera', initials: 'AR',
-    avatarColor: const Color(0xFF16294D),
-    lastMessage: 'Thank you for the information!',
-    date: 'May 21', specialty: 'ENT', patientId: 'P-12347',
-    hasNew: false, isActive: false,
-    messages: const [
-      ChatMessage(sender: MessageSender.patient, text: 'Can you tell me more about my ENT appointment?', time: '03:00 PM'),
-      ChatMessage(sender: MessageSender.bot,     text: 'Your ENT appointment is scheduled with Dr. Garcia on May 25th at 10:00 AM.', time: '03:01 PM'),
-      ChatMessage(sender: MessageSender.patient, text: 'Thank you for the information!', time: '03:02 PM'),
-    ],
-  ),
-  ChatThread(
-    id: 'CHAT-004', patientName: 'Carlos Gomez', initials: 'CG',
-    avatarColor: const Color(0xFF1B3B6F),
-    lastMessage: 'Can I get a prescription refill?',
-    date: 'May 21', specialty: 'Cardiology', patientId: 'P-12348',
-    hasNew: false, isActive: false,
-    messages: const [
-      ChatMessage(sender: MessageSender.patient, text: 'Can I get a prescription refill?', time: '11:00 AM'),
-      ChatMessage(sender: MessageSender.bot,     text: 'For prescription refills, please contact your attending physician Dr. Santos directly or visit the clinic.', time: '11:01 AM'),
-    ],
-  ),
-  ChatThread(
-    id: 'CHAT-005', patientName: 'Elena Guzman', initials: 'EG',
-    avatarColor: const Color(0xFF16294D),
-    lastMessage: 'Is my appointment still confirmed?',
-    date: 'May 20', specialty: 'Dermatology', patientId: 'P-12349',
-    hasNew: true, isActive: false,
-    messages: const [
-      ChatMessage(sender: MessageSender.patient, text: 'Is my appointment still confirmed?', time: '08:45 AM'),
-      ChatMessage(sender: MessageSender.bot,     text: 'Yes, your appointment with Dr. Lopez is confirmed for May 22nd at 2:00 PM.', time: '08:46 AM'),
-    ],
-  ),
-];
+/// One inquiry thread, built from the /admin/inquiries API response
+/// (see Inquiry::toApiArray() on the Laravel side).
+class ChatThread {
+  final String id; // "INQ-003"
+  final String dbId; // raw inquiry_id, used for API calls
+  final String patientId;
+  final String department; // inquiry_type
+  final String lastMessage;
+  final String date;
+  final String time;
+  final String status; // Pending | In Progress | Resolved
+  final bool hasNew;
+
+  const ChatThread({
+    required this.id,
+    required this.dbId,
+    required this.patientId,
+    required this.department,
+    required this.lastMessage,
+    required this.date,
+    required this.time,
+    required this.status,
+    required this.hasNew,
+  });
+
+  String get patientName =>
+      patientId.isEmpty || patientId == 'Guest' ? 'Guest Patient' : 'Patient #$patientId';
+
+  String get initials {
+    if (patientId.isEmpty || patientId == 'Guest') return 'G';
+    return patientId.length >= 2 ? patientId.substring(0, 2).toUpperCase() : patientId.toUpperCase();
+  }
+
+  bool get isActive => status == 'In Progress';
+
+  /// Deterministic color per thread so the same inquiry always gets the
+  /// same avatar color across rebuilds, without needing server data for it.
+  Color get avatarColor {
+    const palette = [
+      Color(0xFF2E5AAC),
+      Color(0xFF3B6FC4),
+      Color(0xFF16294D),
+      Color(0xFF1B3B6F),
+    ];
+    final idx = dbId.hashCode.abs() % palette.length;
+    return palette[idx];
+  }
+
+  factory ChatThread.fromApi(Map<String, dynamic> json) {
+    return ChatThread(
+      id: (json['id'] ?? '').toString(),
+      dbId: (json['dbId'] ?? '').toString(),
+      patientId: (json['patientId'] ?? '').toString(),
+      department: (json['department'] ?? 'General').toString(),
+      lastMessage: (json['message'] ?? '').toString(),
+      date: (json['date'] ?? '').toString(),
+      time: (json['time'] ?? '').toString(),
+      status: (json['status'] ?? 'Pending').toString(),
+      hasNew: json['isNew'] == true,
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 //  1.  INQUIRIES LIST SCREEN
@@ -120,6 +94,34 @@ class InquiriesScreen extends StatefulWidget {
 
 class _InquiriesScreenState extends State<InquiriesScreen> {
   String _search = '';
+  List<ChatThread> _threads = [];
+  bool _loading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInquiries();
+  }
+
+  Future<void> _loadInquiries() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final result = await InquiryService.fetchAll();
+      setState(() {
+        _threads = result.map((e) => ChatThread.fromApi(e)).toList();
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
 
   List<ChatThread> get _filtered => _threads.where((t) {
         final q = _search.toLowerCase();
@@ -163,20 +165,58 @@ class _InquiriesScreenState extends State<InquiriesScreen> {
                       _buildSearchBar(),
                       const Divider(height: 1, color: AppColors.border),
                       Expanded(
-                        child: ListView.separated(
-                          itemCount: _filtered.length,
-                          separatorBuilder: (_, _) =>
-                              const Divider(height: 1, indent: 16, color: AppColors.border),
-                          itemBuilder: (_, i) => _ChatTile(
-                            thread: _filtered[i],
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ChatDetailScreen(thread: _filtered[i]),
-                              ),
-                            ),
-                          ),
-                        ),
+                        child: _loading
+                            ? const Center(child: CircularProgressIndicator())
+                            : _loadError != null
+                                ? Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Text(
+                                            _loadError!,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: _loadInquiries,
+                                          child: const Text('Retry'),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : _filtered.isEmpty
+                                    ? const Center(
+                                        child: Text(
+                                          'No inquiries yet.\nPatient messages the chatbot\ncan\'t answer will show up here.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(color: AppColors.textGrey),
+                                        ),
+                                      )
+                                    : RefreshIndicator(
+                                        onRefresh: _loadInquiries,
+                                        child: ListView.separated(
+                                          itemCount: _filtered.length,
+                                          separatorBuilder: (_, _) => const Divider(
+                                              height: 1, indent: 16, color: AppColors.border),
+                                          itemBuilder: (_, i) => _ChatTile(
+                                            thread: _filtered[i],
+                                            onTap: () async {
+                                              final result = await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) => ChatDetailScreen(thread: _filtered[i]),
+                                                ),
+                                              );
+                                              if (result == true) {
+                                                _loadInquiries();
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
                       ),
                     ],
                   ),
@@ -285,6 +325,10 @@ class _ChatTile extends StatelessWidget {
                           style: const TextStyle(
                               fontWeight: FontWeight.bold, fontSize: 13.5,
                               color: AppColors.darkNavy)),
+                      const SizedBox(width: 8),
+                      Text(thread.department,
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.textGrey)),
                       const Spacer(),
                       Text(thread.date,
                           style: const TextStyle(
@@ -318,6 +362,21 @@ class _ChatTile extends StatelessWidget {
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.5)),
                         ),
+                      ] else if (thread.status == 'Resolved') ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade600,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text('RESOLVED',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5)),
+                        ),
                       ]
                     ],
                   ),
@@ -343,39 +402,112 @@ class ChatDetailScreen extends StatefulWidget {
 }
 
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
-  final _replyCtrl   = TextEditingController();
-  final _scrollCtrl  = ScrollController();
-  late List<ChatMessage> _messages;
+  final _replyCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  List<ChatMessage> _messages = [];
+  bool _loading = true;
+  String? _loadError;
+  bool _canSend = true;
+  bool _hasReplied = false;
 
   @override
   void initState() {
     super.initState();
-    _messages = List.from(widget.thread.messages);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    _loadMessages();
   }
 
-  void _scrollToBottom() {
-    if (_scrollCtrl.hasClients) {
-      _scrollCtrl.animateTo(
-        _scrollCtrl.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+  Future<void> _loadMessages() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final result = await InquiryService.fetchMessages(widget.thread.dbId);
+      setState(() {
+        _messages = [
+          // The original patient message lives on the inquiry itself
+          // (Inquiry::toApiArray()), not in the replies thread.
+          ChatMessage(
+            sender: MessageSender.patient,
+            text: widget.thread.lastMessage,
+            time: widget.thread.time,
+            label: 'Patient',
+          ),
+          ...result.map((m) => ChatMessage(
+                sender: (m['isStaff'] == true) ? MessageSender.bot : MessageSender.patient,
+                text: (m['message'] ?? '').toString(),
+                time: (m['time'] ?? '').toString(),
+                label: (m['sender'] ?? '').toString(),
+              )),
+        ];
+        _loading = false;
+      });
+      _scrollToBottomSoon();
+    } catch (e) {
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
     }
   }
 
-  void _sendReply() {
+  void _scrollToBottomSoon() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _sendReply() async {
+    if (!_canSend) return;
     final text = _replyCtrl.text.trim();
     if (text.isEmpty) return;
-    setState(() {
-      _messages.add(ChatMessage(
-        sender: MessageSender.patient,
-        text: text,
-        time: _nowTime(),
-      ));
-      _replyCtrl.clear();
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+    setState(() => _canSend = false);
+    final optimistic = ChatMessage(
+      sender: MessageSender.bot,
+      text: text,
+      time: _nowTime(),
+      label: 'You',
+    );
+    setState(() => _messages.add(optimistic));
+    _replyCtrl.clear();
+    _scrollToBottomSoon();
+
+    try {
+      await InquiryService.sendReply(widget.thread.dbId, text);
+      _hasReplied = true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+    if (mounted) setState(() => _canSend = true);
+  }
+
+  Future<void> _resolve() async {
+    try {
+      await InquiryService.resolve(widget.thread.dbId);
+      _hasReplied = true;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Inquiry marked as resolved.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to resolve: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   String _nowTime() {
@@ -395,22 +527,41 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollCtrl,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                itemCount: _messages.length,
-                itemBuilder: (_, i) => _MessageBubble(msg: _messages[i]),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, _hasReplied);
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _loadError != null
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(_loadError!, style: const TextStyle(color: Colors.red)),
+                                const SizedBox(height: 12),
+                                ElevatedButton(onPressed: _loadMessages, child: const Text('Retry')),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scrollCtrl,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            itemCount: _messages.length,
+                            itemBuilder: (_, i) => _MessageBubble(msg: _messages[i]),
+                          ),
               ),
-            ),
-            _buildReplyBar(),
-          ],
+              _buildReplyBar(),
+            ],
+          ),
         ),
       ),
     );
@@ -426,7 +577,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded,
                 size: 18, color: AppColors.iconColor),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, _hasReplied),
           ),
           CircleAvatar(
             radius: 16,
@@ -455,23 +606,29 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ],
                 ),
                 Text(
-                  'ID: ${widget.thread.patientId}  •  ${widget.thread.specialty}',
+                  'ID: ${widget.thread.patientId}  •  ${widget.thread.department}',
                   style: const TextStyle(fontSize: 11, color: AppColors.textGrey),
                 ),
               ],
             ),
           ),
-          if (widget.thread.isActive)
+          if (widget.thread.status != 'Resolved')
+            TextButton.icon(
+              onPressed: _resolve,
+              icon: const Icon(Icons.check_circle_outline, size: 16, color: AppColors.primary),
+              label: const Text('Resolve', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+            )
+          else
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.activeBadge.withValues(alpha: 0.12),
+                color: Colors.green.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text('Active',
+              child: Text('Resolved',
                   style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.activeBadge,
+                      color: Colors.green.shade700,
                       fontWeight: FontWeight.w600)),
             ),
         ],
@@ -515,11 +672,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: _sendReply,
+            onTap: _canSend ? _sendReply : null,
             child: Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: _canSend ? AppColors.primary : Colors.grey.shade400,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
@@ -542,17 +699,17 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final senderLabel = msg.label.isNotEmpty ? msg.label : (_isPatient ? 'Patient' : 'You');
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
-        crossAxisAlignment:
-            _isPatient ? CrossAxisAlignment.start : CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Sender label ──
           Padding(
             padding: const EdgeInsets.only(bottom: 4, left: 44),
             child: Text(
-              _isPatient ? 'Patient' : 'Chatbot',
+              senderLabel,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -570,7 +727,7 @@ class _MessageBubble extends StatelessWidget {
                     ? const Color(0xFFE0E4ED)
                     : AppColors.primary.withValues(alpha: 0.15),
                 child: Icon(
-                  _isPatient ? Icons.person_outline_rounded : Icons.smart_toy_outlined,
+                  _isPatient ? Icons.person_outline_rounded : Icons.support_agent_rounded,
                   size: 16,
                   color: _isPatient ? AppColors.textGrey : AppColors.primary,
                 ),

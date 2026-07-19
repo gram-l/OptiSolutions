@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Models\Staff;
+namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Staff\Inquiry;
 
 class ChatbotLog extends Model
 {
@@ -12,6 +13,7 @@ class ChatbotLog extends Model
 
     protected $fillable = [
         'user_id',
+        'conversation_id',
         'user_message',
         'bot_message',
         'chat_time',

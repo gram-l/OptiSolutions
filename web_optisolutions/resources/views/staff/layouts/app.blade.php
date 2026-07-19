@@ -8,20 +8,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    @vite(['resources/css/app.css'])
+    @vite(['resources/css/app.css', 'resources/css/staff.css'])
 </head>
 <body>
 
     <!-- HEADER -->
     <div class="header">
         <div class="logo-section">
-            <img src="{{ asset('polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover;">
+            <img src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover;">
             <h1>PolyClinic Staff</h1>
         </div>
         <div class="user-info">
             <div class="user-avatar">ST</div>
             <div>
-                <strong>{{ Auth::guard('staff')->user()->staff_name ?? 'Staff User' }}</strong>
+                <strong>{{ Auth::user()->name ?? 'Staff User' }}</strong>
                 <div style="font-size:0.75rem;">Reception Desk</div>
             </div>
             <form method="POST" action="{{ route('staff.logout') }}">

@@ -12,7 +12,7 @@ use App\Http\Controllers\Staff\PatientController;
     Route::post('/staff/login', [StaffController::class, 'authenticate']);
 
     // Staff Dashboard Routes (Protected by middleware)
-    Route::middleware(['staff'])->group(function () {
+    Route::middleware(['auth'])->group(function () {
 
     // DASHBOARD & LOGOUT
     Route::get('/staff/dashboard', [StaffController::class, 'dashboard'])->name('staff.dashboard');

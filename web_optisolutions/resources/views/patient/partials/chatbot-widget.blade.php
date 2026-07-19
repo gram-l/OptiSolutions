@@ -8,12 +8,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   @vite(['resources/css/patient_css/chatbot.css'])
-  <!--
-    NOTE: These attachment-preview rules are kept here inline since
-    chatbot.css isn't part of this file. Feel free to move them into
-    chatbot.css instead — the class names are namespaced (chat-attachment-*)
-    so they won't collide with anything existing.
-  -->
   <style>
     .chat-bubble.attachment-bubble {
       padding: 8px;
@@ -71,12 +65,10 @@
 </head>
 <body>
 
-<!-- Trigger button -->
 <button class="chatbot-trigger" id="chatbotTrigger">
   <i class="fa-solid fa-comment-medical"></i>
 </button>
 
-<!-- Chat panel -->
 <div class="chatbot-panel" id="chatbotPanel">
 
   <div class="chat-header">
@@ -96,9 +88,6 @@
 
   <div class="chat-messages" id="chatMessages"></div>
 
-  <!-- Shown when a file has been selected but not yet sent, so the
-       patient can still type a message and/or remove the attachment
-       before sending. -->
   <div class="attachment-preview" id="attachmentPreview">
     <img id="attachmentPreviewImg" class="attachment-preview-thumb" alt="">
     <span id="attachmentPreviewName" class="attachment-preview-name"></span>
@@ -141,15 +130,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // SESSION PERSISTENCE
-  
+
   const STORAGE_KEY = 'polyclinic_chat_state';
   const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
 
-  /**
-   * Generates a unique client identifier, used to associate this
-   * browser session with its corresponding BotMan conversation
-   * state on the server.
-   */
   function generateClientId() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -159,11 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /**
-   * Loads the persisted session from localStorage. If no session
-   * exists, or the last recorded activity exceeds the inactivity
-   * timeout, a fresh session is created instead.
-   */
   function loadSession() {
     let saved;
     try {
@@ -179,19 +158,18 @@ document.addEventListener('DOMContentLoaded', () => {
       return {
         clientId: generateClientId(),
         lastActivity: now,
-        history: [], // Array of { kind: 'bubble' | 'buttons' | 'card', ... }
+        history: [],
+        shownReplyIds: [],
       };
     }
+
+    if (!saved.shownReplyIds) saved.shownReplyIds = [];
 
     return saved;
   }
 
   let session = loadSession();
 
-  /**
-   * Persists the current session state and refreshes the
-   * last-activity timestamp.
-   */
   function persistSession() {
     session.lastActivity = Date.now();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
@@ -199,12 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ============================================================
   // PENDING ATTACHMENT (staged, not yet sent)
-  //
-  // Selecting a file no longer sends it immediately. It's held here
-  // until the patient hits send, so they can still type a message
-  // before or after attaching a photo, or remove it before sending.
   // ============================================================
-  let pendingAttachment = null; // { file, dataUrl } | null
+  let pendingAttachment = null;
 
   function showAttachmentPreview(file, dataUrl) {
     pendingAttachment = { file, dataUrl };
@@ -213,7 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
       attachmentPreviewImg.src = dataUrl;
       attachmentPreviewImg.style.display = 'block';
     } else {
-      // Non-image file: nothing to thumbnail, just hide the image slot.
       attachmentPreviewImg.style.display = 'none';
       attachmentPreviewImg.src = '';
     }
@@ -228,19 +201,11 @@ document.addEventListener('DOMContentLoaded', () => {
     attachmentPreview.style.display = 'none';
     attachmentPreviewImg.src = '';
     attachmentPreviewName.textContent = '';
-    fileInput.value = ''; // Allows re-selecting the same file later.
+    fileInput.value = '';
   }
 
   attachmentPreviewRemove.addEventListener('click', clearAttachmentPreview);
 
-  /**
-   * Shows the "staff will review" acknowledgment for an attachment.
-   * Returns a Promise that resolves once the bubble has been shown,
-   * so callers (handleSend) can await it before continuing on to a
-   * follow-up backend call — this keeps the two typing indicators
-   * from overlapping when both an attachment AND typed text are
-   * sent together.
-   */
   function acknowledgeAttachment() {
     return new Promise((resolve) => {
       showTyping();
@@ -252,16 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /**
-   * Called on send. Sends whatever combination of typed text and a
-   * staged attachment is currently present:
-   *   - attachment (with or without text) → local attachment bubble,
-   *     ALWAYS followed by the "Our staff will review..." ack.
-   *   - if text is also present, it's sent afterwards through the
-   *     normal backend (BotMan) flow via sendMessage().
-   *   - text only → normal sendMessage() flow (hits backend), same
-   *     as before.
-   */
   async function handleSend() {
     const text = input.value.trim();
     const attachment = pendingAttachment;
@@ -271,11 +226,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (attachment) {
       addAttachmentBubble(attachment.file.name, attachment.dataUrl, 'user');
       clearAttachmentPreview();
-      await acknowledgeAttachment(); // Always shown when there's an attachment, text or no text.
+      await acknowledgeAttachment();
     }
 
     if (text) {
-      sendMessage(text); // Existing flow: renders bubble + calls the backend.
+      sendMessage(text);
     }
   }
 
@@ -285,6 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (panel.classList.contains('open')) {
       input.focus();
       scrollToBottom();
+      pollForReplies(); // Check for new replies immediately whenever the panel is opened.
     }
   });
 
@@ -296,19 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  /**
-   * Renders a single chat bubble.
-   *
-   * Uses textContent rather than innerHTML so that:
-   *   1. Newlines are respected via the `white-space: pre-line` CSS rule.
-   *   2. User-supplied text cannot introduce an XSS vector.
-   *
-   * @param {string}  text
-   * @param {string}  sender  'bot' | 'user'
-   * @param {boolean} persist Whether to record this bubble in the
-   *                          session history. Set to false when
-   *                          replaying history that is already stored.
-   */
   function addBubble(text, sender = 'bot', persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
@@ -329,14 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return bubble;
   }
 
-  /**
-   * Renders a set of quick-reply buttons, as sent by a BotMan
-   * Question object.
-   *
-   * @param {Array}   buttons
-   * @param {boolean} persist Whether to record these buttons in the
-   *                          session history.
-   */
   function addButtons(buttons, persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
@@ -349,18 +284,6 @@ document.addEventListener('DOMContentLoaded', () => {
       b.className = 'menu-btn';
       b.textContent = btn.text;
       b.addEventListener('click', () => {
-        // FIX: previously called sendMessage(btn.value ?? btn.text), which
-        // used the SAME string both as the value sent to the backend AND
-        // as the text shown in the user's chat bubble. For buttons like
-        // the doctor list, `value` is a numeric doctor_id (needed by the
-        // backend to look up the doctor), while `text` is the human-
-        // readable label ("Dr. ... — Pediatrics"). That mismatch is why
-        // the chat bubble showed a bare number ("2") instead of the
-        // doctor's name.
-        //
-        // sendMessage() now takes an optional second "displayText"
-        // argument so the bubble can show the button's label while the
-        // backend still receives the value it actually needs.
         sendMessage(btn.value ?? btn.text, btn.text);
       });
       bubble.appendChild(b);
@@ -376,17 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Renders a single row inside a card section. Row shape:
-   *   { label, value, type?, icon? }
-   * type 'text'      (default): "Label: value" with a bold label.
-   * type 'multiline': value is an array of strings, each shown on its
-   *                    own indented line under a single bold label
-   *                    (used for Operating Hours' Mon-Fri / Sat lines).
-   * type 'link':      value is a URL, rendered as a real clickable
-   *                    anchor that opens in a new tab.
-   * `icon`, when present (appointment cards), is prefixed to the label.
-   */
   function renderCardRow(container, row) {
     const type = row.type || 'text';
     const labelText = (row.icon ? row.icon + ' ' : '') + row.label;
@@ -429,7 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // default: plain "Label: value" row with a bold label
     const p = document.createElement('p');
     const strong = document.createElement('strong');
     strong.textContent = labelText + ':';
@@ -438,20 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
     container.appendChild(p);
   }
 
-  /**
-   * Renders a structured card built from a JSON payload sent by the
-   * backend — used for both the appointment confirmation (see
-   * submitAppointment() in AppointmentConversation.php) and the
-   * general clinic info reply (see sendClinicInfo() in
-   * BotManController.php). Displays a bold title followed by grouped
-   * sections, each rendered as its own visually-separated block of
-   * labeled rows — instead of a single long run-on message.
-   *
-   * @param {Object}  data       { title, sections: [{ rows: [{icon, label, value}] }], footer }
-   * @param {string}  titleIcon  Emoji prefixed to the title (e.g. '✅' or 'ℹ️').
-   * @param {string}  kind       History-persist tag: 'card' | 'info_card'.
-   * @param {boolean} persist    Whether to record this card in the session history.
-   */
   function addCard(data, titleIcon, kind, persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
@@ -500,20 +397,6 @@ document.addEventListener('DOMContentLoaded', () => {
     addCard(data, 'ℹ️', 'info_card', persist);
   }
 
-  /**
-   * Renders an attachment bubble. For image files, shows an actual
-   * inline preview of the image (via a base64 data URL) with the
-   * filename as a small caption underneath. For non-image files,
-   * falls back to a 📎 filename bubble since there's nothing visual
-   * to preview.
-   *
-   * @param {string}  fileName
-   * @param {string|null} dataUrl  Base64 data URL of the file (image
-   *                               previews only), or null for non-image
-   *                               attachments.
-   * @param {string}  sender       'bot' | 'user'
-   * @param {boolean} persist      Whether to record this in session history.
-   */
   function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
@@ -534,7 +417,6 @@ document.addEventListener('DOMContentLoaded', () => {
       caption.textContent = fileName;
       bubble.appendChild(caption);
     } else {
-      // Non-image file: nothing to preview, so just show the filename.
       bubble.className = 'chat-bubble';
       bubble.textContent = `📎 Attached: ${fileName}`;
     }
@@ -554,11 +436,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function restoreConversation() {
     if (session.history.length === 0) {
       addBubble('Hello! Welcome to PolyClinic Lipa. How can I help you today?', 'bot');
-      // Show the main menu buttons right away instead of waiting for the
-      // user to type something first. These values ('schedule visit' /
-      // 'general information') match exactly what the backend's
-      // sendMainMenu() / isGlobalCommand() already expect, so clicking
-      // either button behaves the same as if the backend had sent them.
       addButtons([
         { text: '📋 Schedule Visit', value: 'schedule visit' },
         { text: 'ℹ️ General Information', value: 'general information' },
@@ -568,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     session.history.forEach(item => {
       if (item.kind === 'bubble') {
-        addBubble(item.text, item.sender, false); // Already persisted — don't re-save.
+        addBubble(item.text, item.sender, false);
       } else if (item.kind === 'buttons') {
         addButtons(item.buttons, false);
       } else if (item.kind === 'card') {
@@ -602,24 +479,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.remove();
   }
 
-  /**
-   * Sends a message to the BotMan backend and renders the reply.
-   *
-   * Bot text messages are inspected for the APPT_CARD_PREFIX marker.
-   * If present, the remainder of the string is parsed as JSON and
-   * rendered as a structured card via addAppointmentCard(); otherwise
-   * the text is rendered as a normal chat bubble.
-   *
-   * @param {string} text        The value actually sent to the BotMan
-   *                              backend (e.g. a button's value, which
-   *                              may be an ID or an internal keyword).
-   * @param {string} [displayText] What to show in the user's chat
-   *                              bubble. Falls back to `text` when
-   *                              omitted — e.g. when the user typed a
-   *                              message directly into the input box,
-   *                              where the sent text and displayed
-   *                              text are the same thing.
-   */
   async function sendMessage(text, displayText) {
     text = typeof text === 'string' ? text : String(text ?? '');
     if (!text.trim()) return;
@@ -639,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           driver: 'web',
           message: text,
-          userId: session.clientId, // Lets BotMan resume the correct conversation state.
+          userId: session.clientId,
         }),
       });
 
@@ -651,7 +510,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // The /botman endpoint returns: { status: 200, messages: [ { text, actions? }, ... ] }
       const messages = Array.isArray(data) ? data : (data.messages || []);
 
       messages.forEach(msg => {
@@ -662,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
               addAppointmentCard(cardData);
             } catch (e) {
               console.error('Failed to parse appointment card payload:', e);
-              addBubble(msg.text, 'bot'); // Fallback: show raw text rather than silently dropping it.
+              addBubble(msg.text, 'bot');
             }
           } else if (msg.text.startsWith(INFO_CARD_PREFIX)) {
             try {
@@ -670,15 +528,13 @@ document.addEventListener('DOMContentLoaded', () => {
               addInfoCard(cardData);
             } catch (e) {
               console.error('Failed to parse info card payload:', e);
-              addBubble(msg.text, 'bot'); // Fallback: show raw text rather than silently dropping it.
+              addBubble(msg.text, 'bot');
             }
           } else {
             addBubble(msg.text, 'bot');
           }
         }
 
-        // Buttons may arrive as msg.actions (BotMan Question object)
-        // or the legacy msg.attachment.buttons format.
         const buttons = msg.actions || (msg.attachment && msg.attachment.buttons);
         if (buttons && buttons.length) {
           addButtons(buttons);
@@ -718,9 +574,61 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ============================================================
+  // STAFF / ADMIN REPLY POLLING
+  //
+  // Periodically checks the backend for new replies from Admin/
+  // Staff for this conversation (session.clientId doubles as the
+  // BotMan conversation_id). New replies are rendered as bot
+  // bubbles, and the generic "forwarded to Admin/Staff" fallback
+  // bubble is removed once a real reply has arrived so it doesn't
+  // linger alongside the actual answer.
+  // ============================================================
+  const FALLBACK_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
+  let shownReplyIds = new Set(session.shownReplyIds || []);
+
+  function removeFallbackBubbles() {
+    document.querySelectorAll('.chat-message.bot .chat-bubble').forEach(bubble => {
+      if (bubble.textContent === FALLBACK_TEXT) {
+        bubble.closest('.chat-message').remove();
+      }
+    });
+    session.history = session.history.filter(
+      item => !(item.kind === 'bubble' && item.text === FALLBACK_TEXT)
+    );
+    persistSession();
+  }
+
+  async function pollForReplies() {
+    try {
+      const res = await fetch(`/api/chat/${session.clientId}/updates`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const updates = data.updates || [];
+
+      const newOnes = updates.filter(u => !shownReplyIds.has(u.replyId));
+      if (newOnes.length === 0) return;
+
+      removeFallbackBubbles();
+
+      newOnes.forEach(u => {
+        addBubble(u.message, 'bot');
+        shownReplyIds.add(u.replyId);
+      });
+
+      session.shownReplyIds = Array.from(shownReplyIds);
+      persistSession();
+    } catch (err) {
+      console.error('Poll error:', err);
+    }
+  }
+
+  setInterval(pollForReplies, 5000);
+
   // ---------- Initialization ----------
   restoreConversation();
-  persistSession(); // Refresh the activity timestamp on every page load.
+  persistSession();
+  pollForReplies(); // Check immediately on load, in case a reply arrived while away.
 });
 </script>
 

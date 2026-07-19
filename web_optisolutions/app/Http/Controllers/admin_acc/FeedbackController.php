@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\admin_models\Feedback;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Models\admin_models\Complaint;
 
 class FeedbackController extends Controller
 {
@@ -82,5 +83,40 @@ public function apiIndex()
         });
 
     return response()->json($feedback);
+}
+
+public function diagnoseRootCauses()
+{
+    // Negative-classified feedback
+    $negativeFeedback = Feedback::whereHas('sentimentResult', function ($q) {
+        $q->where('sentiment_label', 'Negative');
+    })->get()->map(function ($f) {
+        return [
+            'id' => $f->feedback_id,
+            'text' => $f->feedback_text,
+            'source' => 'feedback',
+        ];
+    });
+
+    // All complaints (inherently negative, no sentiment check needed)
+    $complaints = Complaint::all()->map(function ($c) {
+        return [
+            'id' => $c->complaint_id,
+            'text' => $c->complaint_text,
+            'source' => 'complaint',
+        ];
+    });
+
+    $items = $negativeFeedback->concat($complaints)->values();
+
+    $response = Http::post('http://127.0.0.1:8001/api/diagnose/', [
+        'items' => $items,
+    ]);
+
+    if ($response->successful()) {
+        return response()->json($response->json());
+    }
+
+    return response()->json(['error' => 'Diagnosis failed'], 500);
 }
 }

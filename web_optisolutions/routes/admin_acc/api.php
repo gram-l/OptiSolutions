@@ -13,6 +13,7 @@ use App\Http\Controllers\admin_acc\FeedbackController;
 use App\Http\Controllers\admin_acc\VisitController;
 use App\Http\Controllers\admin_acc\PatientListController;
 use App\Http\Controllers\admin_acc\NotificationController;
+use App\Http\Controllers\admin_acc\ComplaintController;
 
 Route::prefix('admin')->group(function () {
 
@@ -45,7 +46,7 @@ Route::middleware('auth:sanctum')->post('/profile/photo', [ApiProfileController:
 
 //feedback list
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
-
+Route::get('/feedback/diagnose', [FeedbackController::class, 'diagnoseRootCauses']);
 //schedule visit list
 Route::get('/appointments', [VisitController::class, 'apiIndex']);
 
@@ -57,6 +58,9 @@ Route::put('/patients/{id}', [PatientListController::class, 'update']);
 Route::get('/patients/service-types', [PatientListController::class, 'apiServiceTypes']);
 Route::get('/patients/{id}/visits', [PatientListController::class, 'apiVisits']);
 Route::patch('/visits/{id}/notes', [PatientListController::class, 'updateVisitNotes']);
+
+//ccomplaints list
+Route::get('/complaints', [ComplaintController::class, 'apiIndex']);
 
 Route::get('/notifications', [NotificationController::class, 'apiIndex']);
 Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead']);

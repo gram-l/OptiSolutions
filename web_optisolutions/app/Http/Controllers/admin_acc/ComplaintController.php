@@ -9,13 +9,8 @@ class ComplaintController extends Controller
 {
     // GET /api/admin/complaints — used by Flutter
     //
-    // Read-only for now: these rows are produced by the ML pipeline
-    // (via log_id) and this endpoint is for admin visibility, not
-    // editing. `status` is returned as-is ('pending' | 'in_progress' |
-    // 'resolved') — Flutter formats it for display. If you later want
-    // admins to change status from this screen, add an update() method
-    // here (same pattern as DoctorController::toggleStatus) and a
-    // corresponding PATCH route.
+    // Read-only: these rows are produced by the ML pipeline (via log_id)
+    // and this endpoint is for admin visibility only.
     public function apiIndex()
     {
         $complaints = Complaint::orderByDesc('created_at')
@@ -26,7 +21,6 @@ class ComplaintController extends Controller
                     'patient_id'     => $c->patient_id,
                     'log_id'         => $c->log_id,
                     'complaint_text' => $c->complaint_text,
-                    'status'         => $c->status,
                     'date'           => optional($c->created_at)->format('M d, Y g:i A'),
                 ];
             });

@@ -9,6 +9,7 @@ use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Conversations\AppointmentConversation;
 use App\Conversations\ComplaintConversation;
+use App\Conversations\ReviewConversation;
 use App\Services\ClinicInfoService;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
@@ -20,6 +21,15 @@ use Illuminate\Http\Request;
 class BotManController extends Controller
 {
     protected bool $isUnhandledInquiry = false;
+
+    protected const IGNORED_INQUIRY_TEXTS = [
+        'schedule visit',
+        'general information',
+        'submit complaint',
+        'submit review/rating',
+        'menu',
+        "no, i'm all set",
+    ];
 
     public function handle(Request $request)
     {
@@ -53,6 +63,11 @@ class BotManController extends Controller
                 $bot->startConversation(new ComplaintConversation());
             });
 
+            $botman->hears('submit review/rating', function ($bot) {
+                Log::info('MATCHED: submit review/rating');
+                $bot->startConversation(new ReviewConversation(null, null));
+            });
+
             $botman->hears('menu', function ($bot) {
                 Log::info('MATCHED: menu');
                 $this->sendGreeting($bot);
@@ -78,12 +93,17 @@ class BotManController extends Controller
         }
     }
 
-    /**
-     * Sadyang hindi na tinatanong ang pangalan ng patient kapag inquiry
-     * lang naman ito — direktang ini-forward agad sa Admin/Staff.
-     */
+    
     protected function handleFallback($bot)
     {
+        $text = trim($bot->getMessage()->getText());
+
+       
+        if (in_array(mb_strtolower($text), self::IGNORED_INQUIRY_TEXTS, true)) {
+            Log::info('FALLBACK ignored (known command text): "' . $text . '"');
+            return;
+        }
+
         $this->isUnhandledInquiry = true;
         $this->sendInquiryAck($bot);
     }
@@ -114,14 +134,7 @@ class BotManController extends Controller
     protected function recordInquiry(string $conversationId, string $userMessage, ChatbotLog $log, $botman)
     {
         try {
-            // NOTE: hindi na natin ginagamit ang $botman->userStorage()
-            // dito — may natukoy tayong bug kung saan "nagsha-share" ito
-            // ng laman sa lahat ng magkaibang session (kaya lumalabas na
-            // parehong patient_id=5 kahit magkaibang conversation_id).
-            // Hanggang hindi pa naaayos ang totoong ugat nito sa BotMan
-            // package mismo, direkta na lang nating i-null ito dito para
-            // hindi tayo magkaroon ng maling naka-link na patient_id sa
-            // mga guest inquiry.
+            
             $patientId = null;
             $guestName = null;
 
@@ -135,14 +148,14 @@ class BotManController extends Controller
                     'inquiry_id' => $openInquiry->inquiry_id,
                     'sender'     => 'Patient',
                     'message'    => $userMessage,
-                    'is_staff'   => false, // FIX: dati'y wala nito, kaya nagde-default sa 'true' (mali)
+                    'is_staff'   => false,
                 ]);
 
                 $openInquiry->save();
                 return;
             }
 
-            $newInquiry = Inquiry::create([
+            Inquiry::create([
                 'patient_id'      => $patientId,
                 'guest_name'      => $guestName,
                 'log_id'          => $log->log_id,
@@ -151,10 +164,7 @@ class BotManController extends Controller
                 'resolved_status' => 'Pending',
                 'created_at'      => now(),
             ]);
-            // NOTE: HINDI na natin idadagdag ang unang mensahe sa
-            // inquiry_replies — nasa chatbot_logs.user_message na ito
-            // (konektado via log_id). Kung idadagdag pa natin dito,
-            // doble itong lalabas sa Admin/Staff panel.
+            
         } catch (\Throwable $e) {
             Log::error('Failed to record inquiry: ' . $e->getMessage());
         }
@@ -165,9 +175,10 @@ class BotManController extends Controller
         $question = Question::create('Hello! Welcome to PolyClinic Lipa. How can I help you today?')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('📝 Submit Complaint')->value('submit complaint'),
-                Button::create('📋 Schedule Visit')->value('schedule visit'),
-                Button::create('ℹ️ General Information')->value('general information'),
+                Button::create('Schedule Visit')->value('schedule visit'),
+                Button::create('General Information')->value('general information'),
+                Button::create('Submit Review/Rating')->value('submit review/rating'),
+                Button::create('Submit Complaint')->value('submit complaint'),
             ]);
         $bot->reply($question);
     }

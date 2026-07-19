@@ -175,9 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   }
 
-  // ============================================================
   // PENDING ATTACHMENT (staged, not yet sent)
-  // ============================================================
+  
   let pendingAttachment = null;
 
   function showAttachmentPreview(file, dataUrl) {
@@ -301,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderCardRow(container, row) {
     const type = row.type || 'text';
-    const labelText = (row.icon ? row.icon + ' ' : '') + row.label;
+    const labelText = row.label;
 
     if (type === 'multiline') {
       const labelP = document.createElement('p');
@@ -349,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
     container.appendChild(p);
   }
 
-  function addCard(data, titleIcon, kind, persist = true) {
+  function addCard(data, kind, persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
 
@@ -358,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const title = document.createElement('div');
     title.className = 'post-appt-title';
-    title.textContent = (titleIcon ? titleIcon + ' ' : '') + data.title;
+    title.textContent = data.title;
     card.appendChild(title);
 
     (data.sections || []).forEach(section => {
@@ -390,11 +389,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function addAppointmentCard(data, persist = true) {
-    addCard(data, '✅', 'card', persist);
+    addCard(data, 'card', persist);
   }
 
   function addInfoCard(data, persist = true) {
-    addCard(data, 'ℹ️', 'info_card', persist);
+    addCard(data, 'info_card', persist);
   }
 
   function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true) {
@@ -418,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
       bubble.appendChild(caption);
     } else {
       bubble.className = 'chat-bubble';
-      bubble.textContent = `📎 Attached: ${fileName}`;
+      bubble.textContent = `Attached: ${fileName}`;
     }
 
     messageWrap.appendChild(bubble);
@@ -433,13 +432,15 @@ document.addEventListener('DOMContentLoaded', () => {
     return bubble;
   }
 
+  
   function restoreConversation() {
     if (session.history.length === 0) {
       addBubble('Hello! Welcome to PolyClinic Lipa. How can I help you today?', 'bot');
       addButtons([
-        { text: '📝 Submit Complaint', value: 'submit complaint' },
-        { text: '📋 Schedule Visit', value: 'schedule visit' },
-        { text: 'ℹ️ General Information', value: 'general information' },
+        { text: 'Schedule Visit', value: 'schedule visit' },
+        { text: 'General Information', value: 'general information' },
+        { text: 'Submit Review/Rating', value: 'submit review/rating' },
+        { text: 'Submit Complaint', value: 'submit complaint' },
       ]);
       return;
     }
@@ -507,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
       hideTyping();
 
       if (!res.ok) {
-        addBubble('⚠️ Something went wrong reaching the chatbot. Please try again.', 'bot');
+        addBubble('Something went wrong reaching the chatbot. Please try again.', 'bot');
         return;
       }
 
@@ -545,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       hideTyping();
       console.error('Chat error:', err);
-      addBubble('⚠️ Unable to connect. Please check your internet connection and try again.', 'bot');
+      addBubble('Unable to connect. Please check your internet connection and try again.', 'bot');
     }
   }
 
@@ -575,16 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ============================================================
-  // STAFF / ADMIN REPLY POLLING
-  //
-  // Periodically checks the backend for new replies from Admin/
-  // Staff for this conversation (session.clientId doubles as the
-  // BotMan conversation_id). New replies are rendered as bot
-  // bubbles, and the generic "forwarded to Admin/Staff" fallback
-  // bubble is removed once a real reply has arrived so it doesn't
-  // linger alongside the actual answer.
-  // ============================================================
+  
   const FALLBACK_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
   let shownReplyIds = new Set(session.shownReplyIds || []);
 

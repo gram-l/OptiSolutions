@@ -4,6 +4,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
 use Illuminate\Http\Request;
@@ -31,6 +32,35 @@ class InquiryController extends Controller
     }
 
     
+    /**
+     * POST /api/inquiries
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id'    => 'nullable|integer|exists:patients,patient_id',
+            'inquiry_type'  => 'nullable|string',
+            'user_message'  => 'required|string|min:1',
+        ]);
+
+        $log = ChatbotLog::create([
+            'user_id'      => $validated['patient_id'] ?? null,
+            'user_message' => $validated['user_message'],
+            'bot_message'  => '',
+            'chat_time'    => now(),
+        ]);
+
+        $inquiry = Inquiry::create([
+            'patient_id'      => $validated['patient_id'] ?? null,
+            'log_id'          => $log->log_id,
+            'inquiry_type'    => $validated['inquiry_type'] ?? 'General',
+            'resolved_status' => 'Pending',
+        ]);
+
+        return response()->json($inquiry->fresh('log')->toApiArray(), 201);
+    }
+
+    /** GET /api/inquiries/{inquiry}/messages */
     public function messages($id)
     {
         $inquiry = Inquiry::with('replies')->findOrFail($id);

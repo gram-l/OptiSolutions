@@ -13,6 +13,8 @@ import 'admin_mobile/user_management.dart';
 import 'admin_mobile/settings.dart';
 import 'admin_mobile/notifications.dart';
 import 'admin_mobile/profile.dart';
+import 'admin_mobile/terms_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Staff-side screens. No alias needed — class names here (AppointmentsPage,
 // Dashboard, DoctorsPage, etc.) don't collide with the admin_mobile classes
@@ -26,6 +28,7 @@ import 'staff_mobile/screens/notifications.dart' as staffnotif;
 import 'staff_mobile/screens/patients.dart';
 import 'staff_mobile/screens/profile.dart';
 import 'staff_mobile/screens/settings.dart' as staffsettings;
+import 'staff_mobile/screens/staffcolor.dart';
 
 // App-wide theme mode, changeable from anywhere (e.g. SettingsScreen)
 // via themeModeNotifier.value = ThemeMode.dark;
@@ -50,23 +53,47 @@ class PolyclinicApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           themeMode: currentMode,
           theme: ThemeData(
+            useMaterial3: true,
             fontFamily: 'Roboto',
             brightness: Brightness.light,
-            scaffoldBackgroundColor: const Color(0xFFF4F6FB),
+
+            scaffoldBackgroundColor: AppColors.background,
             primaryColor: AppColors.primary,
-            useMaterial3: true,
+            cardColor: AppColors.cardBg,
+            dividerColor: AppColors.border,
+
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              secondary: AppColors.primaryLight,
+              surface: AppColors.cardBg,
+              onSurface: AppColors.textDark,
+              outline: AppColors.border,
+            ),
           ),
           darkTheme: ThemeData(
+            useMaterial3: true,
             fontFamily: 'Roboto',
             brightness: Brightness.dark,
-            scaffoldBackgroundColor: const Color(0xFF12161F),
-            primaryColor: AppColors.primary,
-            useMaterial3: true,
+
+            scaffoldBackgroundColor: AppColorsDark.background,
+            primaryColor: AppColorsDark.primary,
+            cardColor: AppColorsDark.card,
+            dividerColor: AppColorsDark.border,
+
+            colorScheme: ColorScheme.dark(
+              primary: AppColorsDark.primary,
+              secondary: AppColors.primaryLight,
+              surface: AppColorsDark.card,
+              onSurface: AppColorsDark.textMain,
+              outline: AppColorsDark.border,
+            ),
           ),
           initialRoute: '/',
           routes: {
             // ── Admin routes ──
-            '/':                (_) => const LoginScreen(),
+            '/':                (_) => const StartupDecider(),
+            '/terms':           (_) => const TermsScreen(),
+            '/login':           (_) => const LoginScreen(),
             '/reset':           (_) => const ResetPasswordScreen(),
             '/verify-otp':      (_) => const OtpScreen(),
             '/new-password':    (_) => const NewPasswordScreen(),
@@ -115,3 +142,38 @@ const appMenuItems = <SideMenuItem>[
   SideMenuItem(icon: Icons.manage_accounts_outlined,   label: 'User Management',  route: '/user_management'),
   SideMenuItem(icon: Icons.settings_outlined,          label: 'Settings',         route: '/settings'),
 ];
+
+
+
+class StartupDecider extends StatelessWidget {
+  const StartupDecider({super.key});
+
+  Future<String> _resolveInitialRoute() async {
+    final prefs = await SharedPreferences.getInstance();
+    final acceptedTerms = prefs.getBool('terms_accepted') ?? false;
+    if (!acceptedTerms) return '/terms';
+    return '/login';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _resolveInitialRoute(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        // Defer navigation until after first frame to avoid
+        // calling Navigator during build.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context).pushReplacementNamed(snapshot.data!);
+        });
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      },
+    );
+  }
+}

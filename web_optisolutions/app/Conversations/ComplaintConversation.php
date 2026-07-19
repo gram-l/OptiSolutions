@@ -26,11 +26,11 @@ class ComplaintConversation extends Conversation
 
     public function askComplaint()
     {
-        $this->ask('Please describe your concern in detail. Our patient relations team will respond within 24 hours:', function (Answer $answer) {
+        $this->ask('Please describe your concern in detail. We would like to hear your experience from us>', function (Answer $answer) {
             $text = trim($answer->getText());
 
             if (strlen($text) < 10) {
-                $this->say('⚠️ Please provide a more detailed description (at least 10 characters) so we can assist you better:');
+                $this->say('⚠️ Please provide a more detailed description (at least 10 characters).');
                 return $this->askComplaint();
             }
 
@@ -51,10 +51,9 @@ class ComplaintConversation extends Conversation
                 'patient_id'     => $this->patientId,
                 'log_id'         => $logId,
                 'complaint_text' => $text,
-                'status'         => 'pending',
             ]);
 
-            $this->say("Complaint Recorded\n\nReference #: {$complaintId}\nWe acknowledge receipt of your concern. Our team will reach out within 24 hours.");
+            $this->say("Complaint Recorded\n\nReference #: {$complaintId}\nWe acknowledge receipt of your concern.");
         } catch (\Exception $e) {
             $this->say("⚠️ We couldn't record your complaint right now. Please try again, or contact us directly.");
         }

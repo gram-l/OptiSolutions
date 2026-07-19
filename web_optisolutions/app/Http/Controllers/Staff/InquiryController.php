@@ -22,8 +22,14 @@ class InquiryController extends Controller
         // 'replies' = buong thread ng Staff/Admin/Patient messages, hindi
         // lang yung dating iisang `inquiry_reply` column.
         $inquiry = Inquiry::with(['log', 'replies'])->findOrFail($id);
+        // ✅ FIX: kailangan din ipasa ang buong listahan ($inquiries) dahil
+        // ginagamit ito ng left panel (conversations-list partial) sa
+        // bagong split-view na layout ng show.blade.php.
+        $inquiries = Inquiry::with('log')->orderBy('inquiry_id', 'desc')->get();
 
-        return view('staff.inquiries.show', compact('inquiry'));
+        $inquiry = Inquiry::with('log')->findOrFail($id);
+
+        return view('staff.inquiries.show', compact('inquiries', 'inquiry'));
     }
 
     public function reply(Request $request, $id)
@@ -48,11 +54,12 @@ class InquiryController extends Controller
         $inquiry->inquiry_reply = $request->message;
         $inquiry->replied_at = now();
 
-        // Tamang column name: resolved_status (hindi "status")
-        if ($inquiry->resolved_status === 'Pending') {
-            $inquiry->resolved_status = 'In Progress';
-        }
-
+        // ✅ FIX: 'In Progress' ay hindi valid enum value sa
+        // `resolved_status` column ng database (Pending/Resolved lang),
+        // kaya nagiging cause ito ng "Data truncated" SQL error.
+        // Mananatiling 'Pending' ang status hanggang i-click ni staff
+        // yung "Resolve" button — ang "may reply na" indicator ay base
+        // na lang sa inquiry_reply (tingnan ang toApiArray() sa model).
         $inquiry->save();
 
         return redirect()->route('staff.inquiries.show', $id)->with('success', 'Reply sent!');

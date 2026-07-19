@@ -23,12 +23,12 @@ class _InquiriesPageState extends State<InquiriesPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  // ✅ Now loaded from the database via API instead of hardcoded
+ 
   List<Map<String, dynamic>> _allInquiries = [];
   bool _loading = true;
   String? _loadError;
 
-  // Logged-in staff name (shown in the drawer header)
+  // Logged-in staff name
   String _staffName = 'Staff';
   String _staffEmail = '';
 
@@ -64,10 +64,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
         _allInquiries = (result as List).map<Map<String, dynamic>>((inq) {
           return {
             'id': inq['id'],
-            // ✅ FIX: raw database ID, hiwalay sa naka-format na 'id'
-            // (hal. "INQ-123"). Ginagamit ito para sa API calls papunta
-            // sa /inquiries/{dbId}/messages dahil hindi maiintindihan ni
-            // Laravel ang naka-prefix na string sa route model binding.
+            
             'dbId': inq['dbId'],
             'patientId': inq['patientId'],
             'department': inq['department'],
@@ -106,8 +103,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
     });
   }
 
-  // ✅ The API already returns the latest message as part of each inquiry
-  // (see Inquiry::toApiArray() in Laravel), so no separate lookup is needed.
+ 
   String _getLastMessage(String inquiryId) {
     return _allInquiries.firstWhere((inq) => inq['id'] == inquiryId)['message'];
   }
@@ -154,14 +150,13 @@ class _InquiriesPageState extends State<InquiriesPage> {
                           final lastMessage = _getLastMessage(inquiry['id']);
                           return GestureDetector(
                             onTap: () async {
-                              // ✅ Navigate and wait for result
+                              
                               final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => InquiryChatPage(
                                     inquiryId: inquiry['id'],
-                                    // ✅ FIX: ipasa ang raw dbId para gamitin
-                                    // sa API calls sa InquiryChatPage
+                                    
                                     dbId: inquiry['dbId'].toString(),
                                     patientId: inquiry['patientId'],
                                     department: inquiry['department'],
@@ -174,7 +169,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
                                 ),
                               );
 
-                              // ✅ Refresh pagbalik
+                              
                               if (result == true) {
                                 setState(() {});
                               }

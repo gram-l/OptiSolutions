@@ -4,9 +4,6 @@ import 'package:flutter_optisolutions/login.dart';
 import '../models/profile_data.dart';
 import '../services/api_service.dart';
 
-// ⚠️ Palitan ito kung iba ang path ng clinic-info route niyo sa backend
-// (dapat mag-return ito ng JSON na may: clinic_name, address, contact_no,
-// operating_hours, galing sa `clinic_info` table).
 const String _clinicInfoPath = '/clinic';
 
 class SettingsPage extends StatefulWidget {
@@ -17,13 +14,10 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  // Kinukuha ang clinic info mula sa DB (clinic_info table: clinic_name,
-  // address, contact_no, operating_hours) gamit ang shared ApiService.
+
   Future<Map<String, dynamic>> _fetchClinicInfo() async {
     final data = await ApiService.get(_clinicInfoPath);
 
-    // Laravel APIs kadalasan nagba-balik ng { "data": {...} } (resource
-    // wrapping) — i-unwrap kung ganon, kung hindi gamitin as-is.
     if (data is Map<String, dynamic> && data.containsKey('data')) {
       return Map<String, dynamic>.from(data['data']);
     }
@@ -39,7 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF1A237E)),
           onPressed: () {
-            // ✅ I-refresh ang profile page pagbalik
+          
             Navigator.pop(context, true);
           },
         ),
@@ -110,7 +104,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
             const SizedBox(height: 20),
 
-            // CLINIC INFORMATION (dating PREFERENCES / Theme section)
+            // CLINIC INFORMATION 
             _buildSectionHeader(
               Icons.local_hospital_outlined,
               'CLINIC INFORMATION',
@@ -296,8 +290,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // View-only dialog — walang editable fields. Ito ay para lang ipakita
-  // ang mga personal details ng staff na kinuha mula sa ProfileData.
+
   void _showProfileDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -381,7 +374,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // (clinic_name, address, contact_no, operating_hours).
   void _showClinicInfoDialog(BuildContext context) {
     showDialog(
       context: context,

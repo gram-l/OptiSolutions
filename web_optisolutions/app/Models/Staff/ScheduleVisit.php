@@ -24,11 +24,7 @@ class ScheduleVisit extends Model
         return $this->belongsTo(Patient::class, 'patient_id', 'patient_id');
     }
 
-    /**
-     * ✅ Awtomatikong gumagawa ng staff notification tuwing may bagong
-     * schedule visit na malikha (basta Eloquent create()/save() ang
-     * ginamit sa paggawa nito).
-     */
+
     protected static function booted()
     {
         static::created(function (ScheduleVisit $visit) {
@@ -58,9 +54,7 @@ class ScheduleVisit extends Model
         return [
             'appointment_id' => $this->visit_id,
             'patient'        => $this->patient->full_name ?? 'N/A',
-            // Ipalit sa 'doctor_name' kung iba ang column name sa Doctor model mo
             'doctor'         => $this->doctor->doctor_name ?? 'N/A',
-            // Walang status column sa DB kaya default value na lang muna
             'status'         => 'Scheduled',
             'date'           => $this->visit_date,
         ];

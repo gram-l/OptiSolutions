@@ -12,9 +12,7 @@ class PatientController extends Controller
     {
         $query = Patient::with('latestVisit.doctor');
 
-        // Filter by visit_date range (walang date_registered column sa
-        // patients table, kaya ang ginagamit natin ay petsa ng visits nila
-        // sa schedule_visit table)
+
         if ($request->filled('date_from') || $request->filled('date_to')) {
             $query->whereHas('visits', function ($q) use ($request) {
                 if ($request->filled('date_from')) {
@@ -45,8 +43,7 @@ class PatientController extends Controller
 
     public function update(Request $request, $id)
     {
-        // Department at Assigned Doctor ay hindi na dito ini-edit —
-        // galing 'yan sa schedule_visit table, hindi sa patients table mismo
+   
         $request->validate([
             'patient_fname'    => 'required|string',
             'patient_lname'    => 'required|string',

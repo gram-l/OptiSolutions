@@ -36,7 +36,15 @@ class Doctor extends Model
     /**
      * I-convert ang doctor data papunta sa array format na inaasahan ng
      * Flutter app (DoctorsPage): id, name, specialty, status, schedule,
-     * time, avatar, color
+     * time, avatar, color, schedules
+     *
+     * 'schedules' ay ang buong listahan ng sessions (isa-isa per row sa
+     * doctor_schedules), ganito ang hugis ng bawat entry:
+     *   {"day": "Monday", "start_time": "08:00", "end_time": "11:00"}
+     * Ginagamit ito ng app para buuin ang checklist + multiple-sessions-
+     * per-day na editor. 'schedule' at 'time' ay pinapanatili pa rin bilang
+     * simpleng buod (summary) kung sakaling may ibang parte ng app na
+     * gumagamit pa ng mga iyon.
      */
     public function toApiArray()
     {
@@ -68,6 +76,16 @@ class Doctor extends Model
             }
         }
 
+        // ✅ NEW: buong listahan ng sessions (isa-isa), 24-hour "H:i" format
+        // para madaling i-parse ng Flutter app pabalik sa TimeOfDay.
+        $schedulesList = $schedules->map(function ($s) {
+            return [
+                'day'        => $s->day,
+                'start_time' => $s->start_time ? Carbon::parse($s->start_time)->format('H:i') : null,
+                'end_time'   => $s->end_time ? Carbon::parse($s->end_time)->format('H:i') : null,
+            ];
+        })->values();
+
         return [
             'id'        => $this->doctor_id,
             'name'      => $this->doctor_name ?? 'Unknown',
@@ -75,6 +93,8 @@ class Doctor extends Model
             'status'    => $this->available ? 'Available' : 'Unavailable',
             'schedule'  => $scheduleStr,
             'time'      => $timeStr,
+            'schedules' => $schedulesList,
+            'is_active' => (int) $this->available,
             'avatar'    => $initials ?: 'DR',
             'color'     => '#1A237E',
         ];

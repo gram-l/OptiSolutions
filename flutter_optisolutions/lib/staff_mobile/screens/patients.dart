@@ -1,4 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:csv/csv.dart';
+import 'package:excel/excel.dart' as xls;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'staffcolor.dart';
 import 'package:flutter_optisolutions/login.dart';
 import 'dashboard.dart';
 import 'inquiries.dart';
@@ -8,6 +16,7 @@ import 'profile.dart';
 import 'notifications.dart';
 import 'settings.dart';
 import '../widgets/notification_badge.dart';
+import '../widgets/center_snackbar.dart';
 import '../services/api_service.dart';
 
 class PatientsPage extends StatefulWidget {
@@ -32,10 +41,29 @@ class _PatientsPageState extends State<PatientsPage> {
   bool _loading = true;
   String? _loadError;
 
+  // Logged-in staff name (shown in the drawer header)
+  String _staffName = 'Staff';
+  String _staffEmail = '';
+
   @override
   void initState() {
     super.initState();
+    _loadStaffName();
     _loadPatients();
+  }
+
+  Future<void> _loadStaffName() async {
+    try {
+      final user = await ApiService.getCurrentUser();
+      if (user != null && mounted) {
+        setState(() {
+          if (user['name'] != null) _staffName = user['name'].toString();
+          if (user['email'] != null) _staffEmail = user['email'].toString();
+        });
+      }
+    } catch (e) {
+      print('Error loading staff name: $e');
+    }
   }
 
   Future<void> _loadPatients() async {
@@ -196,7 +224,7 @@ class _PatientsPageState extends State<PatientsPage> {
         return Theme(
           data: ThemeData.light().copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF1A237E),
+              primary: StaffColors.primary,
               onPrimary: Colors.white,
               surface: Colors.white,
             ),
@@ -218,7 +246,7 @@ class _PatientsPageState extends State<PatientsPage> {
           return Theme(
             data: ThemeData.light().copyWith(
               colorScheme: const ColorScheme.light(
-                primary: Color(0xFF1A237E),
+                primary: StaffColors.primary,
                 onPrimary: Colors.white,
                 surface: Colors.white,
               ),
@@ -247,6 +275,177 @@ class _PatientsPageState extends State<PatientsPage> {
     });
   }
 
+  // ─────────────────────────────────────────────
+  //  EXPORT (CSV / Excel / PDF)
+  // ─────────────────────────────────────────────
+  void _showExportSheet() {
+    final patientsToExport = _filteredPatients;
+
+    if (patientsToExport.isEmpty) {
+      showCenterSnackBar(context, 'No patients to export', isError: true);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(
+                Icons.table_chart_outlined,
+                color: StaffColors.primary,
+              ),
+              title: const Text('Export as CSV'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportCsv();
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.grid_on_rounded,
+                color: StaffColors.primary,
+              ),
+              title: const Text('Export as Excel'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportExcel();
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.picture_as_pdf_outlined,
+                color: StaffColors.primary,
+              ),
+              title: const Text('Export as PDF'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportPdf();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<List<String>> get _exportRows {
+    final rows = <List<String>>[
+      [
+        'Patient ID',
+        'Name',
+        'Department',
+        'Doctor',
+        'Contact',
+        'Status',
+        'Date Registered',
+      ],
+    ];
+    for (final p in _filteredPatients) {
+      rows.add([
+        (p['id'] ?? '').toString(),
+        (p['name'] ?? '').toString(),
+        (p['department'] ?? '').toString(),
+        (p['doctor'] ?? '').toString(),
+        (p['contact'] ?? '').toString(),
+        (p['status'] ?? '').toString(),
+        _formatDate((p['dateRegistered'] ?? '').toString()),
+      ]);
+    }
+    return rows;
+  }
+
+  Future<File> _writeToDownloads(String filename, List<int> bytes) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  Future<void> _exportCsv() async {
+    try {
+      final csv = const ListToCsvConverter().convert(_exportRows);
+      final file = await _writeToDownloads('patients.csv', csv.codeUnits);
+      await Share.shareXFiles([XFile(file.path)], text: 'Patients list export');
+      if (!mounted) return;
+      showCenterSnackBar(context, 'CSV exported successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      showCenterSnackBar(
+        context,
+        'CSV export failed. Please try again.',
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _exportExcel() async {
+    try {
+      final workbook = xls.Excel.createExcel();
+      final sheet = workbook['Patients'];
+      for (final row in _exportRows) {
+        sheet.appendRow(row.map((c) => xls.TextCellValue(c)).toList());
+      }
+      final bytes = workbook.encode();
+      if (bytes == null) {
+        if (!mounted) return;
+        showCenterSnackBar(
+          context,
+          'Excel export failed. Please try again.',
+          isError: true,
+        );
+        return;
+      }
+      final file = await _writeToDownloads('patients.xlsx', bytes);
+      await Share.shareXFiles([XFile(file.path)], text: 'Patients list export');
+      if (!mounted) return;
+      showCenterSnackBar(context, 'Excel file exported successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      showCenterSnackBar(
+        context,
+        'Excel export failed. Please try again.',
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _exportPdf() async {
+    try {
+      final doc = pw.Document();
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (context) => pw.Table.fromTextArray(
+            headers: _exportRows.first,
+            data: _exportRows.skip(1).toList(),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            headerStyle: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+      );
+      final bytes = await doc.save();
+      final file = await _writeToDownloads('patients.pdf', bytes);
+      await Share.shareXFiles([XFile(file.path)], text: 'Patients list export');
+      if (!mounted) return;
+      showCenterSnackBar(context, 'PDF exported successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      showCenterSnackBar(
+        context,
+        'PDF export failed. Please try again.',
+        isError: true,
+      );
+    }
+  }
+
   // View patient details
   void _viewPatient(Map<String, dynamic> patient) {
     final age = _calculateAge(patient['birthday']);
@@ -255,7 +454,7 @@ class _PatientsPageState extends State<PatientsPage> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.person, color: Color(0xFF1A237E)),
+            const Icon(Icons.person, color: StaffColors.primary),
             const SizedBox(width: 8),
             Text(patient['name']),
           ],
@@ -283,7 +482,7 @@ class _PatientsPageState extends State<PatientsPage> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: Color(0xFF1A237E),
+                  color: StaffColors.primary,
                 ),
               ),
               const SizedBox(height: 4),
@@ -367,7 +566,7 @@ class _PatientsPageState extends State<PatientsPage> {
           return AlertDialog(
             title: Row(
               children: [
-                const Icon(Icons.edit, color: Color(0xFF1A237E)),
+                const Icon(Icons.edit, color: StaffColors.primary),
                 const SizedBox(width: 8),
                 Text('Edit Patient - ${patient['name']}'),
               ],
@@ -409,7 +608,7 @@ class _PatientsPageState extends State<PatientsPage> {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1A237E),
+                                  color: StaffColors.primary,
                                 ),
                               ),
                             ],
@@ -467,13 +666,10 @@ class _PatientsPageState extends State<PatientsPage> {
 
                   if (birthday.isNotEmpty &&
                       !birthdayRegex.hasMatch(birthday)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Please enter birthday in YYYY-MM-DD format',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
+                    showCenterSnackBar(
+                      context,
+                      'Please enter birthday in YYYY-MM-DD format',
+                      isError: true,
                     );
                     return;
                   }
@@ -537,24 +733,21 @@ class _PatientsPageState extends State<PatientsPage> {
 
                     if (!context.mounted) return;
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Patient updated successfully!'),
-                        backgroundColor: Colors.green,
-                      ),
+                    showCenterSnackBar(
+                      context,
+                      'Patient updated successfully!',
                     );
                   } catch (e) {
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to update: $e'),
-                        backgroundColor: Colors.red,
-                      ),
+                    showCenterSnackBar(
+                      context,
+                      'Failed to update: $e',
+                      isError: true,
                     );
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A237E),
+                  backgroundColor: StaffColors.primary,
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('Save'),
@@ -649,7 +842,7 @@ class _PatientsPageState extends State<PatientsPage> {
         children: [
           IconButton(
             onPressed: _selectDateRange,
-            icon: const Icon(Icons.calendar_today, color: Color(0xFF1A237E)),
+            icon: const Icon(Icons.calendar_today, color: StaffColors.primary),
             tooltip: 'Select Date Range',
           ),
           Expanded(
@@ -676,7 +869,7 @@ class _PatientsPageState extends State<PatientsPage> {
                             const Icon(
                               Icons.event,
                               size: 16,
-                              color: Color(0xFF1A237E),
+                              color: StaffColors.primary,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -684,7 +877,7 @@ class _PatientsPageState extends State<PatientsPage> {
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
-                                color: Color(0xFF1A237E),
+                                color: StaffColors.primary,
                               ),
                             ),
                           ],
@@ -713,20 +906,23 @@ class _PatientsPageState extends State<PatientsPage> {
               ),
             ),
           ),
-          // Patient Count
+          // Download / Export
           Container(
             margin: const EdgeInsets.only(left: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A237E),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '${_filteredPatients.length} patients',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            child: ElevatedButton.icon(
+              onPressed: _showExportSheet,
+              icon: const Icon(Icons.download, size: 16),
+              label: const Text('Download'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: StaffColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
               ),
             ),
           ),
@@ -753,16 +949,16 @@ class _PatientsPageState extends State<PatientsPage> {
               fontWeight: FontWeight.bold,
               fontSize: 22,
               letterSpacing: 0.5,
-              color: Color(0xFF1A237E),
+              color: StaffColors.primary,
             ),
           ),
         ],
       ),
       backgroundColor: Colors.white,
-      foregroundColor: const Color(0xFF1A237E),
+      foregroundColor: StaffColors.primary,
       elevation: 2,
       centerTitle: false,
-      iconTheme: const IconThemeData(color: Color(0xFF1A237E)),
+      iconTheme: const IconThemeData(color: StaffColors.primary),
       actions: [
         // ✅ NOTIFICATION BADGE
         NotificationBadge(
@@ -777,7 +973,7 @@ class _PatientsPageState extends State<PatientsPage> {
         ),
         // ✅ LOGOUT BUTTON
         IconButton(
-          icon: const Icon(Icons.logout, color: Color(0xFF1A237E)),
+          icon: const Icon(Icons.logout, color: StaffColors.primary),
           onPressed: () {
             _showLogoutDialog(context);
           },
@@ -794,7 +990,7 @@ class _PatientsPageState extends State<PatientsPage> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
-            color: const Color(0xFF1A237E),
+            color: StaffColors.primary,
             child: Column(
               children: [
                 const SizedBox(height: 30),
@@ -815,17 +1011,17 @@ class _PatientsPageState extends State<PatientsPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Staff Name',
-                  style: TextStyle(
+                Text(
+                  _staffName,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Text(
-                  'staff@polyclinic.com',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                Text(
+                  _staffEmail.isNotEmpty ? _staffEmail : 'staff@polyclinic.com',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ],
             ),
@@ -854,10 +1050,7 @@ class _PatientsPageState extends State<PatientsPage> {
           const Divider(),
           _buildDrawerItem(Icons.logout, 'Logout', false, () {
             Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-            );
+            _showLogoutDialog(context);
           }),
         ],
       ),
@@ -873,17 +1066,17 @@ class _PatientsPageState extends State<PatientsPage> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade600,
+        color: isActive ? StaffColors.primary : Colors.grey.shade600,
       ),
       title: Text(
         title,
         style: TextStyle(
           fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade800,
+          color: isActive ? StaffColors.primary : Colors.grey.shade800,
         ),
       ),
       trailing: isActive
-          ? Container(width: 4, height: 24, color: const Color(0xFF1A237E))
+          ? Container(width: 4, height: 24, color: StaffColors.primary)
           : null,
       onTap: onTap,
     );
@@ -897,14 +1090,14 @@ class _PatientsPageState extends State<PatientsPage> {
       color: Colors.white,
       child: Row(
         children: [
-          const Icon(Icons.people, color: Color(0xFF1A237E), size: 28),
+          const Icon(Icons.people, color: StaffColors.primary, size: 28),
           const SizedBox(width: 12),
           const Text(
             'Patients',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A237E),
+              color: StaffColors.primary,
             ),
           ),
         ],
@@ -963,10 +1156,13 @@ class _PatientsPageState extends State<PatientsPage> {
             child: DropdownButton<String>(
               value: _selectedDepartment,
               underline: const SizedBox(),
-              icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF1A237E)),
+              icon: const Icon(
+                Icons.arrow_drop_down,
+                color: StaffColors.primary,
+              ),
               style: const TextStyle(
                 fontSize: 13,
-                color: Color(0xFF1A237E),
+                color: StaffColors.primary,
                 fontWeight: FontWeight.w500,
               ),
               onChanged: (String? newValue) {
@@ -1042,7 +1238,7 @@ class _PatientsPageState extends State<PatientsPage> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A237E).withValues(alpha: 0.1),
+                  color: StaffColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
@@ -1051,7 +1247,7 @@ class _PatientsPageState extends State<PatientsPage> {
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A237E),
+                      color: StaffColors.primary,
                     ),
                   ),
                 ),
@@ -1066,7 +1262,7 @@ class _PatientsPageState extends State<PatientsPage> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A237E),
+                        color: StaffColors.primary,
                       ),
                     ),
                     Row(
@@ -1223,16 +1419,16 @@ class _PatientsPageState extends State<PatientsPage> {
                   icon: const Icon(Icons.edit, size: 16),
                   label: const Text('Edit'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(
-                      0xFF1A237E,
-                    ).withValues(alpha: 0.05),
-                    foregroundColor: const Color(0xFF1A237E),
+                    backgroundColor: StaffColors.primary.withValues(
+                      alpha: 0.05,
+                    ),
+                    foregroundColor: StaffColors.primary,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                       side: BorderSide(
-                        color: const Color(0xFF1A237E).withValues(alpha: 0.2),
+                        color: StaffColors.primary.withValues(alpha: 0.2),
                       ),
                     ),
                   ),
@@ -1261,7 +1457,7 @@ class _PatientsPageState extends State<PatientsPage> {
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF1A237E),
+        selectedItemColor: StaffColors.primary,
         unselectedItemColor: Colors.grey.shade400,
         selectedFontSize: 11,
         unselectedFontSize: 11,
@@ -1309,7 +1505,7 @@ class _PatientsPageState extends State<PatientsPage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.question_answer),
-            label: 'Inquiries',
+            label: 'Chatbot Inquiries',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
@@ -1317,9 +1513,12 @@ class _PatientsPageState extends State<PatientsPage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.medical_services),
-            label: 'Doctors',
+            label: 'Manage Doctors',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Patients'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'Patient Records',
+          ),
         ],
       ),
     );
@@ -1329,22 +1528,27 @@ class _PatientsPageState extends State<PatientsPage> {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              await ApiService.logout();
+              Navigator.pop(dialogContext);
+              try {
+                await ApiService.logout();
+              } catch (e) {
+                print('Logout error: $e');
+              }
               if (!context.mounted) return;
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
               );
             },
             style: ElevatedButton.styleFrom(

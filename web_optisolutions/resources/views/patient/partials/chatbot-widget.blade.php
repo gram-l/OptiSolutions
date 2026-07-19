@@ -437,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (session.history.length === 0) {
       addBubble('Hello! Welcome to PolyClinic Lipa. How can I help you today?', 'bot');
       addButtons([
+        { text: '📝 Submit Complaint', value: 'submit complaint' },
         { text: '📋 Schedule Visit', value: 'schedule visit' },
         { text: 'ℹ️ General Information', value: 'general information' },
       ]);

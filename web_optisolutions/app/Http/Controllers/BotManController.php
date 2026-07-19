@@ -8,6 +8,7 @@ use BotMan\BotMan\Cache\LaravelCache;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Conversations\AppointmentConversation;
+use App\Conversations\ComplaintConversation;
 use App\Services\ClinicInfoService;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
@@ -45,6 +46,11 @@ class BotManController extends Controller
             $botman->hears('general information', function ($bot) {
                 Log::info('MATCHED: general information');
                 $bot->reply(ClinicInfoService::infoCardMessage());
+            });
+
+            $botman->hears('submit complaint', function ($bot) {
+                Log::info('MATCHED: submit complaint');
+                $bot->startConversation(new ComplaintConversation());
             });
 
             $botman->hears('menu', function ($bot) {
@@ -159,6 +165,7 @@ class BotManController extends Controller
         $question = Question::create('Hello! Welcome to PolyClinic Lipa. How can I help you today?')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
+                Button::create('📝 Submit Complaint')->value('submit complaint'),
                 Button::create('📋 Schedule Visit')->value('schedule visit'),
                 Button::create('ℹ️ General Information')->value('general information'),
             ]);

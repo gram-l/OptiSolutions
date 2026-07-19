@@ -24,6 +24,35 @@ class ScheduleVisit extends Model
         return $this->belongsTo(Patient::class, 'patient_id', 'patient_id');
     }
 
+    /**
+     * ✅ Awtomatikong gumagawa ng staff notification tuwing may bagong
+     * schedule visit na malikha (basta Eloquent create()/save() ang
+     * ginamit sa paggawa nito).
+     */
+    protected static function booted()
+    {
+        static::created(function (ScheduleVisit $visit) {
+            $patientName = $visit->patient->full_name ?? 'A patient';
+            $doctorName = $visit->doctor->doctor_name ?? null;
+            $dateStr = $visit->visit_date
+                ? \Carbon\Carbon::parse($visit->visit_date)->format('M d, Y')
+                : '';
+
+            AppNotification::create([
+                'icon' => 'calendar_today',
+                'title' => 'New Schedule Visit',
+                'message' => trim(
+                    "{$patientName} scheduled a visit"
+                    . ($doctorName ? " with Dr. {$doctorName}" : '')
+                    . ($dateStr ? " on {$dateStr}" : '')
+                    . '.'
+                ),
+                'is_read' => false,
+                'color' => '4CAF50',
+            ]);
+        });
+    }
+
     public function toApiArray()
     {
         return [

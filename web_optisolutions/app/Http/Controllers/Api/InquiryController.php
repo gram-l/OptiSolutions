@@ -6,27 +6,32 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
+use App\Models\Staff\InquiryReply;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
+
 class InquiryController extends Controller
 {
-    /** GET /api/inquiries */
+    /** GET /api/inquiries  |  GET /api/admin/inquiries */
     public function index()
     {
-        $inquiries = Inquiry::with('log')->orderBy('inquiry_id', 'desc')->get();
+        $inquiries = Inquiry::with(['log', 'replies'])
+            ->orderBy('inquiry_id', 'desc')
+            ->get();
 
         return response()->json($inquiries->map->toApiArray());
     }
 
-    /** GET /api/inquiries/{id} */
+    /** GET /api/inquiries/{id}  |  GET /api/admin/inquiries/{id} */
     public function show($id)
     {
-        $inquiry = Inquiry::with('log')->findOrFail($id);
+        $inquiry = Inquiry::with(['log', 'replies'])->findOrFail($id);
 
         return response()->json($inquiry->toApiArray());
     }
 
+    
     /**
      * POST /api/inquiries
      */
@@ -58,32 +63,14 @@ class InquiryController extends Controller
     /** GET /api/inquiries/{inquiry}/messages */
     public function messages($id)
     {
-        $inquiry = Inquiry::findOrFail($id);
+        $inquiry = Inquiry::with('replies')->findOrFail($id);
 
-        $messages = [];
-
-        if (!empty($inquiry->inquiry_reply)) {
-            $messages[] = [
-                'sender'  => 'Staff',
-                'message' => $inquiry->inquiry_reply,
-                'time'    => $inquiry->replied_at
-                    ? Carbon::parse($inquiry->replied_at)->format('g:i A')
-                    : '',
-                'isStaff' => true,
-            ];
-        }
+        $messages = $inquiry->replies->map(fn (InquiryReply $r) => $r->toApiArray())->values();
 
         return response()->json($messages);
     }
 
-    /**
-     * POST /api/inquiries/{inquiry}/messages
-     * ✅ FIX: dating sinusubukan nitong i-set ang resolved_status sa
-     * 'In Progress' — value na WALANG suporta ang enum column
-     * (enum('Pending','Resolved') lang ang pwede sa database), kaya
-     * palaging nag-e-error at nabubura ang reply. Tinanggal na ito;
-     * mananatiling 'Pending' hanggang i-resolve nang explicit ng staff.
-     */
+    
     public function sendMessage(Request $request, $id)
     {
         $request->validate([
@@ -91,20 +78,29 @@ class InquiryController extends Controller
         ]);
 
         $inquiry = Inquiry::findOrFail($id);
+        $user = $request->user(); // Admin o Staff, parehong galing sa `users` table
 
+        $senderLabel = $user->user_role ?? 'Staff'; // "Admin" o "Staff"
+
+        $reply = InquiryReply::create([
+            'inquiry_id' => $inquiry->inquiry_id,
+            'user_id'    => $user->user_id ?? null,
+            'sender'     => $senderLabel,
+            'message'    => $request->message,
+        ]);
+
+    
         $inquiry->inquiry_reply = $request->message;
         $inquiry->replied_at = now();
+        if ($inquiry->resolved_status === 'Pending') {
+            $inquiry->resolved_status = 'In Progress';
+        }
         $inquiry->save();
 
-        return response()->json([
-            'sender'  => 'Staff',
-            'message' => $inquiry->inquiry_reply,
-            'time'    => Carbon::parse($inquiry->replied_at)->format('g:i A'),
-            'isStaff' => true,
-        ]);
+        return response()->json($reply->toApiArray());
     }
 
-    /** POST /api/inquiries/{id}/resolve */
+    /** POST /api/inquiries/{id}/resolve  |  POST /api/admin/inquiries/{id}/resolve */
     public function resolve($id)
     {
         $inquiry = Inquiry::findOrFail($id);
@@ -113,7 +109,31 @@ class InquiryController extends Controller
 
         return response()->json([
             'message' => 'Inquiry resolved!',
-            'inquiry' => $inquiry->fresh('log')->toApiArray(),
+            'inquiry' => $inquiry->fresh(['log', 'replies'])->toApiArray(),
         ]);
+    }
+
+    public function publicUpdates(Request $request, string $conversationId)
+    {
+        $inquiries = Inquiry::with('replies')
+            ->where('conversation_id', $conversationId)
+            ->orderBy('inquiry_id')
+            ->get();
+
+        $updates = [];
+        foreach ($inquiries as $inquiry) {
+            foreach ($inquiry->replies->where('is_staff', true) as $reply) {
+                $updates[] = [
+                    'replyId'   => $reply->reply_id,
+                    'inquiryId' => $inquiry->inquiry_id,
+                    'sender'    => $reply->sender,
+                    'message'   => $reply->message,
+                    'time'      => $reply->created_at->format('g:i A'),
+                    'status'    => $inquiry->resolved_status,
+                ];
+            }
+        }
+
+        return response()->json(['updates' => $updates]);
     }
 }

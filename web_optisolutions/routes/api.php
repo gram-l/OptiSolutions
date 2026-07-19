@@ -53,3 +53,8 @@ Route::prefix('charts')->group(function () {
     Route::get('/sentiment-analysis', [ChartController::class, 'sentimentAnalysis']);
     Route::get('/inquiry-volume', [ChartController::class, 'inquiryVolume']);
 });
+
+// ── Public: patient-facing chatbot widget polls this (no login) to see
+//    if Admin/Staff has replied to an inquiry raised in the same chat
+//    session. Keyed by the BotMan conversation/client id. ──
+Route::get('/chat/{conversationId}/updates', [\App\Http\Controllers\Api\InquiryController::class, 'publicUpdates']);

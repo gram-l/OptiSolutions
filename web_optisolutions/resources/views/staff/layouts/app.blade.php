@@ -14,23 +14,7 @@
             background-color: #f0f4f8;
             position: relative;
         }
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image:
-                linear-gradient(rgba(59, 91, 173, 0.35), rgba(59, 91, 173, 0.45)),
-                url('/images/webstaffbg.jpeg');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            filter: blur(4px);
-            transform: scale(1.05);
-            z-index: -1;
-        }
+
     </style>
 </head>
 <body>
@@ -38,7 +22,7 @@
     <!-- HEADER -->
     <div class="header">
         <div class="logo-section">
-            <img src="{{ asset('polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover;">
+            <img src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: cover;">
             <h1>PolyClinic Staff</h1>
         </div>
         <div class="user-info">

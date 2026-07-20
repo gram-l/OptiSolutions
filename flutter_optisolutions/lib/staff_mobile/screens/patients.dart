@@ -537,7 +537,7 @@ class _PatientsPageState extends State<PatientsPage> {
     );
   }
 
-  // edit patients 
+  // edit patients
   void _editPatient(Map<String, dynamic> patient) {
     TextEditingController nameController = TextEditingController(
       text: patient['name'],
@@ -576,7 +576,6 @@ class _PatientsPageState extends State<PatientsPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                  
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -632,7 +631,7 @@ class _PatientsPageState extends State<PatientsPage> {
                       Icons.medical_services,
                     ),
                     const SizedBox(height: 8),
-                    
+
                     _buildEditField(
                       'Birthday (YYYY-MM-DD)',
                       birthdayController,
@@ -678,7 +677,6 @@ class _PatientsPageState extends State<PatientsPage> {
                   );
                   if (index == -1) return;
 
-                
                   final Map<String, dynamic> changes = {};
                   if (nameController.text.trim().isNotEmpty) {
                     changes['name'] = nameController.text.trim();
@@ -926,7 +924,6 @@ class _PatientsPageState extends State<PatientsPage> {
     );
   }
 
-
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Row(
@@ -944,7 +941,7 @@ class _PatientsPageState extends State<PatientsPage> {
               fontWeight: FontWeight.bold,
               fontSize: 22,
               letterSpacing: 0.5,
-              color: StaffColors.primary,
+              color: Colors.black87, //newc
             ),
           ),
         ],
@@ -955,7 +952,6 @@ class _PatientsPageState extends State<PatientsPage> {
       centerTitle: false,
       iconTheme: const IconThemeData(color: StaffColors.primary),
       actions: [
-    
         NotificationBadge(
           onTap: () {
             Navigator.push(
@@ -966,7 +962,7 @@ class _PatientsPageState extends State<PatientsPage> {
             );
           },
         ),
-    
+
         IconButton(
           icon: const Icon(Icons.logout, color: StaffColors.primary),
           onPressed: () {
@@ -976,7 +972,6 @@ class _PatientsPageState extends State<PatientsPage> {
       ],
     );
   }
-
 
   Widget _buildDrawer() {
     return Drawer(
@@ -1092,7 +1087,7 @@ class _PatientsPageState extends State<PatientsPage> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: StaffColors.primary,
+              color: Colors.black87, //newc
             ),
           ),
         ],
@@ -1257,7 +1252,7 @@ class _PatientsPageState extends State<PatientsPage> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: StaffColors.primary,
+                        color: Colors.black87, //newc
                       ),
                     ),
                     Row(
@@ -1518,7 +1513,6 @@ class _PatientsPageState extends State<PatientsPage> {
       ),
     );
   }
-
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(

@@ -219,7 +219,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(height: 16),
                           //const _RecentActivityCard(),
                           const SizedBox(height: 16),
-                          const _ActionButtonsGrid(),
+                          //const _ActionButtonsGrid(),
                           const SizedBox(height: 16),
                           const Center(
                             child: Padding(
@@ -931,7 +931,7 @@ class _ActivityItem {
 }*/
 
 // ---------- ACTION BUTTONS GRID ----------
-class _ActionButtonsGrid extends StatelessWidget {
+/*class _ActionButtonsGrid extends StatelessWidget {
   const _ActionButtonsGrid();
 
   @override
@@ -989,7 +989,7 @@ class _ActionButtonsGrid extends StatelessWidget {
     );
   }
 }
-
+*/
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;

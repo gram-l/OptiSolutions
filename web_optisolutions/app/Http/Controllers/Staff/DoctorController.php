@@ -24,11 +24,10 @@ class DoctorController extends Controller
     {
         $doctor = Doctor::findOrFail($id);
 
-        // I-update ang availability status
+    
         $doctor->available = $request->available;
         $doctor->save();
 
-        // I-update o gumawa ng schedule entry sa doctor_schedules table
         $doctor->schedules()->updateOrCreate(
             ['doctor_id' => $doctor->doctor_id, 'day' => $request->day],
             ['start_time' => $request->start_time, 'end_time' => $request->end_time]

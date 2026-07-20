@@ -225,7 +225,11 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : _error != null
                       ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Text(_error!, textAlign: TextAlign.center),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.deleteRed),
+                          ),
                           const SizedBox(height: 12),
                           ElevatedButton(onPressed: _fetchVisits, child: const Text('Retry')),
                         ]))
@@ -276,7 +280,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                                         decoration: BoxDecoration(
-                                          color: AppColors.darkNavy,
+                                          color: AppColors.primary,
                                           borderRadius: BorderRadius.circular(20),
                                         ),
                                         child: Row(

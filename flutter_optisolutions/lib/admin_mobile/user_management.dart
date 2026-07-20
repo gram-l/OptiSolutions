@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
@@ -54,6 +55,54 @@ class UserModel {
       avatarColor: color,
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  VALIDATION HELPERS
+//  Kept as standalone functions so the same rules are easy to reuse
+//  and easy to unit test independently of the dialog widget.
+// ─────────────────────────────────────────────────────────────
+
+// Backend/UI both talk about "Active"/"Inactive" now (Title Case).
+// This is the single place that converts to the lowercase value the
+// `users` table + API actually store ('active' / 'inactive').
+const List<String> _statusOptions = ['Active', 'Inactive'];
+String _statusToApi(String displayStatus) => displayStatus.toLowerCase();
+String _statusFromIsActive(bool isActive) => isActive ? 'Active' : 'Inactive';
+
+String? _validateName(String? value) {
+  final v = (value ?? '').trim();
+  if (v.isEmpty) return 'Name is required.';
+  if (RegExp(r'\d').hasMatch(v)) return 'Name cannot contain numbers.';
+  return null;
+}
+
+String? _validateEmail(String? value) {
+  final v = (value ?? '').trim();
+  if (v.isEmpty) return 'Email is required.';
+  if (!v.contains('@') ||
+      !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v)) {
+    return 'Enter a valid email address.';
+  }
+  return null;
+}
+
+// isEdit == true -> password is optional, but if the admin types
+// something, it still has to be a real (non-whitespace) password.
+String? Function(String?) _passwordValidator(bool isEdit) {
+  return (value) {
+    final raw = value ?? '';
+    final trimmed = raw.trim();
+    if (!isEdit) {
+      if (trimmed.isEmpty) return 'Password is required.';
+      if (trimmed.length < 6) return 'Password must be at least 6 characters.';
+      return null;
+    }
+    if (raw.isEmpty) return null; // leaving it blank on edit = keep current password
+    if (trimmed.isEmpty) return 'Password cannot be only spaces.';
+    if (trimmed.length < 6) return 'Password must be at least 6 characters.';
+    return null;
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -164,13 +213,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   void _openAddDialog() => _openUserForm();
   void _openEditDialog(UserModel user) => _openUserForm(user: user);
 
+  // ── Add / Edit User dialog ──
   void _openUserForm({UserModel? user}) {
     final isEdit = user != null;
     final nameCtrl = TextEditingController(text: user?.name ?? '');
     final emailCtrl = TextEditingController(text: user?.email ?? '');
     final passCtrl = TextEditingController();
     String role = (user?.role == 'Admin' || user?.role == 'Staff') ? user!.role : 'Staff';
-    String status = (user?.isActive ?? true) ? 'active' : 'inactive';
+    String status = _statusFromIsActive(user?.isActive ?? true);
+    final formKey = GlobalKey<FormState>();
     bool saving = false;
     String? formError;
 
@@ -178,60 +229,104 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
-          title: Text(isEdit ? 'Edit User' : 'Add User'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          title: Text(
+            isEdit ? 'Edit User' : 'Add User',
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          ),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (formError != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFDEAEA),
-                      borderRadius: BorderRadius.circular(8),
+            child: Form(
+              key: formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  if (formError != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFDEAEA),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        formError!,
+                        style: const TextStyle(color: Colors.red, fontSize: 12.5),
+                      ),
                     ),
-                    child: Text(
-                      formError!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12.5),
+                  ],
+                  TextFormField(
+                    controller: nameCtrl,
+                    inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\d'))],
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name *',
                     ),
+                    validator: _validateName,
                   ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email *',
+                    ),
+                    validator: _validateEmail,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: passCtrl,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: isEdit ? 'New Password (optional)' : 'Password *',
+                    ),
+                    validator: _passwordValidator(isEdit),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: role,
+                    decoration: const InputDecoration(
+                      labelText: 'Role *',
+                    ),
+                    items: const ['Admin', 'Staff']
+                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                        .toList(),
+                    validator: (v) => (v == null || v.isEmpty) ? 'Role is required.' : null,
+                    onChanged: (v) => setLocal(() => role = v!),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: status,
+                    decoration: const InputDecoration(
+                      labelText: 'Status *',
+                    ),
+                    items: _statusOptions
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
+                    validator: (v) => (v == null || v.isEmpty) ? 'Status is required.' : null,
+                    onChanged: (v) => setLocal(() => status = v!),
+                  ),
+                  const SizedBox(height: 4),
                 ],
-                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
-                TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email')),
-                TextField(
-                  controller: passCtrl,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: isEdit ? 'New Password (optional)' : 'Password',
-                  ),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: role,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: const ['Admin', 'Staff']
-                      .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                      .toList(),
-                  onChanged: (v) => setLocal(() => role = v!),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: status,
-                  decoration: const InputDecoration(labelText: 'Status'),
-                  items: const ['active', 'inactive']
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  onChanged: (v) => setLocal(() => status = v!),
-                ),
-              ],
+              ),
             ),
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: saving
                   ? null
                   : () async {
+                      if (!formKey.currentState!.validate()) return;
+
                       setLocal(() {
                         saving = true;
                         formError = null;
@@ -241,19 +336,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       if (isEdit) {
                         result = await UserService.updateUser(
                           user.id,
-                          nameCtrl.text,
-                          emailCtrl.text,
+                          nameCtrl.text.trim(),
+                          emailCtrl.text.trim(),
                           role,
-                          status,
+                          _statusToApi(status),
                           password: passCtrl.text,
                         );
                       } else {
                         result = await UserService.createUser(
-                          nameCtrl.text,
-                          emailCtrl.text,
+                          nameCtrl.text.trim(),
+                          emailCtrl.text.trim(),
                           role,
                           passCtrl.text,
-                          status,
+                          _statusToApi(status),
                         );
                       }
 
@@ -623,11 +718,13 @@ class _SearchField extends StatelessWidget {
         onChanged: onChanged,
         style: const TextStyle(fontSize: 13),
         decoration: const InputDecoration(
+          isDense: true,
           prefixIcon: Icon(Icons.search, size: 16, color: AppColors.textGrey),
+          prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 0),
           hintText: 'Search users...',
           hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 13),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 10),
+          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 4),
         ),
       ),
     );

@@ -1,10 +1,10 @@
+// lib/staff_mobile/screens/profile.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
-
-import 'package:flutter_optisolutions/login.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/profile_data.dart';
-import '../widgets/notification_badge.dart';
-import 'notifications.dart';
 import '../services/api_service.dart';
+import '../widgets/center_snackbar.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -14,337 +14,324 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  static const _navy = Color(0xFF0D2A5C);
+  static const _bg = Color(0xFFF4F6FB);
+
   bool _loading = true;
-  String? _loadError;
+  bool _uploadingPhoto = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _load();
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _load() async {
     setState(() {
       _loading = true;
-      _loadError = null;
+      _error = null;
     });
     try {
       await ProfileData.load();
-      setState(() => _loading = false);
     } catch (e) {
-      setState(() {
-        _loadError = e.toString().replaceFirst('Exception: ', '');
-        _loading = false;
-      });
+      _error = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  // ✅ Para ma-refresh ang page pagbalik
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Force rebuild when coming back
-    setState(() {});
+  Future<void> _pickAndUploadPhoto() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (picked == null) return;
+
+    setState(() => _uploadingPhoto = true);
+
+    try {
+      final result = await ApiService.uploadPhoto(File(picked.path));
+      setState(() {
+        ProfileData.photoUrl = result['profile_photo'];
+      });
+    } catch (e) {
+      if (mounted) {
+        showCenterSnackBar(
+          context,
+          e.toString().replaceFirst('Exception: ', ''),
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-
+      backgroundColor: _bg,
       appBar: AppBar(
+        backgroundColor: _bg,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A237E)),
+          icon: const Icon(Icons.arrow_back, color: _navy),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Profile',
           style: TextStyle(
+            color: _navy,
             fontWeight: FontWeight.bold,
             fontSize: 20,
-            color: Color(0xFF1A237E),
           ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        centerTitle: false,
-        actions: [
-          NotificationBadge(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationsPage(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFF1A237E)),
-            onPressed: () {
-              _showLogoutDialog(context);
-            },
-          ),
-        ],
       ),
-
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(_loadError!, style: const TextStyle(color: Colors.red)),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _loadProfile,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  // Profile Picture
-                  Center(
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF1A237E),
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withAlpha(50),
-                            spreadRadius: 2,
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+            ? Center(child: Text('Error: $_error'))
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 52,
+                            backgroundColor: Colors.white,
+                            child: CircleAvatar(
+                              radius: 48,
+                              backgroundColor: Colors.grey.shade200,
+                              backgroundImage:
+                                  ProfileData.photoUrl != null &&
+                                      ProfileData.photoUrl!.isNotEmpty
+                                  ? NetworkImage(ProfileData.photoUrl!)
+                                  : null,
+                              child:
+                                  (ProfileData.photoUrl == null ||
+                                      ProfileData.photoUrl!.isEmpty)
+                                  ? Text(
+                                      ProfileData.name.isNotEmpty
+                                          ? ProfileData.name
+                                                .substring(0, 1)
+                                                .toUpperCase()
+                                          : '?',
+                                      style: const TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: _navy,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                          if (_uploadingPhoto)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.black45,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: _uploadingPhoto
+                                  ? null
+                                  : _pickAndUploadPhoto,
+                              child: const CircleAvatar(
+                                radius: 16,
+                                backgroundColor: _navy,
+                                child: Icon(
+                                  Icons.camera_alt,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/PCLOGO.png',
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.contain,
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE7E9F0),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'Clinic ${ProfileData.department != 'N/A' ? ProfileData.department : 'Staff'}',
+                          style: const TextStyle(
+                            color: _navy,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 24),
+
+                  
+                      _InfoCard(
+                        title: 'Personal Information',
+                        children: [
+                          _InfoRow(
+                            icon: Icons.person_outline,
+                            label: 'Name',
+                            value: ProfileData.name,
+                          ),
+                          _InfoRow(
+                            icon: Icons.email_outlined,
+                            label: 'Email',
+                            value: ProfileData.email.isNotEmpty
+                                ? ProfileData.email
+                                : 'N/A',
+                          ),
+                          _InfoRow(
+                            icon: Icons.phone_outlined,
+                            label: 'Contact',
+                            value: ProfileData.contact,
+                          ),
+                          _InfoRow(
+                            icon: Icons.badge_outlined,
+                            label: 'Staff ID',
+                            value: ProfileData.staffId,
+                          ),
+                          _InfoRow(
+                            icon: Icons.apartment_outlined,
+                            label: 'Role',
+                            value: ProfileData.department,
+                            isLast: true,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
+                ),
+              ),
+      ),
+    );
+  }
+}
 
-                  const SizedBox(height: 16),
+class _InfoCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _InfoCard({required this.title, required this.children});
 
-                  // ✅ Name - from ProfileData
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0D2A5C),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isLast;
+
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEDEFF7),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: const Color(0xFF0D2A5C), size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    ProfileData.name,
+                    label,
                     style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A237E),
+                      fontSize: 12,
+                      color: Color(0xFF8A8FA3),
                     ),
                   ),
-
-                  const SizedBox(height: 4),
-
-                  // Title/Role
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A237E).withAlpha(25),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Clinic Staff',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1A237E),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Personal Info Section
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withAlpha(25),
-                          spreadRadius: 1,
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Personal Information',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A237E),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInfoRow(Icons.email, 'Email', ProfileData.email),
-                        _buildDivider(),
-                        _buildInfoRow(
-                          Icons.phone,
-                          'Contact',
-                          ProfileData.contact,
-                        ),
-                        _buildDivider(),
-                        _buildInfoRow(
-                          Icons.badge,
-                          'Staff ID',
-                          ProfileData.staffId,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Work Details Section
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withAlpha(25),
-                          spreadRadius: 1,
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Work Details',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A237E),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInfoRow(
-                          Icons.business,
-                          'Department',
-                          ProfileData.department,
-                        ),
-                        _buildDivider(),
-                        _buildInfoRow(
-                          Icons.access_time,
-                          'Shift',
-                          ProfileData.shift,
-                        ),
-                      ],
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1A1A2E),
                     ),
                   ),
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A237E).withAlpha(20),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 18, color: const Color(0xFF1A237E)),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Divider(color: Colors.grey.shade200, height: 1),
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await ApiService.logout();
-              if (!context.mounted) return;
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
+          ],
+        ),
+        if (!isLast) const Divider(height: 24),
+      ],
     );
   }
 }

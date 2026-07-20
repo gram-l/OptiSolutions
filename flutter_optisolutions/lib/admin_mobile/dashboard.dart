@@ -406,9 +406,9 @@ class _StatGrid extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _StatCard(
-                label: "TODAY'S APPTS",
+                label: "SCHEDULED VISITS",
                 value: '$todaysAppointments',
-                trend: '$pendingApproval pending approval',
+                trend: 'Total Scheduled Today',
               ),
             ),
           ],
@@ -418,7 +418,7 @@ class _StatGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _StatCard(
-                label: 'ACTIVE PATIENTS',
+                label: 'PATIENTS',
                 value: '$activePatients',
                 trend: '$newPatientsThisMonth new this month',
               ),

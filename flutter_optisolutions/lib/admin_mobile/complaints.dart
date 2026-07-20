@@ -211,23 +211,6 @@ class _ComplaintCard extends StatelessWidget {
                     height: 1.45),
               ),
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEDE7F6),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                complaint.category,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF5E35B1),
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ),
           ],
         ),
       ),

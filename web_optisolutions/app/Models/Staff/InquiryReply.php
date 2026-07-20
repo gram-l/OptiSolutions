@@ -7,13 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class InquiryReply extends Model
 {
-    protected $fillable = ['inquiry_id', 'sender', 'message', 'is_staff'];
+    protected $primaryKey = 'reply_id';
 
-    protected $casts = ['is_staff' => 'boolean'];
+    protected $fillable = ['inquiry_id', 'user_id', 'sender', 'message'];
 
     public function inquiry()
     {
         return $this->belongsTo(Inquiry::class);
+    }
+
+    // "Virtual" column — kinukwenta na lang mula sa sender, hindi na
+    // nangangailangan ng totoong is_staff column sa database
+    public function getIsStaffAttribute()
+    {
+        return $this->sender !== 'Patient';
     }
 
     public function toApiArray(): array

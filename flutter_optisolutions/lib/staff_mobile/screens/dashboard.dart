@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'staffcolor.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_optisolutions/login.dart';
 import 'inquiries.dart';
@@ -21,39 +22,35 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  // Now loaded from the database via API instead of hardcoded
   List<Map<String, dynamic>> _recentActivities = [];
   bool _loading = true;
   String? _loadError;
 
-  // Stats card counts — pulled from the same endpoints used by the other pages
+  // Logged-in staff name
+  String _staffName = 'Staff';
+  String _staffEmail = '';
+
   int _appointmentsCount = 0;
   int _pendingInquiriesCount = 0;
   int _activeDoctorsCount = 0;
   int _patientsCount = 0;
 
   // ---- Chart data ----
-
-  // 1) Service Distribution — [{ 'service_type': 'General Checkup', 'total': 12 }, ...]
   List<Map<String, dynamic>> _serviceDistribution = [];
+  String _serviceDistributionSource = '';
 
-  // 2) Weekly Patient Visits — count of schedule_visit records per week (last 6 weeks)
   static const int _weekCount = 6;
   List<int> _weeklyVisits = List.filled(_weekCount, 0);
+  bool _weeklyVisitsFromApi = false;
+  String _weeklyVisitsSource = '';
   List<String> _weekLabels = List.generate(
     _weekCount,
     (i) => i == _weekCount - 1 ? 'This wk' : 'W-${_weekCount - 1 - i}',
   );
 
-  // 3) Sentiment Analysis (custom bars) — from /feedback star_rating
-  Map<String, double> _sentimentPercents = const {
-    'Positive': 65,
-    'Neutral': 25,
-    'Negative': 10,
-  };
+  Map<String, double> _sentimentPercents = {};
   bool _sentimentFromApi = false;
 
-  // 4) Inquiry Volume per week — count of inquiries per weekday (Mon..Sun)
   List<int> _inquiryVolumeByDay = List.filled(7, 0);
   bool _inquiryVolumeFromApi = false;
 
@@ -74,7 +71,7 @@ class _DashboardState extends State<Dashboard> {
   };
 
   static const List<Color> _serviceColors = [
-    Color(0xFF1A237E),
+    StaffColors.primary,
     Color(0xFF3949AB),
     Color(0xFF5C6BC0),
     Color(0xFF7986CB),
@@ -87,7 +84,22 @@ class _DashboardState extends State<Dashboard> {
   @override
   void initState() {
     super.initState();
+    _loadStaffName();
     _loadDashboardData();
+  }
+
+  Future<void> _loadStaffName() async {
+    try {
+      final user = await ApiService.getCurrentUser();
+      if (user != null && mounted) {
+        setState(() {
+          if (user['name'] != null) _staffName = user['name'].toString();
+          if (user['email'] != null) _staffEmail = user['email'].toString();
+        });
+      }
+    } catch (e) {
+      print('Error loading staff name: $e');
+    }
   }
 
   IconData _iconFromName(String? name) {
@@ -114,20 +126,20 @@ class _DashboardState extends State<Dashboard> {
     return Color(int.parse('FF$cleanHex', radix: 16));
   }
 
-  // ---------- Data fetch helpers (each fails quietly so one missing
-  // endpoint never breaks the rest of the dashboard) ----------
 
-  Future<List?> _tryGet(String path) async {
+  Future<Map<String, dynamic>?> _tryGetMap(String path) async {
     try {
       final data = await ApiService.get(path);
-      return data as List;
-    } catch (_) {
+      if (data is Map<String, dynamic>) return data;
+      if (data is Map) return Map<String, dynamic>.from(data);
+      print('Unexpected response from $path: $data');
+      return null;
+    } catch (e) {
+      print('Error fetching $path: $e');
       return null;
     }
   }
 
-  // Tries a few common key names since exact field names weren't confirmed
-  // for every table — adjust here if your API uses different keys.
   DateTime? _parseDate(Map item, List<String> keys) {
     for (final key in keys) {
       final raw = item[key];
@@ -141,13 +153,13 @@ class _DashboardState extends State<Dashboard> {
 
   List<int>? _computeInquiryVolume(List? inquiries) {
     if (inquiries == null || inquiries.isEmpty) return null;
-    final counts = List<int>.filled(7, 0); // index 0 = Monday
+    final counts = List<int>.filled(7, 0);
     var matched = false;
     for (final item in inquiries) {
       if (item is! Map) continue;
       final date = _parseDate(item, ['created_at', 'date', 'createdAt']);
       if (date == null) continue;
-      counts[date.weekday - 1]++; // DateTime.weekday: Mon=1 .. Sun=7
+      counts[date.weekday - 1]++;
       matched = true;
     }
     return matched ? counts : null;
@@ -170,6 +182,7 @@ class _DashboardState extends State<Dashboard> {
         'visit_date',
         'scheduled_date',
         'schedule_date',
+        'appointment_date',
         'date',
         'created_at',
       ]);
@@ -212,8 +225,8 @@ class _DashboardState extends State<Dashboard> {
     };
   }
 
-  List<Map<String, dynamic>>? _parseServiceDistribution(List? raw) {
-    if (raw == null || raw.isEmpty) return null;
+  List<Map<String, dynamic>>? _parseServiceDistribution(dynamic raw) {
+    if (raw is! List || raw.isEmpty) return null;
     final result = <Map<String, dynamic>>[];
     for (final item in raw) {
       if (item is! Map) continue;
@@ -224,12 +237,53 @@ class _DashboardState extends State<Dashboard> {
     return result.isEmpty ? null : result;
   }
 
+  List<int>? _parseIntList(dynamic raw) {
+    if (raw is! List || raw.isEmpty) return null;
+    final parsed = raw.map((e) => num.tryParse('$e')?.toInt() ?? 0).toList();
+    return parsed.any((v) => v > 0) ? parsed : null;
+  }
+
+  Map<String, double>? _parseSentimentMap(Map<String, dynamic>? data) {
+    if (data == null) return null;
+    final positive = num.tryParse('${data['positivePercent']}')?.toDouble();
+    final neutral = num.tryParse('${data['neutralPercent']}')?.toDouble();
+    final negative = num.tryParse('${data['negativePercent']}')?.toDouble();
+    if (positive == null && neutral == null && negative == null) return null;
+    final p = positive ?? 0;
+    final n = neutral ?? 0;
+    final neg = negative ?? 0;
+    if (p == 0 && n == 0 && neg == 0) return null;
+    return {'Positive': p, 'Neutral': n, 'Negative': neg};
+  }
+
+  List<Map<String, dynamic>>? _deriveServiceDistributionFromAppointments(
+    List? appointments,
+  ) {
+    if (appointments == null || appointments.isEmpty) return null;
+    final counts = <String, int>{};
+    for (final item in appointments) {
+      if (item is! Map) continue;
+      final type =
+          (item['service_type'] ??
+                  item['serviceType'] ??
+                  item['service'] ??
+                  item['type'])
+              ?.toString();
+      if (type == null || type.trim().isEmpty) continue;
+      counts[type] = (counts[type] ?? 0) + 1;
+    }
+    if (counts.isEmpty) return null;
+    return counts.entries
+        .map((e) => {'service_type': e.key, 'total': e.value})
+        .toList();
+  }
+
   Future<void> _preloadNotifications() async {
     try {
       await NotificationData.load();
       if (mounted) setState(() {});
     } catch (_) {
-      // non-critical — badge will just show 0 until the Notifications page is visited
+      // non-critical
     }
   }
 
@@ -240,8 +294,6 @@ class _DashboardState extends State<Dashboard> {
     });
 
     try {
-      // Core stats — required for the app to be usable, so these stay in
-      // the main Future.wait and a failure here surfaces the retry screen.
       final results = await Future.wait([
         ApiService.get('/appointments'),
         ApiService.get('/inquiries'),
@@ -256,16 +308,35 @@ class _DashboardState extends State<Dashboard> {
       final patients = results[3] as List;
       final notifications = results[4] as List;
 
-      // Chart data — each endpoint may not exist yet on the backend, so
-      // these are fetched independently and allowed to fail gracefully.
-      final feedback = await _tryGet('/feedback');
-      final serviceDistribution = await _tryGet('/service-distribution');
-      final scheduleVisits = await _tryGet('/schedule-visits');
+      final dashboardData = await _tryGetMap('/dashboard-data');
 
-      final sentiment = _computeSentiment(feedback);
-      final services = _parseServiceDistribution(serviceDistribution);
-      final weeklyVisits = _computeWeeklyVisits(scheduleVisits);
-      final inquiryVolume = _computeInquiryVolume(inquiries);
+      final sentiment =
+          _parseSentimentMap(dashboardData) ??
+          _computeSentiment(await _safeGetList('/feedback'));
+
+      var services = _parseServiceDistribution(
+        dashboardData?['serviceDistribution'],
+      );
+      var serviceSource = '/dashboard-data';
+      if (services == null) {
+        services = _deriveServiceDistributionFromAppointments(appointments);
+        serviceSource = 'derived from /appointments';
+      }
+
+      var weeklyVisits = _parseIntList(dashboardData?['weeklyVisits']);
+      var weeklySource = '/dashboard-data';
+      if (weeklyVisits == null) {
+        weeklyVisits = _computeWeeklyVisits(appointments);
+        weeklySource = 'derived from /appointments';
+      }
+
+      final weekLabelsRaw = dashboardData?['weekLabels'];
+      if (weekLabelsRaw is List && weekLabelsRaw.isNotEmpty) {
+        _weekLabels = weekLabelsRaw.map((e) => e.toString()).toList();
+      }
+
+      var inquiryVolume = _parseIntList(dashboardData?['inquiryVolumeByDay']);
+      inquiryVolume ??= _computeInquiryVolume(inquiries);
 
       setState(() {
         _appointmentsCount = appointments.length;
@@ -277,31 +348,59 @@ class _DashboardState extends State<Dashboard> {
             .length;
         _patientsCount = patients.length;
 
-        if (sentiment != null) {
+        // Sentiment - kahit walang data, may display pa rin
+        if (sentiment != null && sentiment.isNotEmpty) {
           _sentimentPercents = sentiment;
           _sentimentFromApi = true;
-        }
-        if (services != null) {
-          _serviceDistribution = services;
-        }
-        if (weeklyVisits != null) {
-          _weeklyVisits = weeklyVisits;
-        }
-        if (inquiryVolume != null) {
-          _inquiryVolumeByDay = inquiryVolume;
-          _inquiryVolumeFromApi = true;
+        } else {
+          _sentimentPercents = {
+            'Positive': 0.0,
+            'Neutral': 0.0,
+            'Negative': 0.0,
+          };
+          _sentimentFromApi = false;
         }
 
-        // Reuse the notifications feed as the "Recent Activities" list —
-        // swap this for a dedicated /activities endpoint later if you add one.
+        // Service Distribution 
+        if (services != null && services.isNotEmpty) {
+          _serviceDistribution = services;
+          _serviceDistributionSource = serviceSource;
+        } else {
+          _serviceDistribution = [
+            {'service_type': 'No Data', 'total': 1},
+          ];
+          _serviceDistributionSource = 'No data available';
+        }
+
+        // Weekly Visits
+        if (weeklyVisits != null && weeklyVisits.any((v) => v > 0)) {
+          _weeklyVisits = weeklyVisits;
+          _weeklyVisitsFromApi = true;
+          _weeklyVisitsSource = weeklySource;
+        } else {
+          _weeklyVisits = List.filled(_weekCount, 0);
+          _weeklyVisitsFromApi = true; 
+          _weeklyVisitsSource = 'No data available';
+        }
+
+        // Inquiry Volume - kahit walang data, may display
+        if (inquiryVolume != null && inquiryVolume.any((v) => v > 0)) {
+          _inquiryVolumeByDay = inquiryVolume;
+          _inquiryVolumeFromApi = true;
+        } else {
+          _inquiryVolumeByDay = List.filled(7, 0);
+          _inquiryVolumeFromApi =
+              true; 
+        }
+
         _recentActivities = notifications.take(5).map<Map<String, dynamic>>((
           n,
         ) {
           return {
             'icon': _iconFromName(n['icon']),
-            'title': n['title'],
-            'description': n['message'],
-            'time': n['time'],
+            'title': n['title'] ?? '',
+            'description': n['message'] ?? '',
+            'time': n['time'] ?? '',
             'color': _colorFromHex(n['color']),
           };
         }).toList();
@@ -309,14 +408,33 @@ class _DashboardState extends State<Dashboard> {
         _loading = false;
       });
 
-      // Preload notifications separately so the bell badge count is accurate
-      // from the moment the app opens, not just after visiting that page.
       unawaited(_preloadNotifications());
     } catch (e) {
       setState(() {
         _loadError = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
+
+        _serviceDistribution = [
+          {'service_type': 'No Data', 'total': 1},
+        ];
+        _weeklyVisits = List.filled(_weekCount, 0);
+        _weeklyVisitsFromApi = true;
+        _sentimentPercents = {'Positive': 0.0, 'Neutral': 0.0, 'Negative': 0.0};
+        _sentimentFromApi = false;
+        _inquiryVolumeByDay = List.filled(7, 0);
+        _inquiryVolumeFromApi = true;
       });
+    }
+  }
+
+  Future<List?> _safeGetList(String path) async {
+    try {
+      final data = await ApiService.get(path);
+      if (data is List) return data;
+      if (data is Map && data['data'] is List) return data['data'] as List;
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -333,11 +451,28 @@ class _DashboardState extends State<Dashboard> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(_loadError!, style: const TextStyle(color: Colors.red)),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 48,
+                  ),
                   const SizedBox(height: 12),
+                  Text(
+                    'May issue sa pag-load ng data',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Narito ang dashboard kahit walang data',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _loadDashboardData,
-                    child: const Text('Retry'),
+                    child: const Text('I-retry'),
                   ),
                 ],
               ),
@@ -389,21 +524,44 @@ class _DashboardState extends State<Dashboard> {
   Widget _cardHeader(IconData icon, String title) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF1A237E), size: 20),
+        Icon(icon, color: StaffColors.primary, size: 20),
         const SizedBox(width: 8),
         Text(
           title,
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A237E),
+            color: Colors.black87,
           ),
         ),
       ],
     );
   }
 
-  // Greeting Card with colored background - NO CIRCLE
+  // Empty state message 
+  Widget _emptyChartState(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.insert_chart_outlined,
+              color: Colors.grey.shade300,
+              size: 32,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildGreetingCard() {
     return Container(
       width: double.infinity,
@@ -412,31 +570,31 @@ class _DashboardState extends State<Dashboard> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A237E), Color(0xFF283593)],
+          colors: [StaffColors.primary, Color(0xFF283593)],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1A237E).withValues(alpha: 0.3),
+            color: StaffColors.primary.withValues(alpha: 0.3),
             spreadRadius: 2,
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Welcome back, Staff!',
-            style: TextStyle(
+            'Welcome back, $_staffName!',
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          SizedBox(height: 4),
-          Text(
+          const SizedBox(height: 4),
+          const Text(
             "Here's what's happening at the clinic today",
             style: TextStyle(fontSize: 14, color: Colors.white70),
           ),
@@ -445,7 +603,6 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  // 4 Stats Cards (2 rows of 2) — now using real counts from the API
   Widget _buildStatsGrid() {
     return Column(
       children: [
@@ -455,6 +612,7 @@ class _DashboardState extends State<Dashboard> {
               child: _buildStatCard(
                 '$_appointmentsCount',
                 'Schedule Visits',
+                'Scheduled visits',
                 Icons.calendar_today,
                 Colors.blue,
               ),
@@ -464,6 +622,7 @@ class _DashboardState extends State<Dashboard> {
               child: _buildStatCard(
                 '$_pendingInquiriesCount',
                 'Pending Inquiries',
+                'Awaiting reply',
                 Icons.question_answer,
                 Colors.orange,
               ),
@@ -477,6 +636,7 @@ class _DashboardState extends State<Dashboard> {
               child: _buildStatCard(
                 '$_activeDoctorsCount',
                 'Active Doctors',
+                'Currently practicing',
                 Icons.medical_services,
                 Colors.green,
               ),
@@ -486,6 +646,7 @@ class _DashboardState extends State<Dashboard> {
               child: _buildStatCard(
                 '$_patientsCount',
                 'Registered Patients',
+                'Total records',
                 Icons.people,
                 Colors.purple,
               ),
@@ -499,6 +660,7 @@ class _DashboardState extends State<Dashboard> {
   Widget _buildStatCard(
     String number,
     String label,
+    String subLabel,
     IconData icon,
     Color color,
   ) {
@@ -508,27 +670,42 @@ class _DashboardState extends State<Dashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
+
+          Row(
+            children: [
+              Icon(icon, color: color, size: 14),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
+          
           Text(
             number,
             style: const TextStyle(
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A237E),
+              color: Colors.black87,
             ),
           ),
+          const SizedBox(height: 4),
+         
           Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-            maxLines: 2,
+            subLabel,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -538,6 +715,19 @@ class _DashboardState extends State<Dashboard> {
 
   // ---------------- 1) Service Distribution — doughnut (PieChart) ----------------
   Widget _buildServiceDistribution() {
+    // Siguraduhing may data palagi
+    final displayData = _serviceDistribution.isEmpty
+        ? [
+            {'service_type': 'No Data', 'total': 1},
+          ]
+        : _serviceDistribution;
+
+
+    final isNoData =
+        _serviceDistribution.isEmpty ||
+        (_serviceDistribution.length == 1 &&
+            _serviceDistribution[0]['service_type'] == 'No Data');
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -551,60 +741,61 @@ class _DashboardState extends State<Dashboard> {
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 16),
-          if (_serviceDistribution.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'No service data available yet.',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-              ),
-            )
-          else ...[
-            SizedBox(
-              height: 160,
-              child: PieChart(
-                PieChartData(
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 32,
-                  sections: List.generate(_serviceDistribution.length, (i) {
-                    final entry = _serviceDistribution[i];
-                    return PieChartSectionData(
-                      value: (entry['total'] as num).toDouble(),
-                      color: _serviceColors[i % _serviceColors.length],
-                      radius: 42,
-                      showTitle: false,
-                    );
-                  }),
-                ),
+          SizedBox(
+            height: 160,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 32,
+                sections: List.generate(displayData.length, (i) {
+                  final entry = displayData[i];
+                  final isNoDataItem = entry['service_type'] == 'No Data';
+                  return PieChartSectionData(
+                    value: (entry['total'] as num).toDouble(),
+                    color: isNoDataItem
+                        ? Colors.grey.shade300
+                        : _serviceColors[i % _serviceColors.length],
+                    radius: 42,
+                    showTitle: false,
+                  );
+                }),
               ),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 6,
-              children: List.generate(_serviceDistribution.length, (i) {
-                final entry = _serviceDistribution[i];
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: _serviceColors[i % _serviceColors.length],
-                        shape: BoxShape.circle,
-                      ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            children: List.generate(displayData.length, (i) {
+              final entry = displayData[i];
+              final isNoDataItem = entry['service_type'] == 'No Data';
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: isNoDataItem
+                          ? Colors.grey.shade300
+                          : _serviceColors[i % _serviceColors.length],
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${entry['service_type']} (${entry['total']})',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    isNoDataItem
+                        ? 'No data available'
+                        : '${entry['service_type']} (${entry['total']})',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isNoDataItem ? Colors.grey.shade500 : Colors.grey,
                     ),
-                  ],
-                );
-              }),
-            ),
-          ],
+                  ),
+                ],
+              );
+            }),
+          ),
         ],
       ),
     );
@@ -612,9 +803,14 @@ class _DashboardState extends State<Dashboard> {
 
   // ---------------- 2) Weekly Patient Visits — line chart ----------------
   Widget _buildWeeklyPatientVisits() {
-    final maxVal = _weeklyVisits.isEmpty
+    // Ensure may data
+    final displayData = _weeklyVisits.every((v) => v == 0)
+        ? List.filled(_weekCount, 0)
+        : _weeklyVisits;
+
+    final maxVal = displayData.isEmpty
         ? 0
-        : _weeklyVisits.reduce((a, b) => a > b ? a : b);
+        : displayData.reduce((a, b) => a > b ? a : b);
     final maxY = maxVal == 0 ? 5.0 : (maxVal * 1.25).ceilToDouble();
     final interval = maxY <= 5 ? 1.0 : (maxY / 5).ceilToDouble();
 
@@ -691,22 +887,35 @@ class _DashboardState extends State<Dashboard> {
                 lineBarsData: [
                   LineChartBarData(
                     spots: List.generate(
-                      _weeklyVisits.length,
-                      (i) => FlSpot(i.toDouble(), _weeklyVisits[i].toDouble()),
+                      displayData.length,
+                      (i) => FlSpot(i.toDouble(), displayData[i].toDouble()),
                     ),
                     isCurved: true,
-                    color: const Color(0xFF1A237E),
+                    color: displayData.every((v) => v == 0)
+                        ? Colors.grey.shade400
+                        : StaffColors.primary,
                     barWidth: 3,
                     dotData: const FlDotData(show: true),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: const Color(0xFF1A237E).withValues(alpha: 0.08),
+                      color: displayData.every((v) => v == 0)
+                          ? Colors.grey.shade200
+                          : StaffColors.primary.withValues(alpha: 0.08),
                     ),
                   ),
                 ],
               ),
             ),
           ),
+          if (displayData.every((v) => v == 0))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'No data available',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+            ),
         ],
       ),
     );
@@ -714,6 +923,14 @@ class _DashboardState extends State<Dashboard> {
 
   // ---------------- 3) Sentiment Analysis — custom bars ----------------
   Widget _buildSentimentAnalysis() {
+    final displayData =
+        _sentimentPercents.isEmpty ||
+            (_sentimentPercents['Positive'] == 0 &&
+                _sentimentPercents['Neutral'] == 0 &&
+                _sentimentPercents['Negative'] == 0)
+        ? {'Positive': 0.0, 'Neutral': 0.0, 'Negative': 0.0}
+        : _sentimentPercents;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -725,20 +942,31 @@ class _DashboardState extends State<Dashboard> {
           Text(
             _sentimentFromApi
                 ? 'Based on recent patient feedback'
-                : 'Sample data — connect the /feedback endpoint for live figures',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                : 'No feedback available yet',
+            style: TextStyle(
+              fontSize: 12,
+              color: _sentimentFromApi
+                  ? Colors.grey.shade600
+                  : Colors.grey.shade500,
+            ),
           ),
           const SizedBox(height: 16),
-          ..._sentimentPercents.entries.map(
-            (entry) => _buildSentimentBar(entry.key, entry.value),
+          ...displayData.entries.map(
+            (entry) => _buildSentimentBar(
+              entry.key,
+              entry.value,
+              entry.value == 0 && !_sentimentFromApi,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSentimentBar(String label, double percent) {
-    final color = _sentimentColors[label] ?? Colors.blueGrey;
+  Widget _buildSentimentBar(String label, double percent, bool isNoData) {
+    final color = isNoData
+        ? Colors.grey.shade300
+        : _sentimentColors[label] ?? Colors.blueGrey;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -752,15 +980,15 @@ class _DashboardState extends State<Dashboard> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
+                  color: isNoData ? Colors.grey.shade500 : Colors.grey.shade700,
                 ),
               ),
               Text(
-                '${percent.toStringAsFixed(0)}%',
+                isNoData ? '0%' : '${percent.toStringAsFixed(0)}%',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: color,
+                  color: isNoData ? Colors.grey.shade500 : color,
                 ),
               ),
             ],
@@ -769,10 +997,14 @@ class _DashboardState extends State<Dashboard> {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: (percent / 100).clamp(0, 1),
+              value: isNoData ? 0 : (percent / 100).clamp(0, 1),
               minHeight: 10,
-              backgroundColor: color.withValues(alpha: 0.12),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
+              backgroundColor: isNoData
+                  ? Colors.grey.shade200
+                  : color.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isNoData ? Colors.grey.shade300 : color,
+              ),
             ),
           ),
         ],
@@ -782,9 +1014,13 @@ class _DashboardState extends State<Dashboard> {
 
   // ---------------- 4) Inquiry Volume per week — bar chart ----------------
   Widget _buildInquiryVolume() {
-    final maxCount = _inquiryVolumeByDay.isEmpty
+    final displayData = _inquiryVolumeByDay.every((v) => v == 0)
+        ? List.filled(7, 0)
+        : _inquiryVolumeByDay;
+
+    final maxCount = displayData.isEmpty
         ? 0
-        : _inquiryVolumeByDay.reduce((a, b) => a > b ? a : b);
+        : displayData.reduce((a, b) => a > b ? a : b);
     final maxY = maxCount == 0 ? 5.0 : (maxCount * 1.25).ceilToDouble();
     final interval = maxY <= 5 ? 1.0 : (maxY / 5).ceilToDouble();
 
@@ -797,9 +1033,7 @@ class _DashboardState extends State<Dashboard> {
           _cardHeader(Icons.bar_chart, 'Inquiry Volume per Week'),
           const SizedBox(height: 4),
           Text(
-            _inquiryVolumeFromApi
-                ? 'Inquiries received per day this week'
-                : 'Sample data — inquiry dates not yet available from the API',
+            'Inquiries received per day this week',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 16),
@@ -875,12 +1109,16 @@ class _DashboardState extends State<Dashboard> {
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: List.generate(7, (i) {
+                  final isNoData =
+                      displayData[i] == 0 && displayData.every((v) => v == 0);
                   return BarChartGroupData(
                     x: i,
                     barRods: [
                       BarChartRodData(
-                        toY: _inquiryVolumeByDay[i].toDouble(),
-                        color: const Color(0xFF1A237E),
+                        toY: displayData[i].toDouble(),
+                        color: isNoData
+                            ? Colors.grey.shade300
+                            : StaffColors.primary,
                         width: 18,
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -890,6 +1128,15 @@ class _DashboardState extends State<Dashboard> {
               ),
             ),
           ),
+          if (displayData.every((v) => v == 0))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'No data available',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+            ),
         ],
       ),
     );
@@ -905,7 +1152,12 @@ class _DashboardState extends State<Dashboard> {
         children: [
           _cardHeader(Icons.access_time, 'Recent Activities'),
           const SizedBox(height: 12),
-          ..._recentActivities.map((activity) => _buildActivityItem(activity)),
+          if (_recentActivities.isEmpty)
+            _emptyChartState('No recent activity yet.')
+          else
+            ..._recentActivities.map(
+              (activity) => _buildActivityItem(activity),
+            ),
         ],
       ),
     );
@@ -936,15 +1188,15 @@ class _DashboardState extends State<Dashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  activity['title'],
+                  activity['title'] ?? '',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A237E),
+                    color: Colors.black87,
                   ),
                 ),
                 Text(
-                  activity['description'],
+                  activity['description'] ?? '',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -953,7 +1205,7 @@ class _DashboardState extends State<Dashboard> {
             ),
           ),
           Text(
-            activity['time'],
+            activity['time'] ?? '',
             style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
           ),
         ],
@@ -978,16 +1230,16 @@ class _DashboardState extends State<Dashboard> {
               fontWeight: FontWeight.bold,
               fontSize: 22,
               letterSpacing: 0.5,
-              color: Color(0xFF1A237E),
+              color: Colors.black87,
             ),
           ),
         ],
       ),
       backgroundColor: Colors.white,
-      foregroundColor: const Color(0xFF1A237E),
+      foregroundColor: StaffColors.primary,
       elevation: 2,
       centerTitle: false,
-      iconTheme: const IconThemeData(color: Color(0xFF1A237E)),
+      iconTheme: const IconThemeData(color: StaffColors.primary),
       actions: [
         NotificationBadge(
           onTap: () {
@@ -1000,7 +1252,7 @@ class _DashboardState extends State<Dashboard> {
           },
         ),
         IconButton(
-          icon: const Icon(Icons.logout, color: Color(0xFF1A237E)),
+          icon: const Icon(Icons.logout, color: StaffColors.primary),
           onPressed: () {
             _showLogoutDialog(context);
           },
@@ -1016,7 +1268,7 @@ class _DashboardState extends State<Dashboard> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
-            color: const Color(0xFF1A237E),
+            color: StaffColors.primary,
             child: Column(
               children: [
                 const SizedBox(height: 30),
@@ -1037,17 +1289,17 @@ class _DashboardState extends State<Dashboard> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Staff Name',
-                  style: TextStyle(
+                Text(
+                  _staffName,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Text(
-                  'staff@polyclinic.com',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                Text(
+                  _staffEmail.isNotEmpty ? _staffEmail : 'staff@polyclinic.com',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ],
             ),
@@ -1076,10 +1328,7 @@ class _DashboardState extends State<Dashboard> {
           const Divider(),
           _buildDrawerItem(Icons.logout, 'Logout', false, () {
             Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-            );
+            _showLogoutDialog(context);
           }),
         ],
       ),
@@ -1095,17 +1344,17 @@ class _DashboardState extends State<Dashboard> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade600,
+        color: isActive ? StaffColors.primary : Colors.grey.shade600,
       ),
       title: Text(
         title,
         style: TextStyle(
           fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade800,
+          color: isActive ? StaffColors.primary : Colors.grey.shade800,
         ),
       ),
       trailing: isActive
-          ? Container(width: 4, height: 24, color: const Color(0xFF1A237E))
+          ? Container(width: 4, height: 24, color: StaffColors.primary)
           : null,
       onTap: onTap,
     );
@@ -1127,7 +1376,7 @@ class _DashboardState extends State<Dashboard> {
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF1A237E),
+        selectedItemColor: StaffColors.primary,
         unselectedItemColor: Colors.grey.shade400,
         selectedFontSize: 11,
         unselectedFontSize: 11,
@@ -1175,7 +1424,7 @@ class _DashboardState extends State<Dashboard> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.question_answer),
-            label: 'Inquiries',
+            label: 'Chatbot Inquiries',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
@@ -1183,9 +1432,12 @@ class _DashboardState extends State<Dashboard> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.medical_services),
-            label: 'Doctors',
+            label: 'Mange Doctors',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Patients'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'Patient Records',
+          ),
         ],
       ),
     );
@@ -1194,22 +1446,27 @@ class _DashboardState extends State<Dashboard> {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              await ApiService.logout();
+              Navigator.pop(dialogContext);
+              try {
+                await ApiService.logout();
+              } catch (e) {
+                print('Logout error: $e');
+              }
               if (!context.mounted) return;
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
               );
             },
             style: ElevatedButton.styleFrom(

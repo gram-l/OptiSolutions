@@ -8,9 +8,24 @@ use Illuminate\Http\Request;
 
 class PatientController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $patients = Patient::with('latestVisit.doctor')->get();
+        $query = Patient::with('latestVisit.doctor');
+
+
+        if ($request->filled('date_from') || $request->filled('date_to')) {
+            $query->whereHas('visits', function ($q) use ($request) {
+                if ($request->filled('date_from')) {
+                    $q->whereDate('visit_date', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $q->whereDate('visit_date', '<=', $request->date_to);
+                }
+            });
+        }
+
+        $patients = $query->get();
+
         return view('staff.patients.index', compact('patients'));
     }
 
@@ -28,8 +43,7 @@ class PatientController extends Controller
 
     public function update(Request $request, $id)
     {
-        // Department at Assigned Doctor ay hindi na dito ini-edit —
-        // galing 'yan sa schedule_visit table, hindi sa patients table mismo
+   
         $request->validate([
             'patient_fname'    => 'required|string',
             'patient_lname'    => 'required|string',

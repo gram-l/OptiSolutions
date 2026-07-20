@@ -14,14 +14,16 @@ class NotificationController extends Controller
         return AppNotification::orderByDesc('created_at')->get()->map->toApiArray();
     }
 
-    /** PATCH /api/notifications/{notification}/read */
-    public function markRead(AppNotification $notification)
+
+    public function markRead($id)
     {
-        $notification->update(['is_read' => true]);
+        $notification = AppNotification::findOrFail($id);
+        $notification->is_read = true;
+        $notification->save();
+
         return $notification->toApiArray();
     }
 
-    /** POST /api/notifications/mark-all-read */
     public function markAllRead()
     {
         AppNotification::where('is_read', false)->update(['is_read' => true]);

@@ -10,7 +10,7 @@ class HelpPage extends StatefulWidget {
 }
 
 class _HelpPageState extends State<HelpPage> {
-  // Expanded FAQ sections
+  
   bool _faqExpanded1 = false;
   bool _faqExpanded2 = false;
   bool _faqExpanded3 = false;

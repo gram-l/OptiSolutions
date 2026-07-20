@@ -7,7 +7,6 @@
         <h3 style="color: var(--text-dark); margin-bottom: 1.5rem;">Edit Doctor</h3>
 
         @php
-            // Kinukuha yung unang schedule entry ng doctor (kung meron)
             $sched = $doctor->schedules->first();
         @endphp
 

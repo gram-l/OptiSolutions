@@ -8,6 +8,7 @@ use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Services\ClinicInfoService;
 use App\Mail\ConversationTranscriptMail;
+use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -259,9 +260,9 @@ class AppointmentConversation extends Conversation
         $question = Question::create('Would you like to continue your schedule visit, or start over?')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('▶️ Continue Schedule Visit')->value('continue_schedule'),
-                Button::create('🔄 Start Over')->value('restart_schedule'),
-                Button::create('✖️ Cancel')->value('cancel_schedule'),
+                Button::create('Continue Schedule Visit')->value('continue_schedule'),
+                Button::create('Start Over')->value('restart_schedule'),
+                Button::create('Cancel')->value('cancel_schedule'),
             ]);
 
         $this->askLogged($question, function (Answer $followUp) use ($stepKey) {
@@ -294,27 +295,27 @@ class AppointmentConversation extends Conversation
         $question = Question::create('What would you like to do?')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('📋 Schedule Visit')->value('schedule visit'),
-                Button::create('ℹ️ General Information')->value('general information'),
+                Button::create('Schedule Visit')->value('schedule visit'),
+                Button::create('General Information')->value('general information'),
             ]);
         $this->sayLogged($question);
     }
 
     // ---------------------------------------------------------------
-    // Validation helpers (unchanged)
+    // Validation helpers
     // ---------------------------------------------------------------
 
     protected function validateName($name)
     {
         $trimmed = trim($name);
-        if (!$trimmed) return "⚠️ Name cannot be empty.";
+        if (!$trimmed) return "Name cannot be empty.";
         if (!preg_match("/^[A-Za-zÀ-ÖØ-öø-ÿ'\-. ]+$/u", $trimmed))
-            return "⚠️ Name can only contain letters, spaces, hyphens, or apostrophes.";
+            return "Name can only contain letters, spaces, hyphens, or apostrophes.";
         $words = array_filter(preg_split('/\s+/', $trimmed));
-        if (count($words) < 2) return "⚠️ Please enter your full name";
+        if (count($words) < 2) return "Please enter your full name";
         foreach ($words as $w) {
             if (strlen(preg_replace("/['.]/", '', $w)) < 2)
-                return "⚠️ Each part of your name must be at least 2 characters.";
+                return "Each part of your name must be at least 2 characters.";
         }
         return null;
     }
@@ -322,31 +323,31 @@ class AppointmentConversation extends Conversation
     protected function validatePhone($phone)
     {
         $trimmed = trim($phone);
-        if (!$trimmed) return "⚠️ Contact number cannot be empty.";
+        if (!$trimmed) return "Contact number cannot be empty.";
         $digits = preg_replace('/[\s\-().+]/', '', $trimmed);
         if (!preg_match('/^\d+$/', $digits))
-            return "⚠️ Phone number can only contain digits, spaces, dashes, or parentheses.";
+            return "Phone number can only contain digits, spaces, dashes, or parentheses.";
         $mobileLocal = preg_match('/^09\d{9}$/', $digits);
         $mobileIntl  = preg_match('/^639\d{9}$/', $digits);
         $landline    = preg_match('/^(0\d{9,10}|\d{7,8})$/', $digits);
         if (!$mobileLocal && !$mobileIntl && !$landline)
-            return "⚠️ Please enter a valid PH phone number";
+            return "Please enter a valid PH phone number";
         return null;
     }
 
     protected function validateDOB($dob)
     {
         $trimmed = trim($dob);
-        if (!$trimmed) return "⚠️ Date of birth cannot be empty.";
+        if (!$trimmed) return "Date of birth cannot be empty.";
 
         $parsed = $this->parseDOB($trimmed);
-        if (!$parsed) return "⚠️ Please enter a valid date";
+        if (!$parsed) return "Please enter a valid date";
 
         $today = new \DateTime('today');
-        if ($parsed > $today) return "⚠️ Date of birth cannot be in the future.";
+        if ($parsed > $today) return "Date of birth cannot be in the future.";
 
         $age = $today->diff($parsed)->y;
-        if ($age > 120) return "⚠️ Please enter a valid date of birth (age must be 120 or below).";
+        if ($age > 120) return "Please enter a valid date of birth (age must be 120 or below).";
 
         return null;
     }
@@ -385,11 +386,11 @@ class AppointmentConversation extends Conversation
     protected function validateEmail($email)
     {
         $trimmed = trim($email);
-        if (!$trimmed) return "⚠️ Email address cannot be empty.";
+        if (!$trimmed) return "Email address cannot be empty.";
         if (!filter_var($trimmed, FILTER_VALIDATE_EMAIL))
-            return "⚠️ Please enter a valid email address";
+            return "Please enter a valid email address";
         if (str_contains($trimmed, '..'))
-            return "⚠️ Email address cannot contain consecutive dots.";
+            return "Email address cannot contain consecutive dots.";
         return null;
     }
 
@@ -476,7 +477,7 @@ class AppointmentConversation extends Conversation
         $services = DB::table('services')->where('available', 1)->get();
 
         if ($services->isEmpty()) {
-            $this->sayLogged("⚠️ We couldn't load our services right now. Please try again in a moment.");
+            $this->sayLogged("We couldn't load our services right now. Please try again in a moment.");
             return;
         }
 
@@ -566,8 +567,8 @@ class AppointmentConversation extends Conversation
         \n(Based on {$this->doctor}'s availability — {$slot->day})")
             ->fallback('Please use the confirmation buttons above.')
             ->addButtons([
-                Button::create('✅ Yes, confirm')->value('confirm_yes'),
-                Button::create('🔄 Suggest alternative')->value('confirm_no'),
+                Button::create('Yes, confirm')->value('confirm_yes'),
+                Button::create('Suggest alternative')->value('confirm_no'),
             ]);
 
         $this->askLogged($question, function (Answer $answer) {
@@ -658,6 +659,27 @@ class AppointmentConversation extends Conversation
                 'scheduled_at' => now(),
             ]);
 
+            // Notification creation is intentionally isolated in its own
+            // try/catch. It's a "nice to have" side effect for the staff
+            // dashboard — if it fails (e.g. mass assignment guard, missing
+            // column), it should NOT make the patient think their
+            // appointment wasn't saved when it actually was.
+            try {
+                AppNotification::create([
+                    'icon'    => 'calendar_today',
+                    'title'   => 'New Schedule Visit',
+                    'message' => "{$this->fname} {$this->lname} scheduled a visit with {$this->doctor} on "
+                        . \Carbon\Carbon::parse($visitDate)->format('M d, Y') . '.',
+                    'is_read' => false,
+                    'color'   => '4CAF50',
+                ]);
+            } catch (\Throwable $notifyError) {
+                Log::error('Failed to create appointment notification: ' . $notifyError->getMessage(), [
+                    'exception' => $notifyError,
+                    'patient_id' => $patientId,
+                ]);
+            }
+
             $this->bot->userStorage()->save([
                 'patient_id' => $patientId,
                 'patient_name' => "{$this->fname} {$this->lname}",
@@ -692,8 +714,15 @@ class AppointmentConversation extends Conversation
 
             // → move to the transcript-email offer, THEN post-appointment options
             $this->askSendTranscriptEmail();
-        } catch (\Exception $e) {
-            $this->sayLogged("⚠️ We couldn't save your schedule visit right now. Please try again, or contact us directly at 0985 475 5511.");
+        } catch (\Throwable $e) {
+            Log::error('Failed to save schedule visit: ' . $e->getMessage(), [
+                'exception' => $e,
+                'fname' => $this->fname,
+                'lname' => $this->lname,
+                'doctor_id' => $this->doctorId,
+                'service' => $this->service,
+            ]);
+            $this->sayLogged("We couldn't save your schedule visit right now. Please try again, or contact us directly at 0985 475 5511.");
         }
     }
 
@@ -703,11 +732,11 @@ class AppointmentConversation extends Conversation
 
     protected function askSendTranscriptEmail()
     {
-        $question = Question::create("📧 Would you like us to email you a copy of this whole conversation at {$this->email}?")
+        $question = Question::create("Would you like us to email you a copy of this whole conversation at {$this->email}?")
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('✅ Yes, email it to me')->value('yes_email'),
-                Button::create('➡️ No, skip')->value('no_email'),
+                Button::create('Yes, email it to me')->value('yes_email'),
+                Button::create('No, skip')->value('no_email'),
             ]);
 
         $this->askLogged($question, function (Answer $answer) {
@@ -733,10 +762,13 @@ class AppointmentConversation extends Conversation
             Mail::to($this->email)->send(
                 new ConversationTranscriptMail($this->transcript, trim("{$this->fname} {$this->lname}"))
             );
-            $this->sayLogged("✅ Sent! Please check your inbox (and spam folder) at {$this->email}.");
+            $this->sayLogged("Sent! Please check your inbox (and spam folder) at {$this->email}.");
         } catch (\Throwable $e) {
-            Log::error('Failed to send conversation transcript email: ' . $e->getMessage());
-            $this->sayLogged("⚠️ Sorry, we couldn't send that email right now. Please try again later, or contact us directly.");
+            Log::error('Failed to send conversation transcript email: ' . $e->getMessage(), [
+                'exception' => $e,
+                'email' => $this->email,
+            ]);
+            $this->sayLogged("Sorry, we couldn't send that email right now. Please try again later, or contact us directly.");
         }
     }
 
@@ -748,9 +780,9 @@ class AppointmentConversation extends Conversation
         $question = Question::create('Thank you for scheduling with us!')
             ->fallback('Please use the buttons above.')
             ->addButtons([
-                Button::create('⚠️ File a Complaint')->value('complaint'),
-                Button::create('⭐ Submit Review/Rating')->value('review'),
-                Button::create("✅ No, I'm all set")->value('done'),
+                Button::create('File a Complaint')->value('complaint'),
+                Button::create('Submit Review/Rating')->value('review'),
+                Button::create("No, I'm all set")->value('done'),
             ]);
 
         $this->askLogged($question, function (Answer $answer) {
@@ -765,7 +797,7 @@ class AppointmentConversation extends Conversation
             } elseif ($answer->getValue() === 'review') {
                 $this->bot->startConversation(new ReviewConversation($patientId, "{$this->fname} {$this->lname}"));
             } else {
-                $this->sayLogged('Thank you for choosing PolyClinic Lipa! Have a great day! 😊');
+                $this->sayLogged('Thank you for choosing PolyClinic Lipa! Have a great day!');
             }
         });
     }

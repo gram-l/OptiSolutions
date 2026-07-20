@@ -14,6 +14,7 @@ import 'admin_mobile/settings.dart';
 import 'admin_mobile/notifications.dart';
 import 'admin_mobile/profile.dart';
 import 'admin_mobile/terms_screen.dart';
+import 'admin_mobile/complaints.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Staff-side screens. No alias needed — class names here (AppointmentsPage,
@@ -103,6 +104,7 @@ class PolyclinicApp extends StatelessWidget {
             '/doctors':         (_) => const DoctorsScreen(),
             '/patients':        (_) => const PatientRecordsScreen(),
             '/feedback':        (_) => const FeedbackScreen(),
+            '/complaints':      (_) => const ComplaintsScreen(),
             '/user_management': (_) => const UserManagementScreen(),
             '/settings':        (_) => const SettingsScreen(),
             '/notifications':   (_) => const NotificationsScreen(),
@@ -139,6 +141,7 @@ const appMenuItems = <SideMenuItem>[
   SideMenuItem(icon: Icons.medical_services_outlined,  label: 'Manage Doctors',   route: '/doctors'),
   SideMenuItem(icon: Icons.folder_shared_outlined,     label: 'Patient Records',  route: '/patients'),
   SideMenuItem(icon: Icons.star_border_rounded,        label: 'Patient Feedback', route: '/feedback'),
+  SideMenuItem(icon: Icons.report_problem_outlined, label: 'Patient Complaints', route: '/complaints'),
   SideMenuItem(icon: Icons.manage_accounts_outlined,   label: 'User Management',  route: '/user_management'),
   SideMenuItem(icon: Icons.settings_outlined,          label: 'Settings',         route: '/settings'),
 ];

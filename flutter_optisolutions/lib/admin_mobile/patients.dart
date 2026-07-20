@@ -3,6 +3,7 @@ import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
 import 'services/patient_service.dart';
+import 'services/doctor_service.dart';
 import 'center_snackbar.dart';
 import 'dart:io';
 import 'package:csv/csv.dart';
@@ -59,6 +60,15 @@ class PatientModel {
   }
 }
 
+// Minimal doctor shape just for the filter dropdown — deliberately not the
+// full DoctorModel from doctors.dart so this screen doesn't need to import
+// that whole file just to read an id/name pair.
+class _DoctorOption {
+  final int id;
+  final String name;
+  const _DoctorOption({required this.id, required this.name});
+}
+
 // ─────────────────────────────────────────────────────────────
 //  SCREEN
 // ─────────────────────────────────────────────────────────────
@@ -75,18 +85,32 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
   bool _loading = true;
   String? _error;
 
+  // Doctor / service filters — both are applied server-side (via
+  // schedule_visit), the local _search box still filters client-side
+  // on top of whatever the server already returned.
+  List<_DoctorOption> _doctorOptions = [];
+  List<String> _serviceTypeOptions = [];
+  int? _selectedDoctorId;
+  String? _selectedServiceType;
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  bool get _filtersActive => _selectedDoctorId != null || _selectedServiceType != null;
 
   @override
   void initState() {
     super.initState();
     _fetchPatients();
+    _loadFilterOptions();
   }
 
   Future<void> _fetchPatients() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await PatientService.fetchAll();
+      final data = await PatientService.fetchAll(
+        doctorId: _selectedDoctorId,
+        serviceType: _selectedServiceType,
+      );
       setState(() {
         _patients = data.map((j) => PatientModel.fromJson(j)).toList();
         _loading = false;
@@ -94,6 +118,50 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
     } catch (e) {
       setState(() { _error = e.toString().replaceFirst('Exception: ', ''); _loading = false; });
     }
+  }
+
+  Future<void> _loadFilterOptions() async {
+    try {
+      final doctorsResult = await DoctorService.fetchDoctors();
+      if (doctorsResult['success'] == true) {
+        final List<dynamic> raw = doctorsResult['doctors'] ?? [];
+        final options = raw.map((d) {
+          final rawId = d['doctor_id'];
+          return _DoctorOption(
+            id: rawId is int ? rawId : int.tryParse(rawId.toString()) ?? 0,
+            name: d['doctor_name'] ?? '',
+          );
+        }).toList();
+        if (mounted) setState(() => _doctorOptions = options);
+      }
+    } catch (_) {
+      // Filter dropdown just stays empty — not worth blocking the screen.
+    }
+
+    try {
+      final types = await PatientService.fetchServiceTypes();
+      if (mounted) setState(() => _serviceTypeOptions = types);
+    } catch (_) {
+      // Same here.
+    }
+  }
+
+  void _onDoctorFilterChanged(int? doctorId) {
+    setState(() => _selectedDoctorId = doctorId);
+    _fetchPatients();
+  }
+
+  void _onServiceFilterChanged(String? serviceType) {
+    setState(() => _selectedServiceType = serviceType);
+    _fetchPatients();
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _selectedDoctorId = null;
+      _selectedServiceType = null;
+    });
+    _fetchPatients();
   }
 
   List<PatientModel> get _filtered => _patients.where((p) {
@@ -119,6 +187,7 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
           children: [
             _buildHeader(),
             _buildFilterRow(),
+            _buildFilterChipsRow(),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -134,7 +203,7 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
                           ),
                         )
                       : _filtered.isEmpty
-                          ? const _EmptyState()
+                          ? _EmptyState(filtersActive: _filtersActive, onClearFilters: _clearFilters)
                           : RefreshIndicator(
                               onRefresh: _fetchPatients,
                               child: ListView.builder(
@@ -319,6 +388,63 @@ Future<void> _exportPdf() async {
   );
 }
 
+  // ── Doctor / service filter row ──
+  // Both dropdowns filter server-side through schedule_visit; selecting
+  // either one re-fetches the patient list with that filter applied.
+  Widget _buildFilterChipsRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _FilterDropdown(
+              icon: Icons.medical_services_outlined,
+              value: _selectedDoctorId == null
+                  ? 'All Doctors'
+                  : _doctorOptions
+                      .firstWhere(
+                        (d) => d.id == _selectedDoctorId,
+                        orElse: () => const _DoctorOption(id: -1, name: 'All Doctors'),
+                      )
+                      .name,
+              items: ['All Doctors', ..._doctorOptions.map((d) => d.name)],
+              onChanged: (label) {
+                if (label == 'All Doctors') {
+                  _onDoctorFilterChanged(null);
+                  return;
+                }
+                final match = _doctorOptions.firstWhere(
+                  (d) => d.name == label,
+                  orElse: () => const _DoctorOption(id: -1, name: ''),
+                );
+                if (match.id != -1) _onDoctorFilterChanged(match.id);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _FilterDropdown(
+              icon: Icons.event_note_outlined,
+              value: _selectedServiceType ?? 'All Services',
+              items: ['All Services', ..._serviceTypeOptions],
+              onChanged: (label) {
+                _onServiceFilterChanged(label == 'All Services' ? null : label);
+              },
+            ),
+          ),
+          if (_filtersActive) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.filter_alt_off_outlined, size: 18, color: AppColors.textGrey),
+              tooltip: 'Clear filters',
+              onPressed: _clearFilters,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   void _showAddDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -429,16 +555,54 @@ class _PatientCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────
 //  VIEW PATIENT BOTTOM SHEET
 // ─────────────────────────────────────────────────────────────
-class _ViewPatientSheet extends StatelessWidget {
+class _ViewPatientSheet extends StatefulWidget {
   final PatientModel patient;
   const _ViewPatientSheet({required this.patient});
 
   @override
+  State<_ViewPatientSheet> createState() => _ViewPatientSheetState();
+}
+
+class _ViewPatientSheetState extends State<_ViewPatientSheet> {
+  List<Map<String, dynamic>> _visits = [];
+  bool _loadingVisits = true;
+  String? _visitsError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVisits();
+  }
+
+  Future<void> _loadVisits() async {
+    setState(() { _loadingVisits = true; _visitsError = null; });
+    try {
+      final visits = await PatientService.fetchVisits(widget.patient.id);
+      if (!mounted) return;
+      setState(() { _visits = visits; _loadingVisits = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _visitsError = e.toString().replaceFirst('Exception: ', '');
+        _loadingVisits = false;
+      });
+    }
+  }
+
+  String _formatDate(String? raw) {
+    if (raw == null) return '';
+    final d = DateTime.tryParse(raw);
+    if (d == null) return raw;
+    return '${d.month}/${d.day}/${d.year}';
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final patient = widget.patient;
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.5,
-      maxChildSize: 0.8,
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
       builder: (_, ctrl) => Padding(
         padding: const EdgeInsets.all(20),
         child: ListView(
@@ -484,8 +648,246 @@ class _ViewPatientSheet extends StatelessWidget {
               _DetailRow(icon: Icons.phone_outlined, label: 'Contact', value: patient.contact!),
             if (patient.email != null && patient.email!.isNotEmpty)
               _DetailRow(icon: Icons.email_outlined, label: 'Email', value: patient.email!),
+
+            const SizedBox(height: 8),
+            const Divider(height: 24),
+            Row(
+              children: const [
+                Icon(Icons.event_note_outlined, size: 16, color: AppColors.primary),
+                SizedBox(width: 6),
+                Text('Visit / Service History',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            if (_loadingVisits)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_visitsError != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  children: [
+                    Text(_visitsError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textGrey, fontSize: 12.5)),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _loadVisits,
+                      child: const Text('Retry', style: TextStyle(color: AppColors.primary)),
+                    ),
+                  ],
+                ),
+              )
+            else if (_visits.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('No visit history yet.',
+                    style: TextStyle(color: AppColors.textGrey, fontSize: 12.5)),
+              )
+            else
+              ..._visits.map((v) => _VisitTile(
+                    visitId: v['visit_id'] is int
+                        ? v['visit_id'] as int
+                        : int.tryParse('${v['visit_id']}'),
+                    serviceType: (v['service_type'] as String?) ?? 'Not specified',
+                    doctorName: v['doctor_name'] as String?,
+                    visitDate: _formatDate(v['visit_date'] as String?),
+                    notes: v['notes'] as String?,
+                  )),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// One row in the Visit / Service History list — this is where the
+// service type (from schedule_visit, via the /visits endpoint) is
+// actually surfaced on the View sheet. Notes are editable in place.
+class _VisitTile extends StatefulWidget {
+  final int? visitId;
+  final String serviceType;
+  final String? doctorName;
+  final String visitDate;
+  final String? notes;
+  const _VisitTile({
+    required this.visitId,
+    required this.serviceType,
+    this.doctorName,
+    required this.visitDate,
+    this.notes,
+  });
+
+  @override
+  State<_VisitTile> createState() => _VisitTileState();
+}
+
+class _VisitTileState extends State<_VisitTile> {
+  bool _editing = false;
+  bool _saving = false;
+  late TextEditingController _notesCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _notesCtrl = TextEditingController(text: widget.notes ?? '');
+  }
+
+  @override
+  void dispose() {
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveNotes() async {
+    if (widget.visitId == null) {
+      showCenterSnackBar(
+        context,
+        'This visit can\'t be updated yet — visit ID is missing from the server response.',
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      await PatientService.updateVisitNotes(widget.visitId!, _notesCtrl.text.trim());
+      if (!mounted) return;
+      setState(() { _editing = false; _saving = false; });
+      showCenterSnackBar(context, 'Note updated.');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showCenterSnackBar(context, e.toString().replaceFirst('Exception: ', ''), isError: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F6FB),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  widget.serviceType,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              if (widget.visitDate.isNotEmpty)
+                Text(widget.visitDate, style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
+            ],
+          ),
+          if (widget.doctorName != null && widget.doctorName!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.medical_services_outlined, size: 12, color: AppColors.textGrey),
+                const SizedBox(width: 4),
+                Text('Dr. ${widget.doctorName}', style: const TextStyle(fontSize: 12, color: AppColors.textDark)),
+              ],
+            ),
+          ],
+          const SizedBox(height: 6),
+          if (_editing) ...[
+            TextField(
+              controller: _notesCtrl,
+              autofocus: true,
+              maxLines: 3,
+              style: const TextStyle(fontSize: 11.5),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Add a note...',
+                hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 11.5),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _saving
+                      ? null
+                      : () => setState(() {
+                            _notesCtrl.text = widget.notes ?? '';
+                            _editing = false;
+                          }),
+                  child: const Text('Cancel', style: TextStyle(fontSize: 12, color: AppColors.textGrey)),
+                ),
+                const SizedBox(width: 4),
+                TextButton(
+                  onPressed: _saving ? null : _saveNotes,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 14, height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                        )
+                      : const Text('Save', style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          ] else
+            GestureDetector(
+              onTap: () => setState(() => _editing = true),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      (widget.notes != null && widget.notes!.isNotEmpty) ? widget.notes! : 'Add a note...',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: (widget.notes != null && widget.notes!.isNotEmpty)
+                            ? AppColors.textGrey
+                            : AppColors.textGrey.withValues(alpha: 0.6),
+                        fontStyle: (widget.notes != null && widget.notes!.isNotEmpty)
+                            ? FontStyle.normal
+                            : FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.edit_outlined, size: 13, color: AppColors.textGrey),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -776,6 +1178,7 @@ class _CardButton extends StatelessWidget {
     );
   }
 }
+
 class _SearchField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   const _SearchField({required this.onChanged});
@@ -796,6 +1199,62 @@ class _SearchField extends StatelessWidget {
           hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 12),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        ),
+      ),
+    );
+  }
+}
+
+// Filter dropdown used for the Doctor / Service Type row.
+class _FilterDropdown extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final List<String> items;
+  final ValueChanged<String> onChanged;
+  const _FilterDropdown({
+    required this.icon,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Guard against a stale `value` that's no longer in `items` (e.g. right
+    // after items finish loading) — falls back to the first entry so
+    // DropdownButton never throws over a transient mismatch.
+    final safeValue = items.contains(value) ? value : items.first;
+
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: safeValue,
+          isExpanded: true,
+          isDense: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textGrey),
+          style: const TextStyle(fontSize: 12, color: AppColors.textDark),
+          items: items
+              .map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Row(
+                      children: [
+                        Icon(icon, size: 14, color: AppColors.textGrey),
+                        const SizedBox(width: 6),
+                        Flexible(child: Text(e, overflow: TextOverflow.ellipsis)),
+                      ],
+                    ),
+                  ))
+              .toList(),
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
         ),
       ),
     );
@@ -827,19 +1286,31 @@ class _AddButton extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final bool filtersActive;
+  final VoidCallback onClearFilters;
+  const _EmptyState({this.filtersActive = false, required this.onClearFilters});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 48),
+        padding: const EdgeInsets.symmetric(vertical: 48),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('👥', style: TextStyle(fontSize: 52)),
-            SizedBox(height: 16),
-            Text('No patients found', style: TextStyle(fontSize: 15, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
+            const Text('👥', style: TextStyle(fontSize: 52)),
+            const SizedBox(height: 16),
+            Text(
+              filtersActive ? 'No patients match this filter' : 'No patients found',
+              style: const TextStyle(fontSize: 15, color: AppColors.textGrey, fontWeight: FontWeight.w500),
+            ),
+            if (filtersActive) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: onClearFilters,
+                child: const Text('Clear filters', style: TextStyle(fontSize: 13, color: AppColors.primary)),
+              ),
+            ],
           ],
         ),
       ),

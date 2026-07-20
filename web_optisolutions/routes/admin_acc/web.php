@@ -121,7 +121,8 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
-Route::get('/feedback/diagnose', [FeedbackController::class, 'diagnoseRootCauses']);
+Route::get('admin_acc/feedback/diagnose', [FeedbackController::class, 'diagnoseRootCauses']);
+
 
 Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')

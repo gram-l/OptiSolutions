@@ -248,6 +248,9 @@ class DoctorsScreen extends StatefulWidget {
 class _DoctorsScreenState extends State<DoctorsScreen> {
   String _search = '';
   String _filter = 'All'; // All | Active | Inactive
+  String _dayFilter = 'All Days'; // All Days | Monday..Sunday
+
+  static const List<String> _dayFilterOptions = ['All Days', ..._weekdays];
 
   List<DoctorModel> _doctors = [];
   bool _isLoading = true;
@@ -289,7 +292,9 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
             d.specialty.toLowerCase().contains(q);
         final matchFilter = _filter == 'All' ||
             (_filter == 'Active' ? d.isActive : !d.isActive);
-        return matchSearch && matchFilter;
+        final matchDay = _dayFilter == 'All Days' ||
+            d.scheduleSessions.any((s) => s.day == _dayFilter);
+        return matchSearch && matchFilter && matchDay;
       }).toList();
 
   // ── Add / Edit modal ──
@@ -702,22 +707,41 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
   Widget _buildFilterRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _SearchField(
-              hint: 'Search doctors...',
-              onChanged: (v) => setState(() => _search = v),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _SearchField(
+                  hint: 'Search doctors...',
+                  onChanged: (v) => setState(() => _search = v),
+                ),
+              ),
+              const SizedBox(width: 6),
+              _AddButton(onTap: () => _openDoctorForm()),
+            ],
           ),
-          const SizedBox(width: 8),
-          _DropdownChip(
-            value: _filter,
-            items: const ['All', 'Active', 'Inactive'],
-            onChanged: (v) => setState(() => _filter = v!),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _DropdownChip(
+                  value: _filter,
+                  items: const ['All', 'Active', 'Inactive'],
+                  onChanged: (v) => setState(() => _filter = v!),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _DropdownChip(
+                  value: _dayFilter,
+                  items: _dayFilterOptions,
+                  onChanged: (v) => setState(() => _dayFilter = v!),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          _AddButton(onTap: () => _openDoctorForm()),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -987,6 +1011,7 @@ class _DropdownChip extends StatelessWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
+          isExpanded: true,
           items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12)))).toList(),
           onChanged: onChanged,
           style: const TextStyle(fontSize: 12, color: AppColors.textDark),

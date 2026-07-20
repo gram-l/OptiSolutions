@@ -35,7 +35,7 @@ def predict_sentiment(request):
 
     #Root cause / diagnostic analytrics for negative sentiment and complaints
 
-    ISSUE_CATEGORIES = {
+ISSUE_CATEGORIES = {
     "waiting_time": [
         "tagal", "matagal", "haba ng pila", "pila", "wait", "waiting",
         "hintay", "naghintay", "ang bagal", "late", "delay", "queue"

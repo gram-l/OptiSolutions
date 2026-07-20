@@ -47,6 +47,7 @@ Route::middleware('auth:sanctum')->post('/profile/photo', [ApiProfileController:
 //feedback list
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
 Route::get('/feedback/diagnose', [FeedbackController::class, 'diagnoseRootCauses']);
+
 //schedule visit list
 Route::get('/appointments', [VisitController::class, 'apiIndex']);
 

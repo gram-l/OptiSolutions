@@ -686,7 +686,7 @@ class AppointmentConversation extends Conversation
             ]);
 
             $card = [
-                'title' => "Schedule Visit Confirmed, {$this->fname} {$this->lname}!",
+                'title' => "Schedule Visit Confirmed, {$this->fname} {$this->lname}!\nKindly screenshot this confirmation for your reference.",
                 'sections' => [
                     [
                         'rows' => [

@@ -99,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 20),
 
               // Preferences section
-              _SectionHeader(icon: Icons.tune_rounded, label: 'PREFERENCES'),
+              /*_SectionHeader(icon: Icons.tune_rounded, label: 'PREFERENCES'),
               const SizedBox(height: 8),
               ValueListenableBuilder<ThemeMode>(
                 valueListenable: themeModeNotifier,
@@ -171,7 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => _showComingSoon(context, 'Change Password'),
               ),
               const SizedBox(height: 20),*/
-
+*/
               // Support section
               _SectionHeader(icon: Icons.help_outline_rounded, label: 'SUPPORT'),
               const SizedBox(height: 8),

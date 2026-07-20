@@ -53,4 +53,8 @@ return [
     'redirect' => env('GOOGLE_REDIRECT_URI'),
 ],
 
+    'django' => [
+    'url' => env('DJANGO_ML_URL', 'http://127.0.0.1:8001'),
+]
+
 ];

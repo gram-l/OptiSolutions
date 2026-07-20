@@ -70,7 +70,7 @@ class InquiryController extends Controller
         return response()->json($messages);
     }
 
-    
+
     public function sendMessage(Request $request, $id)
     {
         $request->validate([
@@ -100,7 +100,7 @@ class InquiryController extends Controller
         return response()->json($reply->toApiArray());
     }
 
-    /** POST /api/inquiries/{id}/resolve  |  POST /api/admin/inquiries/{id}/resolve */
+
     public function resolve($id)
     {
         $inquiry = Inquiry::findOrFail($id);

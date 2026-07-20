@@ -2,14 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../screens/notifications.dart';
 
-/// ✅ Ngayon self-fetching na ito: kinukuha nito mismo ang unread count
-/// pagka-mount (hindi na umaasa na na-visit na ang NotificationsPage), at
-/// nag-po-poll bawat ilang segundo para real-time na lumalabas ang badge
-/// pag may bagong inquiry o schedule visit na dumating.
 class NotificationBadge extends StatefulWidget {
   final VoidCallback onTap;
 
-  /// Gaano kadalas mag-che-check ng bagong notification. Default 15s.
   final Duration refreshInterval;
 
   const NotificationBadge({
@@ -41,13 +36,10 @@ class _NotificationBadgeState extends State<NotificationBadge> {
         _unreadCount = NotificationData.getUnreadCount();
       });
     } catch (_) {
-      // huwag hayaang mag-crash ang dashboard kapag walang internet/API error;
-      // panatilihin na lang yung huling nakuhang count
+
     }
   }
 
-  /// Tawagin ito (hal. sa onTap papunta sa NotificationsPage) kapag gusto
-  /// mong agad mag-refresh ang badge pagbalik mula sa notifications screen.
   Future<void> refreshNow() => _refresh();
 
   @override
@@ -65,7 +57,7 @@ class _NotificationBadgeState extends State<NotificationBadge> {
           icon: const Icon(Icons.notifications, color: Color(0xFF1A237E)),
           onPressed: () async {
             widget.onTap();
-            // pagbalik mula sa Notifications page, i-refresh agad ang badge
+          
             await _refresh();
           },
           tooltip: 'Notifications',

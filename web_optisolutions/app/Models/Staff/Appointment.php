@@ -16,11 +16,6 @@ class Appointment extends Model
         'date' => 'date:Y-m-d',
     ];
 
-    /**
-     * ✅ Awtomatikong gumagawa ng staff notification tuwing may bagong
-     * appointment/schedule visit na malikha (basta Eloquent create()/save()
-     * ang ginamit sa paggawa nito).
-     */
     protected static function booted()
     {
         static::created(function (Appointment $appointment) {

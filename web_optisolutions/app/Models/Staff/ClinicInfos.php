@@ -8,7 +8,7 @@ class ClinicInfo extends Model
 {
     protected $table = 'clinic_info';
     protected $primaryKey = 'clinic_id';
-    public $timestamps = false; // walang created_at/updated_at sa table
+    public $timestamps = false; 
 
     protected $fillable = [
         'clinic_name',

@@ -8,7 +8,6 @@ use Illuminate\Http\JsonResponse;
 
 class ClinicController extends Controller
 {
-    // Iisa lang naman ang clinic (single-tenant), kaya first() na lang.
     public function show(): JsonResponse
     {
         $clinic = ClinicInfo::first();

@@ -181,7 +181,9 @@ class _ComplaintCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Patient #${complaint.patientId}',
+                    complaint.patientId != null
+                        ? 'Patient #${complaint.patientId}'
+                        : 'Anonymous',
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.bold),
                   ),
@@ -207,6 +209,23 @@ class _ComplaintCard extends StatelessWidget {
                     fontSize: 12,
                     color: AppColors.textDark,
                     height: 1.45),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEDE7F6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                complaint.category,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF5E35B1),
+                  letterSpacing: 0.3,
+                ),
               ),
             ),
           ],

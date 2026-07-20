@@ -12,5 +12,5 @@ class Complaint extends Model
     const CREATED_AT = 'created_at';
     const UPDATED_AT = null;
 
-    protected $fillable = ['patient_id', 'log_id', 'complaint_text', 'status'];
+    protected $fillable = ['patient_id', 'log_id', 'complaint_text', 'status', 'category'];
 }

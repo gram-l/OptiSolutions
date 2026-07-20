@@ -29,36 +29,28 @@ class FeedbackController extends Controller
         return view('admin_acc.feedback', ['feedbackData' => $feedback]);
     }
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'log_id' => 'nullable|integer',
-            'patient_id' => 'nullable|integer',
-            'feedback_text' => 'required|string',
-            'star_rating' => 'required|integer|min:1|max:5',
+    public function store(Request $request, SentimentAnalysisService $sentimentService)
+{
+    $validated = $request->validate([
+        'log_id' => 'nullable|integer',
+        'patient_id' => 'nullable|integer',
+        'feedback_text' => 'required|string',
+        'star_rating' => 'required|integer|min:1|max:5',
+    ]);
+
+    $feedback = Feedback::create(array_merge($validated, ['submitted_at' => now()]));
+
+    $result = $sentimentService->analyze($feedback->feedback_text);
+    if ($result) {
+        $feedback->sentimentResult()->create([
+            'sentiment_label' => $result['sentiment_label'],
+            'confidence_score' => $result['confidence_score'],
+            'analyzed_at' => now(),
         ]);
-
-        $feedback = Feedback::create(array_merge($validated, [
-            'submitted_at' => now(),
-        ]));
-
-        // Call Django sentiment API
-        $response = Http::post('http://192.168.1.11:8000/api/predict/', [
-            'feedback_text' => $feedback->feedback_text,
-        ]);
-
-        if ($response->successful()) {
-            $result = $response->json();
-
-            $feedback->sentimentResult()->create([
-                'sentiment_label' => $result['sentiment_label'],
-                'confidence_score' => $result['confidence_score'],
-                'analyzed_at' => now(),
-            ]);
-        }
-
-        return redirect()->back()->with('success', 'Feedback submitted.');
     }
+
+    return redirect()->back()->with('success', 'Feedback submitted.');
+}
 
     // JSON endpoint for the Flutter app (mirrors DoctorController@apiIndex)
 public function apiIndex()

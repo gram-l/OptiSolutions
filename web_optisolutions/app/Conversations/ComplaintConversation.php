@@ -7,6 +7,8 @@ use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use Illuminate\Support\Facades\DB;
+use App\Models\admin_models\Complaint;
+use App\Services\SentimentAnalysisService;
 
 class ComplaintConversation extends Conversation
 {
@@ -47,14 +49,18 @@ class ComplaintConversation extends Conversation
                 'bot_message'  => 'Complaint recorded',
             ]);
 
-            $complaintId = DB::table('complaints')->insertGetId([
+            // Complaint::create() instead of DB::table()->insert()
+            // — gives us a model instance so we can attach a category
+            $complaint = Complaint::create([
                 'patient_id'     => $this->patientId,
                 'log_id'         => $logId,
                 'complaint_text' => $text,
+                'category'       => app(SentimentAnalysisService::class)->categorize($text),
             ]);
 
-            $this->say("Complaint Recorded\n\nReference #: {$complaintId}\nWe acknowledge receipt of your concern.");
+            $this->say("Complaint Recorded\n\nReference #: {$complaint->complaint_id}\nWe acknowledge receipt of your concern.");
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('submitComplaint failed: ' . $e->getMessage());
             $this->say("We couldn't record your complaint right now. Please try again, or contact us directly.");
         }
 

@@ -1,12 +1,9 @@
-
-
 (function loadNavbar() {
   const navbarHTML = `
   <nav class="navbar">
     <div class="navbar-inner">
       <div class="navbar-logo-wrapper">
-        <img src="/images/polyclinic_logo.png" alt="PolyClinic Logo" class="navbar-logo-img">
-        <div class="navbar-logo">PolyClinic <small>Lipa City</small></div>
+        <div class="navbar-logo">PolyClinic</div>
       </div>
       <div class="navbar-nav">
         <a href="/home" class="nav-link" data-page="home">Home</a>
@@ -17,12 +14,48 @@
         <button class="nav-cta" onclick="window.location.href='/auth/login'">Login as Admin/Staff</button>
       </div>
     </div>
-  </nav>`;
+  </nav>
+  <div class="navbar-accent" aria-hidden="true">
+    <div class="navbar-accent-green"></div>
+    <div class="navbar-accent-white-bar"></div>
+  </div>`;
 
-  // Insert as the very first element in <body>
+  const navbarStyles = `
+  <style id="navbar-accent-styles">
+    .navbar-accent {
+      position: relative;
+      width: 100%;
+      height: 72px;
+      background: #17275c;
+      overflow: hidden;
+    }
+    .navbar-accent-green {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 68%;
+      height: 100%;
+      background: #1f3d16;
+      clip-path: polygon(0 0, 100% 0, 62% 100%, 0% 100%);
+    }
+    .navbar-accent-white-bar {
+      position: absolute;
+      top: 68%;
+      left: 0;
+      width: 22%;
+      min-width: 200px;
+      height: 8px;
+      background: #ffffff;
+    }
+    @media (max-width: 640px) {
+      .navbar-accent { height: 36px; }
+      .navbar-accent-white-bar { width: 40%; min-width: 100px; height: 5px; top: 65%; }
+    }
+  </style>`;
+
+  document.head.insertAdjacentHTML('beforeend', navbarStyles);
   document.body.insertAdjacentHTML('afterbegin', navbarHTML);
 
-  // Auto-highlight the active nav link based on current path
   const currentPage = window.location.pathname.replace('/', '') || 'home';
 
   document.querySelectorAll('.navbar .nav-link[data-page]').forEach(link => {

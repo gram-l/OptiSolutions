@@ -23,7 +23,6 @@ class _InquiriesPageState extends State<InquiriesPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
- 
   List<Map<String, dynamic>> _allInquiries = [];
   bool _loading = true;
   String? _loadError;
@@ -64,7 +63,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
         _allInquiries = (result as List).map<Map<String, dynamic>>((inq) {
           return {
             'id': inq['id'],
-            
+
             'dbId': inq['dbId'],
             'patientId': inq['patientId'],
             'department': inq['department'],
@@ -103,7 +102,6 @@ class _InquiriesPageState extends State<InquiriesPage> {
     });
   }
 
- 
   String _getLastMessage(String inquiryId) {
     return _allInquiries.firstWhere((inq) => inq['id'] == inquiryId)['message'];
   }
@@ -150,13 +148,12 @@ class _InquiriesPageState extends State<InquiriesPage> {
                           final lastMessage = _getLastMessage(inquiry['id']);
                           return GestureDetector(
                             onTap: () async {
-                              
                               final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => InquiryChatPage(
                                     inquiryId: inquiry['id'],
-                                    
+
                                     dbId: inquiry['dbId'].toString(),
                                     patientId: inquiry['patientId'],
                                     department: inquiry['department'],
@@ -169,7 +166,6 @@ class _InquiriesPageState extends State<InquiriesPage> {
                                 ),
                               );
 
-                              
                               if (result == true) {
                                 setState(() {});
                               }
@@ -211,7 +207,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
               fontWeight: FontWeight.bold,
               fontSize: 22,
               letterSpacing: 0.5,
-              color: StaffColors.primary,
+              color: Colors.black87, //newc
             ),
           ),
         ],
@@ -358,7 +354,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: StaffColors.primary,
+              color: Colors.black87, //newc
             ),
           ),
           const Spacer(),

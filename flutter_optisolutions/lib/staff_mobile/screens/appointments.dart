@@ -476,7 +476,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              color: StaffColors.primary,
+              color: Colors.black87, //newc
             ),
           ),
         ],
@@ -611,7 +611,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: StaffColors.primary,
+              color: Colors.black87, //newc
             ),
           ),
           const Spacer(),
@@ -776,7 +776,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: StaffColors.primary,
+              color: Colors.black87, //newc
             ),
           ),
           const SizedBox(height: 8),

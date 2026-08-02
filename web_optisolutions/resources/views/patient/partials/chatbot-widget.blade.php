@@ -61,6 +61,35 @@
     .attachment-preview-remove:hover {
       color: #374151;
     }
+
+    /* ---------- Star Rating ---------- */
+    .star-rating-bubble {
+      padding: 10px 6px;
+      background: transparent;
+      box-shadow: none;
+    }
+    .star-rating-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      padding: 6px 4px;
+    }
+    .star-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 32px;
+      line-height: 1;
+      color: #d1d5db;
+      padding: 2px;
+      transition: color 0.15s ease, transform 0.15s ease;
+    }
+    .star-btn:hover {
+      transform: scale(1.15);
+    }
+    .star-btn.filled {
+      color: #fbbf24;
+    }
   </style>
 </head>
 <body>
@@ -103,9 +132,6 @@
 
 </div>
 
-<div class="footer-note">
-  <a href="{{ route('home') }}">← Back to PolyClinic Lipa</a>
-</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -271,7 +297,64 @@ document.addEventListener('DOMContentLoaded', () => {
     return bubble;
   }
 
+  // ---------- Star rating helpers ----------
+  function isRatingButtons(buttons) {
+    return Array.isArray(buttons) && buttons.length === 5 &&
+      buttons.every((b, i) => String(b.value ?? b.text).trim() === String(i + 1));
+  }
+
+  function addStarRating(buttons, persist = true) {
+    const messageWrap = document.createElement('div');
+    messageWrap.className = 'chat-message bot';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble star-rating-bubble';
+
+    const row = document.createElement('div');
+    row.className = 'star-rating-row';
+
+    const stars = [];
+
+    buttons.forEach((btn, idx) => {
+      const starBtn = document.createElement('button');
+      starBtn.type = 'button';
+      starBtn.className = 'star-btn';
+      starBtn.innerHTML = '<i class="fa-solid fa-star"></i>';
+
+      starBtn.addEventListener('mouseenter', () => {
+        stars.forEach((s, i) => s.classList.toggle('filled', i <= idx));
+      });
+
+      starBtn.addEventListener('click', () => {
+        const filledLabel = '★'.repeat(idx + 1) + '☆'.repeat(5 - (idx + 1));
+        sendMessage(btn.value ?? btn.text, filledLabel);
+      });
+
+      stars.push(starBtn);
+      row.appendChild(starBtn);
+    });
+
+    row.addEventListener('mouseleave', () => {
+      stars.forEach(s => s.classList.remove('filled'));
+    });
+
+    bubble.appendChild(row);
+    messageWrap.appendChild(bubble);
+    messagesEl.appendChild(messageWrap);
+    scrollToBottom();
+
+    if (persist) {
+      session.history.push({ kind: 'star_rating', buttons });
+      persistSession();
+    }
+  }
+
   function addButtons(buttons, persist = true) {
+    if (isRatingButtons(buttons)) {
+      addStarRating(buttons, persist);
+      return;
+    }
+
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
 
@@ -450,6 +533,8 @@ document.addEventListener('DOMContentLoaded', () => {
         addBubble(item.text, item.sender, false);
       } else if (item.kind === 'buttons') {
         addButtons(item.buttons, false);
+      } else if (item.kind === 'star_rating') {
+        addStarRating(item.buttons, false);
       } else if (item.kind === 'card') {
         addAppointmentCard(item.data, false);
       } else if (item.kind === 'info_card') {
@@ -617,6 +702,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   setInterval(pollForReplies, 5000);
+
+  // ---------- Global trigger: open chat + jump straight to Submit Feedback ----------
+  // Ginagamit ito ng "Leave your Feedback here!" link sa home page para direktang
+  // pumasok sa "Submit Review/Rating" flow, na parang na-click ang menu button.
+  window.openChatbotAndSubmitFeedback = function () {
+    if (!panel.classList.contains('open')) {
+      panel.classList.add('open');
+    }
+    input.focus();
+    scrollToBottom();
+    pollForReplies();
+    sendMessage('submit review/rating', 'Submit Review/Rating');
+  };
 
   // ---------- Initialization ----------
   restoreConversation();

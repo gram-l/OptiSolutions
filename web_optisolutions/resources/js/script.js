@@ -132,7 +132,6 @@ function renderDoctors(filter = 'all', containerId = 'doctorsGrid') {
   }
   grid.innerHTML = filtered.map(doc => `
     <div class="doctor-card" onclick="showDoctorDetails(${doc.id})">
-      <div class="doctor-avatar">${doc.icon}</div>
       <h3>${doc.name}</h3>
       <span class="doctor-spec">${doc.spec}</span>
       <p>${doc.yearsExp} years of experience</p>
@@ -159,7 +158,6 @@ function showDoctorDetails(id) {
   const scheduleHtml = doc.schedule.map(s => `<li><span>${s.day}</span><span>${s.time}</span></li>`).join('');
   document.getElementById('modalContent').innerHTML = `
     <div class="modal-header">
-      <div class="modal-avatar">${doc.icon}</div>
       <h2>${doc.name}</h2>
       <div class="modal-spec">${doc.spec}</div>
     </div>
@@ -249,5 +247,15 @@ window.showDoctorDetails    = showDoctorDetails;
 window.closeDoctorModal     = closeDoctorModal;
 window.openServiceModal     = openServiceModal;
 window.closeServiceModal    = closeServiceModal;
-window.loadServicesData     = loadServicesData; 
+window.loadServicesData     = loadServicesData;
 window.loadDoctorsData      = loadDoctorsData;
+
+// ============ AUTO-LOAD ON PAGE READY (THE FIX) ============
+// Without this, loadDoctorsData()/loadServicesData()/loadClinicInfo() are defined
+// but never called anywhere, so #doctorsGrid, #doctorsGridHome, #servicesGrid,
+// #serviceCardsHome, and clinic-info fields all stay empty on page load.
+document.addEventListener('DOMContentLoaded', function () {
+  loadDoctorsData();
+  loadServicesData();
+  loadClinicInfo();
+});

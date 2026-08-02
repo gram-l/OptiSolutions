@@ -14,6 +14,106 @@
     .reviews-banner-footer { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
     .reviews-banner-footer:hover { transform: scale(1.02); box-shadow: 0 12px 32px rgba(0,0,0,0.2); }
     .reviews-banner-footer:active { transform: scale(0.98); }
+
+    /* ---------- Hero actions: rating badge + feedback button, same height ---------- */
+    .hero-flutter-actions {
+      display: flex;
+      align-items: stretch;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .hero-rating-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 4px;
+      padding: 20px 28px;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      min-width: 190px;
+    }
+
+    .hero-rating-num {
+      font-size: 30px;
+      font-weight: 800;
+      color: #1e3a8a;
+      line-height: 1;
+    }
+
+    .hero-rating-stars {
+      display: flex;
+      gap: 3px;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .hero-rating-stars .star-filled { color: #fbbf24; }
+    .hero-rating-stars .star-empty  { color: #d1d5db; }
+
+    .hero-rating-label {
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .hero-learn-more-wrap {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 20px 32px;
+      border: 2px solid #1e3a8a;
+      border-radius: 14px;
+      min-width: 260px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s ease, transform 0.15s ease;
+    }
+    .hero-learn-more-wrap:hover {
+      background: #1e3a8a;
+      transform: translateY(-2px);
+    }
+    .hero-learn-more-wrap:hover .hero-learn-more-title,
+    .hero-learn-more-wrap:hover .hero-learn-more-sub {
+      color: #ffffff;
+    }
+
+    .hero-learn-more-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e3a8a;
+      transition: color 0.2s ease;
+    }
+
+    .hero-learn-more-sub {
+      font-size: 14px;
+      color: #6b7280;
+      transition: color 0.2s ease;
+    }
+
+    @media (max-width: 640px) {
+      .hero-rating-badge,
+      .hero-learn-more-wrap {
+        width: 100%;
+      }
+    }
+
+    /* ---------- Stats section stars (dynamic, colored) ---------- */
+    .stat-rating-stars {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .stat-rating-stars .star-filled { color: #fbbf24; }
+    .stat-rating-stars .star-empty  { color: #d1d5db; }
+    .stat-rating-count {
+      margin-left: 4px;
+      font-size: inherit;
+      color: inherit;
+    }
   </style>
 </head>
 <body>
@@ -26,16 +126,28 @@
       <p class="hero-flutter-desc">Experience compassionate, accessible healthcare with our team of board-certified specialists. We're here for every Filipino family.</p>
       <div class="hero-flutter-actions">
         <div class="hero-rating-badge">
-          <span class="hero-rating-num">{{ $avgRating ?? '4.9' }}</span>
-          <span class="hero-rating-stars">★★★★★</span>
+          <span class="hero-rating-num">{{ number_format($avgRating ?? 4.9, 1) }}</span>
+          <span class="hero-rating-stars">
+            @php
+              $ratingValue = round($avgRating ?? 4.9);
+              $ratingValue = max(0, min(5, $ratingValue));
+            @endphp
+            @for ($i = 1; $i <= 5; $i++)
+              <i class="fas fa-star {{ $i <= $ratingValue ? 'star-filled' : 'star-empty' }}"></i>
+            @endfor
+          </span>
           <span class="hero-rating-label">Patient Rating</span>
         </div>
-        <a href="{{ route('about') }}" class="hero-learn-more">Learn More →</a>
+
+        <a href="#" onclick="openChatForReview(); return false;" class="hero-learn-more-wrap">
+          <span class="hero-learn-more-title">Leave your Feedback here!</span>
+          <span class="hero-learn-more-sub">We're glad to hear your experience with us.</span>
+        </a>
       </div>
     </div>
     <div class="hero-flutter-image">
-      <img src="{{ str_starts_with($heroImage, 'hero/') ? asset('storage/' . $heroImage) : asset($heroImage) }}" alt="PolyClinic Doctors" class="hero-flutter-img">
-    </div>
+  <img src="/images/polyclinic_logo.png" alt="PolyClinic Logo" class="hero-flutter-img hero-logo-blur">
+  </div>
   </div>
 </section>
 
@@ -59,9 +171,18 @@
         <span class="stat-modern-desc">Board-certified medical experts</span>
       </div>
       <div class="stat-modern-item">
-        <span class="stat-modern-number">{{ $avgRating ?? '4.9' }}</span>
+        <span class="stat-modern-number">{{ number_format($avgRating ?? 4.9, 1) }}</span>
         <span class="stat-modern-label">Patient Rating</span>
-        <span class="stat-modern-desc">★★★★★ from 800+ reviews</span>
+        <span class="stat-modern-desc stat-rating-stars">
+          @php
+            $statRatingValue = round($avgRating ?? 4.9);
+            $statRatingValue = max(0, min(5, $statRatingValue));
+          @endphp
+          @for ($i = 1; $i <= 5; $i++)
+            <i class="fas fa-star {{ $i <= $statRatingValue ? 'star-filled' : 'star-empty' }}"></i>
+          @endfor
+          <span class="stat-rating-count">from 800+ reviews</span>
+        </span>
       </div>
     </div>
   </div>
@@ -206,14 +327,6 @@
   </div>
 </section>
 
-<!-- ========== REVIEWS BANNER ========== -->
-<div class="container">
-  <div class="reviews-banner-footer" onclick="openChatForReview()">
-    <div class="stars">★★★★★</div>
-    <div class="count">809,000+ Reviews</div>
-    <div class="text">⭐ Click here to leave your feedback! ⭐</div>
-  </div>
-</div>
 
 <!-- ========== FOOTER ========== -->
 <footer class="footer"><p>© 2026 PolyClinic Lipa · TM Kalaw St., Lipa City, Batangas 4217</p></footer>
@@ -232,7 +345,11 @@
 
 <script>
   function openChatForReview() {
-    document.getElementById('chatbotTrigger')?.click();
+    if (window.openChatbotAndSubmitFeedback) {
+      window.openChatbotAndSubmitFeedback();
+    } else {
+      document.getElementById('chatbotTrigger')?.click();
+    }
   }
 
   function filterDoctorsLive(query) {
@@ -268,3 +385,4 @@
 
 </body>
 </html>
+

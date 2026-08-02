@@ -11,7 +11,7 @@ use App\Http\Controllers\ClinicInfoController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\FeedbackController;
-use App\Http\Controllers\ChatbotLogController;
+//use App\Http\Controllers\ChatbotLogController;
 use App\Http\Controllers\ChartController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 
@@ -39,13 +39,13 @@ Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::cl
 
 //(mika) tinanggal q kasi wala na patient side sa mobile 
 // ── Patient side ──
-/*Route::get('/doctors', [PatientDoctorController::class, 'index']); // ⚠️ conflict with line above — same URI, dalawang beses defined
+Route::get('/doctors', [PatientDoctorController::class, 'index']); // ⚠️ conflict with line above — same URI, dalawang beses defined
 Route::get('/services', [ServiceController::class, 'index']);
 Route::get('/clinic-info', [ClinicInfoController::class, 'index']);
 Route::post('/schedule-visit', [AppointmentController::class, 'store']);
 Route::post('/complaints', [ComplaintController::class, 'store']);
 Route::post('/feedback', [FeedbackController::class, 'store']);
-Route::post('/chatbot-logs', [ChatbotLogController::class, 'store']);*/
+//Route::post('/chatbot-logs', [ChatbotLogController::class, 'store']);
 
 Route::prefix('charts')->group(function () {
     Route::get('/service-distribution', [ChartController::class, 'serviceDistribution']);

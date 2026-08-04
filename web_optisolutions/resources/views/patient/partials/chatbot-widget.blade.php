@@ -9,7 +9,14 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   @vite(['resources/css/patient_css/chatbot.css'])
   <style>
-    .chat-bubble.attachment-bubble {
+    /* Attachment bubble uses a light background instead of the big
+       solid-blue chat bubble, so the blue only shows as a thin accent
+       border, not a large colored block behind the file/image. */
+    .chat-message.user .chat-bubble.attachment-bubble,
+    .chat-message.bot .chat-bubble.attachment-bubble {
+      background: #F8FAFE;
+      border: 1px solid #DCE7F5;
+      color: #1F2A3A;
       padding: 8px;
     }
     .chat-attachment-image {
@@ -24,6 +31,15 @@
       color: #6b7280;
       margin-top: 6px;
       word-break: break-all;
+    }
+    /* The patient's typed question, shown above the file inside the
+       same bubble, so text + attachment are sent/read as one message. */
+    .chat-attachment-caption-text {
+      font-size: 14px;
+      line-height: 1.45;
+      color: #1F2A3A;
+      padding: 2px 4px 8px;
+      word-break: break-word;
     }
     .attachment-preview {
       display: none;
@@ -90,6 +106,72 @@
     .star-btn.filled {
       color: #fbbf24;
     }
+
+    /* ---------- Per-message translate (WeChat/Messenger style) ---------- */
+    .msg-translate-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 4px 0 4px;
+      margin: 0;
+    }
+    .msg-translate-btn:hover {
+      color: #1e3a8a;
+    }
+    .msg-translate-btn i {
+      font-size: 11px;
+    }
+    .chat-message.user .msg-translate-btn {
+      align-self: flex-end;
+    }
+    .chat-message.bot .msg-translate-btn {
+      align-self: flex-start;
+    }
+    .msg-translation-box {
+      display: none;
+      position: absolute;
+      top: calc(100% + 2px);
+      padding: 8px 26px 8px 10px;
+      background: #ffffff;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.14);
+      font-size: 13px;
+      line-height: 1.4;
+      color: #374151;
+      max-width: 240px;
+      width: max-content;
+      z-index: 30;
+    }
+    .chat-message.user .msg-translation-box {
+      right: 0;
+    }
+    .chat-message.bot .msg-translation-box {
+      left: 0;
+    }
+    .msg-translation-box.visible {
+      display: block;
+    }
+    .msg-translation-collapse {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 0;
+    }
+    .msg-translation-collapse:hover {
+      color: #374151;
+    }
   </style>
 </head>
 <body>
@@ -150,10 +232,94 @@ document.addEventListener('DOMContentLoaded', () => {
   const csrfToken  = document.querySelector('meta[name="csrf-token"]').content;
   const botmanUrl  = '{{ route("botman.handle") }}';
 
-
   const APPT_CARD_PREFIX = 'APPT_CARD::';
   const INFO_CARD_PREFIX = 'INFO_CARD::';
 
+  // PER-MESSAGE TRANSLATION (auto-detect, WeChat/Messenger style)
+  // Backend auto-detects Tagalog vs English and translates to the
+  // counterpart language using the free MyMemory API — no key needed.
+
+  async function translateCounterpart(text) {
+    if (!text || !text.trim()) return { text, lang: 'en' };
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) return { text, lang: 'en' };
+      const data = await res.json();
+      return {
+        text: data.translatedText || text,
+        lang: data.detectedSourceLanguage === 'tl' ? 'en' : 'tl',
+      };
+    } catch (e) {
+      console.error('Translation error:', e);
+      return { text, lang: 'en' };
+    }
+  }
+
+  // Attaches a small "Translate" button under a bubble. Clicking it
+  // fetches the translation once, then shows/hides it inline below
+  // the original message — same behavior as the reference screenshots.
+  function attachTranslateControls(messageWrap, getOriginalText) {
+    const anchor = document.createElement('div');
+    anchor.style.position = 'relative';
+    anchor.style.display = 'inline-block';
+    anchor.style.maxWidth = '100%';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'msg-translate-btn';
+    btn.innerHTML = '<i class="fa-solid fa-language"></i> Translate';
+
+    const box = document.createElement('div');
+    box.className = 'msg-translation-box';
+
+    let loaded = false;
+    let visible = false;
+
+    btn.addEventListener('click', async () => {
+      if (visible) {
+        box.classList.remove('visible');
+        btn.innerHTML = '<i class="fa-solid fa-language"></i> Translate';
+        visible = false;
+        return;
+      }
+
+      if (!loaded) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Translating...';
+        const originalText = getOriginalText();
+        const result = await translateCounterpart(originalText);
+
+        box.innerHTML = '';
+        const span = document.createElement('span');
+        span.textContent = result.text;
+
+        const collapseBtn = document.createElement('button');
+        collapseBtn.type = 'button';
+        collapseBtn.className = 'msg-translation-collapse';
+        collapseBtn.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+        collapseBtn.addEventListener('click', () => btn.click());
+
+        box.appendChild(span);
+        box.appendChild(collapseBtn);
+        loaded = true;
+      }
+
+      box.classList.add('visible');
+      btn.innerHTML = '<i class="fa-solid fa-language"></i> Hide translation';
+      visible = true;
+    });
+
+    anchor.appendChild(btn);
+    anchor.appendChild(box);
+    messageWrap.appendChild(anchor);
+  }
 
   // SESSION PERSISTENCE
 
@@ -202,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // PENDING ATTACHMENT (staged, not yet sent)
-  
+
   let pendingAttachment = null;
 
   function showAttachmentPreview(file, dataUrl) {
@@ -249,9 +415,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text && !attachment) return;
 
     if (attachment) {
-      addAttachmentBubble(attachment.file.name, attachment.dataUrl, 'user');
+      // Show the caption text together WITH the attachment, in a single
+      // combined bubble (text on top, attachment below) — instead of two
+      // separate messages — so the patient's question travels together
+      // with the file.
+      addAttachmentBubble(attachment.file.name, attachment.dataUrl, 'user', true, text || null);
       clearAttachmentPreview();
-      await acknowledgeAttachment();
+      input.value = '';
+
+      if (text) {
+        // Send that same caption text to the bot so it can read and
+        // answer the patient's actual question. skipUserBubble avoids
+        // re-adding a duplicate text bubble, since it's already shown
+        // above inside the attachment bubble.
+        await sendMessage(text, text, { skipUserBubble: true });
+      } else {
+        await acknowledgeAttachment();
+      }
+      return;
     }
 
     if (text) {
@@ -280,12 +461,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function addBubble(text, sender = 'bot', persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
+    messageWrap.style.display = 'flex';
+    messageWrap.style.flexDirection = 'column';
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
     bubble.textContent = text;
 
     messageWrap.appendChild(bubble);
+    attachTranslateControls(messageWrap, () => bubble.textContent);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
 
@@ -434,6 +618,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function addCard(data, kind, persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
+    messageWrap.style.display = 'flex';
+    messageWrap.style.flexDirection = 'column';
 
     const card = document.createElement('div');
     card.className = 'post-appt-card';
@@ -462,6 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     messageWrap.appendChild(card);
+    attachTranslateControls(messageWrap, () => card.innerText);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
 
@@ -479,28 +666,39 @@ document.addEventListener('DOMContentLoaded', () => {
     addCard(data, 'info_card', persist);
   }
 
-  function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true) {
+  function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true, caption = null) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
 
     const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble attachment-bubble';
+
+    // Caption text goes FIRST, above the file/image, inside the same
+    // bubble — so the patient's question and the attachment appear as
+    // one combined message instead of two separate bubbles.
+    if (caption) {
+      const captionEl = document.createElement('div');
+      captionEl.className = 'chat-attachment-caption-text';
+      captionEl.textContent = caption;
+      bubble.appendChild(captionEl);
+    }
 
     if (dataUrl) {
-      bubble.className = 'chat-bubble attachment-bubble';
-
       const img = document.createElement('img');
       img.src = dataUrl;
       img.alt = fileName;
       img.className = 'chat-attachment-image';
       bubble.appendChild(img);
 
-      const caption = document.createElement('div');
-      caption.className = 'chat-attachment-caption';
-      caption.textContent = fileName;
-      bubble.appendChild(caption);
+      const fileLabel = document.createElement('div');
+      fileLabel.className = 'chat-attachment-caption';
+      fileLabel.textContent = fileName;
+      bubble.appendChild(fileLabel);
     } else {
-      bubble.className = 'chat-bubble';
-      bubble.textContent = `Attached: ${fileName}`;
+      const fileLabel = document.createElement('div');
+      fileLabel.className = 'chat-attachment-caption';
+      fileLabel.textContent = `Attached: ${fileName}`;
+      bubble.appendChild(fileLabel);
     }
 
     messageWrap.appendChild(bubble);
@@ -508,14 +706,14 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
 
     if (persist) {
-      session.history.push({ kind: 'attachment', fileName, dataUrl, sender });
+      session.history.push({ kind: 'attachment', fileName, dataUrl, sender, caption });
       persistSession();
     }
 
     return bubble;
   }
 
-  
+
   function restoreConversation() {
     if (session.history.length === 0) {
       addBubble('Hello! Welcome to PolyClinic Lipa. How can I help you today?', 'bot');
@@ -540,7 +738,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (item.kind === 'info_card') {
         addInfoCard(item.data, false);
       } else if (item.kind === 'attachment') {
-        addAttachmentBubble(item.fileName, item.dataUrl, item.sender, false);
+        addAttachmentBubble(item.fileName, item.dataUrl, item.sender, false, item.caption);
       }
     });
     scrollToBottom();
@@ -566,11 +764,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.remove();
   }
 
-  async function sendMessage(text, displayText) {
+  async function sendMessage(text, displayText, opts = {}) {
     text = typeof text === 'string' ? text : String(text ?? '');
     if (!text.trim()) return;
 
-    addBubble(displayText ?? text, 'user');
+    if (!opts.skipUserBubble) {
+      addBubble(displayText ?? text, 'user');
+    }
     input.value = '';
     showTyping();
 
@@ -661,7 +861,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  
+
   const FALLBACK_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
   let shownReplyIds = new Set(session.shownReplyIds || []);
 

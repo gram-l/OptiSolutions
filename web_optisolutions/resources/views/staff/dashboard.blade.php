@@ -84,7 +84,7 @@
     @endphp
 
     <!-- 1) SERVICE DISTRIBUTION (doughnut) -->
-    <div style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
+    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
         <h3 style="color: var(--text-dark);">Service Distribution</h3>
         <p style="color: #7f8c8d; font-size: 0.9rem;">Distribution of patient visits by department</p>
 
@@ -107,7 +107,7 @@
     </div>
 
     <!-- 2) WEEKLY PATIENT VISITS (line) -->
-    <div style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
+    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
         <h3 style="color: var(--text-dark);">Weekly Patient Visits</h3>
         <p style="color: #7f8c8d; font-size: 0.9rem;">Visits from schedule_visit over the last several weeks</p>
 
@@ -121,7 +121,7 @@
     </div>
 
     <!-- 3) SENTIMENT ANALYSIS (custom bars) -->
-    <div style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
+    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
         <h3 style="color: var(--text-dark);">Sentiment Analysis</h3>
         <p style="color: #7f8c8d; font-size: 0.9rem;">Breakdown of recent patient feedback</p>
 
@@ -145,7 +145,7 @@
     </div>
 
     <!-- 4) INQUIRY VOLUME PER WEEK (bar) -->
-    <div style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
+    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
         <h3 style="color: var(--text-dark);">Inquiry Volume per Week</h3>
         <p style="color: #7f8c8d; font-size: 0.9rem;">Inquiries received per day this week</p>
 
@@ -159,7 +159,7 @@
     </div>
 
     <!-- RECENT ACTIVITY -->
-    <div style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
+    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
         <h3 style="color: var(--text-dark);">Recent Activities</h3>
         <div id="recentActivityList">
             @forelse($recentActivities as $activity)
@@ -186,8 +186,12 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const navy = '#1A237E';
-    const emptyGrey = '#e0e0e0';
 
+    function isDarkMode() {
+        return document.body.classList.contains('dark-mode');
+    }
+
+    let emptyGrey = isDarkMode() ? '#3a4356' : '#e0e0e0';
 
     const DASHBOARD_DATA_URL = '{{ route("staff.dashboard.data") }}';
     const REFRESH_INTERVAL_MS = 30000; // 30 seconds — adjust as needed
@@ -210,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
         options: {
             responsive: true,
             plugins: {
-                legend: { display: hasServiceData, position: 'bottom' },
+                legend: { display: hasServiceData, position: 'bottom', labels: {} },
                 tooltip: { enabled: hasServiceData }
             }
         }
@@ -233,7 +237,17 @@ document.addEventListener('DOMContentLoaded', function () {
         options: {
             responsive: true,
             plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { precision: 0 }, suggestedMax: 5 } }
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    //numbering
+                    ticks: { stepSize: 1, precision: 0 },
+                    //numbering
+                    suggestedMax: 6,
+                    grid: {}
+                },
+                x: { grid: {} }
+            }
         }
     });
 
@@ -251,9 +265,41 @@ document.addEventListener('DOMContentLoaded', function () {
         options: {
             responsive: true,
             plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { precision: 0 }, suggestedMax: 5 } }
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 }, suggestedMax: 5, grid: {} }, x: { grid: {} } }
         }
     });
+
+    // ===== DARK MODE THEMING FOR CHARTS =====
+    function applyChartTheme() {
+        const dark = isDarkMode();
+        const textColor = dark ? '#c7cedd' : '#5a6472';
+        const gridColor = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+
+        [serviceChart, weeklyChart, inquiryChart].forEach(chart => {
+            if (!chart) return;
+
+            if (chart.options.plugins && chart.options.plugins.legend) {
+                chart.options.plugins.legend.labels = chart.options.plugins.legend.labels || {};
+                chart.options.plugins.legend.labels.color = textColor;
+            }
+
+            if (chart.options.scales) {
+                Object.values(chart.options.scales).forEach(scale => {
+                    scale.ticks = scale.ticks || {};
+                    scale.ticks.color = textColor;
+                    scale.grid = scale.grid || {};
+                    scale.grid.color = gridColor;
+                });
+            }
+
+            chart.update();
+        });
+    }
+
+    applyChartTheme();
+
+    // Re-theme charts the moment Dark Mode toggle switch is used (see app.blade.php)
+    window.addEventListener('staffThemeChange', applyChartTheme);
 
     function renderRecentActivities(activities) {
         const container = document.getElementById('recentActivityList');
@@ -291,6 +337,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // ---- 1) Service Distribution ----
             const services = Array.isArray(data.serviceDistribution) ? data.serviceDistribution : [];
             const hasServices = services.length > 0;
+            emptyGrey = isDarkMode() ? '#3a4356' : '#e0e0e0';
             serviceChart.data.labels = hasServices ? services.map(s => s.service_type) : ['No data'];
             serviceChart.data.datasets[0].data = hasServices ? services.map(s => s.total) : [1];
             serviceChart.data.datasets[0].backgroundColor = hasServices

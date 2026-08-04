@@ -5,7 +5,7 @@
     <div class="action-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
         <h3 style="margin: 0;">Doctors</h3>
 
-        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
             <div style="position: relative; min-width: 220px;">
                 <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
                 <input
@@ -30,6 +30,34 @@
                     <option value="{{ strtolower($specialty) }}">{{ $specialty }}</option>
                 @endforeach
             </select>
+
+            <div style="position: relative;">
+                <button
+                    type="button"
+                    id="downloadBtn"
+                    onclick="toggleExportMenu()"
+                    class="btn-primary"
+                    style="display: flex; align-items: center; gap: 6px; padding: 0.55rem 1rem; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer;"
+                >
+                    <i class="bi bi-download"></i> Download
+                </button>
+
+                <div
+                    id="exportMenu"
+                    class="dropdown-menu"
+                    style="right: 0; left: auto; top: calc(100% + 6px); width: 200px; padding: 0.5rem 0;"
+                >
+                    <a href="{{ route('staff.doctors.export', 'csv') }}" class="dropdown-item" style="text-decoration: none;">
+                        <i class="bi bi-filetype-csv"></i> Export as CSV
+                    </a>
+                    <a href="{{ route('staff.doctors.export', 'xlsx') }}" class="dropdown-item" style="text-decoration: none;">
+                        <i class="bi bi-filetype-xlsx"></i> Export as Excel
+                    </a>
+                    <a href="{{ route('staff.doctors.export', 'pdf') }}" target="_blank" class="dropdown-item" style="text-decoration: none;">
+                        <i class="bi bi-filetype-pdf"></i> Export as PDF
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -85,6 +113,18 @@
 </div>
 
 <script>
+    function toggleExportMenu() {
+        document.getElementById('exportMenu').classList.toggle('show');
+    }
+
+    document.addEventListener('click', function (e) {
+        const menu = document.getElementById('exportMenu');
+        const btn = document.getElementById('downloadBtn');
+        if (menu && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+            menu.classList.remove('show');
+        }
+    });
+
     function filterDoctorsTable() {
         const searchInput = document.getElementById('doctorSearch');
         const departmentSelect = document.getElementById('departmentFilter');

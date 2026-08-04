@@ -11,6 +11,8 @@ use App\Models\Staff\AppNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 
 class StaffController extends Controller
@@ -23,6 +25,27 @@ class StaffController extends Controller
     public function data()
     {
         return response()->json($this->buildDashboardData());
+    }
+
+    public function updatePhoto(Request $request)
+    {
+        $request->validate([
+            'profile_photo' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        $user = Auth::user();
+
+        // burahin lumang photo kung meron
+        if ($user->profile_photo) {
+            Storage::disk('public')->delete($user->profile_photo);
+        }
+
+        $path = $request->file('profile_photo')->store('profile_photos', 'public');
+
+        $user->profile_photo = $path;
+        $user->save();
+
+        return back()->with('success', 'Profile photo updated!');
     }
 
     private function buildDashboardData(): array

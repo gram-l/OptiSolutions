@@ -14,6 +14,7 @@ use App\Http\Controllers\FeedbackController;
 //use App\Http\Controllers\ChatbotLogController;
 use App\Http\Controllers\ChartController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Api\TranslationController;
 
 require __DIR__.'/admin_acc/api.php';
 require __DIR__.'/staff_acc/api.php';
@@ -57,3 +58,7 @@ Route::prefix('charts')->group(function () {
 //    if Admin/Staff has replied to an inquiry raised in the same chat
 //    session. Keyed by the BotMan conversation/client id. ──
 Route::get('/chat/{conversationId}/updates', [\App\Http\Controllers\Api\InquiryController::class, 'publicUpdates']);
+
+// ── Public: translation proxy used by the patient-facing chatbot widget
+//    to translate patient messages and bot/staff replies both ways. ──
+Route::post('/translate', [TranslationController::class, 'translate']);

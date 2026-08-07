@@ -19,7 +19,8 @@ class Doctor extends Model
         'status',
         'description',
         'schedule',
-        'contact_number'
+        'contact_number',
+        'profile_image',
     ];
 
     public function schedules()

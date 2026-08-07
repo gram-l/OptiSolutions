@@ -1,10 +1,14 @@
-{{-- resources/views/admin_acc/system_settings --}}
-@extends('admin_acc.layout') {{-- adjust to whatever your admin layout is called --}}
-
-@section('content')
-<div class="container">
-    <div style="flex:1; min-width:0;">
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System Settings - Polyclinic Admin</title>
+    @vite(['resources/css/admin_css/patients.css','resources/css/admin_css/user_management.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/system_settings.css'])
+</head>
+<body>
+    @include('admin_acc.header')
+    @include('admin_acc.sidebar')
+    <main>
         <div class="page-header">
             <h2><i class="bi bi-gear"></i> System Settings</h2>
             <p>Manage clinic hours, about page, contact info, and services</p>
@@ -222,9 +226,6 @@
             </div>
         </div>
 
-    </div>
-</div>
-
 <script>
     // Tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -283,13 +284,6 @@
         if (e.target === serviceModal) closeServiceModal();
     });
 </script>
-
-<style>
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
-.tab-btn { opacity: 0.6; }
-.tab-btn.active { opacity: 1; box-shadow: 0 4px 12px rgba(14, 98, 170, 0.3); }
-.core-value-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-.core-value-row input { flex: 1; }
-</style>
-@endsection
+    </main>
+</body>
+</html>

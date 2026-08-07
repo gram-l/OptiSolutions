@@ -7,7 +7,7 @@ class ApiService {
   // Android emulator: http://10.0.2.2:8000/api
   // iOS simulator: http://localhost:8000/api
   // Physical phone: http://YOUR_COMPUTER_LOCAL_IP:8000/api (same WiFi)
-  static const String baseUrl = 'http://10.244.36.34:8000/api';
+  static const String baseUrl = 'http://192.168.254.147:8000/api';
 
   static Future<String?> _token() async {
     final prefs = await SharedPreferences.getInstance();

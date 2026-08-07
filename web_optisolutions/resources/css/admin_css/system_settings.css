@@ -1,0 +1,289 @@
+
+
+/* Page header */
+.page-header {
+    margin-bottom: 1.5rem;
+}
+
+.page-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-dark, #062744);
+    font-family: 'Poppins', 'Segoe UI', sans-serif;
+}
+
+.page-header p {
+    margin-top: 0.3rem;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+/* Status badges (success message + service availability) */
+.status-badge {
+    display: inline-block;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.status-active {
+    background: #e6f7ee;
+    color: #1e8e57;
+}
+
+.status-inactive {
+    background: #fdeaea;
+    color: #c0392b;
+}
+
+/* Tabs bar */
+.filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.add-patient-btn {
+    background: var(--primary-main, #0E62AA);
+    color: #fff;
+    border: none;
+    padding: 0.65rem 1.2rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+.add-patient-btn:hover {
+    background: #0b4f8a;
+}
+
+.tab-btn {
+    opacity: 0.6;
+}
+
+.tab-btn.active {
+    opacity: 1;
+    box-shadow: 0 4px 12px rgba(14, 98, 170, 0.3);
+}
+
+/* Tab panels */
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+/* Card container used inside each tab */
+.patients-table-container {
+    background: var(--white, #ffffff);
+    border-radius: 15px;
+    box-shadow: 0 4px 20px var(--shadow, rgba(0, 0, 0, 0.08));
+    overflow: hidden;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dark, #062744);
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="url"],
+.form-group textarea {
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid #dfe6ec;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-family: inherit;
+    color: var(--text-dark, #062744);
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-main, #0E62AA);
+    box-shadow: 0 0 0 3px rgba(14, 98, 170, 0.15);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+}
+
+@media (max-width: 640px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Core values dynamic rows */
+.core-value-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.core-value-row input {
+    flex: 1;
+}
+
+/* Small icon buttons (edit / delete / remove) */
+.btn-icon {
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--light-gray, #eef2f7);
+    color: var(--text-dark, #062744);
+    transition: opacity 0.2s;
+}
+
+.btn-icon:hover {
+    opacity: 0.85;
+}
+
+.btn-edit {
+    background: #e8f1fb;
+    color: var(--primary-main, #0E62AA);
+}
+
+/* Services table */
+.patients-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.patients-table thead th {
+    text-align: left;
+    padding: 1rem 1.2rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #95a5a6;
+    border-bottom: 1px solid #f0f4f8;
+}
+
+.patients-table tbody td {
+    padding: 0.9rem 1.2rem;
+    font-size: 0.85rem;
+    color: var(--text-dark, #062744);
+    border-bottom: 1px solid #f0f4f8;
+}
+
+.patients-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.patients-table tbody tr:hover {
+    background: #f9fbfd;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem 1rem !important;
+    color: #95a5a6;
+    font-size: 0.85rem;
+}
+
+/* Service Add/Edit Modal */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 39, 68, 0.45);
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+}
+
+.modal-content {
+    background: var(--white, #ffffff);
+    border-radius: 15px;
+    padding: 1.8rem;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h3 {
+    margin-bottom: 1.2rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-dark, #062744);
+    font-family: 'Poppins', 'Segoe UI', sans-serif;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.7rem;
+    margin-top: 1.2rem;
+}
+
+.btn-cancel {
+    background: var(--light-gray, #eef2f7);
+    color: var(--text-dark, #062744);
+    border: none;
+    padding: 0.65rem 1.2rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-save {
+    background: var(--primary-main, #0E62AA);
+    color: #fff;
+    border: none;
+    padding: 0.65rem 1.2rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-save:hover {
+    background: #0b4f8a;
+}

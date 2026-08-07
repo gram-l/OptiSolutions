@@ -8,167 +8,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   @vite(['resources/css/patient_css/chatbot.css'])
-  <style>
-    .chat-message.user .chat-bubble.attachment-bubble,
-    .chat-message.bot .chat-bubble.attachment-bubble {
-      background: #F8FAFE;
-      border: 1px solid #DCE7F5;
-      color: #1F2A3A;
-      padding: 8px;
-    }
-    .chat-attachment-image {
-      max-width: 220px;
-      max-height: 220px;
-      border-radius: 12px;
-      display: block;
-      object-fit: cover;
-    }
-    .chat-attachment-caption {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 6px;
-      word-break: break-all;
-    }
-    
-    .chat-attachment-caption-text {
-      font-size: 14px;
-      line-height: 1.45;
-      color: #1F2A3A;
-      padding: 2px 4px 8px;
-      word-break: break-word;
-    }
-    .attachment-preview {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      margin: 0 12px;
-      background: #f3f4f6;
-      border-radius: 10px;
-      font-size: 13px;
-      color: #374151;
-    }
-    .attachment-preview-thumb {
-      width: 36px;
-      height: 36px;
-      object-fit: cover;
-      border-radius: 6px;
-      flex-shrink: 0;
-    }
-    .attachment-preview-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .attachment-preview-remove {
-      background: none;
-      border: none;
-      font-size: 18px;
-      line-height: 1;
-      color: #6b7280;
-      cursor: pointer;
-      padding: 2px 6px;
-    }
-    .attachment-preview-remove:hover {
-      color: #374151;
-    }
-
-    // Star Rating
-    .star-rating-bubble {
-      padding: 10px 6px;
-      background: transparent;
-      box-shadow: none;
-    }
-    .star-rating-row {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      padding: 6px 4px;
-    }
-    .star-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 32px;
-      line-height: 1;
-      color: #d1d5db;
-      padding: 2px;
-      transition: color 0.15s ease, transform 0.15s ease;
-    }
-    .star-btn:hover {
-      transform: scale(1.15);
-    }
-    .star-btn.filled {
-      color: #fbbf24;
-    }
-
-    // Per-message translate 
-    .msg-translate-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-      color: #9ca3af;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 4px 0 4px;
-      margin: 0;
-    }
-    .msg-translate-btn:hover {
-      color: #1e3a8a;
-    }
-    .msg-translate-btn i {
-      font-size: 11px;
-    }
-    .chat-message.user .msg-translate-btn {
-      align-self: flex-end;
-    }
-    .chat-message.bot .msg-translate-btn {
-      align-self: flex-start;
-    }
-    .msg-translation-box {
-      display: none;
-      position: absolute;
-      top: calc(100% + 2px);
-      padding: 8px 26px 8px 10px;
-      background: #ffffff;
-      border-radius: 10px;
-      border: 1px solid #e5e7eb;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.14);
-      font-size: 13px;
-      line-height: 1.4;
-      color: #374151;
-      max-width: 240px;
-      width: max-content;
-      z-index: 30;
-    }
-    .chat-message.user .msg-translation-box {
-      right: 0;
-    }
-    .chat-message.bot .msg-translation-box {
-      left: 0;
-    }
-    .msg-translation-box.visible {
-      display: block;
-    }
-    .msg-translation-collapse {
-      position: absolute;
-      top: 6px;
-      right: 8px;
-      background: none;
-      border: none;
-      color: #9ca3af;
-      cursor: pointer;
-      font-size: 11px;
-      padding: 0;
-    }
-    .msg-translation-collapse:hover {
-      color: #374151;
-    }
-  </style>
 </head>
 <body>
 
@@ -429,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (panel.classList.contains('open')) {
       input.focus();
       scrollToBottom();
-      pollForReplies(); 
+      pollForReplies();
     }
   });
 
@@ -464,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return bubble;
   }
 
-  // Star rating helpers 
+  // Star rating helpers
   function isRatingButtons(buttons) {
     return Array.isArray(buttons) && buttons.length === 5 &&
       buttons.every((b, i) => String(b.value ?? b.text).trim() === String(i + 1));
@@ -724,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
   }
 
-  // Typing indicator 
+  // Typing indicator
   function showTyping() {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
@@ -894,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sendMessage('submit review/rating', 'Submit Review/Rating');
   };
 
-  // Initialization 
+  // Initialization
   restoreConversation();
   persistSession();
   pollForReplies();

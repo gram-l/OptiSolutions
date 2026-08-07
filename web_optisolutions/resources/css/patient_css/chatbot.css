@@ -678,6 +678,120 @@ body {
 }
 
 /* ============================================
+   PER-MESSAGE TRANSLATE
+   ============================================ */
+.msg-translate-btn {
+  background: var(--primary-light);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  margin: 4px 2px 0 2px;
+  border-radius: 20px;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+
+.msg-translate-btn:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.msg-translate-btn:active {
+  transform: scale(0.96);
+}
+
+.msg-translate-btn i {
+  font-size: 11px;
+  color: inherit;
+}
+
+.msg-translate-btn i.fa-spin {
+  color: var(--primary-dark);
+}
+
+.chat-message.user .msg-translate-btn {
+  align-self: flex-end;
+}
+
+.chat-message.bot .msg-translate-btn {
+  align-self: flex-start;
+}
+
+.msg-translation-box {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  padding: 10px 30px 10px 14px;
+  background: var(--white);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gray-200);
+  border-left: 3px solid var(--primary);
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--gray-800);
+  max-width: 260px;
+  width: max-content;
+  z-index: 30;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.msg-translation-box.visible {
+  display: block;
+  animation: translateBoxIn 0.18s ease forwards;
+}
+
+@keyframes translateBoxIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chat-message.user .msg-translation-box {
+  right: 0;
+}
+
+.chat-message.bot .msg-translation-box {
+  left: 0;
+}
+
+.msg-translation-collapse {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: var(--primary-light);
+  border: none;
+  color: var(--primary-dark);
+  cursor: pointer;
+  font-size: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.msg-translation-collapse:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* ============================================
    CHATBOT STANDALONE PAGE
    ============================================ */
 .chat-wrapper {

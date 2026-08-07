@@ -52,18 +52,11 @@ return [
     'client_secret' => env('GOOGLE_CLIENT_SECRET'),
     'redirect' => env('GOOGLE_REDIRECT_URI'),
 ],
-
-    // Kept in case you switch to Google Cloud Translation later.
-    // Not used by TranslationController while MyMemory is active.
-    'google_translate' => [
-        'key' => env('GOOGLE_TRANSLATE_API_KEY'),
-    ],
-
-    // Used by the chatbot's translate feature (MyMemory Translation API).
-    // Adding an email raises the free daily limit from 5,000 to 50,000
-    // characters — no signup or verification required, just a valid format.
     'mymemory' => [
         'email' => env('MYMEMORY_EMAIL'),
-    ],
+],
+    'django' => [
+    'url' => env('DJANGO_ML_URL', 'http://127.0.0.1:8001'),
+]
 
 ];

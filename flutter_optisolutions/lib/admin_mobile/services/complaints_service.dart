@@ -7,16 +7,18 @@ import 'package:flutter_optisolutions/auth/auth_service.dart';
 
 class ComplaintItem {
   final int id;
-  final int patientId;
+  final int? patientId;
   final int? logId;
   final String complaintText;
+  final String category;
   final String date;
 
   ComplaintItem({
     required this.id,
-    required this.patientId,
+    this.patientId,
     this.logId,
     required this.complaintText,
+    required this.category,
     required this.date,
   });
 
@@ -26,6 +28,7 @@ class ComplaintItem {
       patientId: json['patient_id'],
       logId: json['log_id'],
       complaintText: json['complaint_text'] ?? '',
+      category: json['category'] ?? 'Uncategorized',
       date: json['date'] ?? '',
     );
   }

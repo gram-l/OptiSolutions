@@ -155,6 +155,22 @@ class StartupDecider extends StatelessWidget {
     final prefs = await SharedPreferences.getInstance();
     final acceptedTerms = prefs.getBool('terms_accepted') ?? false;
     if (!acceptedTerms) return '/terms';
+
+    // NEW: if there's a saved session (token from a previous login),
+    // skip login and go straight to the right dashboard instead of
+    // always falling through to '/login' on every refresh/restart.
+    final token = prefs.getString('auth_token');
+    final role = (prefs.getString('user_role') ?? '').toLowerCase();
+
+    if (token != null && token.isNotEmpty) {
+      switch (role) {
+        case 'admin':
+          return '/dashboard';
+        case 'staff':
+          return '/staff/dashboard';
+      }
+    }
+
     return '/login';
   }
 

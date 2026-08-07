@@ -21,6 +21,7 @@ class ComplaintController extends Controller
                     'patient_id'     => $c->patient_id,
                     'log_id'         => $c->log_id,
                     'complaint_text' => $c->complaint_text,
+                    'category'       => $c->category ?? 'Uncategorized',
                     'date'           => optional($c->created_at)->format('M d, Y g:i A'),
                 ];
             });

@@ -36,7 +36,7 @@ class ClinicInfoService
             'clinic_name'    => 'Clinic Name',
             'address'        => 'Address',
             'email'          => 'Email',
-            'contact_number' => 'Contact No',
+            'contact_no' => 'Contact No',
         ];
         foreach ($identityMap as $key => $label) {
             if (!empty($data[$key])) {

@@ -104,3 +104,23 @@ def diagnose_root_causes(request):
         "complaint_category_counts": complaint_ranked,
         "details": matched_details
     })
+
+@csrf_exempt
+def categorize_complaint(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST request required"}, status=405)
+
+    try:
+        body = json.loads(request.body)
+        text = body.get("complaint_text", "").lower().strip()
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    if not text:
+        return JsonResponse({"error": "complaint_text is required"}, status=400)
+
+    for category, keywords in ISSUE_CATEGORIES.items():
+        if any(kw in text for kw in keywords):
+            return JsonResponse({"category": category})
+
+    return JsonResponse({"category": "other"})

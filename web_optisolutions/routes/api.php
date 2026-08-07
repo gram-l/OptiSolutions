@@ -40,6 +40,9 @@ Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::cl
 
 // ── Patient side (PUBLIC — no auth required) ──
 Route::get('/doctors', [PatientDoctorController::class, 'index']);
+//(mika) tinanggal q kasi wala na patient side sa mobile 
+// ── Patient side ──
+Route::get('/doctors', [PatientDoctorController::class, 'index']); // ⚠️ conflict with line above — same URI, dalawang beses defined
 Route::get('/services', [ServiceController::class, 'index']);
 Route::get('/clinic-info', [ClinicInfoController::class, 'index']);
 Route::post('/schedule-visit', [AppointmentController::class, 'store']);

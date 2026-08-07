@@ -318,7 +318,7 @@ class _TermsBody extends StatelessWidget {
   static const _sections = <_Section>[
     _Section(
       title: 'Preamble',
-      body: 'Effective Date: [Insert Date]\n\n'
+      body: 'Effective Date: July 20, 2026\n\n'
           'These Terms and Conditions govern the use of the PolyClinic Mobile '
           'Application ("Application"), which is provided exclusively for '
           'authorized PolyClinic administrators and staff. By logging into and '

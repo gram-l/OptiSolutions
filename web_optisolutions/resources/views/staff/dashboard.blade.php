@@ -109,7 +109,7 @@
     <!-- 2) WEEKLY PATIENT VISITS (line) -->
     <div style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
         <h3 style="color: var(--text-dark);">Weekly Patient Visits</h3>
-        <p style="color: #7f8c8d; font-size: 0.9rem;">Visits from schedule_visit over the last several weeks</p>
+        <p style="color: #7f8c8d; font-size: 0.9rem;">Visits from schedule visit over the last several weeks</p>
 
         <div style="margin-top: 1rem;">
             <canvas id="weeklyVisitsChart" height="240"></canvas>

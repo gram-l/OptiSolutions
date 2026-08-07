@@ -181,7 +181,9 @@ class _ComplaintCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Patient #${complaint.patientId}',
+                    complaint.patientId != null
+                        ? 'Patient #${complaint.patientId}'
+                        : 'Anonymous',
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.bold),
                   ),

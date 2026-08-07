@@ -9,9 +9,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   @vite(['resources/css/patient_css/chatbot.css'])
   <style>
-    /* Attachment bubble uses a light background instead of the big
-       solid-blue chat bubble, so the blue only shows as a thin accent
-       border, not a large colored block behind the file/image. */
     .chat-message.user .chat-bubble.attachment-bubble,
     .chat-message.bot .chat-bubble.attachment-bubble {
       background: #F8FAFE;
@@ -32,8 +29,7 @@
       margin-top: 6px;
       word-break: break-all;
     }
-    /* The patient's typed question, shown above the file inside the
-       same bubble, so text + attachment are sent/read as one message. */
+    
     .chat-attachment-caption-text {
       font-size: 14px;
       line-height: 1.45;
@@ -78,7 +74,7 @@
       color: #374151;
     }
 
-    /* ---------- Star Rating ---------- */
+    // Star Rating
     .star-rating-bubble {
       padding: 10px 6px;
       background: transparent;
@@ -107,7 +103,7 @@
       color: #fbbf24;
     }
 
-    /* ---------- Per-message translate (WeChat/Messenger style) ---------- */
+    // Per-message translate 
     .msg-translate-btn {
       background: none;
       border: none;
@@ -235,9 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const APPT_CARD_PREFIX = 'APPT_CARD::';
   const INFO_CARD_PREFIX = 'INFO_CARD::';
 
-  // PER-MESSAGE TRANSLATION (auto-detect, WeChat/Messenger style)
-  // Backend auto-detects Tagalog vs English and translates to the
-  // counterpart language using the free MyMemory API — no key needed.
+  // PER-MESSAGE TRANSLATION
 
   async function translateCounterpart(text) {
     if (!text || !text.trim()) return { text, lang: 'en' };
@@ -263,9 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Attaches a small "Translate" button under a bubble. Clicking it
-  // fetches the translation once, then shows/hides it inline below
-  // the original message — same behavior as the reference screenshots.
   function attachTranslateControls(messageWrap, getOriginalText) {
     const anchor = document.createElement('div');
     anchor.style.position = 'relative';
@@ -415,19 +406,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text && !attachment) return;
 
     if (attachment) {
-      // Show the caption text together WITH the attachment, in a single
-      // combined bubble (text on top, attachment below) — instead of two
-      // separate messages — so the patient's question travels together
-      // with the file.
       addAttachmentBubble(attachment.file.name, attachment.dataUrl, 'user', true, text || null);
       clearAttachmentPreview();
       input.value = '';
 
       if (text) {
-        // Send that same caption text to the bot so it can read and
-        // answer the patient's actual question. skipUserBubble avoids
-        // re-adding a duplicate text bubble, since it's already shown
-        // above inside the attachment bubble.
         await sendMessage(text, text, { skipUserBubble: true });
       } else {
         await acknowledgeAttachment();
@@ -440,13 +423,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ---------- Panel open/close ----------
+  // Panel open/close
   trigger.addEventListener('click', () => {
     panel.classList.toggle('open');
     if (panel.classList.contains('open')) {
       input.focus();
       scrollToBottom();
-      pollForReplies(); // Check for new replies immediately whenever the panel is opened.
+      pollForReplies(); 
     }
   });
 
@@ -481,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return bubble;
   }
 
-  // ---------- Star rating helpers ----------
+  // Star rating helpers 
   function isRatingButtons(buttons) {
     return Array.isArray(buttons) && buttons.length === 5 &&
       buttons.every((b, i) => String(b.value ?? b.text).trim() === String(i + 1));
@@ -673,9 +656,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble attachment-bubble';
 
-    // Caption text goes FIRST, above the file/image, inside the same
-    // bubble — so the patient's question and the attachment appear as
-    // one combined message instead of two separate bubbles.
     if (caption) {
       const captionEl = document.createElement('div');
       captionEl.className = 'chat-attachment-caption-text';
@@ -744,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
   }
 
-  // ---------- Typing indicator ----------
+  // Typing indicator 
   function showTyping() {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
@@ -835,7 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ---------- Event listeners ----------
+  // Event listeners
   sendBtn.addEventListener('click', handleSend);
 
   input.addEventListener('keydown', (e) => {
@@ -845,7 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ---------- File attachment (optional) ----------
+  // File attachment (optional)
   attachBtn.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', () => {
@@ -903,9 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setInterval(pollForReplies, 5000);
 
-  // ---------- Global trigger: open chat + jump straight to Submit Feedback ----------
-  // Ginagamit ito ng "Leave your Feedback here!" link sa home page para direktang
-  // pumasok sa "Submit Review/Rating" flow, na parang na-click ang menu button.
+  // Global trigger: open chat + jump straight to Submit Feedback
   window.openChatbotAndSubmitFeedback = function () {
     if (!panel.classList.contains('open')) {
       panel.classList.add('open');
@@ -916,10 +894,10 @@ document.addEventListener('DOMContentLoaded', () => {
     sendMessage('submit review/rating', 'Submit Review/Rating');
   };
 
-  // ---------- Initialization ----------
+  // Initialization 
   restoreConversation();
   persistSession();
-  pollForReplies(); // Check immediately on load, in case a reply arrived while away.
+  pollForReplies();
 });
 </script>
 

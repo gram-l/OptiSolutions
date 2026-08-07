@@ -7,6 +7,8 @@ use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use Illuminate\Support\Facades\DB;
+use App\Models\admin_models\Feedback;
+use App\Services\SentimentAnalysisService;
 
 class ReviewConversation extends Conversation
 {
@@ -65,7 +67,10 @@ class ReviewConversation extends Conversation
                 'bot_message'  => 'Review recorded',
             ]);
 
-            DB::table('feedback')->insert([
+            // Feedback::create() instead of DB::table()->insert()
+            // — this gives us a model instance back so we can attach
+            // the sentiment result to it below
+            $feedback = Feedback::create([
                 'log_id'        => $logId,
                 'patient_id'    => $this->patientId,
                 'feedback_text' => $text,
@@ -73,8 +78,21 @@ class ReviewConversation extends Conversation
                 'submitted_at'  => now(),
             ]);
 
+            if (!empty($text)) {
+                $result = app(SentimentAnalysisService::class)->analyze($text);
+
+                if ($result) {
+                    $feedback->sentimentResult()->create([
+                        'sentiment_label'  => $result['sentiment_label'],
+                        'confidence_score' => $result['confidence_score'],
+                        'analyzed_at'      => now(),
+                    ]);
+                }
+            }
+
             $this->say("Thank you for your feedback!\n\nYou rated us {$this->rating}/5. We appreciate you taking the time to help us improve.");
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('submitReview failed: ' . $e->getMessage());
             $this->say("⚠️ We couldn't record your review right now. Please try again, or contact us directly.");
         }
 

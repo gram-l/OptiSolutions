@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>System Settings - Polyclinic Admin</title>
-    @vite(['resources/css/admin_css/patients.css','resources/css/admin_css/user_management.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/system_settings.css'])
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    @vite(['resources/css/admin_css/user_management.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/system_settings.css'])
 </head>
 <body>
     @include('admin_acc.header')
-    @include('admin_acc.sidebar')
-    <main>
-        <div class="page-header">
+    <div class="container">
+        @include('admin_acc.sidebar')
+        <main style="flex: 1; min-width: 0;">
+            <div class="page-header">
             <h2><i class="bi bi-gear"></i> System Settings</h2>
             <p>Manage clinic hours, about page, contact info, and services</p>
         </div>
@@ -284,6 +287,7 @@
         if (e.target === serviceModal) closeServiceModal();
     });
 </script>
-    </main>
+        </main>
+    </div>
 </body>
 </html>

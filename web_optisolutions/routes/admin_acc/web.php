@@ -145,3 +145,9 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [AdminDashboardController::class, 'data'])->name('dashboard.data');
     });
+
+//settings routes
+
+Route::get('/admin_acc/settings', function () {
+    return view('admin_acc.settings');
+});

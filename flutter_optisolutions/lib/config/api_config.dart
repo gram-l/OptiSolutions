@@ -1,7 +1,7 @@
 class ApiConfig {
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://10.244.36.34:8000/api',
+    defaultValue: 'http://192.168.254.147:8000/api',
   
   );
 }

@@ -15,7 +15,7 @@ use App\Http\Controllers\admin_acc\ServiceController;
 use App\Http\Controllers\admin_acc\FeedbackController;
 use App\Http\Controllers\admin_acc\ChatbotInquiryController;
 use App\Http\Controllers\Auth\GoogleAuthController;
-
+use App\Http\Controllers\admin_acc\VisitController;
 
 Route::get('/sample', function () {
     return view('sample');
@@ -41,7 +41,16 @@ Route::get('/admin_acc/appointments', function () {
     return view('admin_acc.appointments');
 });
 
+Route::get('/admin_acc/appointments/day', [VisitController::class, 'dayJson']);
+Route::put('/admin_acc/appointments/{id}', [VisitController::class, 'update']);
+Route::delete('/admin_acc/appointments/{id}', [VisitController::class, 'destroy']);
+
 Route::get('/admin_acc/doctors', [DoctorController::class, 'index']);
+Route::get('/admin_acc/doctors/list', [DoctorController::class, 'listJson']);
+Route::post('/admin_acc/doctors', [DoctorController::class, 'store']);
+Route::put('/admin_acc/doctors/{id}', [DoctorController::class, 'update']); // reached via POST + _method=PUT (Laravel spoofing) so the multipart photo upload still works
+Route::patch('/admin_acc/doctors/{id}/toggle', [DoctorController::class, 'toggleStatus']);
+Route::delete('/admin_acc/doctors/{id}', [DoctorController::class, 'destroy']);
 
 Route::get('/admin_acc/patients', function () {
     return view('admin_acc.patients');

@@ -1,6 +1,3 @@
-
-
-
 <aside class="sidebar">
     <nav>
         <div class="nav-item {{ request()->is('admin_acc/dashboard') ? 'active' : '' }}"
@@ -43,6 +40,5 @@
             <div class="nav-icon"><i class="fa-solid fa-cog"></i></div>
             <span>System Settings</span>
         </div>
-    </nav>
     </nav>
 </aside>

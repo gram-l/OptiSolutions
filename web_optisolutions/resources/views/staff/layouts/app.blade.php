@@ -378,8 +378,10 @@
                 <ul class="privacy-list">
                     <li>Patient records are encrypted and stored securely.</li>
                     <li>Only authorized staff can access patient information.</li>
-                    <li>Data is used strictly for clinical and administrative purposes.</li>
+                    <li>Staff access is limited based on assigned roles and permissions.</li>
+                    <li>Patient information must not be shared with unauthorized persons.</li>
                     <li>All access to patient data is logged for accountability.</li>
+                    <li>Any suspected unauthorized access must be reported to the administrator.</li>
                 </ul>
             </div>
         </div>

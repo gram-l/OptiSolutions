@@ -16,6 +16,7 @@ use App\Http\Controllers\admin_acc\FeedbackController;
 use App\Http\Controllers\admin_acc\ChatbotInquiryController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\admin_acc\VisitController;
+use App\Http\Controllers\admin_acc\PatientListController;
 
 Route::get('/sample', function () {
     return view('sample');
@@ -151,3 +152,8 @@ Route::middleware(['auth', 'role:admin'])
 Route::get('/admin_acc/settings', function () {
     return view('admin_acc.settings');
 });
+
+Route::get('/admin_acc/patients/list', [PatientListController::class, 'webList']);
+Route::post('/admin_acc/patients', [PatientListController::class, 'store']);
+Route::put('/admin_acc/patients/{id}', [PatientListController::class, 'update']);
+Route::get('/admin_acc/patients/{id}/visits', [PatientListController::class, 'apiVisits']);

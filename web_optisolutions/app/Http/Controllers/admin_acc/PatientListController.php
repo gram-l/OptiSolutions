@@ -139,4 +139,51 @@ class PatientListController extends Controller
 
         return response()->json(['success' => true, 'patient' => $patient]);
     }
+
+    // ─────────────────────────────────────────────────────────
+    //  Web-only below — the admin Blade page's patient list.
+    //  Nothing above this line is touched; mobile keeps using
+    //  apiIndex/apiServiceTypes/apiVisits/updateVisitNotes/store/update
+    //  exactly as before via api.php. store() and update() are reused
+    //  as-is here too (their fields already match the web form), just
+    //  reached through a separate web.php route.
+    // ─────────────────────────────────────────────────────────
+
+    // GET /admin_acc/patients/list
+    // The `patients` table has no age/department/doctor columns — age is
+    // derived from patient_birthdate, and department/doctor come from
+    // whichever schedule_visit row is most recent for that patient (a
+    // patient isn't tied to one department, so this is "most recent", not
+    // "assigned").
+    public function webList()
+    {
+        $patients = PatientList::orderBy('patient_lname')->get();
+
+        $latestVisitByPatient = DB::table('schedule_visit')
+            ->leftJoin('doctors', 'doctors.doctor_id', '=', 'schedule_visit.doctor_id')
+            ->select('schedule_visit.patient_id', 'schedule_visit.service_type', 'schedule_visit.visit_date', 'doctors.doctor_name')
+            ->orderByDesc('schedule_visit.visit_date')
+            ->get()
+            ->groupBy('patient_id')
+            ->map(fn ($rows) => $rows->first()); // already ordered desc, so first() = most recent
+
+        $data = $patients->map(function ($patient) use ($latestVisitByPatient) {
+            $latest = $latestVisitByPatient->get($patient->patient_id);
+
+            return [
+                'id' => $patient->patient_id,
+                'first_name' => $patient->patient_fname,
+                'last_name' => $patient->patient_lname,
+                'name' => trim($patient->patient_fname . ' ' . $patient->patient_lname),
+                'birthdate' => $patient->patient_birthdate,
+                'age' => $patient->patient_birthdate ? \Carbon\Carbon::parse($patient->patient_birthdate)->age : null,
+                'department' => $latest->service_type ?? null,
+                'doctor' => $latest->doctor_name ?? null,
+                'email' => $patient->patient_email,
+                'phone' => $patient->patient_contact,
+            ];
+        });
+
+        return response()->json(['success' => true, 'patients' => $data]);
+    }
 }

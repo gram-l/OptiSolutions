@@ -1,5 +1,4 @@
-
-        * {
+* {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -104,8 +103,8 @@
         }
 
         .container {
-            max-width: 1400px;
-            margin: 2rem 0 2rem 1rem;
+            max-width: 1900px;
+            margin: 2rem 1rem 2rem 1rem;
             padding: 0 1rem;
             display: flex;        /* ADD */
             gap: 2rem;            /* ADD */
@@ -187,7 +186,7 @@
 
         .doctors-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 1.5rem;
         }
 
@@ -222,11 +221,18 @@
             height: 70px;
             background: rgba(255,255,255,0.3);
             border-radius: 50%;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 2rem;
             margin-bottom: 1rem;
+        }
+
+        .doctor-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .doctor-name {
@@ -446,6 +452,10 @@
             background: white;
             border-radius: 20px;
             color: #95a5a6;
+        }
+
+        @media (max-width: 1300px) {
+            .doctors-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-width: 768px) {

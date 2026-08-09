@@ -17,47 +17,6 @@
     @vite(['resources/css/admin_css/doctors.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 
     <style>
-        /* ── Smaller doctor cards ──────────────────────────────────
-           Scoped here rather than doctors.css so it's easy to spot;
-           move into doctors.css and drop this block once merged. */
-        .doctors-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-            gap: 0.85rem;
-        }
-        .doctor-card {
-            font-size: 0.85rem;
-            border-radius: 10px;
-        }
-        .doctor-card .card-header {
-            padding: 0.85rem 0.85rem 0.6rem;
-        }
-        .doctor-card .card-body {
-            padding: 0.7rem 0.85rem 0.85rem;
-        }
-        .doctor-avatar {
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 0.4rem;
-            background: #eef2f7;
-            font-size: 1.4rem;
-        }
-        .doctor-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .doctor-card .doctor-name { font-size: 0.92rem; }
-        .doctor-card .doctor-specialty { font-size: 0.78rem; }
-        .doctor-card .schedule-text { font-size: 0.75rem; }
-        .doctor-card .doctor-description { font-size: 0.78rem; }
-        .doctor-card .btn-icon { font-size: 0.72rem; padding: 0.32rem 0.5rem; }
-
         /* ── Schedule session builder in the modal ── */
         .session-day-group { margin-bottom: 0.75rem; }
         .session-day-group h5 {
@@ -176,6 +135,9 @@
            
             <div style="display: flex; gap: 1rem;">
                 <input type="text" class="search-box" id="searchInput" placeholder="Search by name or specialty...">
+                <select class="filter-select" id="departmentFilter">
+                    <option value="all">All Departments</option>
+                </select>
                 <select class="filter-select" id="statusFilter">
                     <option value="all">All Doctors</option>
                     <option value="active">Active Only</option>
@@ -293,6 +255,7 @@
             const data = await res.json();
             if (data.success) {
                 doctorsData = data.doctors;
+                populateDepartmentFilter();
                 renderDoctors();
             } else {
                 showGridMessage(data.message || 'Failed to load doctors.');
@@ -300,6 +263,15 @@
         } catch (e) {
             showGridMessage('Could not reach the server. Please try again.');
         }
+    }
+
+    function populateDepartmentFilter() {
+        const select = document.getElementById('departmentFilter');
+        const current = select.value;
+        const departments = [...new Set(doctorsData.map(d => d.specialty).filter(Boolean))].sort();
+        select.innerHTML = '<option value="all">All Departments</option>' +
+            departments.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+        if (departments.includes(current)) select.value = current;
     }
 
     function showGridMessage(msg) {
@@ -311,6 +283,7 @@
     function renderDoctors() {
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value;
+        const departmentFilter = document.getElementById('departmentFilter').value;
 
         let filtered = doctorsData.filter(doc => {
             const matchesSearch = doc.name.toLowerCase().includes(searchTerm) ||
@@ -318,7 +291,8 @@
             const matchesStatus = statusFilter === 'all' ||
                                  (statusFilter === 'active' && doc.active) ||
                                  (statusFilter === 'inactive' && !doc.active);
-            return matchesSearch && matchesStatus;
+            const matchesDepartment = departmentFilter === 'all' || doc.specialty === departmentFilter;
+            return matchesSearch && matchesStatus && matchesDepartment;
         });
 
         const grid = document.getElementById('doctorsGrid');
@@ -713,6 +687,7 @@
     document.getElementById('doctorForm').addEventListener('submit', saveDoctor);
     document.getElementById('searchInput').addEventListener('input', () => renderDoctors());
     document.getElementById('statusFilter').addEventListener('change', () => renderDoctors());
+    document.getElementById('departmentFilter').addEventListener('change', () => renderDoctors());
 
     // Close modal when clicking outside
     window.onclick = function(event) {

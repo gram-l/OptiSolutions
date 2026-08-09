@@ -7,6 +7,127 @@
     height: fit-content;
     position: sticky;
     top: 90px;
+    transition: width 0.25s ease, padding 0.25s ease;
+}
+
+.sidebar-brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.sidebar-brand-mark {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: var(--primary-main);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+}
+
+.sidebar-brand-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--primary-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.15s ease;
+}
+
+.sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    background: var(--light-gray);
+    border: none;
+    border-radius: 8px;
+    color: var(--icon-color);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+    background: #dfe4e8;
+}
+
+/* ── Collapsed state ── */
+.sidebar.collapsed {
+    width: 76px;
+    padding: 1.5rem 0.75rem;
+}
+
+.sidebar.collapsed .sidebar-brand-row {
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.sidebar.collapsed .sidebar-brand-name {
+    display: none;
+}
+
+.sidebar.collapsed .nav-item {
+    justify-content: center;
+    padding: 0.85rem 0;
+    gap: 0;
+}
+
+.sidebar.collapsed .nav-item span {
+    display: none;
+}
+
+.sidebar.collapsed .nav-item:hover {
+    transform: none;
+}
+
+/* ── Flyout name tooltip, collapsed mode only ── */
+.sidebar.collapsed .nav-item {
+    position: relative;
+}
+
+.sidebar.collapsed .nav-item::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--primary-dark);
+    color: var(--white);
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    z-index: 50;
+}
+
+.sidebar.collapsed .nav-item:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(4px);
 }
 
 .nav-item {
@@ -20,6 +141,7 @@
     gap: 0.8rem;
     color: var(--text-dark);
     font-weight: 500;
+    white-space: nowrap;
 }
 
 .nav-item:hover {

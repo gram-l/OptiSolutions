@@ -35,7 +35,7 @@
              title="Appointments" data-label="Appointments"
              onclick="window.location.href='/admin_acc/appointments'">
             <div class="nav-icon"><i class="fa-solid fa-book-medical"></i></div>
-            <span>Appointments</span>
+            <span>Scheduled Visits</span>
         </div>
         <div class="nav-item {{ request()->is('admin_acc/doctors*') ? 'active' : '' }}"
              title="Manage Doctors" data-label="Manage Doctors"

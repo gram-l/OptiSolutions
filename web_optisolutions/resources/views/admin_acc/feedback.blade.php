@@ -25,7 +25,7 @@
             <!-- Filter Bar -->
             <div class="filter-bar">
                 <div class="filter-group">
-                    <input type="text" class="search-box" id="searchInput" placeholder="Search by patient or comment...">
+                    <input type="text" class="search-box" id="searchInput" placeholder="Search by comment...">
                     <select class="filter-select" id="sentimentFilter">
                         <option value="all">All Sentiments</option>
                         <option value="positive">Positive <i class="fa-regular fa-face-smile-beam"></i></option>
@@ -35,29 +35,25 @@
                 </div>
             </div>
 
-            <!-- Analytics Dashboard -->
-            <div class="analytics-dashboard">
-                <div class="analytics-card">
+            <!-- Overview: sentiment + trend stacked left, recurring patterns tall on the right -->
+            <div class="overview-grid">
+                <div class="analytics-card card-sentiment">
                     <div class="analytics-title"><i class="fa-solid fa-chart-pie"></i> Sentiment Distribution</div>
                     <div class="sentiment-summary" id="sentimentSummary"></div>
-                    <div style="margin-top: 1rem;">
+                    <div style="margin-top: 0.6rem;">
                         <div class="rating-stars" id="avgRating"></div>
-                        <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 0.3rem;">Average Rating: <span id="avgRatingValue">0</span>/5</div>
+                        <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 0.25rem;">Average Rating: <span id="avgRatingValue">0</span>/5</div>
                     </div>
                 </div>
-                <div class="analytics-card">
+                <div class="analytics-card card-trend">
                     <div class="analytics-title"><i class="fa-solid fa-chart-line"></i> Trend Overview</div>
-                    <div id="trendInfo" style="font-size: 1.2rem; line-height: 1.8;">
+                    <div id="trendInfo" class="trend-info">
                         <div><i class="fa-regular fa-face-smile-beam"></i> Positive feedback: <span id="positivePercent">0</span>%</div>
                         <div><i class="fa-regular fa-face-frown"></i> Negative feedback: <span id="negativePercent">0</span>%</div>
                         <div><i class="fa-regular fa-file-lines"></i> Total responses: <span id="totalCount">0</span></div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Pattern Analysis -->
-            <div class="pattern-section">
-                <div class="pattern-card">
+                <div class="pattern-card card-pattern">
                     <div class="pattern-header">Recurring Negative Patterns</div>
                     <div id="negativePatterns"></div>
                 </div>
@@ -65,11 +61,10 @@
 
             <!-- Feedback List -->
             <div class="feedback-section">
-                <div class="section-title">📝 All Patient Feedback</div>
+                
                 <table class="feedback-table" id="feedbackTable">
                     <thead>
                         <tr>
-                            <th>Patient</th>
                             <th>Rating</th>
                             <th>Comment</th>
                             <th>Sentiment</th>
@@ -123,7 +118,7 @@
 
             const counts = patterns.map(p => ({
                 message: p.message,
-                count: negativeComments.filter(c => p.keywords.some(kw => c.toLowerCase().includes(kw))).length
+                count: negativeComments.filter(c => p.keywords.some(kw => (c || '').toLowerCase().includes(kw))).length
             })).filter(p => p.count > 0).sort((a, b) => b.count - a.count);
 
             document.getElementById('negativePatterns').innerHTML = counts.length ? counts.map(p => {
@@ -144,13 +139,12 @@
         function renderFeedbackTable(filteredData) {
             const tbody = document.getElementById('feedbackTableBody');
             if (filteredData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No feedback entries found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No feedback entries found</td></tr>';
                 return;
             }
 
             tbody.innerHTML = filteredData.map(f => `
                 <tr>
-                    <td>${escapeHtml(f.patient)}</td>
                     <td class="rating-stars">${renderStars(f.rating)}</td>
                     <td class="feedback-comment">${escapeHtml(f.comment)}</td>
                     <td>${sentimentTag(f.sentiment)}</td>
@@ -177,8 +171,10 @@
         }
 
         function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            if (!dateStr) return '—';
+            const date = new Date(dateStr.replace(' ', 'T'));
+            if (isNaN(date)) return dateStr;
+            return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
         }
 
         function refreshAll() {
@@ -186,7 +182,7 @@
             const sentimentFilter = document.getElementById('sentimentFilter').value;
 
             let filtered = feedbackData.filter(f => {
-                const matchesSearch = f.patient.toLowerCase().includes(searchTerm) || f.comment.toLowerCase().includes(searchTerm);
+                const matchesSearch = (f.comment || '').toLowerCase().includes(searchTerm);
                 const matchesSentiment = sentimentFilter === 'all' || f.sentiment === sentimentFilter;
                 return matchesSearch && matchesSentiment;
             });

@@ -18,6 +18,7 @@ use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\admin_acc\VisitController;
 use App\Http\Controllers\admin_acc\PatientListController;
 use App\Http\Controllers\admin_acc\NotificationController;
+use App\Http\Controllers\admin_acc\FeebackController;
 
 Route::get('/sample', function () {
     return view('sample');
@@ -134,7 +135,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin_acc/chatbot_logs', [ChatbotInquiryController::class, 'index'])->name('admin_acc.chatbot_logs');
     Route::post('/admin_acc/chatbot_logs/{id}/reply', [ChatbotInquiryController::class, 'reply'])->name('admin_acc.chatbot_logs.reply');
     Route::post('/admin_acc/chatbot_logs/{id}/resolve', [ChatbotInquiryController::class, 'resolve'])->name('admin_acc.chatbot_logs.resolve');
-});
+
+    //settings routes
+     Route::get('/admin_acc/settings', function () {
+        return view('admin_acc.settings');
+    });
+
+    });
 
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
 Route::get('admin_acc/feedback/diagnose', [FeedbackController::class, 'diagnoseRootCauses']);
@@ -148,11 +155,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('/dashboard/data', [AdminDashboardController::class, 'data'])->name('dashboard.data');
     });
 
-//settings routes
 
-Route::get('/admin_acc/settings', function () {
-    return view('admin_acc.settings');
-});
 //patient list routes
 Route::get('/admin_acc/patients/list', [PatientListController::class, 'webList']);
 Route::post('/admin_acc/patients', [PatientListController::class, 'store']);

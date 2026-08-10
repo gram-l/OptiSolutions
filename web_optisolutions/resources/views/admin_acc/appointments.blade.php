@@ -56,7 +56,8 @@
         .day-panel {
             background: #fff;
             border-radius: 16px;
-            padding: 1.25rem;
+            overflow: hidden;
+            box-shadow: 0 4px 15px var(--shadow);
         }
         .field-error { color: #c0392b; font-size: 0.75rem; margin-top: 0.25rem; }
     </style>
@@ -218,7 +219,7 @@
             container.innerHTML = `
                 <div class="day-panel">
                     <table class="appointments-table">
-                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Booked At</th><th>Notes</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th> </th></tr></thead>
                         <tbody>
                             ${filtered.map(v => `
                                 <tr>

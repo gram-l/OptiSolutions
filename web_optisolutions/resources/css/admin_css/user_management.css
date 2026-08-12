@@ -1,5 +1,4 @@
-  
-        * {
+* {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -131,8 +130,9 @@
 
         /* Main Container */
         .container {
-            max-width: 1400px;
-            margin: 2rem 0 2rem 1rem;
+            width: 100%;
+            max-width: 100%;
+            margin: 2rem 0;
             padding: 0 2rem;
               display: flex;        /* ADD */
     gap: 2rem;            /* ADD */
@@ -243,7 +243,7 @@
         /* Users Table */
         .users-table-container {
             background: var(--white);
-            border-radius: 20px;
+            border-radius: 16px;
             overflow-x: auto;
             box-shadow: 0 4px 15px var(--shadow);
         }
@@ -256,7 +256,7 @@
 
         .users-table th {
             text-align: left;
-            padding: 1rem 1.2rem;
+            padding: 0.75rem 1.25rem;
             background: var(--light-gray);
             color: var(--text-dark);
             font-weight: 600;
@@ -264,7 +264,7 @@
         }
 
         .users-table td {
-            padding: 1rem 1.2rem;
+            padding: 0.75rem 1.25rem;
             border-bottom: 1px solid var(--light-gray);
             vertical-align: middle;
         }
@@ -511,4 +511,3 @@
                 grid-template-columns: 1fr;
             }
         }
-    

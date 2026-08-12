@@ -60,6 +60,62 @@
             box-shadow: 0 4px 15px var(--shadow);
         }
         .field-error { color: #c0392b; font-size: 0.75rem; margin-top: 0.25rem; }
+
+        /* ── Row action buttons — soft pill style ── */
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .btn-sm {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            border: none;
+            border-radius: 999px;
+            padding: 0.42rem 0.9rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s ease, transform 0.1s ease;
+        }
+        .btn-sm:hover { transform: translateY(-1px); }
+        .btn-sm:active { transform: translateY(0); }
+        .btn-sm i { font-size: 0.82rem; }
+
+        .btn-edit {
+            background: #eaf2fb;
+            color: #0E62AA;
+        }
+        .btn-edit:hover { background: #d9e9f8; }
+
+        .btn-reschedule {
+            background: var(--light-gray);
+            color: #4a5560;
+        }
+        .btn-reschedule:hover { background: #dfe4e8; }
+
+        .btn-cancel {
+            background: #fdeceb;
+            color: #c0392b;
+        }
+        .btn-cancel:hover { background: #fbdbd8; }
+
+        #editNotesModal textarea {
+            width: 100%;
+            min-height: 110px;
+            resize: vertical;
+            border: 1px solid #d7dce3;
+            border-radius: 8px;
+            padding: 0.6rem 0.75rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+            margin-top: 0.3rem;
+        }
+        #editNotesModal textarea:focus { outline: none; border-color: #0E62AA; }
     </style>
 </head>
 <body>
@@ -129,6 +185,20 @@
         </div>
     </div>
 
+    <div id="editNotesModal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Notes</h3>
+            <p id="editNotesPatientName"></p>
+            <label>Notes:</label>
+            <textarea id="editNotesText" placeholder="Add notes for this visit..." maxlength="1000"></textarea>
+            <div class="field-error" id="err-edit-notes"></div>
+            <div class="modal-buttons">
+                <button onclick="closeEditNotesModal()">Cancel</button>
+                <button class="btn-approve" id="confirmEditNotesBtn" onclick="confirmEditNotes()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const DAY_URL = '/admin_acc/appointments/day';
@@ -137,6 +207,7 @@
         let visitsData = [];
         let currentDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, local-ish
         let pendingRescheduleId = null;
+        let pendingEditNotesId = null;
 
         function shiftDate(dateStr, days) {
             const d = new Date(dateStr + 'T00:00:00');
@@ -229,8 +300,9 @@
                                     <td><small style="color:#7f8c8d">${formatBookedAt(v.scheduled_at)}</small></td>
                                     <td>${escapeHtml((v.notes || '').length > 40 ? v.notes.substring(0, 40) + '...' : (v.notes || '—'))}</td>
                                     <td class="action-buttons">
+                                        <button class="btn-sm btn-edit" onclick="openEditNotesModal(${v.visit_id})"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
                                         <button class="btn-sm btn-reschedule" onclick="openRescheduleModal(${v.visit_id})"><i class="fa-regular fa-calendar-xmark"></i> Reschedule</button>
-                                        <button class="btn-sm btn-cancel" onclick="cancelAppointment(${v.visit_id})">✖ Remove</button>
+                                        <button class="btn-sm btn-cancel" onclick="cancelAppointment(${v.visit_id})"><i class="fa-solid fa-trash"></i> Remove</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -321,6 +393,58 @@
             pendingRescheduleId = null;
         }
 
+        function openEditNotesModal(id) {
+            const visit = visitsData.find(v => v.visit_id === id);
+            if (!visit) return;
+            pendingEditNotesId = id;
+            document.getElementById('err-edit-notes').textContent = '';
+            document.getElementById('editNotesPatientName').innerText = `${visit.patient_name || 'Unknown patient'} — ${visit.visit_date}`;
+            document.getElementById('editNotesText').value = visit.notes || '';
+            document.getElementById('editNotesModal').style.display = 'flex';
+        }
+
+        async function confirmEditNotes() {
+            if (!pendingEditNotesId) return;
+            const newNotes = document.getElementById('editNotesText').value;
+            const errEl = document.getElementById('err-edit-notes');
+            errEl.textContent = '';
+
+            const btn = document.getElementById('confirmEditNotesBtn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch(`${VISIT_BASE}/${pendingEditNotesId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ notes: newNotes }),
+                });
+                const data = await res.json();
+
+                if (!data.success) {
+                    errEl.textContent = data.message || 'Could not save these notes.';
+                    return;
+                }
+
+                closeEditNotesModal();
+                await loadDay();
+            } catch (e) {
+                errEl.textContent = 'Could not reach the server. Please try again.';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save';
+            }
+        }
+
+        function closeEditNotesModal() {
+            document.getElementById('editNotesModal').style.display = 'none';
+            pendingEditNotesId = null;
+        }
+
         function handleLogout() {
             if (confirm('Are you sure you want to logout?')) {
                 alert('Logging out... Redirecting to login page.');
@@ -336,8 +460,10 @@
         });
 
         window.onclick = function(event) {
-            const modal = document.getElementById('rescheduleModal');
-            if (event.target === modal) closeModal();
+            const rescheduleModal = document.getElementById('rescheduleModal');
+            const editNotesModal = document.getElementById('editNotesModal');
+            if (event.target === rescheduleModal) closeModal();
+            if (event.target === editNotesModal) closeEditNotesModal();
         }
 
         loadDay();

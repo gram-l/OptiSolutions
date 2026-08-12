@@ -57,7 +57,7 @@
                 </select>
             </div>
             <button class="add-patient-btn" id="openAddModalBtn">
-                <span></span>
+                <span><i class="fa-solid fa-plus"></i></span> Add New Patient
             </button>
         </div>
 
@@ -116,8 +116,18 @@
                     <input type="email" id="patientEmail" placeholder="e.g., maria.santos@email.com">
                     <div class="field-error" id="err-patient_email"></div>
                 </div>
-                <p style="font-size:0.8rem; color:#7f8c8d;">
-                    Department and assigned doctor are set automatically from the patient's visit history — they aren't entered here.
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Department</label>
+                        <input type="text" id="patientDepartment" disabled placeholder="No visits yet">
+                    </div>
+                    <div class="form-group">
+                        <label>Assigned Doctor</label>
+                        <input type="text" id="patientDoctor" disabled placeholder="No visits yet">
+                    </div>
+                </div>
+                <p style="font-size:0.78rem; color:#7f8c8d; margin-top:-0.5rem;">
+                    Department and doctor reflect the patient's most recent scheduled visit and update automatically as new visits are added.
                 </p>
                 <div class="modal-buttons">
                     <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
@@ -288,6 +298,8 @@
             document.getElementById('modalTitle').innerText = 'Add New Patient';
             document.getElementById('patientForm').reset();
             document.getElementById('patientId').value = '';
+            document.getElementById('patientDepartment').value = '';
+            document.getElementById('patientDoctor').value = '';
             document.getElementById('patientModal').style.display = 'flex';
         }
 
@@ -304,6 +316,8 @@
             document.getElementById('patientBirthdate').value = patient.birthdate || '';
             document.getElementById('patientPhone').value = patient.phone || '';
             document.getElementById('patientEmail').value = patient.email || '';
+            document.getElementById('patientDepartment').value = patient.department || '';
+            document.getElementById('patientDoctor').value = patient.doctor || '';
             document.getElementById('patientModal').style.display = 'flex';
         }
 

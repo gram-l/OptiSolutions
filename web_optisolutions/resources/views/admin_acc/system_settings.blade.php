@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>System Settings - Polyclinic Admin</title>
+    <title>System Settings</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     @vite(['resources/css/admin_css/user_management.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/system_settings.css'])
@@ -31,6 +31,9 @@
                 <button class="add-patient-btn tab-btn" data-tab="contact" type="button">Contact</button>
                 <button class="add-patient-btn tab-btn" data-tab="services" type="button">Services</button>
             </div>
+            <button class="add-patient-btn" id="addServiceBtn" type="button" onclick="openServiceModal()" style="display:none;">
+                <i class="bi bi-plus-lg"></i> Add Service
+            </button>
         </div>
 
         {{-- HOURS --}}
@@ -128,23 +131,16 @@
         {{-- SERVICES --}}
         <div class="tab-panel" id="tab-services">
 
-            <div class="filter-bar">
-                <div></div>
-                <button class="add-patient-btn" type="button" onclick="openServiceModal()">
-                    <i class="bi bi-plus-lg"></i> Add Service
-                </button>
-            </div>
-
             <div class="patients-table-container">
                 <table class="patients-table">
                     <thead>
                         <tr>
-                            <th>Title</th>
+                            <th>Service</th>
                             <th>Room</th>
                             <th>Schedule</th>
                             <th>Description</th>
                             <th>Status</th>
-                            <th>Actions</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -237,6 +233,7 @@
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            document.getElementById('addServiceBtn').style.display = btn.dataset.tab === 'services' ? 'flex' : 'none';
         });
     });
 

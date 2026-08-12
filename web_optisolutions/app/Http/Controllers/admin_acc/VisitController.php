@@ -71,13 +71,21 @@ public function apiIndex(Request $request)
     }
 
     // PUT /admin_acc/appointments/{id} — reschedule (change visit_date only;
-    // there's no appointment-time column to move, just the date)
+    // there's no appointment-time column to move, just the date) and/or
+    // update notes. Either field can be sent on its own — e.g. the notes
+    // edit modal only sends { notes: ... }, the reschedule modal only
+    // sends { visit_date: ... } — so both are validated with 'sometimes'
+    // rather than always requiring visit_date.
     public function update(Request $request, $id)
     {
         $validated = $request->validate([
-            'visit_date' => 'required|date',
-            'notes' => 'nullable|string|max:1000',
+            'visit_date' => 'sometimes|required|date',
+            'notes' => 'sometimes|nullable|string|max:1000',
         ]);
+
+        if (empty($validated)) {
+            return response()->json(['success' => false, 'message' => 'Nothing to update.'], 422);
+        }
 
         $updated = DB::table('schedule_visit')
             ->where('visit_id', $id)
@@ -92,7 +100,7 @@ public function apiIndex(Request $request)
             // (e.g. rescheduling to the same date) — not an error.
         }
 
-        return response()->json(['success' => true, 'message' => 'Appointment rescheduled.']);
+        return response()->json(['success' => true, 'message' => 'Appointment updated.']);
     }
 
     // DELETE /admin_acc/appointments/{id} — no status column to flip to

@@ -300,10 +300,18 @@ class DoctorController extends Controller
      * a browser-usable URL, or null if the doctor has no photo. Requires
      * `php artisan storage:link` to have been run so /storage points at
      * storage/app/public.
+     *
+     * Deliberately uses asset() instead of Storage::disk('public')->url().
+     * Storage::url() builds the URL from APP_URL in .env, so it breaks
+     * (ERR_CONNECTION_REFUSED) the moment the app is viewed from a
+     * different host/port than whatever APP_URL happens to be set to.
+     * asset() instead derives the host from the actual incoming request,
+     * so it matches the browser's address bar no matter which machine
+     * or port the app is running on.
      */
     private function profileImageUrl($path)
     {
-        return $path ? Storage::disk('public')->url($path) : null;
+        return $path ? asset('storage/' . $path) : null;
     }
 
     private const DAY_ABBREV = [

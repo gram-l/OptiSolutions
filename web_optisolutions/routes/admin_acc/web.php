@@ -138,7 +138,7 @@ Route::middleware('auth')->group(function () {
 
     //settings routes
      Route::get('/admin_acc/settings', function () {
-        return view('admin_acc.settings');
+        return view('admin_acc.partials.settings');
     });
 
     });

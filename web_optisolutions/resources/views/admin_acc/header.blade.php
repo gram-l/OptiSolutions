@@ -79,7 +79,7 @@
                 <a class="menu-item" href="#" onclick="openProfileModal(); return false;">
     <i class="bi bi-person"></i> Profile
 </a>
-                <a class="menu-item" href="/admin_acc/settings">
+                <a class="menu-item" href="#" onclick="openSettingsModal(); return false;">
                     <i class="bi bi-gear"></i> Settings
                 </a>
                 <button class="menu-item danger" onclick="window.location.href='/auth/login'">
@@ -90,6 +90,7 @@
 
     </div>
     @include('admin_acc.partials.profile')
+    @include('admin_acc.partials.settings')
 </header>
 
 {{-- Empty container the notifications panel gets injected into on demand --}}

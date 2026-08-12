@@ -163,4 +163,8 @@ Route::put('/admin_acc/patients/{id}', [PatientListController::class, 'update'])
 Route::get('/admin_acc/patients/{id}/visits', [PatientListController::class, 'apiVisits']);
 
 // notification routes
+
 Route::get('/admin_acc/notifications', [NotificationController::class, 'index']);
+Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
+Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+

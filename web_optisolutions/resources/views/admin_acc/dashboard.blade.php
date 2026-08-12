@@ -191,13 +191,6 @@
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="quick-actions">
-                <button class="action-btn action-orange" onclick="window.location.href='chatbotlogs.html'">📋 View All Inquiries</button>
-                <button class="action-btn action-blue" onclick="window.location.href='doctors.html'">➕ Add New Doctor</button>
-                <button class="action-btn action-yellow" onclick="window.location.href='reports.html'">📊 Generate Report</button>
-                <button class="action-btn action-green" onclick="window.location.href='usermanagement.html'">👥 Manage Staff</button>
-            </div>
         </main>
     </div>
 

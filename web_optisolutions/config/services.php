@@ -52,7 +52,9 @@ return [
     'client_secret' => env('GOOGLE_CLIENT_SECRET'),
     'redirect' => env('GOOGLE_REDIRECT_URI'),
 ],
-
+    'mymemory' => [
+        'email' => env('MYMEMORY_EMAIL'),
+],
     'django' => [
     'url' => env('DJANGO_ML_URL', 'http://127.0.0.1:8001'),
 ]

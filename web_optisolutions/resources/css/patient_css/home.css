@@ -29,6 +29,12 @@
   --radius-lg: 20px;
   --radius-md: 16px;
   --radius-sm: 12px;
+
+  /* Logo palette (from polyclinic_logo.png quadrants) */
+  --logo-orange: #F2542D;
+  --logo-blue: #29ABE2;
+  --logo-yellow: #FFC72C;
+  --logo-green: #8DC63F;
 }
 html { scroll-behavior: smooth; }
 body {
@@ -122,7 +128,7 @@ body {
 /* ============================================
    SHARED SECTION STYLES
    ============================================ */
-.section { padding: 80px 40px; }
+.section { padding: 64px 40px; }
 .section-title {
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 36px;
@@ -134,7 +140,7 @@ body {
 .section-subtitle {
   font-size: 18px;
   color: var(--gray-500);
-  margin-bottom: 48px;
+  margin-bottom: 40px;
   text-align: center;
   max-width: 700px;
   margin-left: auto;
@@ -256,15 +262,89 @@ body {
   margin-top: 6px;
 }
 /* ============================================
-   FOOTER
+   FOOTER - MODERN (multi-column, like Care Center)
    ============================================ */
-.footer {
+.footer-modern {
   background: var(--gray-900);
   color: #C9D9E8;
-  padding: 48px 32px;
-  text-align: center;
+  padding: 56px 32px 0;
+  margin-top: 0;
+}
+.footer-modern-inner { padding-bottom: 0; }
+.footer-modern-top {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr auto;
+  gap: 32px;
+  align-items: start;
+  padding-bottom: 40px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+.footer-modern-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.footer-modern-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: 0.95;
+}
+.footer-modern-brandname {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.3px;
+}
+.footer-modern-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.footer-modern-col h4 {
   font-size: 14px;
-  margin-top: 60px;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.footer-modern-col a {
+  font-size: 14px;
+  color: #C9D9E8;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.footer-modern-col a:hover { color: white; }
+.footer-modern-social {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.footer-modern-social a {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 15px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.footer-modern-social a:hover {
+  background: var(--primary);
+  transform: translateY(-2px);
+}
+.footer-modern-bottom {
+  padding: 22px 0;
+  text-align: center;
+  font-size: 13px;
+  color: #93A6BC;
 }
 /* ============================================
    MODAL ANIMATION
@@ -276,12 +356,20 @@ body {
 /* ============================================
    RESPONSIVE - GLOBAL
    ============================================ */
+@media (max-width: 992px) {
+  .footer-modern-top {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .footer-modern-brand { grid-column: 1 / -1; }
+  .footer-modern-social { grid-column: 1 / -1; }
+}
 @media (max-width: 768px) {
   .navbar-inner { flex-direction: column; gap: 16px; }
   .navbar-nav { justify-content: center; gap: 16px; }
   .navbar-logo-wrapper { justify-content: center; }
-  .section { padding: 60px 20px; }
+  .section { padding: 48px 20px; }
   .reviews-banner-footer { padding: 24px 20px; border-radius: 16px; }
+  .footer-modern-top { grid-template-columns: 1fr 1fr; text-align: left; }
 }
 @media (max-width: 480px) {
   .navbar-logo { font-size: 20px; }
@@ -290,6 +378,7 @@ body {
   .nav-link { font-size: 13px; }
   .nav-cta { padding: 8px 16px; font-size: 12px; }
   .section-title { font-size: 28px; }
+  .footer-modern-top { grid-template-columns: 1fr; }
 }
 /* ============================================
    HOME PAGE STYLES
@@ -299,26 +388,29 @@ body {
    ============================================ */
 .hero-flutter {
   background: var(--white);
-  padding: 32px 40px 0;
+  padding: 24px 40px 0;
   overflow: hidden;
 }
 .hero-flutter-inner {
   max-width: 1280px;
   margin: 0 auto;
   display: flex;
+  flex-direction: row;
   align-items: stretch;
-  gap: 48px;
+  gap: 32px;
 }
 .hero-logo-blur {
-  filter: blur(1px);
+  filter: blur(1.4px);
   opacity: 1;
 }
 .hero-flutter-content {
-  flex: 4;
-  padding-bottom: 32px;
+  flex: 5;
+  width: auto;
+  padding-bottom: 24px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  justify-content: center;
+  gap: 16px;
 }
 .hero-flutter-title {
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -341,94 +433,119 @@ body {
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: 4px;
 }
-.hero-rating-badge {
+.hero-learn-more-wrap {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  border-radius: 12px;
-  padding: 12px 20px;
-  gap: 3px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-}
-.hero-rating-num {
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--primary);
-  line-height: 1;
-}
-.hero-rating-stars {
-  font-size: 18px;
-  color: #FFC107;
-  letter-spacing: 1px;
-}
-.hero-rating-label {
-  font-size: 13px;
-  color: var(--gray-500);
-}
-.hero-learn-more {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--gray-700);
+  justify-content: center;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px 30px;
+  border: 2px solid var(--primary-dark);
+  border-radius: 14px;
+  min-width: 260px;
+  cursor: pointer;
   text-decoration: none;
-  border: 1.5px solid var(--gray-700);
-  padding: 13px 24px;
-  border-radius: 10px;
-  transition: all 0.2s;
+  transition: background 0.2s ease, transform 0.15s ease;
 }
-.hero-learn-more:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+.hero-learn-more-wrap:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+}
+.hero-learn-more-wrap:hover .hero-learn-more-title,
+.hero-learn-more-wrap:hover .hero-learn-more-sub {
+  color: #ffffff;
+}
+.hero-learn-more-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  transition: color 0.2s ease;
+}
+.hero-learn-more-sub {
+  font-size: 14px;
+  color: var(--gray-500);
+  transition: color 0.2s ease;
 }
 .hero-flutter-image {
   flex: 6;
   display: flex;
-  align-items: stretch;
+  flex-wrap: nowrap;
+  align-items: center;
   justify-content: flex-end;
   align-self: stretch;
+  gap: 24px;
 }
 .hero-flutter-img {
-  width: 100%;
-  max-width: 680px;
+  flex: 1 1 auto;
+  min-width: 180px;
+  max-width: 480px;
   height: 100%;
   object-fit: contain;
   object-position: top center;
   border-radius: 0;
   display: block;
 }
+/* -------- Hero stats dock --------
+   Reserved beside the logo from page load (fixed width, just hidden via
+   opacity/visibility), so the logo is already positioned to leave room for
+   it — the dock's own size/design never changes when it's revealed. */
+.hero-stats-dock {
+  flex: 0 0 260px;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease;
+}
+.hero-stats-dock.active {
+  opacity: 1;
+  visibility: visible;
+}
+@media (max-width: 640px) {
+  .hero-learn-more-wrap { width: 100%; }
+}
 /* ============================================
    STATS - MODERN
    ============================================ */
 .stats-modern-section {
-  padding: 40px 20px;
+  padding: 28px 20px;
   background: var(--white);
   border-bottom: 1px solid var(--gray-100);
 }
 .stats-modern-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  gap: 20px;
   max-width: 1100px;
   margin: 0 auto;
 }
 .stat-modern-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   text-align: center;
-  padding: 20px 16px;
+  padding: 18px 22px;
+  border: 1px solid var(--gray-200);
   border-radius: 16px;
+  background: var(--white);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.07);
   transition: all 0.3s ease;
-  border: 1px solid transparent;
 }
 .stat-modern-item:hover {
-  background: var(--gray-50);
+  background: var(--white);
   border-color: var(--gray-200);
 }
 .stat-modern-number {
   display: block;
   font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 38px;
+  font-size: 30px;
   font-weight: 800;
   color: var(--primary);
   line-height: 1.2;
@@ -436,27 +553,56 @@ body {
 .stat-modern-label {
   display: block;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--gray-800);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .stat-modern-desc {
-  display: block;
-  font-size: 13px;
-  color: var(--gray-500);
+  display: none;
+}
+.stat-rating-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+  justify-content: center;
   margin-top: 4px;
 }
+.stat-rating-stars .star-filled { color: #fbbf24; }
+.stat-rating-stars .star-empty  { color: #d1d5db; }
+.stat-rating-count {
+  margin-left: 4px;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Logo-colored numbers, same order as the docked version */
+.stats-modern-grid .stat-modern-item:nth-child(1) .stat-modern-number { color: var(--logo-orange); }
+.stats-modern-grid .stat-modern-item:nth-child(2) .stat-modern-number { color: var(--logo-blue); }
+.stats-modern-grid .stat-modern-item:nth-child(3) .stat-modern-number { color: var(--logo-yellow); }
+.stats-modern-grid .stat-modern-item:nth-child(4) .stat-modern-number { color: var(--logo-green); }
+/* -------- Docked (single column, bigger, centered) --------
+   display:contents lets the 4 stat items become direct children of the
+   .hero-stats-dock flex column, so each renders as its own card. */
+.stats-modern-grid.docked {
+  display: contents;
+}
+
+/* The docked cards now inherit the exact same look as the original grid
+   (.stat-modern-item already defines the stacked/centered card style,
+   logo-colored numbers, and visible stars) — no separate overrides needed,
+   so "before" and "after" the fly-up animation look identical. */
 /* ============================================
    SERVICES - MODERN (HOME)
    ============================================ */
 .services-modern-section {
-  padding: 80px 40px;
+  padding: 56px 40px;
   background: var(--gray-50);
 }
 .services-modern-header {
   text-align: center;
   max-width: 700px;
-  margin: 0 auto 56px;
+  margin: 0 auto 40px;
 }
 .services-modern-tag {
   display: inline-block;
@@ -486,13 +632,13 @@ body {
 }
 .service-grid-modern {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 28px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 22px;
 }
 .service-card-modern {
   background: var(--white);
-  border-radius: 20px;
-  padding: 32px 24px;
+  border-radius: 24px;
+  padding: 44px 32px;
   border: 1px solid var(--gray-200);
   transition: all 0.3s ease;
   cursor: pointer;
@@ -504,16 +650,16 @@ body {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
 }
 .service-card-icon {
-  width: 64px;
-  height: 64px;
+  width: 80px;
+  height: 80px;
   background: var(--primary-light);
-  border-radius: 18px;
+  border-radius: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 34px;
   color: var(--primary);
-  margin: 0 auto 18px;
+  margin: 0 auto 22px;
   transition: all 0.3s ease;
 }
 .service-card-modern:hover .service-card-icon {
@@ -521,39 +667,28 @@ body {
   color: white;
 }
 .service-card-modern h3 {
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--gray-900);
-  margin: 0 0 8px;
+  margin: 0 0 10px;
 }
 .service-card-modern p {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--gray-500);
-  line-height: 1.5;
-  margin: 0 0 12px;
-}
-.service-card-link {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--primary);
-  transition: all 0.3s ease;
-}
-.service-card-modern:hover .service-card-link { color: var(--primary-dark); }
-.services-modern-footer {
-  text-align: center;
-  margin-top: 48px;
+  line-height: 1.6;
+  margin: 0;
 }
 /* ============================================
    DOCTORS - MODERN (HOME)
    ============================================ */
 .doctors-modern-section {
-  padding: 80px 40px;
+  padding: 56px 40px;
   background: var(--white);
 }
 .doctors-modern-header {
   text-align: center;
   max-width: 700px;
-  margin: 0 auto 48px;
+  margin: 0 auto 36px;
 }
 .doctors-modern-tag {
   display: inline-block;
@@ -586,16 +721,12 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 28px;
 }
-.doctors-modern-footer {
-  text-align: center;
-  margin-top: 48px;
-}
 /* ============================================
    SEARCH BAR - DOCTORS SECTION
    ============================================ */
 .doctors-search-wrap {
-  max-width: 620px;
-  margin: 0 auto 36px;
+  max-width: 560px;
+  margin: 0 auto 32px;
 }
 .doctors-search-box {
   display: flex;
@@ -604,7 +735,7 @@ body {
   background: var(--white);
   border: 1.5px solid var(--gray-300);
   border-radius: 50px;
-  padding: 10px 10px 10px 22px;
+  padding: 12px 22px;
   box-shadow: 0 4px 20px rgba(15,103,179,0.07);
   transition: border-color 0.25s, box-shadow 0.25s;
 }
@@ -627,24 +758,6 @@ body {
   font-family: 'Inter', sans-serif;
 }
 .doctors-search-box input::placeholder { color: var(--gray-500); }
-.doctors-search-box button {
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 40px;
-  padding: 10px 24px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: 'Inter', sans-serif;
-  white-space: nowrap;
-  transition: background 0.2s, transform 0.2s;
-  flex-shrink: 0;
-}
-.doctors-search-box button:hover {
-  background: var(--primary-dark);
-  transform: scale(1.03);
-}
 .search-no-results {
   display: flex;
   align-items: center;
@@ -980,7 +1093,7 @@ body {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
   padding: 0 10px;
 }
 .filter-tab {
@@ -1012,84 +1125,84 @@ body {
   border-color: var(--primary-dark);
 }
 /* ============================================
-   CTA BANNER
+   CTA BANNER (bigger box + bigger contents)
    ============================================ */
 .cta-banner {
-  padding: 60px 40px;
+  padding: 48px 40px;
   background: var(--gray-50);
 }
 .cta-banner-inner {
-  max-width: 1100px;
+  max-width: 1220px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 48px;
+  gap: 56px;
   align-items: center;
   background: var(--white);
-  border-radius: 28px;
-  padding: 48px 56px;
+  border-radius: 32px;
+  padding: 64px 72px;
   border: 1px solid var(--gray-200);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.04);
 }
 .cta-banner-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 .cta-banner-tag {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--primary);
   letter-spacing: 1px;
   text-transform: uppercase;
 }
 .cta-banner-title {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 34px;
+  font-size: 42px;
   font-weight: 700;
   color: var(--gray-900);
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 .cta-banner-desc {
-  font-size: 16px;
+  font-size: 18px;
   color: var(--gray-500);
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 .cta-banner-info {
   display: flex;
-  gap: 32px;
+  gap: 36px;
   flex-wrap: wrap;
-  margin: 8px 0;
+  margin: 10px 0;
 }
 .cta-info-item {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 .cta-info-item i {
-  width: 40px; height: 40px;
+  width: 48px; height: 48px;
   background: var(--primary-light);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--primary);
-  font-size: 16px;
+  font-size: 19px;
 }
-.cta-info-label { display: block; font-size: 12px; color: var(--gray-500); font-weight: 500; }
-.cta-info-value { display: block; font-size: 14px; color: var(--gray-800); font-weight: 600; }
+.cta-info-label { display: block; font-size: 13px; color: var(--gray-500); font-weight: 500; }
+.cta-info-value { display: block; font-size: 16px; color: var(--gray-800); font-weight: 700; }
 .btn-cta-banner {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   background: var(--primary);
   color: white;
-  padding: 14px 32px;
+  padding: 16px 38px;
   border-radius: 50px;
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: 700;
+  font-size: 16px;
   text-decoration: none;
   transition: all 0.3s ease;
   width: fit-content;
@@ -1102,15 +1215,15 @@ body {
 .btn-cta-banner i { transition: transform 0.3s ease; }
 .btn-cta-banner:hover i { transform: translateX(4px); }
 .cta-banner-map {
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
-  min-height: 220px;
+  min-height: 340px;
   background: var(--gray-100);
 }
 .cta-banner-map iframe {
   width: 100%;
   height: 100%;
-  min-height: 220px;
+  min-height: 340px;
   border: 0;
 }
 /* ============================================
@@ -1118,33 +1231,29 @@ body {
    ============================================ */
 @media (max-width: 992px) {
   .stats-modern-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-  .cta-banner-inner { grid-template-columns: 1fr; text-align: center; }
+  .cta-banner-inner { grid-template-columns: 1fr; text-align: center; padding: 40px 32px; }
   .cta-banner-info { justify-content: center; }
   .btn-cta-banner { margin: 0 auto; }
+  .cta-banner-map { min-height: 260px; }
+  .cta-banner-map iframe { min-height: 260px; }
 }
 @media (max-width: 768px) {
-  .hero-flutter-inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 24px;
-    padding-bottom: 0;
-  }
-  .hero-flutter-content { flex: none; padding-bottom: 0; }
   .hero-flutter-title { font-size: 28px; }
   .hero-flutter-desc { font-size: 16px; }
-  .hero-flutter-image { flex: none; justify-content: center; }
-  .hero-flutter-img { max-width: 100%; height: 200px; object-position: bottom center; border-radius: 0; }
-  .services-modern-section, .doctors-modern-section { padding: 60px 20px; }
+  .hero-flutter-image { justify-content: center; gap: 18px; }
+  .hero-flutter-img { object-position: center; }
+  .hero-stats-dock { flex: 1 1 100%; width: 100%; max-width: 360px; margin: 0 auto; }
+  .services-modern-section, .doctors-modern-section { padding: 48px 20px; }
   .services-modern-title, .doctors-modern-title { font-size: 30px; }
-  .cta-banner { padding: 40px 20px; }
+  .service-card-modern { padding: 32px 22px; }
+  .cta-banner { padding: 32px 20px; }
   .cta-banner-inner { padding: 32px 24px; border-radius: 20px; }
   .cta-banner-title { font-size: 28px; }
   .filter-tabs { gap: 8px; }
   .filter-tab { font-size: 12px; padding: 6px 14px; }
   .doctors-search-wrap { padding: 0 10px; }
-  .doctors-search-box { padding: 8px 8px 8px 18px; }
+  .doctors-search-box { padding: 10px 16px; }
   .doctors-search-box input { font-size: 14px; }
-  .doctors-search-box button { padding: 9px 18px; font-size: 13px; }
 }
 @media (max-width: 480px) {
   .navbar-logo { font-size: 20px; }
@@ -1161,10 +1270,9 @@ body {
   .cta-banner-info { flex-direction: column; gap: 12px; }
   .cta-info-item { justify-content: center; }
   .btn-cta-banner { width: 100%; justify-content: center; }
-  .cta-banner-map { min-height: 180px; }
+  .cta-banner-map { min-height: 200px; }
+  .cta-banner-map iframe { min-height: 200px; }
   .service-grid-modern, .doctors-grid-modern { grid-template-columns: 1fr; }
   .filter-tabs { gap: 6px; padding: 0 5px; }
   .filter-tab { font-size: 11px; padding: 5px 12px; }
-  .doctors-search-box { gap: 8px; }
-  .doctors-search-box button { padding: 8px 14px; font-size: 12px; }
 }

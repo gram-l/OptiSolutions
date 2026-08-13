@@ -20,8 +20,6 @@ require __DIR__.'/admin_acc/web.php';
 require __DIR__.'/staff_acc/web.php';
 
 
-// NOTE: dating "return view('welcome')" ito, pinalitan para gamitin ang PolyclinicController.
-// Ibalik na lang sa dati kung mali ang assumption:
 Route::get('/', [PolyclinicController::class, 'home']);
 
 Route::get('/sample', function () {
@@ -115,6 +113,11 @@ Route::get('/services', [PolyclinicController::class, 'services'])->name('servic
 Route::get('/doctors',  [PolyclinicController::class, 'doctors'])->name('doctors');
 Route::get('/contact',  [PolyclinicController::class, 'contact'])->name('contact');
 Route::get('/chatbot',  [PolyclinicController::class, 'chatbot'])->name('chatbot');
+
+// General Privacy Notice page (linked from the privacy consent modal)
+Route::get('/privacy-notice', function () {
+    return view('patient.privacy-notice');
+})->name('privacy-notice');
 
 // ===== BotMan route =====
 // Receives messages from the chat widget (script.js) and returns BotMan's reply

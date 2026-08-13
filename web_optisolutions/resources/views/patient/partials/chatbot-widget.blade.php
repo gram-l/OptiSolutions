@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
       buttons.every((b, i) => String(b.value ?? b.text).trim() === String(i + 1));
   }
 
-  function addStarRating(buttons, persist = true) {
+  function addStarRating(buttons, persist = true, selectedIndex = null) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
 
@@ -320,6 +320,14 @@ document.addEventListener('DOMContentLoaded', () => {
     row.className = 'star-rating-row';
 
     const stars = [];
+    // Once a star is picked, the fill locks in and further hover/click
+    // is ignored — this replaces the old behavior where mouseleave
+    // wiped every star back to unfilled right after a choice was made.
+    let selectedIdx = selectedIndex;
+
+    function paintUpTo(idx) {
+      stars.forEach((s, i) => s.classList.toggle('filled', i <= idx));
+    }
 
     buttons.forEach((btn, idx) => {
       const starBtn = document.createElement('button');
@@ -328,12 +336,19 @@ document.addEventListener('DOMContentLoaded', () => {
       starBtn.innerHTML = '<i class="fa-solid fa-star"></i>';
 
       starBtn.addEventListener('mouseenter', () => {
-        stars.forEach((s, i) => s.classList.toggle('filled', i <= idx));
+        if (selectedIdx !== null) return;
+        paintUpTo(idx);
       });
 
       starBtn.addEventListener('click', () => {
-        const filledLabel = '★'.repeat(idx + 1) + '☆'.repeat(5 - (idx + 1));
-        sendMessage(btn.value ?? btn.text, filledLabel);
+        if (selectedIdx !== null) return;
+        selectedIdx = idx;
+
+        paintUpTo(idx);
+        stars.forEach(s => { s.disabled = true; });
+
+        const ratingLabel = `${idx + 1}/5`;
+        sendMessage(btn.value ?? btn.text, ratingLabel);
       });
 
       stars.push(starBtn);
@@ -341,8 +356,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     row.addEventListener('mouseleave', () => {
+      if (selectedIdx !== null) return; // keep the chosen stars colored
       stars.forEach(s => s.classList.remove('filled'));
     });
+
+    // Restoring a previously-answered rating (e.g. after a page reload)
+    // — lock it in immediately instead of showing it blank/interactive.
+    if (selectedIdx !== null) {
+      paintUpTo(selectedIdx);
+      stars.forEach(s => { s.disabled = true; });
+    }
 
     bubble.appendChild(row);
     messageWrap.appendChild(bubble);
@@ -350,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
 
     if (persist) {
-      session.history.push({ kind: 'star_rating', buttons });
+      session.history.push({ kind: 'star_rating', buttons, selectedIndex: selectedIdx });
       persistSession();
     }
   }
@@ -551,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (item.kind === 'buttons') {
         addButtons(item.buttons, false);
       } else if (item.kind === 'star_rating') {
-        addStarRating(item.buttons, false);
+        addStarRating(item.buttons, false, item.selectedIndex ?? null);
       } else if (item.kind === 'card') {
         addAppointmentCard(item.data, false);
       } else if (item.kind === 'info_card') {
@@ -731,6 +754,17 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
     pollForReplies();
     sendMessage('submit review/rating', 'Submit Review/Rating');
+  };
+
+  // Global trigger: open chat + jump straight to Schedule Visit
+  window.openChatbotAndScheduleVisit = function () {
+    if (!panel.classList.contains('open')) {
+      panel.classList.add('open');
+    }
+    input.focus();
+    scrollToBottom();
+    pollForReplies();
+    sendMessage('schedule visit', 'Schedule Visit');
   };
 
   // Initialization

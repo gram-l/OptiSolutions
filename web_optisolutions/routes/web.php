@@ -114,6 +114,11 @@ Route::get('/doctors',  [PolyclinicController::class, 'doctors'])->name('doctors
 Route::get('/contact',  [PolyclinicController::class, 'contact'])->name('contact');
 Route::get('/chatbot',  [PolyclinicController::class, 'chatbot'])->name('chatbot');
 
+// General Privacy Notice page (linked from the privacy consent modal)
+Route::get('/privacy-notice', function () {
+    return view('patient.privacy-notice');
+})->name('privacy-notice');
+
 // ===== BotMan route =====
 // Receives messages from the chat widget (script.js) and returns BotMan's reply
 Route::post('/botman', [BotManController::class, 'handle'])->name('botman.handle');

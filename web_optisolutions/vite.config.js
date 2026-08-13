@@ -34,6 +34,7 @@ export default defineConfig({
                 'resources/js/app.js',
                 'resources/js/bootstrap.js',
                 'resources/js/navbar-loader.js',
+                'resources/js/privacy-notice.js',
                 'resources/js/script.js',
             ],
             refresh: true,

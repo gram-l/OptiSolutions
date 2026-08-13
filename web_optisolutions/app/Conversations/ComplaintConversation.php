@@ -28,7 +28,7 @@ class ComplaintConversation extends Conversation
 
     public function askComplaint()
     {
-        $this->ask('Please describe your concern in detail. We would like to hear your experience from us>', function (Answer $answer) {
+        $this->ask('Please describe your concern in detail. We would like to hear your experience from us.', function (Answer $answer) {
             $text = trim($answer->getText());
 
             if (strlen($text) < 10) {

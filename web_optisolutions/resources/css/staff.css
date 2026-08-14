@@ -1095,6 +1095,8 @@ body.dark-mode .notif-entry-badge {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 2000;
     align-items: center;
     justify-content: center;
@@ -1685,6 +1687,8 @@ body.dark-mode .date-nav input[type="date"]::-webkit-calendar-picker-indicator {
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     display: none;
     align-items: center;
     justify-content: center;

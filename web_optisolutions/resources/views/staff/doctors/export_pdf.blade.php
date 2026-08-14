@@ -10,7 +10,7 @@
         th, td { border: 1px solid #ddd; padding: 5px 8px; text-align: left; }
         th { background: #f2f2f2; }
         .no-patients { color: #888; font-style: italic; padding: 6px 0; }
-        .print-btn { display: inline-block; margin-bottom: 16px; padding: 10px 18px; background: #1e3a5f; color: #fff; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
+        .print-btn { display: inline-block; margin-bottom: 16px; padding: 10px 18px; background: #062744; color: #fff; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
         @media print {
             .print-btn { display: none; }
         }

@@ -2,24 +2,29 @@
 
 @section('content')
 <div class="container">
-    <div class="action-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
-        <h3 style="margin: 0;">Patients</h3>
+    <div class="page-title-group" style="margin-bottom: 1rem;">
+        <h3 style="margin: 0;">
+            <i class="bi bi-folder2-open"></i> Patient Records
+        </h3>
+        <p class="page-subtitle">View and manage patient records</p>
+    </div>
 
-        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-            <div style="position: relative; min-width: 220px;">
-                <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                <input
-                    type="text"
-                    id="patientSearch"
-                    placeholder="Search ID, name, or doctor..."
-                    style="width: 100%; padding: 0.55rem 0.75rem 0.55rem 2.25rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none;"
-                    onkeyup="filterPatientsTable()"
-                >
-            </div>
+    <div class="action-bar" style="background: white; border-radius: 20px; padding: 1rem 1.5rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <div style="position: relative; min-width: 220px;">
+            <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+            <input
+                type="text"
+                id="patientSearch"
+                placeholder="Search ID, name, or doctor..."
+                style="width: 100%; padding: 0.55rem 0.75rem 0.55rem 2.25rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none;"
+                onkeyup="filterPatientsTable()"
+            >
+        </div>
 
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
             <select
                 id="departmentFilter"
-                style="padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; background: white; min-width: 180px;"
+                style="padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; background: white; min-width: 130px;"
                 onchange="filterPatientsTable()"
             >
                 <option value="">All Departments</option>
@@ -35,30 +40,31 @@
                     <option value="{{ strtolower($dept) }}">{{ $dept }}</option>
                 @endforeach
             </select>
+
+            <form method="GET" action="{{ route('staff.patients') }}" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <label for="date_from" style="font-size: 0.85rem; color: #64748b; white-space: nowrap;">Visit from</label>
+                <input
+                    type="date"
+                    id="date_from"
+                    name="date_from"
+                    value="{{ request('date_from') }}"
+                    style="padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; outline: none;"
+                >
+                <label for="date_to" style="font-size: 0.85rem; color: #64748b; white-space: nowrap;">to</label>
+                <input
+                    type="date"
+                    id="date_to"
+                    name="date_to"
+                    value="{{ request('date_to') }}"
+                    style="padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; outline: none;"
+                >
+                <button type="submit" class="btn-sm btn-primary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem; line-height: 1.2; border: none; box-sizing: border-box; cursor: pointer;">Filter</button>
+                @if(request('date_from') || request('date_to'))
+                    <a href="{{ route('staff.patients') }}" class="btn-sm btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem; line-height: 1.2; border: none; box-sizing: border-box; display: inline-flex; align-items: center; text-decoration: none;">Clear</a>
+                @endif
+            </form>
         </div>
     </div>
-
-    <!-- DATE RANGE FILTER (based on patient's visit date) -->
-    <form method="GET" action="{{ route('staff.patients') }}" style="background: white; border-radius: 20px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-        <label style="font-weight: 600; color: var(--text-dark);">Visit date from:</label>
-        <input
-            type="date"
-            name="date_from"
-            value="{{ request('date_from') }}"
-            style="padding: 0.5rem 0.8rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;"
-        >
-        <label style="font-weight: 600; color: var(--text-dark);">to:</label>
-        <input
-            type="date"
-            name="date_to"
-            value="{{ request('date_to') }}"
-            style="padding: 0.5rem 0.8rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;"
-        >
-        <button type="submit" class="btn-sm btn-primary" style="padding: 0.5rem 1.2rem; font-size: 0.9rem; line-height: 1.2; border: none; box-sizing: border-box;">Filter</button>
-        @if(request('date_from') || request('date_to'))
-            <a href="{{ route('staff.patients') }}" class="btn-sm btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.9rem; line-height: 1.2; border: none; box-sizing: border-box; display: inline-flex; align-items: center; text-decoration: none;">Clear</a>
-        @endif
-    </form>
 
     @if($patients->count() > 0)
         <table class="data-table" id="patientsTable">

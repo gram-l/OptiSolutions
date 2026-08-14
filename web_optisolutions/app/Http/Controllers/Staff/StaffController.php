@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Carbon;
 
 class StaffController extends Controller
@@ -48,11 +49,30 @@ class StaffController extends Controller
         return back()->with('success', 'Profile photo updated!');
     }
 
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => ['required'],
+            'password' => ['required', 'confirmed', 'min:8'],
+        ]);
+
+        $user = Auth::user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+        }
+
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        return back()->with('success', 'Password updated!');
+    }
+
     private function buildDashboardData(): array
     {
         $totalScheduleVisit = ScheduleVisit::count();
 
-    
+
         $pendingInquiries = Inquiry::whereNull('inquiry_reply')
             ->orWhere('inquiry_reply', '')
             ->count();

@@ -77,13 +77,13 @@
         gap: 0.75rem;
         cursor: pointer;
         font-weight: 500;
-        color: var(--text-dark, #2c3e50);
+        color: var(--text-dark);
     }
 
     .day-toggle input[type="checkbox"] {
         width: 18px;
         height: 18px;
-        accent-color: var(--primary-deep-blue, #1a5fb4);
+        accent-color: var(--primary-main);
         cursor: pointer;
     }
 
@@ -103,7 +103,7 @@
 
     .session-row input[type="time"] {
         padding: 0.5rem 0.7rem;
-        border: 1px solid var(--light-gray, #e0e0e0);
+        border: 1px solid var(--light-gray);
         border-radius: 8px;
         font-size: 0.9rem;
         background: white;
@@ -116,7 +116,7 @@
     .btn-remove-session {
         border: none;
         background: transparent;
-        color: #e74c3c;
+        color: var(--danger);
         cursor: pointer;
         padding: 0.3rem;
         display: flex;
@@ -126,7 +126,7 @@
     .btn-add-session {
         border: none;
         background: transparent;
-        color: var(--primary-deep-blue, #1a5fb4);
+        color: var(--primary-main);
         font-weight: 500;
         cursor: pointer;
         padding: 0.2rem 0;

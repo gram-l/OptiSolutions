@@ -2,45 +2,40 @@
 
 @section('content')
 <div class="container">
-    <div class="action-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
-        <h3 style="margin: 0;">Scheduled Visits</h3>
+    <div class="page-title-group" style="margin-bottom: 1rem;">
+        <h3 style="margin: 0;">
+            <i class="bi bi-calendar-plus"></i> Scheduled Visits
+        </h3>
+        <p class="page-subtitle">Review and manage scheduled patient visits</p>
+    </div>
 
-        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <label for="dateFrom" style="font-size: 0.85rem; color: #64748b; white-space: nowrap;">From</label>
-                <input
-                    type="date"
-                    id="dateFrom"
-                    style="padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; outline: none;"
-                    onchange="filterVisitsTable()"
-                >
-                <label for="dateTo" style="font-size: 0.85rem; color: #64748b; white-space: nowrap;">To</label>
-                <input
-                    type="date"
-                    id="dateTo"
-                    style="padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; outline: none;"
-                    onchange="filterVisitsTable()"
-                >
-                <button
-                    type="button"
-                    onclick="clearVisitFilters()"
-                    class="btn-sm btn-primary"
-                    style="padding: 0.5rem 1.2rem; font-size: 0.85rem; line-height: 1.2; border: none; box-sizing: border-box; cursor: pointer;"
-                >Clear</button>
+    @php
+        $services = $appointments->pluck('service')->filter()->unique()->sort()->values();
+    @endphp
+
+    <div class="visits-filter-bar">
+        <select id="serviceFilter" onchange="filterVisitsTable()">
+            <option value="">All Services</option>
+            @foreach($services as $service)
+                <option value="{{ strtolower($service) }}">{{ $service }}</option>
+            @endforeach
+        </select>
+
+        <div class="filter-bar-right">
+            <div class="date-nav">
+                <button type="button" class="date-nav-btn" onclick="shiftDate(-1)" aria-label="Previous day">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <input type="date" id="visitDate" onchange="handleDateInputChange()">
+                <button type="button" class="date-nav-btn" onclick="shiftDate(1)" aria-label="Next day">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+                <button type="button" id="btnTodayFilter" class="btn-sm btn-primary" onclick="setTodayFilter()">Today</button>
+                <button type="button" id="btnClearFilter" class="btn-sm btn-secondary" onclick="clearVisitFilters()">Clear</button>
+                <span id="dateLabel" class="date-label"></span>
             </div>
 
-            <div style="position: relative; min-width: 260px;">
-                <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                <input
-                    type="text"
-                    id="visitSearch"
-                    placeholder="Search visit ID, doctor, service ..."
-                    style="width: 100%; padding: 0.55rem 0.75rem 0.55rem 2.25rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none;"
-                    onkeyup="filterVisitsTable()"
-                >
-            </div>
-
-            <div style="position: relative;">
+            <div class="download-wrap" style="position: relative;">
                 <button
                     type="button"
                     id="downloadBtn"
@@ -83,7 +78,7 @@
             <tbody>
                 @foreach($appointments as $apt)
                 @php $visitDate = \Carbon\Carbon::parse($apt->visit_date)->format('Y-m-d'); @endphp
-                <tr data-date="{{ $visitDate }}">
+                <tr data-date="{{ $visitDate }}" data-service="{{ strtolower($apt->service ?? '') }}">
                     <td>{{ $apt->visit_id }}</td>
                     <td>{{ $apt->doctor_name }}</td>
                     <td>{{ $apt->service }}</td>
@@ -92,7 +87,7 @@
                 @endforeach
             </tbody>
         </table>
-        <p id="noResultsMsg" style="display: none; padding: 2rem; text-align: center; background: white; border-radius: 20px;">No matching visits found.</p>
+        <p id="noResultsMsg" style="display: none; padding: 2rem; text-align: center; background: white; border-radius: 20px;">No visits scheduled for this day.</p>
     @else
         <p style="padding: 2rem; text-align: center; background: white; border-radius: 20px;">No appointments found.</p>
     @endif
@@ -111,12 +106,73 @@
         }
     });
 
-    function filterVisitsTable() {
-        const searchInput = document.getElementById('visitSearch');
-        const filter = searchInput.value.trim().toLowerCase();
+    function todayISO() {
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        const local = new Date(now.getTime() - offset * 60000);
+        return local.toISOString().slice(0, 10);
+    }
 
-        const dateFrom = document.getElementById('dateFrom').value;
-        const dateTo = document.getElementById('dateTo').value;
+    function parseDateInputValue(str) {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+
+    function toISO(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function formatDateLabel(dateStr) {
+        const d = parseDateInputValue(dateStr);
+        return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function updateDateLabel() {
+        const input = document.getElementById('visitDate');
+        const label = document.getElementById('dateLabel');
+        label.textContent = input.value ? formatDateLabel(input.value) : 'Showing all scheduled visits';
+    }
+
+    function updateTodayButtonState() {
+        const input = document.getElementById('visitDate');
+        const isToday = input.value === todayISO();
+        const btn = document.getElementById('btnTodayFilter');
+        btn.classList.toggle('btn-primary', isToday);
+        btn.classList.toggle('btn-secondary', !isToday);
+    }
+
+    function setTodayFilter() {
+        document.getElementById('visitDate').value = todayISO();
+        handleDateInputChange();
+    }
+
+    function clearVisitFilters() {
+        document.getElementById('visitDate').value = '';
+        document.getElementById('serviceFilter').value = '';
+        handleDateInputChange();
+    }
+
+
+    function shiftDate(days) {
+        const input = document.getElementById('visitDate');
+        const base = input.value ? parseDateInputValue(input.value) : new Date();
+        base.setDate(base.getDate() + days);
+        input.value = toISO(base);
+        handleDateInputChange();
+    }
+
+    function handleDateInputChange() {
+        updateDateLabel();
+        updateTodayButtonState();
+        filterVisitsTable();
+    }
+
+    function filterVisitsTable() {
+        const selectedDate = document.getElementById('visitDate').value;
+        const serviceFilter = document.getElementById('serviceFilter').value;
 
         const table = document.getElementById('visitsTable');
         if (!table) return;
@@ -126,14 +182,14 @@
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
-            const rowText = row.textContent.toLowerCase();
             const rowDate = row.getAttribute('data-date');
+            const rowService = row.getAttribute('data-service') || '';
 
-            const matchesSearch = rowText.includes(filter);
-            const matchesFrom = !dateFrom || rowDate >= dateFrom;
-            const matchesTo = !dateTo || rowDate <= dateTo;
 
-            const isMatch = matchesSearch && matchesFrom && matchesTo;
+            const matchesDate = !selectedDate || rowDate === selectedDate;
+            const matchesService = serviceFilter === '' || rowService === serviceFilter;
+
+            const isMatch = matchesDate && matchesService;
             row.style.display = isMatch ? '' : 'none';
             if (isMatch) visibleCount++;
         }
@@ -144,11 +200,9 @@
         }
     }
 
-    function clearVisitFilters() {
-        document.getElementById('dateFrom').value = '';
-        document.getElementById('dateTo').value = '';
-        document.getElementById('visitSearch').value = '';
-        filterVisitsTable();
-    }
+
+    updateDateLabel();
+    updateTodayButtonState();
+    filterVisitsTable();
 </script>
 @endsection

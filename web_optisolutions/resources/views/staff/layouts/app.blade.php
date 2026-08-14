@@ -162,7 +162,7 @@
         </div>
     </div>
 
-    // PROFILE MODAL
+<!-- ===== PROFILE MODAL ===== -->
 <div class="profile-modal-overlay" id="profileModalOverlay" onclick="if(event.target === this) closeProfileModal();">
     <div class="profile-modal">
         <button class="profile-modal-close" onclick="closeProfileModal();">
@@ -234,7 +234,7 @@
     </div>
 </div>
 
-    // SETTINGS MODAL 
+<!-- ===== SETTINGS MODAL ===== -->
 <div class="profile-modal-overlay" id="settingsModalOverlay" onclick="if(event.target === this) closeSettingsModal();">
     <div class="settings-panel">
         <button class="settings-panel-close" onclick="closeSettingsModal();" aria-label="Close">

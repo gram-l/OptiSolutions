@@ -62,14 +62,14 @@
 
     .conv-item-active {
         background: #eaf2fb;
-        border-left: 3px solid var(--primary-deep-blue, #1a5fb4);
+        border-left: 3px solid var(--primary-main);
     }
 
     .conv-avatar {
         width: 44px;
         height: 44px;
         border-radius: 50%;
-        background: var(--primary-deep-blue, #1a5fb4);
+        background: var(--primary-main);
         color: #ffffff;
         display: flex;
         align-items: center;
@@ -120,7 +120,7 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: var(--primary-deep-blue, #1a5fb4);
+        background: var(--primary-main);
         flex-shrink: 0;
     }
 
@@ -178,7 +178,7 @@
         background: #232b3d;
     }
     body.dark-mode .conv-item-active {
-        background: #1e3a5f;
-        border-left-color: #4a90e2;
+        background: rgba(14, 98, 170, 0.25);
+        border-left-color: var(--primary-light);
     }
 </style>

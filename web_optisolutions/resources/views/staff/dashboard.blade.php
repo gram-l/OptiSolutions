@@ -4,7 +4,7 @@
 <div class="container">
 
     <!-- WELCOME BANNER -->
-    <div style="background: #1A56C4; border-radius: 20px; padding: 2rem 2.5rem; color: white; margin-bottom: 2rem;">
+    <div style="background: var(--primary-main); border-radius: 20px; padding: 2rem 2.5rem; color: white; margin-bottom: 2rem;">
         <h2 style="margin: 0; font-weight: 700;">
             Welcome, {{ auth()->user()->name ?? 'Staff' }}!
         </h2>
@@ -67,7 +67,7 @@
         $weeklyVisitsData = $hasWeeklyData ? $weeklyVisits : array_fill(0, 6, 0);
         $weeklyVisitsLabels = $weekLabels ?? $defaultWeekLabels;
 
-        // ---- Sentiment Analysis defaults ----
+        // ---- Patient Feedback defaults ----
         $sentimentTotal = ($positivePercent ?? 0) + ($neutralPercent ?? 0) + ($negativePercent ?? 0);
         $sentimentRows = [
             ['label' => 'Positive', 'value' => $sentimentTotal > 0 ? ($positivePercent ?? 0) : 0, 'color' => '#2ecc71'],
@@ -83,83 +83,102 @@
         $recentActivities = $recentActivities ?? [];
     @endphp
 
-    <!-- 1) SERVICE DISTRIBUTION (doughnut) -->
-    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
-        <h3 style="color: var(--text-dark);">Service Distribution</h3>
-        <p style="color: #7f8c8d; font-size: 0.9rem;">Distribution of patient visits by department</p>
+    <style>
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .charts-grid .dashboard-card {
+            margin-top: 0;
+        }
+        @media (max-width: 900px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 
-        <div style="max-width: 380px; margin: 1rem auto 1.5rem;">
-            <canvas id="serviceDistributionChart" height="260"></canvas>
+    <div class="charts-grid">
+        <!-- 1) SERVICE DISTRIBUTION (doughnut) -->
+        <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow);">
+            <h3 style="color: var(--text-dark);">Service Distribution</h3>
+            <p style="color: #7f8c8d; font-size: 0.9rem;">Distribution of patient visits by department</p>
+
+            <div style="max-width: 340px; margin: 1rem auto 1.5rem;">
+                <canvas id="serviceDistributionChart" height="260"></canvas>
+            </div>
+
+            <div id="serviceDistributionList">
+                @if($hasServiceData)
+                    @foreach($serviceDistribution as $service)
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--light-gray);">
+                            <span>{{ $service->service_type }}</span>
+                            <span>{{ $service->total }} visits</span>
+                        </div>
+                    @endforeach
+                @else
+                    <p style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem;">No service data available yet.</p>
+                @endif
+            </div>
         </div>
 
-        <div id="serviceDistributionList">
-            @if($hasServiceData)
-                @foreach($serviceDistribution as $service)
-                    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--light-gray);">
-                        <span>{{ $service->service_type }}</span>
-                        <span>{{ $service->total }} visits</span>
+        <!-- 2) WEEKLY PATIENT VISITS (line) -->
+        <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow);">
+            <h3 style="color: var(--text-dark);">Weekly Patient Visits</h3>
+            <p style="color: #7f8c8d; font-size: 0.9rem;">Visits from schedule_visit over the last several weeks</p>
+
+            <div style="margin-top: 1rem;">
+                <canvas id="weeklyVisitsChart" height="240"></canvas>
+            </div>
+
+            <p id="weeklyVisitsEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasWeeklyData ? 'display:none;' : '' }}">
+                No visit data available yet.
+            </p>
+        </div>
+
+        <!-- 3) INQUIRY VOLUME PER WEEK (bar) -->
+        <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow);">
+            <h3 style="color: var(--text-dark);">Inquiry Volume per Week</h3>
+            <p style="color: #7f8c8d; font-size: 0.9rem;">Inquiries received per day this week</p>
+
+            <div style="margin-top: 1rem;">
+                <canvas id="inquiryVolumeChart" height="240"></canvas>
+            </div>
+
+            <p id="inquiryVolumeEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasInquiryData ? 'display:none;' : '' }}">
+                No inquiry data available yet.
+            </p>
+        </div>
+
+        <!-- 4) PATIENT FEEDBACK OVERVIEW (custom bars) -->
+        <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow);">
+            <h3 style="color: var(--text-dark);">Patient Feedback Overview</h3>
+            <p style="color: #7f8c8d; font-size: 0.9rem;">Breakdown of recent patient feedback</p>
+
+            <div id="sentimentBars" style="margin-top: 1.25rem;">
+                @foreach($sentimentRows as $row)
+                    <div class="sentiment-row" data-label="{{ $row['label'] }}" data-color="{{ $row['color'] }}" style="margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
+                            <span style="font-weight: 600; color: var(--text-dark);">{{ $row['label'] }}</span>
+                            <span class="sentiment-value" style="font-weight: 700; color: {{ $row['color'] }};">{{ $row['value'] }}%</span>
+                        </div>
+                        <div style="background: {{ $row['color'] }}1A; border-radius: 6px; height: 10px; overflow: hidden;">
+                            <div class="sentiment-fill" style="background: {{ $row['color'] }}; width: {{ $row['value'] }}%; height: 100%; border-radius: 6px;"></div>
+                        </div>
                     </div>
                 @endforeach
-            @else
-                <p style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem;">No service data available yet.</p>
-            @endif
+            </div>
+
+            <p id="sentimentEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $sentimentTotal > 0 ? 'display:none;' : '' }}">
+                No feedback data available yet.
+            </p>
         </div>
-    </div>
-
-    <!-- 2) WEEKLY PATIENT VISITS (line) -->
-    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
-        <h3 style="color: var(--text-dark);">Weekly Patient Visits</h3>
-        <p style="color: #7f8c8d; font-size: 0.9rem;">Visits from schedule_visit over the last several weeks</p>
-
-        <div style="margin-top: 1rem;">
-            <canvas id="weeklyVisitsChart" height="240"></canvas>
-        </div>
-
-        <p id="weeklyVisitsEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasWeeklyData ? 'display:none;' : '' }}">
-            No visit data available yet.
-        </p>
-    </div>
-
-    <!-- 3) SENTIMENT ANALYSIS (custom bars) -->
-    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
-        <h3 style="color: var(--text-dark);">Sentiment Analysis</h3>
-        <p style="color: #7f8c8d; font-size: 0.9rem;">Breakdown of recent patient feedback</p>
-
-        <div id="sentimentBars" style="margin-top: 1.25rem;">
-            @foreach($sentimentRows as $row)
-                <div class="sentiment-row" data-label="{{ $row['label'] }}" data-color="{{ $row['color'] }}" style="margin-bottom: 16px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
-                        <span style="font-weight: 600; color: var(--text-dark);">{{ $row['label'] }}</span>
-                        <span class="sentiment-value" style="font-weight: 700; color: {{ $row['color'] }};">{{ $row['value'] }}%</span>
-                    </div>
-                    <div style="background: {{ $row['color'] }}1A; border-radius: 6px; height: 10px; overflow: hidden;">
-                        <div class="sentiment-fill" style="background: {{ $row['color'] }}; width: {{ $row['value'] }}%; height: 100%; border-radius: 6px;"></div>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-
-        <p id="sentimentEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $sentimentTotal > 0 ? 'display:none;' : '' }}">
-            No feedback data available yet.
-        </p>
-    </div>
-
-    <!-- 4) INQUIRY VOLUME PER WEEK (bar) -->
-    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
-        <h3 style="color: var(--text-dark);">Inquiry Volume per Week</h3>
-        <p style="color: #7f8c8d; font-size: 0.9rem;">Inquiries received per day this week</p>
-
-        <div style="margin-top: 1rem;">
-            <canvas id="inquiryVolumeChart" height="240"></canvas>
-        </div>
-
-        <p id="inquiryVolumeEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasInquiryData ? 'display:none;' : '' }}">
-            No inquiry data available yet.
-        </p>
     </div>
 
     <!-- RECENT ACTIVITY -->
-    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 2rem;">
+    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 1.5rem;">
         <h3 style="color: var(--text-dark);">Recent Activities</h3>
         <div id="recentActivityList">
             @forelse($recentActivities as $activity)
@@ -367,7 +386,14 @@ document.addEventListener('DOMContentLoaded', function () {
             weeklyChart.update();
             document.getElementById('weeklyVisitsEmptyNote').style.display = hasWeekly ? 'none' : 'block';
 
-            // ---- 3) Sentiment Analysis ----
+            // ---- 3) Inquiry Volume per Week ----
+            const inquiryVolume = Array.isArray(data.inquiryVolumeByDay) ? data.inquiryVolumeByDay : [];
+            const hasInquiry = inquiryVolume.length > 0;
+            inquiryChart.data.datasets[0].data = hasInquiry ? inquiryVolume : new Array(7).fill(0);
+            inquiryChart.update();
+            document.getElementById('inquiryVolumeEmptyNote').style.display = hasInquiry ? 'none' : 'block';
+
+            // ---- 4) Patient Feedback Overview ----
             const sentimentTotal = (data.positivePercent ?? 0) + (data.neutralPercent ?? 0) + (data.negativePercent ?? 0);
             const sentimentValues = {
                 Positive: sentimentTotal > 0 ? (data.positivePercent ?? 0) : 0,
@@ -381,13 +407,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 row.querySelector('.sentiment-fill').style.width = value + '%';
             });
             document.getElementById('sentimentEmptyNote').style.display = sentimentTotal > 0 ? 'none' : 'block';
-
-            // ---- 4) Inquiry Volume per Week ----
-            const inquiryVolume = Array.isArray(data.inquiryVolumeByDay) ? data.inquiryVolumeByDay : [];
-            const hasInquiry = inquiryVolume.length > 0;
-            inquiryChart.data.datasets[0].data = hasInquiry ? inquiryVolume : new Array(7).fill(0);
-            inquiryChart.update();
-            document.getElementById('inquiryVolumeEmptyNote').style.display = hasInquiry ? 'none' : 'block';
 
             // ---- Recent Activities ----
             renderRecentActivities(data.recentActivities);

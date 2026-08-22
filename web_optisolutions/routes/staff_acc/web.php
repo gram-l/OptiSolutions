@@ -8,8 +8,7 @@ use App\Http\Controllers\Staff\DoctorController;
 use App\Http\Controllers\Staff\PatientController;
 use App\Http\Controllers\Staff\NotificationController;
 
-// Staff Dashboard Routes (Protected by middleware)
-Route::middleware(['staff'])->group(function () {
+Route::middleware(['auth', 'staff'])->group(function () {
 
     Route::post('/staff/profile/photo', [StaffController::class, 'updatePhoto'])->name('staff.profile.photo');
     Route::put('/staff/profile/password', [StaffController::class, 'updatePassword'])->name('staff.profile.password');
@@ -45,4 +44,5 @@ Route::middleware(['staff'])->group(function () {
     Route::get('/staff/patients/{id}', [PatientController::class, 'show'])->name('staff.patients.show');
     Route::get('/staff/patients/{id}/edit', [PatientController::class, 'edit'])->name('staff.patients.edit');
     Route::put('/staff/patients/{id}', [PatientController::class, 'update'])->name('staff.patients.update');
+
 });

@@ -5,6 +5,7 @@ import 'package:flutter_optisolutions/auth/auth_service.dart';
 import 'package:flutter_optisolutions/auth/forgot_password_service.dart';
 import 'package:flutter_optisolutions/auth/google_auth.dart';
 import 'package:flutter_optisolutions/staff_mobile/models/profile_data.dart'; //newc
+import 'package:flutter_optisolutions/admin_mobile/terms_screen.dart'; // adjust path if needed
 
 // ─────────────────────────────────────────────────────────────
 //  SHARED CONSTANTS
@@ -328,6 +329,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordCtrl.dispose();
     super.dispose();
   }
+
+  
 
   Future<void> _login() async {
     // Clear any previous error before validating/retrying

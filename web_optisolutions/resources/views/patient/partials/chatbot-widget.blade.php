@@ -8,89 +8,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   @vite(['resources/css/patient_css/chatbot.css'])
-  <style>
-    .chat-bubble.attachment-bubble {
-      padding: 8px;
-    }
-    .chat-attachment-image {
-      max-width: 220px;
-      max-height: 220px;
-      border-radius: 12px;
-      display: block;
-      object-fit: cover;
-    }
-    .chat-attachment-caption {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 6px;
-      word-break: break-all;
-    }
-    .attachment-preview {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      margin: 0 12px;
-      background: #f3f4f6;
-      border-radius: 10px;
-      font-size: 13px;
-      color: #374151;
-    }
-    .attachment-preview-thumb {
-      width: 36px;
-      height: 36px;
-      object-fit: cover;
-      border-radius: 6px;
-      flex-shrink: 0;
-    }
-    .attachment-preview-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .attachment-preview-remove {
-      background: none;
-      border: none;
-      font-size: 18px;
-      line-height: 1;
-      color: #6b7280;
-      cursor: pointer;
-      padding: 2px 6px;
-    }
-    .attachment-preview-remove:hover {
-      color: #374151;
-    }
-
-    /* ---------- Star Rating ---------- */
-    .star-rating-bubble {
-      padding: 10px 6px;
-      background: transparent;
-      box-shadow: none;
-    }
-    .star-rating-row {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      padding: 6px 4px;
-    }
-    .star-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 32px;
-      line-height: 1;
-      color: #d1d5db;
-      padding: 2px;
-      transition: color 0.15s ease, transform 0.15s ease;
-    }
-    .star-btn:hover {
-      transform: scale(1.15);
-    }
-    .star-btn.filled {
-      color: #fbbf24;
-    }
-  </style>
 </head>
 <body>
 
@@ -150,10 +67,89 @@ document.addEventListener('DOMContentLoaded', () => {
   const csrfToken  = document.querySelector('meta[name="csrf-token"]').content;
   const botmanUrl  = '{{ route("botman.handle") }}';
 
-
   const APPT_CARD_PREFIX = 'APPT_CARD::';
   const INFO_CARD_PREFIX = 'INFO_CARD::';
 
+  // PER-MESSAGE TRANSLATION
+
+  async function translateCounterpart(text) {
+    if (!text || !text.trim()) return { text, lang: 'en' };
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) return { text, lang: 'en' };
+      const data = await res.json();
+      return {
+        text: data.translatedText || text,
+        lang: data.detectedSourceLanguage === 'tl' ? 'en' : 'tl',
+      };
+    } catch (e) {
+      console.error('Translation error:', e);
+      return { text, lang: 'en' };
+    }
+  }
+
+  function attachTranslateControls(messageWrap, getOriginalText) {
+    const anchor = document.createElement('div');
+    anchor.style.position = 'relative';
+    anchor.style.display = 'inline-block';
+    anchor.style.maxWidth = '100%';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'msg-translate-btn';
+    btn.innerHTML = '<i class="fa-solid fa-language"></i> Translate';
+
+    const box = document.createElement('div');
+    box.className = 'msg-translation-box';
+
+    let loaded = false;
+    let visible = false;
+
+    btn.addEventListener('click', async () => {
+      if (visible) {
+        box.classList.remove('visible');
+        btn.innerHTML = '<i class="fa-solid fa-language"></i> Translate';
+        visible = false;
+        return;
+      }
+
+      if (!loaded) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Translating...';
+        const originalText = getOriginalText();
+        const result = await translateCounterpart(originalText);
+
+        box.innerHTML = '';
+        const span = document.createElement('span');
+        span.textContent = result.text;
+
+        const collapseBtn = document.createElement('button');
+        collapseBtn.type = 'button';
+        collapseBtn.className = 'msg-translation-collapse';
+        collapseBtn.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+        collapseBtn.addEventListener('click', () => btn.click());
+
+        box.appendChild(span);
+        box.appendChild(collapseBtn);
+        loaded = true;
+      }
+
+      box.classList.add('visible');
+      btn.innerHTML = '<i class="fa-solid fa-language"></i> Hide translation';
+      visible = true;
+    });
+
+    anchor.appendChild(btn);
+    anchor.appendChild(box);
+    messageWrap.appendChild(anchor);
+  }
 
   // SESSION PERSISTENCE
 
@@ -202,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // PENDING ATTACHMENT (staged, not yet sent)
-  
+
   let pendingAttachment = null;
 
   function showAttachmentPreview(file, dataUrl) {
@@ -249,9 +245,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text && !attachment) return;
 
     if (attachment) {
-      addAttachmentBubble(attachment.file.name, attachment.dataUrl, 'user');
+      addAttachmentBubble(attachment.file.name, attachment.dataUrl, 'user', true, text || null);
       clearAttachmentPreview();
-      await acknowledgeAttachment();
+      input.value = '';
+
+      if (text) {
+        await sendMessage(text, text, { skipUserBubble: true });
+      } else {
+        await acknowledgeAttachment();
+      }
+      return;
     }
 
     if (text) {
@@ -259,13 +262,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ---------- Panel open/close ----------
+  // Panel open/close
   trigger.addEventListener('click', () => {
     panel.classList.toggle('open');
     if (panel.classList.contains('open')) {
       input.focus();
       scrollToBottom();
-      pollForReplies(); // Check for new replies immediately whenever the panel is opened.
+      pollForReplies();
     }
   });
 
@@ -280,12 +283,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function addBubble(text, sender = 'bot', persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
+    messageWrap.style.display = 'flex';
+    messageWrap.style.flexDirection = 'column';
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
     bubble.textContent = text;
 
     messageWrap.appendChild(bubble);
+    attachTranslateControls(messageWrap, () => bubble.textContent);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
 
@@ -297,13 +303,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return bubble;
   }
 
-  // ---------- Star rating helpers ----------
+  // Star rating helpers
   function isRatingButtons(buttons) {
     return Array.isArray(buttons) && buttons.length === 5 &&
       buttons.every((b, i) => String(b.value ?? b.text).trim() === String(i + 1));
   }
 
-  function addStarRating(buttons, persist = true) {
+  function addStarRating(buttons, persist = true, selectedIndex = null) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
 
@@ -314,6 +320,14 @@ document.addEventListener('DOMContentLoaded', () => {
     row.className = 'star-rating-row';
 
     const stars = [];
+    // Once a star is picked, the fill locks in and further hover/click
+    // is ignored — this replaces the old behavior where mouseleave
+    // wiped every star back to unfilled right after a choice was made.
+    let selectedIdx = selectedIndex;
+
+    function paintUpTo(idx) {
+      stars.forEach((s, i) => s.classList.toggle('filled', i <= idx));
+    }
 
     buttons.forEach((btn, idx) => {
       const starBtn = document.createElement('button');
@@ -322,12 +336,19 @@ document.addEventListener('DOMContentLoaded', () => {
       starBtn.innerHTML = '<i class="fa-solid fa-star"></i>';
 
       starBtn.addEventListener('mouseenter', () => {
-        stars.forEach((s, i) => s.classList.toggle('filled', i <= idx));
+        if (selectedIdx !== null) return;
+        paintUpTo(idx);
       });
 
       starBtn.addEventListener('click', () => {
-        const filledLabel = '★'.repeat(idx + 1) + '☆'.repeat(5 - (idx + 1));
-        sendMessage(btn.value ?? btn.text, filledLabel);
+        if (selectedIdx !== null) return;
+        selectedIdx = idx;
+
+        paintUpTo(idx);
+        stars.forEach(s => { s.disabled = true; });
+
+        const ratingLabel = `${idx + 1}/5`;
+        sendMessage(btn.value ?? btn.text, ratingLabel);
       });
 
       stars.push(starBtn);
@@ -335,8 +356,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     row.addEventListener('mouseleave', () => {
+      if (selectedIdx !== null) return; // keep the chosen stars colored
       stars.forEach(s => s.classList.remove('filled'));
     });
+
+    // Restoring a previously-answered rating (e.g. after a page reload)
+    // — lock it in immediately instead of showing it blank/interactive.
+    if (selectedIdx !== null) {
+      paintUpTo(selectedIdx);
+      stars.forEach(s => { s.disabled = true; });
+    }
 
     bubble.appendChild(row);
     messageWrap.appendChild(bubble);
@@ -344,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
 
     if (persist) {
-      session.history.push({ kind: 'star_rating', buttons });
+      session.history.push({ kind: 'star_rating', buttons, selectedIndex: selectedIdx });
       persistSession();
     }
   }
@@ -434,6 +463,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function addCard(data, kind, persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
+    messageWrap.style.display = 'flex';
+    messageWrap.style.flexDirection = 'column';
 
     const card = document.createElement('div');
     card.className = 'post-appt-card';
@@ -462,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     messageWrap.appendChild(card);
+    attachTranslateControls(messageWrap, () => card.innerText);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
 
@@ -479,28 +511,36 @@ document.addEventListener('DOMContentLoaded', () => {
     addCard(data, 'info_card', persist);
   }
 
-  function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true) {
+  function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true, caption = null) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
 
     const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble attachment-bubble';
+
+    if (caption) {
+      const captionEl = document.createElement('div');
+      captionEl.className = 'chat-attachment-caption-text';
+      captionEl.textContent = caption;
+      bubble.appendChild(captionEl);
+    }
 
     if (dataUrl) {
-      bubble.className = 'chat-bubble attachment-bubble';
-
       const img = document.createElement('img');
       img.src = dataUrl;
       img.alt = fileName;
       img.className = 'chat-attachment-image';
       bubble.appendChild(img);
 
-      const caption = document.createElement('div');
-      caption.className = 'chat-attachment-caption';
-      caption.textContent = fileName;
-      bubble.appendChild(caption);
+      const fileLabel = document.createElement('div');
+      fileLabel.className = 'chat-attachment-caption';
+      fileLabel.textContent = fileName;
+      bubble.appendChild(fileLabel);
     } else {
-      bubble.className = 'chat-bubble';
-      bubble.textContent = `Attached: ${fileName}`;
+      const fileLabel = document.createElement('div');
+      fileLabel.className = 'chat-attachment-caption';
+      fileLabel.textContent = `Attached: ${fileName}`;
+      bubble.appendChild(fileLabel);
     }
 
     messageWrap.appendChild(bubble);
@@ -508,14 +548,14 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
 
     if (persist) {
-      session.history.push({ kind: 'attachment', fileName, dataUrl, sender });
+      session.history.push({ kind: 'attachment', fileName, dataUrl, sender, caption });
       persistSession();
     }
 
     return bubble;
   }
 
-  
+
   function restoreConversation() {
     if (session.history.length === 0) {
       addBubble('Hello! Welcome to PolyClinic Lipa. How can I help you today?', 'bot');
@@ -534,19 +574,19 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (item.kind === 'buttons') {
         addButtons(item.buttons, false);
       } else if (item.kind === 'star_rating') {
-        addStarRating(item.buttons, false);
+        addStarRating(item.buttons, false, item.selectedIndex ?? null);
       } else if (item.kind === 'card') {
         addAppointmentCard(item.data, false);
       } else if (item.kind === 'info_card') {
         addInfoCard(item.data, false);
       } else if (item.kind === 'attachment') {
-        addAttachmentBubble(item.fileName, item.dataUrl, item.sender, false);
+        addAttachmentBubble(item.fileName, item.dataUrl, item.sender, false, item.caption);
       }
     });
     scrollToBottom();
   }
 
-  // ---------- Typing indicator ----------
+  // Typing indicator
   function showTyping() {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
@@ -566,11 +606,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.remove();
   }
 
-  async function sendMessage(text, displayText) {
+  async function sendMessage(text, displayText, opts = {}) {
     text = typeof text === 'string' ? text : String(text ?? '');
     if (!text.trim()) return;
 
-    addBubble(displayText ?? text, 'user');
+    if (!opts.skipUserBubble) {
+      addBubble(displayText ?? text, 'user');
+    }
     input.value = '';
     showTyping();
 
@@ -635,7 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ---------- Event listeners ----------
+  // Event listeners
   sendBtn.addEventListener('click', handleSend);
 
   input.addEventListener('keydown', (e) => {
@@ -645,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ---------- File attachment (optional) ----------
+  // File attachment (optional)
   attachBtn.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', () => {
@@ -661,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  
+
   const FALLBACK_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
   let shownReplyIds = new Set(session.shownReplyIds || []);
 
@@ -703,9 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setInterval(pollForReplies, 5000);
 
-  // ---------- Global trigger: open chat + jump straight to Submit Feedback ----------
-  // Ginagamit ito ng "Leave your Feedback here!" link sa home page para direktang
-  // pumasok sa "Submit Review/Rating" flow, na parang na-click ang menu button.
+  // Global trigger: open chat + jump straight to Submit Feedback
   window.openChatbotAndSubmitFeedback = function () {
     if (!panel.classList.contains('open')) {
       panel.classList.add('open');
@@ -716,10 +756,21 @@ document.addEventListener('DOMContentLoaded', () => {
     sendMessage('submit review/rating', 'Submit Review/Rating');
   };
 
-  // ---------- Initialization ----------
+  // Global trigger: open chat + jump straight to Schedule Visit
+  window.openChatbotAndScheduleVisit = function () {
+    if (!panel.classList.contains('open')) {
+      panel.classList.add('open');
+    }
+    input.focus();
+    scrollToBottom();
+    pollForReplies();
+    sendMessage('schedule visit', 'Schedule Visit');
+  };
+
+  // Initialization
   restoreConversation();
   persistSession();
-  pollForReplies(); // Check immediately on load, in case a reply arrived while away.
+  pollForReplies();
 });
 </script>
 

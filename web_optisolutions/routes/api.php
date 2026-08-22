@@ -14,9 +14,11 @@ use App\Http\Controllers\FeedbackController;
 //use App\Http\Controllers\ChatbotLogController;
 use App\Http\Controllers\ChartController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Api\TranslationController;
 
 require __DIR__.'/admin_acc/api.php';
 require __DIR__.'/staff_acc/api.php';
+
 // ── Auth ──
 Route::post('/login', [ApiAuthController::class, 'login']);
 
@@ -33,10 +35,11 @@ Route::post('/forgot-password/verify-otp', [ApiForgotPasswordController::class, 
 Route::post('/forgot-password/resend-otp', [ApiForgotPasswordController::class, 'resendOtp']);
 Route::post('/forgot-password/reset',      [ApiForgotPasswordController::class, 'resetPassword']);
 
-
-//google login
+// ── Google login ──
 Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'googleLogin']);
 
+// ── Patient side (PUBLIC — no auth required) ──
+Route::get('/doctors', [PatientDoctorController::class, 'index']);
 //(mika) tinanggal q kasi wala na patient side sa mobile 
 // ── Patient side ──
 Route::get('/doctors', [PatientDoctorController::class, 'index']); // ⚠️ conflict with line above — same URI, dalawang beses defined
@@ -58,3 +61,7 @@ Route::prefix('charts')->group(function () {
 //    if Admin/Staff has replied to an inquiry raised in the same chat
 //    session. Keyed by the BotMan conversation/client id. ──
 Route::get('/chat/{conversationId}/updates', [\App\Http\Controllers\Api\InquiryController::class, 'publicUpdates']);
+
+// ── Public: translation proxy used by the patient-facing chatbot widget
+//    to translate patient messages and bot/staff replies both ways. ──
+Route::post('/translate', [TranslationController::class, 'translate']);

@@ -10,9 +10,7 @@
     <div class="conv-list" id="conv-list">
         @forelse($inquiries as $inq)
             @php
-            
-                $rawId = (string) ($inq->patient_id ?? 'P');
-                $initials = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $rawId), 0, 2)) ?: 'P';
+                $chatCode = 'C' . substr(str_pad($inq->inquiry_id, 3, '0', STR_PAD_LEFT), -3);
                 $isSelected = isset($selectedId) && (string) $selectedId === (string) $inq->inquiry_id;
                 $preview = $inq->log ? Str::limit($inq->log->user_message, 40) : '—';
             @endphp
@@ -21,7 +19,7 @@
                 class="conv-item {{ $isSelected ? 'conv-item-active' : '' }}"
                 data-search="{{ strtolower(($inq->patient_id ?? '') . ' ' . $preview) }}"
             >
-                <div class="conv-avatar">{{ $initials }}</div>
+                <div class="conv-avatar">{{ $chatCode }}</div>
                 <div class="conv-item-body">
                     <div class="conv-item-top">
                         <span class="conv-item-id">CHAT-{{ str_pad($inq->inquiry_id, 3, '0', STR_PAD_LEFT) }}</span>

@@ -14,7 +14,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-
   Future<Map<String, dynamic>> _fetchClinicInfo() async {
     final data = await ApiService.get(_clinicInfoPath);
 
@@ -33,7 +32,6 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF1A237E)),
           onPressed: () {
-          
             Navigator.pop(context, true);
           },
         ),
@@ -104,7 +102,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
             const SizedBox(height: 20),
 
-            // CLINIC INFORMATION 
+            // CLINIC INFORMATION
             _buildSectionHeader(
               Icons.local_hospital_outlined,
               'CLINIC INFORMATION',
@@ -289,7 +287,6 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
     );
   }
-
 
   void _showProfileDialog(BuildContext context) {
     showDialog(
@@ -526,12 +523,22 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               SizedBox(height: 6),
               Text(
-                '• Data is used strictly for clinical and administrative purposes.',
+                '• Staff access is limited based on assigned roles and permissions.',
+                style: TextStyle(fontSize: 13),
+              ),
+              SizedBox(height: 6),
+              Text(
+                '• Patient information must not be shared with unauthorized persons.',
                 style: TextStyle(fontSize: 13),
               ),
               SizedBox(height: 6),
               Text(
                 '• All access to patient data is logged for accountability.',
+                style: TextStyle(fontSize: 13),
+              ),
+              SizedBox(height: 6),
+              Text(
+                '• Any suspected unauthorized access must be reported to the administrator.',
                 style: TextStyle(fontSize: 13),
               ),
             ],

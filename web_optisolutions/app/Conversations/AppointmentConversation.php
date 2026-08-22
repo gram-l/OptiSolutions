@@ -34,6 +34,21 @@ class AppointmentConversation extends Conversation
      */
     protected $pendingAnswerCallback;
 
+    /**
+     * When this conversation is (re)constructed after being detoured
+     * into InquiryConversation (see routeToInquiry()/resumeStep()), these
+     * hold the step to jump back into and the state to restore, so run()
+     * can resume the schedule visit instead of starting over at askName().
+     */
+    protected $pendingResumeStepKey;
+    protected $pendingResumeState;
+
+    public function __construct($resumeStepKey = null, $resumeState = null)
+    {
+        $this->pendingResumeStepKey = $resumeStepKey;
+        $this->pendingResumeState = $resumeState;
+    }
+
     // ---------------------------------------------------------------
     // TRANSCRIPT LOGGING
     //
@@ -155,22 +170,7 @@ class AppointmentConversation extends Conversation
         return trim($text);
     }
 
-    // ---------------------------------------------------------------
-    // GLOBAL COMMAND INTERCEPTION
-    //
-    // BotMan routes every incoming message to whatever ask() callback
-    // is currently waiting — it does NOT re-check the top-level
-    // hears() patterns in BotManController while a conversation is
-    // active. That's why clicking "General Information" mid-schedule
-    // was previously being swallowed as the answer to "full name",
-    // "contact number", etc.
-    //
-    // Each ask() callback below calls isGlobalCommand() first. If the
-    // incoming answer is actually one of these commands rather than a
-    // real answer, we hand off to handleGlobalCommand() instead of
-    // running the step's normal validation/assignment logic.
-    // ---------------------------------------------------------------
-
+   
     protected function normalizeCommand(Answer $answer): string
     {
         return strtolower(trim($answer->getValue() ?: $answer->getText()));
@@ -219,6 +219,207 @@ class AppointmentConversation extends Conversation
         }
     }
 
+    // ---------------------------------------------------------------
+    // OFF-TOPIC / INQUIRY DETECTION
+    //
+    // If a patient types something instead of actually answering the
+    // current step, we handle it in one of four ways, checked in this
+    // order:
+    //
+    //   0. It's a simple acknowledgment/thank-you ("ok", "thanks",
+    //      "salamat") — reply warmly and just re-ask the SAME question,
+    //      since nothing actually needs derailing.
+    //   1. It has an attachment (image/file) — a human has to look at
+    //      that, so it ALWAYS goes to InquiryConversation → staff/admin,
+    //      no matter what the accompanying text says.
+    //   2. It's a text-only question we already have a canned answer
+    //      for (clinic location, hours, contact, services, doctors,
+    //      how-to-schedule) — the bot answers it directly using
+    //      ClinicInfoService, no need to bother staff.
+    //   3. Anything else that looks like a genuine question/off-topic
+    //      remark — routed to InquiryConversation → staff/admin.
+    //
+    // Once handled: #0 and #2 just resume the same step immediately;
+    // #1/#3 resume after the routed inquiry is submitted (see
+    // routeToInquiry()/InquiryConversation).
+    // ---------------------------------------------------------------
+
+    /**
+     * Best-effort attachment check across BotMan drivers. Different
+     * drivers/webhook payloads expose attachments differently, so we
+     * check the common possibilities. If your driver stores attachments
+     * some other way (e.g. a custom "extras" key from your web widget),
+     * add that check here too.
+     */
+    protected function hasAttachment(Answer $answer): bool
+    {
+        $message = $answer->getMessage();
+        if (!$message) {
+            return false;
+        }
+
+        foreach (['getImages', 'getFiles', 'getVideos', 'getAudio'] as $method) {
+            if (method_exists($message, $method) && !empty($message->$method())) {
+                return true;
+            }
+        }
+
+        if (method_exists($message, 'getExtras')) {
+            $extras = $message->getExtras() ?? [];
+            foreach (['attachment', 'attachments', 'image', 'images', 'file', 'files'] as $key) {
+                if (!empty($extras[$key])) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Heuristic check: does this free-typed answer look like a question
+     * or off-topic remark rather than an attempt to answer the current
+     * step?
+     */
+    protected function looksLikeInquiry(Answer $answer): bool
+    {
+        // Button clicks always carry a matching value — never treat an
+        // interactive reply as an inquiry, only free-typed text.
+        if (method_exists($answer, 'isInteractiveMessageReply') && $answer->isInteractiveMessageReply()) {
+            return false;
+        }
+
+        $text = trim($answer->getText());
+        if ($text === '') {
+            return false;
+        }
+
+        if (str_ends_with($text, '?')) {
+            return true;
+        }
+
+        $questionWords = [
+            'ano', 'anong', 'bakit', 'paano', 'paanong', 'saan', 'saang', 'nasaan',
+            'kailan', 'sino', 'sinong', 'magkano', 'ilan', 'ilang', 'alin', 'alinng',
+            'pwede', 'puwede', 'meron', 'mayroon',
+            'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could', 'is', 'does',
+        ];
+        $words = preg_split('/\s+/', $text);
+        $firstWord = strtolower(rtrim($words[0] ?? '', '?.,!'));
+
+        return in_array($firstWord, $questionWords, true);
+    }
+
+    /**
+     * Does this question match something we already have a canned
+     * answer for — clinic location/directions, hours, contact number,
+     * services, doctors, or how to schedule a visit? If so we can
+     * answer it ourselves instead of bothering staff with it.
+     *
+     * Delegates to ClinicInfoService so this stays in sync with what
+     * BotManController::handleFallback() can also answer directly —
+     * previously this had its own separate keyword list that could
+     * drift out of sync.
+     */
+    protected function looksLikeInfoRequest(string $text): bool
+    {
+        return ClinicInfoService::looksLikeInfoRequest($text);
+    }
+
+    /**
+     * Is this free-typed text just a plain acknowledgment/thank-you
+     * ("ok", "thanks", "salamat") rather than an attempt to answer the
+     * current step? Button clicks are never treated as acknowledgments,
+     * same rule as looksLikeInquiry().
+     */
+    protected function looksLikeAcknowledgment(Answer $answer): bool
+    {
+        if (method_exists($answer, 'isInteractiveMessageReply') && $answer->isInteractiveMessageReply()) {
+            return false;
+        }
+
+        $text = trim($answer->getText());
+        if ($text === '') {
+            return false;
+        }
+
+        return ClinicInfoService::looksLikeAcknowledgment($text);
+    }
+
+    /**
+     * The single entry point every step calls before running its own
+     * validation. Returns true if it fully handled the answer (either
+     * acknowledged it, answered it directly, or routed it to staff) —
+     * in that case the calling step should just `return` without doing
+     * anything else. Returns false if the answer should go through
+     * normal validation.
+     */
+    protected function handleOffTopicIfAny(Answer $answer, string $stepKey): bool
+    {
+        // #0 — plain "ok" / "thanks" / "salamat" typed instead of
+        // actually answering the current question. Reply
+        // conversationally and simply re-ask the SAME step — letting
+        // this fall through to validation would otherwise reject it
+        // with a confusing error (e.g. "thanks" as an invalid phone
+        // number).
+        if ($this->looksLikeAcknowledgment($answer)) {
+            $this->logMessage('You', $answer->getText());
+            $this->sayLogged(ClinicInfoService::acknowledgmentReply());
+            $this->resumeStep($stepKey);
+            return true;
+        }
+
+        // #1 — attachments always go to staff, regardless of any text.
+        if ($this->hasAttachment($answer)) {
+            $this->routeToInquiry($answer, $stepKey);
+            return true;
+        }
+
+        if (!$this->looksLikeInquiry($answer)) {
+            return false;
+        }
+
+        $text = trim($answer->getText());
+
+        // #2 — text-only question we can answer ourselves. Use
+        // answerForText() so a doctor/service/how-to question gets the
+        // specific card instead of always the generic clinic-info card.
+        if ($this->looksLikeInfoRequest($text)) {
+            $this->logMessage('You', $text);
+            $this->sayLogged(ClinicInfoService::answerForText($text) ?? ClinicInfoService::infoCardMessage());
+            $this->askContinueOrRestart($stepKey);
+            return true;
+        }
+
+        // #3 — anything else that looks like a genuine question.
+        $this->routeToInquiry($answer, $stepKey);
+        return true;
+    }
+
+    /**
+     * Sends the patient's off-topic message to InquiryConversation (so
+     * it reaches staff/admin the same way a normal inquiry would), and
+     * stashes enough of the current progress so the schedule visit can
+     * pick back up at the same step afterward.
+     */
+    protected function routeToInquiry(Answer $answer, string $stepKey)
+    {
+        $this->logMessage('You', $answer->getText() ?: '[Attachment]');
+        $this->sayLogged("Got it — let me send that to our staff so a real person can take a look. We'll pick your schedule visit right back up after.");
+
+        $state = [
+            'fname' => $this->fname, 'lname' => $this->lname, 'phone' => $this->phone,
+            'dob' => $this->dob, 'email' => $this->email,
+            'service' => $this->service, 'serviceKey' => $this->serviceKey, 'serviceId' => $this->serviceId,
+            'doctor' => $this->doctor, 'doctorId' => $this->doctorId,
+            'scheduleDay' => $this->scheduleDay, 'scheduleSlotIndex' => $this->scheduleSlotIndex,
+            'scheduleSuggestion' => $this->scheduleSuggestion,
+            'transcript' => $this->transcript,
+        ];
+
+        $this->bot->startConversation(new InquiryConversation($answer->getText(), $stepKey, $state));
+    }
+
     protected function resetState()
     {
         $this->fname = $this->lname = $this->phone = $this->dob = $this->email = null;
@@ -231,9 +432,20 @@ class AppointmentConversation extends Conversation
     }
 
     /**
-     * Dispatches to the correct step for a given step key. Plain switch
-     * on a string — no closures involved.
+     * Restores previously-saved state (used when resuming a schedule
+     * visit that got detoured into InquiryConversation).
      */
+    protected function restoreState(array $state)
+    {
+        foreach ($state as $key => $value) {
+            if (property_exists($this, $key)) {
+                $this->$key = $value;
+            }
+        }
+    }
+
+    // Dispatches to the correct step for a given step key. Plain switch on a string — no closures involved.
+
     protected function resumeStep(string $stepKey)
     {
         switch ($stepKey) {
@@ -250,11 +462,7 @@ class AppointmentConversation extends Conversation
         }
     }
 
-    /**
-     * Shown right after the general-information card is displayed
-     * mid-schedule-visit. Lets the user decide what to do next instead
-     * of the bot silently deciding for them.
-     */
+    // Shown right after the general-information card is displayed mid-schedule-visit. Lets the user decide what to do next instead of the bot silently deciding for them
     protected function askContinueOrRestart(string $stepKey)
     {
         $question = Question::create('Would you like to continue your schedule visit, or start over?')
@@ -301,9 +509,9 @@ class AppointmentConversation extends Conversation
         $this->sayLogged($question);
     }
 
-    // ---------------------------------------------------------------
+    
     // Validation helpers
-    // ---------------------------------------------------------------
+    
 
     protected function validateName($name)
     {
@@ -332,7 +540,68 @@ class AppointmentConversation extends Conversation
         $landline    = preg_match('/^(0\d{9,10}|\d{7,8})$/', $digits);
         if (!$mobileLocal && !$mobileIntl && !$landline)
             return "Please enter a valid PH phone number";
+
+        // Right shape, but obviously fake (all-same-digit, sequential
+        // run, or a tiny block repeated to fill the number) — reject.
+        if ($this->isFakeLookingNumber($digits))
+            return "This doesn't look like a real phone number. Please double-check and enter it again.";
+
         return null;
+    }
+
+    /**
+     * Flags numbers that pass the shape/prefix check above but are
+     * clearly not real: all the same digit, a straight ascending or
+     * descending run, or a short block (1-3 digits) repeated to fill
+     * out the whole number. Also flags 6+ identical digits in a row
+     * anywhere inside the number.
+     */
+    protected function isFakeLookingNumber($digits)
+    {
+        // Strip the leading "0" or "63" trunk/country code so we only
+        // pattern-check the actual subscriber number — otherwise the
+        // prefix itself could cause false positives/negatives.
+        $core = $digits;
+        if (str_starts_with($core, '63')) {
+            $core = substr($core, 2);
+        } elseif (str_starts_with($core, '0')) {
+            $core = substr($core, 1);
+        }
+
+        if ($core === '') return false;
+
+        // e.g. 9999999999
+        if (preg_match('/^(\d)\1+$/', $core)) {
+            return true;
+        }
+
+        // e.g. 123456789 or 987654321
+        $isAscending = true;
+        $isDescending = true;
+        for ($i = 1; $i < strlen($core); $i++) {
+            if ((int) $core[$i] !== (int) $core[$i - 1] + 1) $isAscending = false;
+            if ((int) $core[$i] !== (int) $core[$i - 1] - 1) $isDescending = false;
+        }
+        if ($isAscending || $isDescending) {
+            return true;
+        }
+
+        // e.g. 121212121 or 123123123 — a 1-3 digit block repeated to
+        // fill the entire number exactly.
+        for ($blockLen = 1; $blockLen <= 3; $blockLen++) {
+            if (strlen($core) % $blockLen !== 0) continue;
+            $block = substr($core, 0, $blockLen);
+            if (str_repeat($block, (int) (strlen($core) / $blockLen)) === $core) {
+                return true;
+            }
+        }
+
+        // 6+ of the same digit in a row anywhere, e.g. 9111111123
+        if (preg_match('/(\d)\1{5,}/', $core)) {
+            return true;
+        }
+
+        return false;
     }
 
     protected function validateDOB($dob)
@@ -396,6 +665,18 @@ class AppointmentConversation extends Conversation
 
     public function run()
     {
+        // If we were (re)constructed after a detour into
+        // InquiryConversation, pick the schedule visit back up right
+        // where the patient left off instead of starting over.
+        if ($this->pendingResumeStepKey) {
+            $this->restoreState($this->pendingResumeState ?? []);
+            $stepKey = $this->pendingResumeStepKey;
+            $this->pendingResumeStepKey = null;
+            $this->pendingResumeState = null;
+            $this->resumeStep($stepKey);
+            return;
+        }
+
         $this->askName();
     }
 
@@ -406,6 +687,9 @@ class AppointmentConversation extends Conversation
         $this->askLogged($prompt, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'name');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'name')) {
+                return;
             }
 
             $error = $this->validateName($answer->getText());
@@ -426,6 +710,9 @@ class AppointmentConversation extends Conversation
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'phone');
             }
+            if ($this->handleOffTopicIfAny($answer, 'phone')) {
+                return;
+            }
 
             $error = $this->validatePhone($answer->getText());
             if ($error) {
@@ -442,6 +729,9 @@ class AppointmentConversation extends Conversation
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'dob');
             }
+            if ($this->handleOffTopicIfAny($answer, 'dob')) {
+                return;
+            }
 
             $error = $this->validateDOB($answer->getText());
             if ($error) {
@@ -457,6 +747,9 @@ class AppointmentConversation extends Conversation
         $this->askLogged($prompt, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'email');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'email')) {
+                return;
             }
 
             $error = $this->validateEmail($answer->getText());
@@ -490,6 +783,9 @@ class AppointmentConversation extends Conversation
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'service');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'service')) {
+                return;
             }
 
             $key = $answer->getValue();
@@ -533,6 +829,9 @@ class AppointmentConversation extends Conversation
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'doctor');
             }
+            if ($this->handleOffTopicIfAny($answer, 'doctor')) {
+                return;
+            }
 
             $doctorId = (int) $answer->getValue();
             $doc = DB::table('doctors')->where('doctor_id', $doctorId)->first();
@@ -574,6 +873,9 @@ class AppointmentConversation extends Conversation
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'schedule');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'schedule')) {
+                return;
             }
 
             if ($answer->getValue() === 'confirm_yes') {
@@ -743,6 +1045,9 @@ class AppointmentConversation extends Conversation
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'transcript_email');
             }
+            if ($this->handleOffTopicIfAny($answer, 'transcript_email')) {
+                return;
+            }
 
             $choice = $this->normalizeCommand($answer);
 
@@ -788,6 +1093,9 @@ class AppointmentConversation extends Conversation
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'post');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'post')) {
+                return;
             }
 
             $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;

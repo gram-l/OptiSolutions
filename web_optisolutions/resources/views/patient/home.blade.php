@@ -7,113 +7,13 @@
   <title>PolyClinic | Home</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  
-  @vite(['resources/css/patient_css/home.css', 'resources/css/patient_css/chatbot.css'])
+
+  @vite(['resources/css/patient_css/home.css', 'resources/js/script.js', 'resources/js/navbar-loader.js', 'resources/js/privacy-notice.js'])
 
   <style>
     .reviews-banner-footer { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
     .reviews-banner-footer:hover { transform: scale(1.02); box-shadow: 0 12px 32px rgba(0,0,0,0.2); }
     .reviews-banner-footer:active { transform: scale(0.98); }
-
-    /* ---------- Hero actions: rating badge + feedback button, same height ---------- */
-    .hero-flutter-actions {
-      display: flex;
-      align-items: stretch;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
-
-    .hero-rating-badge {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: center;
-      gap: 4px;
-      padding: 20px 28px;
-      border: 1px solid #e2e8f0;
-      border-radius: 14px;
-      min-width: 190px;
-    }
-
-    .hero-rating-num {
-      font-size: 30px;
-      font-weight: 800;
-      color: #1e3a8a;
-      line-height: 1;
-    }
-
-    .hero-rating-stars {
-      display: flex;
-      gap: 3px;
-      font-size: 18px;
-      line-height: 1;
-    }
-    .hero-rating-stars .star-filled { color: #fbbf24; }
-    .hero-rating-stars .star-empty  { color: #d1d5db; }
-
-    .hero-rating-label {
-      font-size: 14px;
-      color: #6b7280;
-    }
-
-    .hero-learn-more-wrap {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: flex-start;
-      gap: 6px;
-      padding: 20px 32px;
-      border: 2px solid #1e3a8a;
-      border-radius: 14px;
-      min-width: 260px;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background 0.2s ease, transform 0.15s ease;
-    }
-    .hero-learn-more-wrap:hover {
-      background: #1e3a8a;
-      transform: translateY(-2px);
-    }
-    .hero-learn-more-wrap:hover .hero-learn-more-title,
-    .hero-learn-more-wrap:hover .hero-learn-more-sub {
-      color: #ffffff;
-    }
-
-    .hero-learn-more-title {
-      font-size: 20px;
-      font-weight: 700;
-      color: #1e3a8a;
-      transition: color 0.2s ease;
-    }
-
-    .hero-learn-more-sub {
-      font-size: 14px;
-      color: #6b7280;
-      transition: color 0.2s ease;
-    }
-
-    @media (max-width: 640px) {
-      .hero-rating-badge,
-      .hero-learn-more-wrap {
-        width: 100%;
-      }
-    }
-
-    /* ---------- Stats section stars (dynamic, colored) ---------- */
-    .stat-rating-stars {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .stat-rating-stars .star-filled { color: #fbbf24; }
-    .stat-rating-stars .star-empty  { color: #d1d5db; }
-    .stat-rating-count {
-      margin-left: 4px;
-      font-size: inherit;
-      color: inherit;
-    }
   </style>
 </head>
 <body>
@@ -125,20 +25,6 @@
       <h1 class="hero-flutter-title">Care You Can<br>Count On</h1>
       <p class="hero-flutter-desc">Experience compassionate, accessible healthcare with our team of board-certified specialists. We're here for every Filipino family.</p>
       <div class="hero-flutter-actions">
-        <div class="hero-rating-badge">
-          <span class="hero-rating-num">{{ number_format($avgRating ?? 4.9, 1) }}</span>
-          <span class="hero-rating-stars">
-            @php
-              $ratingValue = round($avgRating ?? 4.9);
-              $ratingValue = max(0, min(5, $ratingValue));
-            @endphp
-            @for ($i = 1; $i <= 5; $i++)
-              <i class="fas fa-star {{ $i <= $ratingValue ? 'star-filled' : 'star-empty' }}"></i>
-            @endfor
-          </span>
-          <span class="hero-rating-label">Patient Rating</span>
-        </div>
-
         <a href="#" onclick="openChatForReview(); return false;" class="hero-learn-more-wrap">
           <span class="hero-learn-more-title">Leave your Feedback here!</span>
           <span class="hero-learn-more-sub">We're glad to hear your experience with us.</span>
@@ -146,15 +32,20 @@
       </div>
     </div>
     <div class="hero-flutter-image">
-  <img src="/images/polyclinic_logo.png" alt="PolyClinic Logo" class="hero-flutter-img hero-logo-blur">
-  </div>
+      <img src="/images/polyclinic_logo.png" alt="PolyClinic Logo" class="hero-flutter-img hero-logo-blur" id="heroLogoImg">
+      <!-- The stats card flies in here and stacks vertically beside the logo -->
+      <div class="hero-stats-dock" id="heroStatsDock" aria-live="polite"></div>
+    </div>
   </div>
 </section>
 
 <!-- ========== STATS - MODERN ========== -->
-<section class="stats-modern-section">
+<!-- On load this renders in its normal place under the hero (as before). A few seconds
+     later, script.js below flies this exact grid up beside the hero logo and restacks it
+     vertically, then this section collapses so it doesn't leave behind empty space. -->
+<section class="stats-modern-section" id="statsSection">
   <div class="container">
-    <div class="stats-modern-grid">
+    <div class="stats-modern-grid" id="statsGrid">
       <div class="stat-modern-item">
         <span class="stat-modern-number">15+</span>
         <span class="stat-modern-label">Years of Excellence</span>
@@ -200,47 +91,37 @@
         <div class="service-card-icon"><i class="fas fa-child"></i></div>
         <h3>Pediatrics</h3>
         <p>Comprehensive care for children from newborn to adolescent.</p>
-        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('obgyne')">
-        <div class="service-card-icon"><i class="fas fa-female"></i></div>
+        <div class="service-card-icon"><i class="fas fa-person-dress"></i></div>
         <h3>OB-Gyne</h3>
         <p>Women's health, prenatal care, and reproductive health services.</p>
-        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('surgery')">
-        <div class="service-card-icon"><i class="fas fa-scalpel"></i></div>
+        <div class="service-card-icon"><i class="fas fa-kit-medical"></i></div>
         <h3>Surgery</h3>
         <p>General surgical procedures and consultations.</p>
-        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('pulmonology')">
         <div class="service-card-icon"><i class="fas fa-lungs"></i></div>
         <h3>IM-Pulmonology</h3>
         <p>Respiratory and pulmonary care for lung health.</p>
-        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('ophthalmology')">
         <div class="service-card-icon"><i class="fas fa-eye"></i></div>
         <h3>Ophthalmology / ENT</h3>
         <p>Eye care, ear, nose, and throat consultations.</p>
-        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('cardiology')">
         <div class="service-card-icon"><i class="fas fa-heartbeat"></i></div>
         <h3>IM-Cardiology</h3>
         <p>Heart health and cardiovascular care.</p>
-        <span class="service-card-link"></span>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('adultmedicine')">
-        <div class="service-card-icon"><i class="fas fa-user-md"></i></div>
+        <div class="service-card-icon"><i class="fas fa-user-doctor"></i></div>
         <h3>General / Adult Medicine</h3>
         <p>Comprehensive medical care for adults.</p>
-        <span class="service-card-link"></span>
       </div>
-    </div>
-    <div class="services-modern-footer">
-      <a href="{{ route('services') }}" class="btn-modern-primary">View All Services <i class="fas fa-arrow-right"></i></a>
     </div>
   </div>
 </section>
@@ -253,44 +134,18 @@
       <p class="doctors-modern-subtitle">Our board-certified physicians bring years of specialized experience and compassionate care to help you achieve optimal health.</p>
     </div>
 
-    <div class="doctors-search-wrap">
-      <div class="doctors-search-box">
-        <i class="fas fa-search"></i>
-        <input
-          type="text"
-          id="doctorSearchInput"
-          placeholder="Search doctors, specialties, or services…"
-          oninput="filterDoctorsLive(this.value)"
-          onkeydown="if(event.key==='Enter') filterDoctorsLive(this.value)"
-          autocomplete="off"
-        />
-        <button onclick="filterDoctorsLive(document.getElementById('doctorSearchInput').value)">
-          Search
-        </button>
-      </div>
-      <div id="searchNoResults" class="search-no-results" style="display:none;">
-        <i class="fas fa-user-md"></i>
-        <p>No doctors or services found for "<span id="searchQuery"></span>"</p>
-      </div>
-    </div>
-
     <div class="filter-tabs" id="filterTabsHome">
       <button class="filter-tab active" data-filter="all">All</button>
       <button class="filter-tab" data-filter="Pediatrics">Pediatrics</button>
       <button class="filter-tab" data-filter="OB-Gyne">OB-Gyne</button>
       <button class="filter-tab" data-filter="Surgery">Surgery</button>
       <button class="filter-tab" data-filter="IM-Pulmonology">Pulmonology</button>
-      <button class="filter-tab" data-filter="Ophthalmology">Ophthalmology</button>
-      <button class="filter-tab" data-filter="IM-Cardiology">Cardiology</button>
       <button class="filter-tab" data-filter="General / Adult Medicine">Adult Medicine</button>
       <button class="filter-tab" data-filter="Internal Medicine">Internal Medicine</button>
       <button class="filter-tab" data-filter="Medical Oncology">Medical Oncology</button>
     </div>
 
     <div class="doctors-grid-modern" id="doctorsGridHome"></div>
-    <div class="doctors-modern-footer">
-      <a href="{{ route('doctors') }}" class="btn-modern-outline">View All Doctors <i class="fas fa-arrow-right"></i></a>
-    </div>
   </div>
 </section>
 
@@ -327,10 +182,6 @@
   </div>
 </section>
 
-
-<!-- ========== FOOTER ========== -->
-<footer class="footer"><p>© 2026 PolyClinic Lipa · TM Kalaw St., Lipa City, Batangas 4217</p></footer>
-
 <!-- ========== SERVICE MODAL ========== -->
 <div id="serviceModal" class="service-modal">
   <div class="service-modal-content">
@@ -339,50 +190,111 @@
   </div>
 </div>
 
+@include('patient.partials.footer')
+
 @include('patient.partials.chatbot-widget')
 
 @vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
 
 <script>
-  function openChatForReview() {
-    if (window.openChatbotAndSubmitFeedback) {
-      window.openChatbotAndSubmitFeedback();
-    } else {
-      document.getElementById('chatbotTrigger')?.click();
-    }
-  }
+  /* ==========================================================
+     STATS -> HERO DOCKING ANIMATION (FLIP technique)
+     1) Stats grid renders normally under the hero on load.
+     2) After a short delay, we record its current position,
+        physically move it beside the hero logo, restyle it to
+        a vertical stack, then animate FROM the old position
+        TO the new one so it visibly "flies" into place.
+     3) The now-empty stats section collapses smoothly so it
+        doesn't leave a gap behind.
+     ========================================================== */
+  document.addEventListener('DOMContentLoaded', function () {
+    const statsGrid = document.getElementById('statsGrid');
+    const statsSection = document.getElementById('statsSection');
+    const dock = document.getElementById('heroStatsDock');
 
-  function filterDoctorsLive(query) {
-    const q = query.trim().toLowerCase();
-    const cards = document.querySelectorAll('#doctorsGridHome .doctor-card');
-    const noResults = document.getElementById('searchNoResults');
-    const querySpan = document.getElementById('searchQuery');
-    let visibleCount = 0;
+    if (!statsGrid || !statsSection || !dock) return;
 
-    cards.forEach(card => {
-      const text = card.innerText.toLowerCase();
-      if (!q || text.includes(q)) {
-        card.style.display = '';
-        visibleCount++;
-      } else {
-        card.style.display = 'none';
+    // Respect users who prefer reduced motion: just dock instantly, no flight.
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function dockStats() {
+      // The dock's space beside the logo has been reserved since page load
+      // (see CSS: .hero-stats-dock has a fixed width, just hidden via
+      // opacity/visibility). We only reveal it here — its size never
+      // changes, so there's nothing for the flight animation to race against.
+      const firstRect = statsGrid.getBoundingClientRect();
+
+      dock.classList.add('active');
+      dock.appendChild(statsGrid);
+      statsGrid.classList.add('docked');
+
+      // Force layout to flush immediately so the very next measurement
+      // reflects each item's real, final 2x2 position — not a stale one.
+      void dock.offsetHeight;
+
+      if (prefersReducedMotion) {
+        collapseOriginalSection();
+        return;
       }
-    });
 
-    if (q && visibleCount === 0) {
-      noResults.style.display = 'flex';
-      querySpan.textContent = query;
-    } else {
-      noResults.style.display = 'none';
+      // Animate the whole dock as one block using the FLIP technique off the
+      // group's bounding box, so all 4 stats fly together as a unit from
+      // their old horizontal spot to their new column beside the logo.
+      const lastRect = dock.getBoundingClientRect();
+      const dx = firstRect.left - lastRect.left;
+      const dy = firstRect.top - lastRect.top;
+      const scaleX = firstRect.width / lastRect.width;
+      const scaleY = firstRect.height / lastRect.height;
+
+      dock.style.willChange = 'transform, opacity';
+      dock.style.transformOrigin = 'top left';
+      dock.style.transition = 'none';
+      dock.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`;
+      dock.style.opacity = '0';
+      dock.style.visibility = 'visible';
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          dock.style.transition = 'transform 1100ms cubic-bezier(0.16, 1, 0.3, 1), opacity 700ms ease-out';
+          dock.style.transform = 'translate(0px, 0px) scale(1, 1)';
+          dock.style.opacity = '1';
+        });
+      });
+
+      dock.addEventListener('transitionend', function handler(e) {
+        if (e.propertyName === 'transform') {
+          dock.style.transition = '';
+          dock.style.transform = '';
+          dock.style.willChange = '';
+          dock.removeEventListener('transitionend', handler);
+        }
+      });
+
+      collapseOriginalSection();
     }
 
-    if (q) {
-      document.querySelectorAll('#filterTabsHome .filter-tab').forEach(t => t.classList.remove('active'));
-      document.querySelector('#filterTabsHome .filter-tab[data-filter="all"]').classList.add('active');
+    function collapseOriginalSection() {
+      const startHeight = statsSection.scrollHeight;
+      statsSection.style.overflow = 'hidden';
+      statsSection.style.maxHeight = startHeight + 'px';
+      statsSection.style.transition = 'max-height 800ms cubic-bezier(0.16, 1, 0.3, 1), opacity 600ms ease, padding 800ms ease, margin 800ms ease';
+
+      requestAnimationFrame(() => {
+        statsSection.style.maxHeight = '0px';
+        statsSection.style.opacity = '0';
+        statsSection.style.paddingTop = '0px';
+        statsSection.style.paddingBottom = '0px';
+        statsSection.style.marginTop = '0px';
+        statsSection.style.marginBottom = '0px';
+        statsSection.style.borderBottom = 'none';
+      });
+
+      setTimeout(() => { statsSection.style.display = 'none'; }, 850);
     }
-  }
+
+    setTimeout(dockStats, 2200);
+  });
 </script>
 
 </body>
 </html>
-

@@ -6,15 +6,25 @@ use App\Http\Controllers\Staff\AppointmentController;
 use App\Http\Controllers\Staff\InquiryController;
 use App\Http\Controllers\Staff\DoctorController;
 use App\Http\Controllers\Staff\PatientController;
+use App\Http\Controllers\Staff\NotificationController;
 
 Route::middleware(['auth', 'staff'])->group(function () {
 
+    Route::post('/staff/profile/photo', [StaffController::class, 'updatePhoto'])->name('staff.profile.photo');
+    Route::put('/staff/profile/password', [StaffController::class, 'updatePassword'])->name('staff.profile.password');
+    
     // DASHBOARD
     Route::get('/staff/dashboard', [StaffController::class, 'dashboard'])->name('staff.dashboard');
     Route::get('/staff/dashboard/data', [StaffController::class, 'data'])->name('staff.dashboard.data');
 
+    // NOTIFICATIONS
+    Route::get('/staff/notifications', [NotificationController::class, 'index'])->name('staff.notifications.index');
+    Route::put('/staff/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('staff.notifications.read');
+    Route::put('/staff/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('staff.notifications.readAll');
+
     // APPOINTMENTS
     Route::get('/staff/appointments', [AppointmentController::class, 'index'])->name('staff.appointments');
+    Route::get('visits/export/{format}', [AppointmentController::class, 'export'])->name('staff.visits.export');
 
     // INQUIRIES
     Route::get('/staff/inquiries', [InquiryController::class, 'index'])->name('staff.inquiries');
@@ -27,6 +37,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
     Route::get('/staff/doctors/{id}/edit', [DoctorController::class, 'edit'])->name('staff.doctors.edit');
     Route::put('/staff/doctors/{id}', [DoctorController::class, 'update'])->name('staff.doctors.update');
     Route::put('/staff/doctors/{id}/toggle', [DoctorController::class, 'toggleStatus'])->name('staff.doctors.toggle');
+    Route::get('doctors/export/{format}', [DoctorController::class, 'export'])->name('staff.doctors.export');
 
     // PATIENTS
     Route::get('/staff/patients', [PatientController::class, 'index'])->name('staff.patients');

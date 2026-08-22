@@ -20,7 +20,18 @@ class Doctor extends Model
 
     public function patients()
     {
-        return $this->hasMany(Patient::class, 'doctor_id', 'doctor_id');
+        // Patients aren't linked to a doctor directly — the real
+        // connection is through schedule_visit (doctor -> schedule_visit
+        // -> patient). distinct() collapses a patient down to one row
+        // even if they've had several visits with this doctor.
+        return $this->hasManyThrough(
+            Patient::class,
+            ScheduleVisit::class,
+            'doctor_id',   // Foreign key on schedule_visit referencing doctors
+            'patient_id',  // Foreign key on patients referencing schedule_visit
+            'doctor_id',   // Local key on doctors
+            'patient_id'   // Local key on schedule_visit
+        )->select('patients.*')->distinct();
     }
 
     public function appointments()

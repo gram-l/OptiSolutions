@@ -4,15 +4,18 @@
 @include('staff.inquiries.partials.inquiries-styles')
 
 <div class="container">
-    <div class="action-bar">
-        <h3>Chatbot Inquiries</h3>
+    <div class="page-title-group" style="margin-bottom: 1rem;">
+        <h3 style="margin: 0;">
+            <i class="bi bi-chat-square-text"></i> Chatbot Inquiries
+        </h3>
+        <p class="page-subtitle">View and respond to chatbot inquiries</p>
     </div>
 
     <div class="inquiries-split">
-        {{-- LEFT: Recent Conversations --}}
+      
         @include('staff.inquiries.partials.conversations-list', ['inquiries' => $inquiries])
 
-        {{-- RIGHT: wala pang napipiling conversation --}}
+
         <div class="conv-detail-panel">
             <div class="conv-detail-empty">
                 Select a conversation to view messages.

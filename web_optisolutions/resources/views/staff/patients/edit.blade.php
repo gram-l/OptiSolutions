@@ -44,6 +44,23 @@
                 <input type="text" name="patient_contact" value="{{ $patient->patient_contact }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
             </div>
 
+            <!-- NOTES (diagnosis) - tied to the patient's latest visit -->
+            <div class="form-group">
+                <label>Notes / Diagnosis</label>
+                @if($patient->latestVisit)
+                    <input type="hidden" name="visit_id" value="{{ $patient->latestVisit->visit_id }}">
+                    <textarea
+                        name="notes"
+                        rows="4"
+                        placeholder="Enter the diagnosis or notes for this patient's latest visit..."
+                        style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif; resize: vertical;"
+                    >{{ $patient->latestVisit->notes }}</textarea>
+                    <small style="color: #999;">This updates the notes for the latest visit ({{ \Carbon\Carbon::parse($patient->latestVisit->visit_date)->format('M d, Y') }}).</small>
+                @else
+                    <p style="color: #999; font-size: 0.9rem;">No visit on record yet — notes can be added once this patient has a visit.</p>
+                @endif
+            </div>
+
             <button type="submit" class="btn-sm btn-success" style="padding: 0.7rem 2rem; margin-top: 0.5rem;">Update Patient</button>
         </form>
     </div>

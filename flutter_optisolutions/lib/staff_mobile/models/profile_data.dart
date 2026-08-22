@@ -10,7 +10,12 @@ class ProfileData {
   static String? photoUrl;
 
   static Future<void> load() async {
-    final result = await ApiService.get('/me');
+    final raw = await ApiService.get('/me'); //newc
+    final result =
+        (raw is Map<String, dynamic> && raw.containsKey('data')) //newc
+        ? Map<String, dynamic>.from(raw['data']) //newc
+        : Map<String, dynamic>.from(raw); //newc
+
     name = result['name'] ?? 'Staff';
     email = result['email'] ?? '';
     contact = result['contact'] ?? 'N/A';

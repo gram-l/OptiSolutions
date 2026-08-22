@@ -43,15 +43,19 @@
         </div>
 
         <div style="margin-top: 1.5rem;">
-            <label style="font-weight: 600; color: var(--text-dark);">Visit History</label>
+            <label style="font-weight: 600; color: var(--text-dark);">Notes / Diagnosis</label>
             @forelse($patient->visits as $visit)
-                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px; margin-top: 0.5rem;">
-                    {{ \Carbon\Carbon::parse($visit->visit_date)->format('M d, Y') }} —
-                    {{ $visit->service_type }} with {{ $visit->doctor->doctor_name ?? 'N/A' }}
-                    ({{ $visit->notes }})
-                </p>
+                <div style="padding: 0.75rem; background: var(--light-gray); border-radius: 8px; margin-top: 0.5rem;">
+                    <div style="font-size: 0.8rem; color: #7f8c8d; margin-bottom: 0.3rem;">
+                        {{ \Carbon\Carbon::parse($visit->visit_date)->format('M d, Y') }} —
+                        {{ $visit->service_type }} with {{ $visit->doctor->doctor_name ?? 'N/A' }}
+                    </div>
+                    <div style="color: var(--text-dark);">
+                        {{ $visit->notes ?: 'No notes recorded for this visit.' }}
+                    </div>
+                </div>
             @empty
-                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px; margin-top: 0.5rem;">No visit records.</p>
+                <p style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px; margin-top: 0.5rem;">No notes recorded.</p>
             @endforelse
         </div>
     </div>

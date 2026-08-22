@@ -62,21 +62,23 @@
 
     .conv-item-active {
         background: #eaf2fb;
-        border-left: 3px solid var(--primary-deep-blue);
+        border-left: 3px solid var(--primary-main);
     }
 
     .conv-avatar {
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
-        background: var(--primary-deep-blue);
-        color: white;
+        background: var(--primary-main);
+        color: #ffffff;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 600;
-        font-size: 0.85rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.02em;
         flex-shrink: 0;
+        line-height: 1;
     }
 
     .conv-item-body {
@@ -118,7 +120,7 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: var(--primary-deep-blue);
+        background: var(--primary-main);
         flex-shrink: 0;
     }
 
@@ -157,5 +159,26 @@
             border-bottom: 1px solid var(--light-gray);
             max-height: 300px;
         }
+    }
+
+    /* ===== DARK MODE ===== */
+    body.dark-mode .inquiries-split {
+        background: #1a2130;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    }
+    body.dark-mode .conv-search {
+        background: #232b3d;
+        color: #e4e8ee;
+        border-color: #2a3346;
+    }
+    body.dark-mode .conv-search::placeholder {
+        color: #7f8c93;
+    }
+    body.dark-mode .conv-item:hover {
+        background: #232b3d;
+    }
+    body.dark-mode .conv-item-active {
+        background: rgba(14, 98, 170, 0.25);
+        border-left-color: var(--primary-light);
     }
 </style>

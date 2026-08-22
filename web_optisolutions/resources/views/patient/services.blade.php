@@ -7,7 +7,9 @@
   <title>PolyClinic Lipa | Services</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  @vite(['resources/css/patient_css/services.css', 'resources/css/patient_css/chatbot.css'])
+  
+  @vite(['resources/css/patient_css/services.css', 'resources/js/script.js', 'resources/js/navbar-loader.js', 'resources/js/privacy-notice.js'])
+
 </head>
 <body>
 
@@ -26,9 +28,6 @@
   </div>
 </section>
 
-<!-- ========== FOOTER ========== -->
-<footer class="footer"><p>© 2026 PolyClinic Lipa · TM Kalaw St., Lipa City, Batangas 4217</p></footer>
-
 <!-- ========== SERVICE MODAL ========== -->
 <div id="serviceModal" class="service-modal">
   <div class="service-modal-content">
@@ -36,6 +35,8 @@
     <div id="serviceModalBody"></div>
   </div>
 </div>
+
+@include('patient.partials.footer')
 
 @include('patient.partials.chatbot-widget')
 

@@ -105,7 +105,8 @@ Route::delete('/admin_acc/user_management/{id}',       [UserManagementController
 //google login route
 
 
-Route::post('/auth/google', [GoogleAuthController::class, 'googleLogin'])->name('auth.google');
+Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'googleLogin']);
+
 
 //admin profile routes
 Route::get('/admin_acc/profile', [ProfileController::class, 'show'])->name('profile.show');

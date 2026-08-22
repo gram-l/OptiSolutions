@@ -93,14 +93,40 @@ class BotManController extends Controller
         }
     }
 
-    
+
     protected function handleFallback($bot)
     {
         $text = trim($bot->getMessage()->getText());
 
-       
         if (in_array(mb_strtolower($text), self::IGNORED_INQUIRY_TEXTS, true)) {
             Log::info('FALLBACK ignored (known command text): "' . $text . '"');
+            return;
+        }
+
+        // Friendly acknowledgment ("ok", "thanks", "salamat", etc.) —
+        // reply conversationally instead of forwarding a trivial "ok"
+        // or "thanks" to Admin/Staff as if it were an unresolved
+        // concern. Checked BEFORE the info-intent check below so a
+        // short "ok" never gets misread as an info request.
+        if (ClinicInfoService::looksLikeAcknowledgment($text)) {
+            Log::info('FALLBACK answered as acknowledgment: "' . $text . '"');
+            $bot->reply(ClinicInfoService::acknowledgmentReply());
+            return;
+        }
+
+        // Try to answer directly from clinic data (doctors, services,
+        // location, hours, contact, how-to-schedule) before assuming it
+        // needs a human. This covers questions typed BEFORE any
+        // conversation/menu flow has started (e.g. straight off the
+        // greeting), which previously always fell straight through to
+        // sendInquiryAck() below — AppointmentConversation's own
+        // info-detection only ever ran mid-schedule-visit, so a cold
+        // "What is your clinic hours?" had no chance to be
+        // auto-answered until now.
+        $infoReply = ClinicInfoService::answerForText($text);
+        if ($infoReply !== null) {
+            Log::info('FALLBACK answered from ClinicInfoService: "' . $text . '"');
+            $bot->reply($infoReply);
             return;
         }
 
@@ -134,7 +160,7 @@ class BotManController extends Controller
     protected function recordInquiry(string $conversationId, string $userMessage, ChatbotLog $log, $botman)
     {
         try {
-            
+
             $patientId = null;
             $guestName = null;
 
@@ -164,7 +190,7 @@ class BotManController extends Controller
                 'resolved_status' => 'Pending',
                 'created_at'      => now(),
             ]);
-            
+
         } catch (\Throwable $e) {
             Log::error('Failed to record inquiry: ' . $e->getMessage());
         }

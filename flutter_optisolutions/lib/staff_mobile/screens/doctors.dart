@@ -694,7 +694,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
               fontWeight: FontWeight.bold,
               fontSize: 22,
               letterSpacing: 0.5,
-              color: StaffColors.primary,
+              color: Colors.black87, //newc
             ),
           ),
         ],
@@ -846,7 +846,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: StaffColors.primary,
+              color: Colors.black87, //newc
             ),
           ),
           const Spacer(),
@@ -1024,7 +1024,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: StaffColors.primary,
+                        color: Colors.black87, //newc
                       ),
                     ),
                     // Department/Specialty badge

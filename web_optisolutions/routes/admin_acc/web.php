@@ -13,6 +13,7 @@ use App\Http\Controllers\admin_acc\ProfileController;
 use App\Http\Controllers\admin_acc\SystemSettingsController;
 use App\Http\Controllers\admin_acc\ServiceController;
 use App\Http\Controllers\admin_acc\FeedbackController;
+use App\Http\Controllers\admin_acc\ChatbotInquiryController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 
 
@@ -29,9 +30,8 @@ Route::get('/admin_acc/dashboard', function () {
     return view('admin_acc.dashboard');
 });
 
-Route::get('/admin_acc/chatbot_logs', function () {
-    return view('admin_acc.chatbot_logs');
-});
+// Chatbot Inquiries now lives in the auth-protected group below
+// (was previously a static view with hardcoded mock data).
 
 Route::get('/admin_acc/sidebar', function () {
     return view('admin_acc.sidebar');
@@ -93,7 +93,8 @@ Route::delete('/admin_acc/user_management/{id}',       [UserManagementController
 //google login route
 
 
-Route::post('/auth/google', [GoogleAuthController::class, 'googleLogin'])->name('auth.google');
+Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'googleLogin']);
+
 
 //admin profile routes
 Route::get('/admin_acc/profile', [ProfileController::class, 'show'])->name('profile.show');
@@ -117,10 +118,17 @@ Route::prefix('admin_acc/system_settings')->name('system_settings.')->group(func
 Route::middleware('auth')->group(function () {
     Route::get('/admin_acc/feedback', [FeedbackController::class, 'index'])->name('admin_acc.feedback.index');
     Route::post('/admin_acc/feedback', [FeedbackController::class, 'store'])->name('admin_acc.feedback.store');
-    
+
+    // Chatbot Inquiries — patient messages the bot couldn't answer,
+    // forwarded here (and to the Staff web/Flutter apps) for a human reply.
+    Route::get('/admin_acc/chatbot_logs', [ChatbotInquiryController::class, 'index'])->name('admin_acc.chatbot_logs');
+    Route::post('/admin_acc/chatbot_logs/{id}/reply', [ChatbotInquiryController::class, 'reply'])->name('admin_acc.chatbot_logs.reply');
+    Route::post('/admin_acc/chatbot_logs/{id}/resolve', [ChatbotInquiryController::class, 'resolve'])->name('admin_acc.chatbot_logs.resolve');
 });
 
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
+Route::get('admin_acc/feedback/diagnose', [FeedbackController::class, 'diagnoseRootCauses']);
+
 
 Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')

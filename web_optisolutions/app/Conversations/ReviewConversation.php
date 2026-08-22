@@ -7,6 +7,8 @@ use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use Illuminate\Support\Facades\DB;
+use App\Models\admin_models\Feedback;
+use App\Services\SentimentAnalysisService;
 
 class ReviewConversation extends Conversation
 {
@@ -27,14 +29,14 @@ class ReviewConversation extends Conversation
 
     public function askRating()
     {
-        $question = Question::create('How would you rate your experience with us? ⭐')
+        $question = Question::create('How would you rate your experience with us?')
             ->fallback('Please tap one of the star options above.')
             ->addButtons([
-                Button::create('⭐☆☆☆☆ 1')->value('1'),
-                Button::create('⭐⭐☆☆☆ 2')->value('2'),
-                Button::create('⭐⭐⭐☆☆ 3')->value('3'),
-                Button::create('⭐⭐⭐⭐☆ 4')->value('4'),
-                Button::create('⭐⭐⭐⭐⭐ 5')->value('5'),
+                Button::create('1')->value('1'),
+                Button::create('2')->value('2'),
+                Button::create('3')->value('3'),
+                Button::create('4')->value('4'),
+                Button::create('5')->value('5'),
             ]);
 
         $this->ask($question, function (Answer $answer) {
@@ -65,7 +67,10 @@ class ReviewConversation extends Conversation
                 'bot_message'  => 'Review recorded',
             ]);
 
-            DB::table('feedback')->insert([
+            // Feedback::create() instead of DB::table()->insert()
+            // — this gives us a model instance back so we can attach
+            // the sentiment result to it below
+            $feedback = Feedback::create([
                 'log_id'        => $logId,
                 'patient_id'    => $this->patientId,
                 'feedback_text' => $text,
@@ -73,33 +78,38 @@ class ReviewConversation extends Conversation
                 'submitted_at'  => now(),
             ]);
 
-            $this->say("Thank you for your feedback!\n\nYou rated us {$this->rating}/5 stars. We appreciate you taking the time to help us improve.");
+            if (!empty($text)) {
+                $result = app(SentimentAnalysisService::class)->analyze($text);
+
+                if ($result) {
+                    $feedback->sentimentResult()->create([
+                        'sentiment_label'  => $result['sentiment_label'],
+                        'confidence_score' => $result['confidence_score'],
+                        'analyzed_at'      => now(),
+                    ]);
+                }
+            }
+
+            $this->say("Thank you for your feedback!\n\nYou rated us {$this->rating}/5. We appreciate you taking the time to help us improve.");
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('submitReview failed: ' . $e->getMessage());
             $this->say("⚠️ We couldn't record your review right now. Please try again, or contact us directly.");
         }
 
-        // FIX: same pattern as ComplaintConversation — offer a real,
-        // clickable next step instead of a static "type menu" line that
-        // free-typed commands like "complaint" wouldn't be recognized by.
-        $this->askWhatsNext();
+        $this->backToMainMenu();
     }
 
-    protected function askWhatsNext()
+    protected function backToMainMenu()
     {
-        $question = Question::create('Is there anything else you\'d like to do?')
-            ->fallback('Please use the buttons above, or type "menu" anytime to return to the main menu.')
+        $question = Question::create('Is there anything else I can help you with?')
+            ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('⚠️ File a Complaint')->value('complaint'),
-                Button::create("✅ No, I'm all set")->value('done'),
+                Button::create('Schedule Visit')->value('schedule visit'),
+                Button::create('General Information')->value('general information'),
+                Button::create('Submit Review/Rating')->value('submit review/rating'),
+                Button::create('Submit Complaint')->value('submit complaint'),
             ]);
 
-        $this->ask($question, function (Answer $answer) {
-            if ($answer->getValue() === 'complaint') {
-                $this->bot->startConversation(new ComplaintConversation($this->patientId, $this->patientName));
-                return;
-            }
-
-            $this->say('Thank you for choosing PolyClinic Lipa! Have a great day! 😊');
-        });
+        $this->bot->reply($question);
     }
 }

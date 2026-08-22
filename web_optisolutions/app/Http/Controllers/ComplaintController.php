@@ -20,6 +20,7 @@ class ComplaintController extends Controller
             'log_id'         => $validated['log_id'] ?? null,
             'complaint_text' => $validated['complaint_text'],
             'status'         => 'pending',
+            
         ]);
 
         return response()->json(['complaint_id' => $complaint->complaint_id], 201);

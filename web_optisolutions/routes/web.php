@@ -20,8 +20,6 @@ require __DIR__.'/admin_acc/web.php';
 require __DIR__.'/staff_acc/web.php';
 
 
-// NOTE: dating "return view('welcome')" ito, pinalitan para gamitin ang PolyclinicController.
-// Ibalik na lang sa dati kung mali ang assumption:
 Route::get('/', [PolyclinicController::class, 'home']);
 
 Route::get('/sample', function () {
@@ -42,9 +40,12 @@ Route::middleware('auth')->group(function () {
         return view('admin_acc.dashboard');
     });
 
-    Route::get('/admin_acc/chatbot_logs', function () {
-        return view('admin_acc.chatbot_logs');
-    });
+    // NOTE: Ang /admin_acc/chatbot_logs ay INALIS na dito — dating static
+    // closure ito (return view() lang, walang data), at dahil dalawang
+    // beses na-register ang parehong URL, ito (bilang huling na-load) ang
+    // laging nananalo kaysa sa tamang controller-backed na route sa
+    // routes/admin_acc/web.php. Ang route na iyon na lang (na tumatawag sa
+    // ChatbotInquiryController) ang gumagana ngayon para sa page na ito.
 
     Route::get('/admin_acc/sidebar', function () {
         return view('admin_acc.sidebar');
@@ -112,6 +113,11 @@ Route::get('/services', [PolyclinicController::class, 'services'])->name('servic
 Route::get('/doctors',  [PolyclinicController::class, 'doctors'])->name('doctors');
 Route::get('/contact',  [PolyclinicController::class, 'contact'])->name('contact');
 Route::get('/chatbot',  [PolyclinicController::class, 'chatbot'])->name('chatbot');
+
+// General Privacy Notice page (linked from the privacy consent modal)
+Route::get('/privacy-notice', function () {
+    return view('patient.privacy-notice');
+})->name('privacy-notice');
 
 // ===== BotMan route =====
 // Receives messages from the chat widget (script.js) and returns BotMan's reply

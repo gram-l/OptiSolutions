@@ -83,6 +83,11 @@ class AuthService {
     await prefs.remove('user_role');
     await prefs.remove('user_name'); //added this line to remove user_name on logout
     await prefs.remove('auth_token');
+
+    /// Also clear the cached Google session, so the account picker
+  // shows up again next time — otherwise Google silently
+  // re-signs-in with whichever account was cached.
+    await GoogleAuthService().signOut();
   }
 
     static Future<String?> getToken() async {

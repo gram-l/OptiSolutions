@@ -15,7 +15,10 @@ use App\Http\Controllers\admin_acc\ServiceController;
 use App\Http\Controllers\admin_acc\FeedbackController;
 use App\Http\Controllers\admin_acc\ChatbotInquiryController;
 use App\Http\Controllers\Auth\GoogleAuthController;
-
+use App\Http\Controllers\admin_acc\VisitController;
+use App\Http\Controllers\admin_acc\PatientListController;
+use App\Http\Controllers\admin_acc\NotificationController;
+use App\Http\Controllers\admin_acc\FeebackController;
 
 Route::get('/sample', function () {
     return view('sample');
@@ -41,7 +44,16 @@ Route::get('/admin_acc/appointments', function () {
     return view('admin_acc.appointments');
 });
 
+Route::get('/admin_acc/appointments/day', [VisitController::class, 'dayJson']);
+Route::put('/admin_acc/appointments/{id}', [VisitController::class, 'update']);
+Route::delete('/admin_acc/appointments/{id}', [VisitController::class, 'destroy']);
+
 Route::get('/admin_acc/doctors', [DoctorController::class, 'index']);
+Route::get('/admin_acc/doctors/list', [DoctorController::class, 'listJson']);
+Route::post('/admin_acc/doctors', [DoctorController::class, 'store']);
+Route::put('/admin_acc/doctors/{id}', [DoctorController::class, 'update']); // reached via POST + _method=PUT (Laravel spoofing) so the multipart photo upload still works
+Route::patch('/admin_acc/doctors/{id}/toggle', [DoctorController::class, 'toggleStatus']);
+Route::delete('/admin_acc/doctors/{id}', [DoctorController::class, 'destroy']);
 
 Route::get('/admin_acc/patients', function () {
     return view('admin_acc.patients');
@@ -124,7 +136,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin_acc/chatbot_logs', [ChatbotInquiryController::class, 'index'])->name('admin_acc.chatbot_logs');
     Route::post('/admin_acc/chatbot_logs/{id}/reply', [ChatbotInquiryController::class, 'reply'])->name('admin_acc.chatbot_logs.reply');
     Route::post('/admin_acc/chatbot_logs/{id}/resolve', [ChatbotInquiryController::class, 'resolve'])->name('admin_acc.chatbot_logs.resolve');
-});
+
+    //settings routes
+     Route::get('/admin_acc/settings', function () {
+        return view('admin_acc.partials.settings');
+    });
+
+    });
 
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
 Route::get('admin_acc/feedback/diagnose', [FeedbackController::class, 'diagnoseRootCauses']);
@@ -137,3 +155,17 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [AdminDashboardController::class, 'data'])->name('dashboard.data');
     });
+
+
+//patient list routes
+Route::get('/admin_acc/patients/list', [PatientListController::class, 'webList']);
+Route::post('/admin_acc/patients', [PatientListController::class, 'store']);
+Route::put('/admin_acc/patients/{id}', [PatientListController::class, 'update']);
+Route::get('/admin_acc/patients/{id}/visits', [PatientListController::class, 'apiVisits']);
+
+// notification routes
+
+Route::get('/admin_acc/notifications', [NotificationController::class, 'index']);
+Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
+Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+

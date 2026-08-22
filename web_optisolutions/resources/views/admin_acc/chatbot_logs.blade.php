@@ -111,18 +111,35 @@
             // or the guest's given name / "Guest") instead of the INQ code.
             // The INQ code (chat.inquiryCode) is now shown in the preview
             // line instead, so the ticket reference isn't lost.
-            chatListEl.innerHTML = filteredLogs.map(chat => `
-                <li class="chat-item ${currentChatId === chat.id ? 'active' : ''}" data-id="${chat.id}">
+            chatListEl.innerHTML = filteredLogs.map(chat => {
+                const isResolved = chat.rawStatus === 'Resolved';
+                // Unresolved indicator: a small colored dot next to the name.
+                // Shown regardless of read/unread state, since "unread" only
+                // tracks whether an admin has opened it, not whether the
+                // inquiry itself has been resolved.
+                const statusDot = !isResolved
+                    ? `<span class="unresolved-dot status-dot-${chat.status}" title="${chat.rawStatus}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chat.rawStatus === 'Pending' ? '#e74c3c' : '#f39c12'};margin-left:6px;flex-shrink:0;"></span>`
+                    : '';
+
+                return `
+                <li class="chat-item ${currentChatId === chat.id ? 'active' : ''} ${!isResolved ? 'unresolved' : ''}" data-id="${chat.id}">
                     <div class="chat-avatar">${chat.avatar}</div>
                     <div class="chat-info">
-                        <div class="chat-name">
-                            ${chat.name}
+                        <div class="chat-name" style="display:flex; align-items:center;">
+                            ${escapeHtml(chat.name)}
+                            ${statusDot}
                             <span class="chat-time">${formatTime(chat.timestamp)}</span>
                         </div>
-                        <div class="chat-preview">${chat.inquiryCode} • ${chat.lastMessage.substring(0, 40)}${chat.unread ? '<span class="unread-badge">New</span>' : ''}</div>
+                        <div class="chat-preview" style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">
+                                ${chat.inquiryCode} • ${chat.lastMessage.substring(0, 40)}${chat.unread ? '<span class="unread-badge">New</span>' : ''}
+                            </span>
+                            ${!isResolved ? `<span class="unresolved-label" style="color:${chat.rawStatus === 'Pending' ? '#e74c3c' : '#f39c12'}; font-weight:600; flex-shrink:0; white-space:nowrap;">${chat.rawStatus}</span>` : ''}
+                        </div>
                     </div>
                 </li>
-            `).join("");
+            `;
+            }).join("");
 
             // Add click event listeners to chat items
             document.querySelectorAll('.chat-item').forEach(item => {
@@ -147,6 +164,17 @@
             }
         }
 
+        // Show/hide the reply box and Resolve button based on the chat's
+        // current status. Pulled out into its own function so it can be
+        // re-run after sending a reply or resolving, not just on initial
+        // open — previously those actions could change chat.rawStatus
+        // without the buttons ever updating to match.
+        function updateActionVisibility(chat) {
+            const isResolved = chat.rawStatus === 'Resolved';
+            document.getElementById("replyArea").style.display = isResolved ? "none" : "flex";
+            document.getElementById("resolveBtn").style.display = isResolved ? "none" : "inline-flex";
+        }
+
         // Open a specific chat
         function openChat(chatId) {
             const chat = chatLogs.find(c => c.id === chatId);
@@ -164,9 +192,7 @@
             document.getElementById("emptyState").style.display = "none";
             document.getElementById("conversationHeader").style.display = "block";
 
-            const isResolved = chat.rawStatus === 'Resolved';
-            document.getElementById("replyArea").style.display = isResolved ? "none" : "flex";
-            document.getElementById("resolveBtn").style.display = isResolved ? "none" : "inline-flex";
+            updateActionVisibility(chat);
 
             // Update header — now includes the INQ ticket code alongside
             // the patient ID and department, since chat.name shows the
@@ -251,6 +277,13 @@
                 renderChatList(document.getElementById("searchInput").value);
                 input.value = "";
 
+                // Keep the header badge and reply/resolve buttons in sync
+                // with the (possibly changed) status returned by the server.
+                const statusBadge = document.getElementById("statusBadge");
+                statusBadge.className = `status-badge status-${chat.status}`;
+                statusBadge.innerText = chat.status === "active" ? "In Progress" : chat.status === "pending" ? "Pending" : "Resolved";
+                updateActionVisibility(chat);
+
                 const originalText = sendBtn.innerText;
                 sendBtn.innerText = "Sent!";
                 setTimeout(() => { sendBtn.innerText = originalText; }, 1000);
@@ -268,6 +301,9 @@
             if (!chat) return;
 
             if (!confirm('Mark this inquiry as resolved?')) return;
+
+            const resolveBtn = document.getElementById("resolveBtn");
+            resolveBtn.disabled = true;
 
             try {
                 const res = await fetch(`/admin_acc/chatbot_logs/${currentChatId}/resolve`, {
@@ -287,6 +323,8 @@
                 renderChatList(document.getElementById("searchInput").value);
             } catch (e) {
                 alert(e.message || 'Failed to resolve inquiry.');
+            } finally {
+                resolveBtn.disabled = false;
             }
         }
 

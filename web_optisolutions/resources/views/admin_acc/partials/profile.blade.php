@@ -57,118 +57,149 @@
 </div>
 
 <style>
-.profile-modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-}
-.profile-modal-overlay.open {
-    display: flex;
-}
-.profile-modal {
-    background: #fff;
-    width: 100%;
-    max-width: 420px;
-    border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    max-height: 90vh;
-    overflow-y: auto;
-}
-.profile-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 24px 0;
-}
-.profile-modal-header h5 {
-    margin: 0;
-    font-weight: 700;
-    color: #1A237E;
-}
-.profile-modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    line-height: 1;
-    cursor: pointer;
-    color: #666;
-}
-.profile-modal-body {
-    padding: 16px 24px 24px;
-}
-.profile-alert-success {
-    background: #d1f7dc;
-    color: #157347;
-    padding: 8px 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 0.9rem;
-}
-.profile-photo-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 20px;
-}
-.profile-photo-preview {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    object-fit: cover;
-}
-.profile-photo-placeholder {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: #1A237E;
-    color: #fff;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.profile-photo-input label {
-    display: block;
-    font-weight: 600;
-    font-size: 0.85rem;
-    margin-bottom: 4px;
-}
-.profile-field {
-    margin-bottom: 14px;
-}
-.profile-field label {
-    display: block;
-    font-weight: 600;
-    font-size: 0.85rem;
-    margin-bottom: 4px;
-}
-.profile-field input {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #d9d9e3;
-    border-radius: 8px;
-    font-size: 0.9rem;
-}
-.profile-field-error {
-    color: #dc3545;
-    font-size: 0.8rem;
-    margin-top: 4px;
-}
-.profile-save-btn {
-    width: 100%;
-    background: #1A237E;
-    color: #fff;
-    border: none;
-    padding: 10px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 6px;
-}
+    :root {
+        --primary-light: #9DBCD4;
+        --primary-main: #0E62AA;
+        --primary-dark: #062744;
+        --white: #FFFFFF;
+        --light-gray: #ECF0F1;
+        --text-dark: #333333;
+        --shadow: rgba(0, 0, 0, 0.1);
+        --danger: #e74c3c;
+    }
+
+    .profile-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    .profile-modal-overlay.open {
+        display: flex;
+    }
+    .profile-modal {
+        background: var(--white);
+        width: 100%;
+        max-width: 420px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .profile-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px 0;
+    }
+    .profile-modal-header h5 {
+        margin: 0;
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+    .profile-modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        color: #7f8c8d;
+        transition: color 0.2s ease;
+    }
+    .profile-modal-close:hover {
+        color: var(--text-dark);
+    }
+    .profile-modal-body {
+        padding: 16px 24px 24px;
+    }
+    .profile-alert-success {
+        background: #e8f8f0;
+        color: var(--primary-main);
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    .profile-photo-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+    .profile-photo-preview {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .profile-photo-placeholder {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-main), var(--primary-dark));
+        color: var(--white);
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .profile-photo-input label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+        color: var(--text-dark);
+    }
+    .profile-field {
+        margin-bottom: 14px;
+    }
+    .profile-field label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+        color: var(--text-dark);
+    }
+    .profile-field input {
+        width: 100%;
+        padding: 0.7rem;
+        border: 1px solid var(--light-gray);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        outline: none;
+        transition: all 0.3s ease;
+    }
+    .profile-field input:focus {
+        border-color: var(--primary-main);
+        box-shadow: 0 0 0 2px rgba(14, 98, 170, 0.2);
+    }
+    .profile-field-error {
+        color: var(--danger);
+        font-size: 0.8rem;
+        margin-top: 4px;
+    }
+    .profile-save-btn {
+        width: 100%;
+        background: var(--primary-main);
+        color: var(--white);
+        border: none;
+        padding: 0.7rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 6px;
+        transition: all 0.3s ease;
+    }
+    .profile-save-btn:hover {
+        background: #0b4f8a;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(14, 98, 170, 0.3);
+    }
 </style>
 
 <script>

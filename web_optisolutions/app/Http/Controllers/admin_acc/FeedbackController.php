@@ -18,7 +18,6 @@ class FeedbackController extends Controller
             ->map(function ($f) {
                 return [
                     'id' => $f->feedback_id,
-                    'patient' => 'Patient #' . $f->patient_id,
                     'rating' => (int) $f->star_rating,
                     'comment' => $f->feedback_text,
                     'sentiment' => $f->sentimentResult ? strtolower($f->sentimentResult->sentiment_label) : 'pending',

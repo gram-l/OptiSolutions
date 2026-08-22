@@ -1,4 +1,3 @@
-
 <header class="header">
 
     {{-- Logo --}}
@@ -47,7 +46,7 @@
                 </div>
 
                 <div class="dropdown-footer">
-                    <a href="/admin_acc/notifications">View all notifications</a>
+                    <a href="/admin_acc/notifications" onclick="openNotifPanel(); return false;">View all notifications</a>
                 </div>
             </div>
         </div>
@@ -80,7 +79,7 @@
                 <a class="menu-item" href="#" onclick="openProfileModal(); return false;">
     <i class="bi bi-person"></i> Profile
 </a>
-                <a class="menu-item" href="/admin_acc/settings">
+                <a class="menu-item" href="#" onclick="openSettingsModal(); return false;">
                     <i class="bi bi-gear"></i> Settings
                 </a>
                 <button class="menu-item danger" onclick="window.location.href='/auth/login'">
@@ -91,7 +90,11 @@
 
     </div>
     @include('admin_acc.partials.profile')
+    @include('admin_acc.partials.settings')
 </header>
+
+{{-- Empty container the notifications panel gets injected into on demand --}}
+<div id="notifPanelContainer"></div>
 
 <script>
     // ── Toggle helper ──────────────────────────────────────────────
@@ -121,5 +124,98 @@
     const unreadCount = document.querySelectorAll('#notifDropdown .notif-unread-dot').length;
     if (unreadCount > 0) {
         document.getElementById('notifDot').classList.add('visible');
+    }
+
+    // ── Full notifications side panel ───────────────────────────────
+    function openNotifPanel() {
+        const container = document.getElementById('notifPanelContainer');
+        fetch('/admin_acc/notifications', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(res => res.text())
+            .then(html => {
+                container.innerHTML = html;
+                bindNotifPanelEvents();
+            })
+            .catch(() => {});
+
+        // Close the small dropdown if it's open
+        document.getElementById('notifDropdown').classList.remove('open');
+    }
+
+    function closeNotifPanel() {
+        document.getElementById('notifPanelContainer').innerHTML = '';
+    }
+
+    function bindNotifPanelEvents() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+        document.getElementById('notifCloseBtn')?.addEventListener('click', closeNotifPanel);
+        document.getElementById('notifOverlay')?.addEventListener('click', (e) => {
+            if (e.target.id === 'notifOverlay') closeNotifPanel();
+        });
+
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeNotifPanel();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        const filterTabs = document.querySelectorAll('.notif-tab');
+        const allGroups = document.querySelectorAll('#notifPanelContainer .notif-group');
+
+        filterTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                filterTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const filter = tab.dataset.filter;
+
+                allGroups.forEach(group => {
+                    const rowsInGroup = group.querySelectorAll('.notif-row');
+                    let visibleCount = 0;
+
+                    rowsInGroup.forEach(row => {
+                        const matches = filter === 'all' || row.dataset.category === filter;
+                        row.style.display = matches ? '' : 'none';
+                        if (matches) visibleCount++;
+                    });
+
+                    group.style.display = visibleCount > 0 ? '' : 'none';
+                });
+            });
+        });
+
+        const countAllEl = document.getElementById('count-all');
+        if (countAllEl) {
+            countAllEl.textContent = document.querySelectorAll('#notifPanelContainer .notif-row').length;
+        }
+
+        document.getElementById('markAllReadBtn')?.addEventListener('click', function () {
+            document.querySelectorAll('#notifPanelContainer .notif-row.unread').forEach(row => {
+                row.classList.remove('unread');
+                row.classList.add('read');
+                row.querySelector('.notif-action-link')?.remove();
+            });
+
+            fetch('/admin_acc/notifications/mark-all-read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+            }).catch(() => {});
+        });
+    }
+
+    function markSingleRead(id, btn) {
+        const row = btn.closest('.notif-row');
+        row.classList.remove('unread');
+        row.classList.add('read');
+        btn.remove();
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+        fetch(`/admin_acc/notifications/${id}/read`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+        }).catch(() => {});
     }
 </script>

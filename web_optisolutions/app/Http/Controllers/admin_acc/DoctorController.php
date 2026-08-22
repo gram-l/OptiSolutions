@@ -7,15 +7,34 @@ use App\Models\admin_models\Doctor;
 use App\Models\admin_models\DoctorSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 
 class DoctorController extends Controller
 {
-    // Used by the Blade admin page
+    // Used by the Blade admin page (initial render)
     public function index()
     {
-        $doctors = Doctor::with('schedules')->get()->map(function ($doctor) {
+        $doctors = $this->doctorsForWeb();
+
+        return view('admin_acc.doctors', compact('doctors'));
+    }
+
+    // GET /admin_acc/doctors/list — JSON refresh for the web admin grid.
+    // Web-only counterpart to apiIndex(); same field shape as index() above
+    // (name/phone/active) rather than the raw model shape Flutter gets.
+    public function listJson()
+    {
+        return response()->json([
+            'success' => true,
+            'doctors' => $this->doctorsForWeb(),
+        ]);
+    }
+
+    private function doctorsForWeb()
+    {
+        return Doctor::with('schedules')->get()->map(function ($doctor) {
             return [
                 'id' => $doctor->doctor_id,
                 'name' => $doctor->doctor_name,
@@ -24,11 +43,10 @@ class DoctorController extends Controller
                 'schedule_sessions' => $this->sessionsForApi($doctor->schedules),
                 'description' => $doctor->description,
                 'phone' => $doctor->contact_number,
+                'profile_image_url' => $this->profileImageUrl($doctor->profile_image),
                 'active' => $doctor->status === 'Active',
             ];
         });
-
-        return view('admin_acc.doctors', compact('doctors'));
     }
 
     // GET /api/doctors — used by Flutter
@@ -40,6 +58,7 @@ class DoctorController extends Controller
             // 'schedule_sessions' is the structured source of truth the edit
             // form reads from directly — no text parsing involved.
             $doctor->schedule_sessions = $this->sessionsForApi($doctor->schedules);
+            $doctor->profile_image_url = $this->profileImageUrl($doctor->profile_image);
             return $doctor;
         });
 
@@ -54,8 +73,12 @@ class DoctorController extends Controller
     {
         $validated = $this->validateDoctorRequest($request);
 
-        $doctorData = collect($validated)->except('schedule_sessions')->toArray();
+        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image'])->toArray();
         $doctorData['status'] = $doctorData['status'] ?? 'Active';
+
+        if ($request->hasFile('profile_image')) {
+            $doctorData['profile_image'] = $request->file('profile_image')->store('doctors', 'public');
+        }
 
         $doctor = Doctor::create($doctorData);
 
@@ -64,6 +87,7 @@ class DoctorController extends Controller
         $doctor->load('schedules');
         $doctor->schedule = $this->formatSchedule($doctor->schedules);
         $doctor->schedule_sessions = $this->sessionsForApi($doctor->schedules);
+        $doctor->profile_image_url = $this->profileImageUrl($doctor->profile_image);
 
         return response()->json([
             'success' => true,
@@ -72,7 +96,7 @@ class DoctorController extends Controller
         ], 201);
     }
 
-    // PUT /api/doctors/{id}
+    // PUT /api/doctors/{id}  (submitted as POST + _method=PUT so file uploads work)
     public function update(Request $request, $id)
     {
         $doctor = Doctor::find($id);
@@ -85,7 +109,17 @@ class DoctorController extends Controller
         // would incorrectly flag itself as a duplicate).
         $validated = $this->validateDoctorRequest($request, $doctor->doctor_id);
 
-        $doctorData = collect($validated)->except('schedule_sessions')->toArray();
+        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image'])->toArray();
+
+        if ($request->hasFile('profile_image')) {
+            // Replacing an existing photo — remove the old file so uploads
+            // don't pile up on disk.
+            if ($doctor->profile_image) {
+                Storage::disk('public')->delete($doctor->profile_image);
+            }
+            $doctorData['profile_image'] = $request->file('profile_image')->store('doctors', 'public');
+        }
+
         $doctor->update($doctorData);
 
         $this->syncScheduleRows($doctor, $validated['schedule_sessions']);
@@ -93,6 +127,7 @@ class DoctorController extends Controller
         $doctor->load('schedules');
         $doctor->schedule = $this->formatSchedule($doctor->schedules);
         $doctor->schedule_sessions = $this->sessionsForApi($doctor->schedules);
+        $doctor->profile_image_url = $this->profileImageUrl($doctor->profile_image);
 
         return response()->json([
             'success' => true,
@@ -114,6 +149,7 @@ class DoctorController extends Controller
 
         $doctor->schedule = $this->formatSchedule($doctor->schedules);
         $doctor->schedule_sessions = $this->sessionsForApi($doctor->schedules);
+        $doctor->profile_image_url = $this->profileImageUrl($doctor->profile_image);
 
         return response()->json([
             'success' => true,
@@ -128,6 +164,10 @@ class DoctorController extends Controller
         $doctor = Doctor::find($id);
         if (!$doctor) {
             return response()->json(['success' => false, 'message' => 'Doctor not found.'], 404);
+        }
+
+        if ($doctor->profile_image) {
+            Storage::disk('public')->delete($doctor->profile_image);
         }
 
         DoctorSchedule::where('doctor_id', $doctor->doctor_id)->delete();
@@ -156,7 +196,19 @@ class DoctorController extends Controller
      */
     private function validateDoctorRequest(Request $request, $doctorId = null)
     {
-        $validator = Validator::make($request->all(), [
+        // The web admin page submits multipart/form-data (so the photo file
+        // can ride along), and multipart bodies can't carry nested arrays
+        // natively — schedule_sessions arrives as a JSON string in that
+        // case. The Flutter app still posts it as a real JSON array, so
+        // only decode when it's actually a string.
+        $input = $request->all();
+        if (isset($input['schedule_sessions']) && is_string($input['schedule_sessions'])) {
+            $decoded = json_decode($input['schedule_sessions'], true);
+            $input['schedule_sessions'] = is_array($decoded) ? $decoded : [];
+            $request->merge(['schedule_sessions' => $input['schedule_sessions']]);
+        }
+
+        $validator = Validator::make($input, [
             'doctor_name' => [
                 'required',
                 'string',
@@ -170,6 +222,7 @@ class DoctorController extends Controller
             'description'     => 'nullable|string|max:500',
             'contact_number'  => ['nullable', 'regex:/^\+?[0-9]{7,15}$/'],
             'status'          => 'nullable|string|in:Active,Inactive',
+            'profile_image'           => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
 
             'schedule_sessions'               => 'required|array|min:1',
             'schedule_sessions.*.day'         => 'required|in:' . implode(',', self::DAY_ORDER),
@@ -182,6 +235,10 @@ class DoctorController extends Controller
             'specialty.max' => 'Specialty is too long (max 60 characters).',
             'description.max' => 'Description is too long (max 500 characters).',
             'contact_number.regex' => 'Enter a valid phone number (digits only, 7–15 digits).',
+            'profile_image.image' => 'The photo must be an image file.',
+            'profile_image.mimes' => 'The photo must be a JPG, PNG, or WEBP file.',
+            'profile_image.max' => 'The photo must not be larger than 2MB.',
+            'schedule_sessions.required' => 'Add at least one schedule session.',
             'schedule_sessions.*.end_time.after' => 'End time must be after start time.',
         ]);
 
@@ -237,6 +294,25 @@ class DoctorController extends Controller
     private const DAY_ORDER = [
         'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
     ];
+
+    /**
+     * Resolves a stored "doctors/xxx.jpg" path (from the public disk) into
+     * a browser-usable URL, or null if the doctor has no photo. Requires
+     * `php artisan storage:link` to have been run so /storage points at
+     * storage/app/public.
+     *
+     * Deliberately uses asset() instead of Storage::disk('public')->url().
+     * Storage::url() builds the URL from APP_URL in .env, so it breaks
+     * (ERR_CONNECTION_REFUSED) the moment the app is viewed from a
+     * different host/port than whatever APP_URL happens to be set to.
+     * asset() instead derives the host from the actual incoming request,
+     * so it matches the browser's address bar no matter which machine
+     * or port the app is running on.
+     */
+    private function profileImageUrl($path)
+    {
+        return $path ? asset('storage/' . $path) : null;
+    }
 
     private const DAY_ABBREV = [
         'Monday' => 'Mon', 'Tuesday' => 'Tue', 'Wednesday' => 'Wed',

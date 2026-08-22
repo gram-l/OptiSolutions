@@ -3,11 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <title>OptiSolutions - Appointments & Scheduling</title>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <title>OptiSolutions - Scheduled Visits</title>
+
     @vite(['resources/css/admin_css/appointments.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/feedback.css'])
+
+    <style>
+        /* ── Day nav row ── */
+        .day-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .day-nav-btn {
+            background: #fff;
+            border: 1px solid #d7dce3;
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #062744;
+        }
+        .day-nav-btn:hover { background: #f0f4f9; }
+        .day-picker {
+            border: 1px solid #d7dce3;
+            border-radius: 8px;
+            padding: 0.45rem 0.6rem;
+            font-size: 0.85rem;
+        }
+        .today-btn {
+            background: #eef2f7;
+            border: 1px solid #d7dce3;
+            border-radius: 8px;
+            padding: 0.45rem 0.75rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: #062744;
+        }
+        .current-day-label {
+            font-weight: 600;
+            color: #062744;
+            margin-left: 0.25rem;
+        }
+
+        /* ── Day table (no more collapsible per-date groups; it's one day) ── */
+        .day-panel {
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px var(--shadow);
+        }
+        .field-error { color: #c0392b; font-size: 0.75rem; margin-top: 0.25rem; }
+
+        /* ── Row action buttons — soft pill style ── */
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .btn-sm {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            border: none;
+            border-radius: 999px;
+            padding: 0.42rem 0.9rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s ease, transform 0.1s ease;
+        }
+        .btn-sm:hover { transform: translateY(-1px); }
+        .btn-sm:active { transform: translateY(0); }
+        .btn-sm i { font-size: 0.82rem; }
+
+        .btn-edit {
+            background: #eaf2fb;
+            color: #0E62AA;
+        }
+        .btn-edit:hover { background: #d9e9f8; }
+
+        .btn-reschedule {
+            background: var(--light-gray);
+            color: #4a5560;
+        }
+        .btn-reschedule:hover { background: #dfe4e8; }
+
+        .btn-cancel {
+            background: #fdeceb;
+            color: #c0392b;
+        }
+        .btn-cancel:hover { background: #fbdbd8; }
+
+        #editNotesModal textarea {
+            width: 100%;
+            min-height: 110px;
+            resize: vertical;
+            border: 1px solid #d7dce3;
+            border-radius: 8px;
+            padding: 0.6rem 0.75rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+            margin-top: 0.3rem;
+        }
+        #editNotesModal textarea:focus { outline: none; border-color: #0E62AA; }
+
+        /* ── Download button + dropdown ── */
+        .download-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--primary-main);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+        .download-btn:hover { background: #0b4f8a; }
+        .download-btn .chevron { font-size: 0.65rem; transition: transform 0.2s ease; }
+        .download-dropdown.open .download-btn .chevron { transform: rotate(180deg); }
+        .download-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            background: var(--white);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px var(--shadow);
+            overflow: hidden;
+            min-width: 170px;
+            z-index: 50;
+        }
+        .download-dropdown.open .download-menu { display: block; }
+        .download-menu button {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            width: 100%;
+            padding: 0.65rem 1rem;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            color: var(--text-dark);
+            transition: background 0.15s ease;
+        }
+        .download-menu button:hover { background: var(--light-gray); }
+        .download-menu button i { width: 16px; color: var(--primary-main); }
+    </style>
 </head>
 <body>
     <!-- Header -->
@@ -17,59 +183,59 @@
            @include('admin_acc.sidebar')
         <div style="flex: 1; min-width: 0;">
         <div class="page-header">
-            
             <h2>
-                <span><i class="bi bi-calendar2-plus"></i></span> 
-                Appointments & Scheduling
+                <span><i class="bi bi-calendar2-plus"></i></span>
+                Scheduled Visits
             </h2>
-            <p>Review, approve, and manage patient appointment requests organized by day</p>
+            <p>Review and manage scheduled patient visits, one day at a time</p>
         </div>
-         
+
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-number" id="totalPending">0</div>
-                <div class="stat-label">Pending Approval</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="totalApproved">0</div>
-                <div class="stat-label">Approved Today</div>
-            </div>
-            <div class="stat-card">
                 <div class="stat-number" id="totalAppointments">0</div>
-                <div class="stat-label">Total Appointments</div>
+                <div class="stat-label">Scheduled Visits Today</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number" id="totalCompleted">0</div>
-                <div class="stat-label">Completed</div>
+                <div class="stat-number" id="totalPatients">0</div>
+                <div class="stat-label">Patients Scheduled</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalDoctors">0</div>
+                <div class="stat-label">Doctors Involved</div>
             </div>
         </div>
 
         <div class="filter-bar">
             <div class="filter-group">
-                <select class="filter-select" id="statusFilter">
-                    <option value="all">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
+                <select class="filter-select" id="serviceFilter">
+                    <option value="all">All Services</option>
                 </select>
-                <select class="filter-select" id="departmentFilter">
-                    <option value="all">All Departments</option>
-                    <option value="Ophthalmology">Ophthalmology</option>
-                    <option value="Pediatrics">Pediatrics</option>
-                    <option value="ENT">ENT</option>
-                    <option value="Cardiology">Cardiology</option>
-                    <option value="Dermatology">Dermatology</option>
-                </select>
+                <div class="download-dropdown" id="downloadDropdown">
+                    <button type="button" class="download-btn" id="downloadBtn">
+                        <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
+                    </button>
+                    <div class="download-menu">
+                        <button type="button" onclick="exportPDF()"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                        <button type="button" onclick="exportCSV()"><i class="fa-regular fa-file-lines"></i> CSV</button>
+                        <button type="button" onclick="exportExcel()"><i class="fa-regular fa-file-excel"></i> Excel</button>
+                    </div>
+                </div>
             </div>
-            <div class="date-nav">
-                <button class="date-nav-btn" id="prevWeekBtn">◀ Prev</button>
-                <span class="current-date" id="currentWeekRange">May 18 - May 24, 2026</span>
-                <button class="date-nav-btn" id="nextWeekBtn">Next ▶</button>
+            <div class="day-nav">
+                <button class="day-nav-btn" id="prevDayBtn" title="Previous day">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <input type="date" class="day-picker" id="dayPicker">
+                <button class="day-nav-btn" id="nextDayBtn" title="Next day">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+                <button class="today-btn" id="todayBtn">Today</button>
+                <span class="current-day-label" id="currentDayLabel"></span>
             </div>
         </div>
 
         <div class="appointments-container" id="appointmentsContainer"></div>
+        </div>
     </div>
 
     <div id="rescheduleModal" class="modal">
@@ -78,142 +244,214 @@
             <p id="modalPatientName"></p>
             <label>New Date:</label>
             <input type="date" id="newDate">
+            <div class="field-error" id="err-reschedule"></div>
             <div class="modal-buttons">
                 <button onclick="closeModal()">Cancel</button>
-                <button class="btn-approve" onclick="confirmReschedule()">Confirm</button>
+                <button class="btn-approve" id="confirmRescheduleBtn" onclick="confirmReschedule()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editNotesModal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Notes</h3>
+            <p id="editNotesPatientName"></p>
+            <label>Notes:</label>
+            <textarea id="editNotesText" placeholder="Add notes for this visit..." maxlength="1000"></textarea>
+            <div class="field-error" id="err-edit-notes"></div>
+            <div class="modal-buttons">
+                <button onclick="closeEditNotesModal()">Cancel</button>
+                <button class="btn-approve" id="confirmEditNotesBtn" onclick="confirmEditNotes()">Save</button>
             </div>
         </div>
     </div>
 
     <script>
-        let appointmentsData = [
-            { id: 1, patientName: "Maria Santos", department: "Ophthalmology", doctor: "Dr. Reyes", date: "2026-05-22", status: "pending", phone: "09123456789", concern: "Cataract consultation" },
-            { id: 2, patientName: "John Dela Cruz", department: "Pediatrics", doctor: "Dr. Mendoza", date: "2026-05-22", status: "approved", phone: "09234567890", concern: "Child fever follow-up" },
-            { id: 3, patientName: "Anna Rivera", department: "ENT", doctor: "Dr. Garcia", date: "2026-05-22", status: "pending", phone: "09345678901", concern: "Tinnitus evaluation" },
-            { id: 4, patientName: "Carlos Gomez", department: "Cardiology", doctor: "Dr. Santos", date: "2026-05-23", status: "approved", phone: "09456789012", concern: "Blood pressure check" },
-            { id: 5, patientName: "Elena Garcia", department: "Dermatology", doctor: "Dr. Lopez", date: "2026-05-23", status: "pending", phone: "09567890123", concern: "Skin rash" },
-            { id: 6, patientName: "Roberto Javier", department: "Ophthalmology", doctor: "Dr. Reyes", date: "2026-05-23", status: "approved", phone: "09678901234", concern: "Eye exam" },
-            { id: 7, patientName: "Sofia Villanueva", department: "Pediatrics", doctor: "Dr. Mendoza", date: "2026-05-24", status: "pending", phone: "09789012345", concern: "Vaccination" },
-            { id: 8, patientName: "Luis Martinez", department: "ENT", doctor: "Dr. Garcia", date: "2026-05-24", status: "completed", phone: "09890123456", concern: "Ear infection follow-up" },
-            { id: 9, patientName: "Patricia Cruz", department: "Cardiology", doctor: "Dr. Santos", date: "2026-05-25", status: "pending", phone: "09901234567", concern: "Chest pain" },
-            { id: 10, patientName: "Miguel Tan", department: "Dermatology", doctor: "Dr. Lopez", date: "2026-05-25", status: "approved", phone: "09012345678", concern: "Acne treatment" },
-            { id: 11, patientName: "Isabel Flores", department: "Ophthalmology", doctor: "Dr. Reyes", date: "2026-05-26", status: "pending", phone: "09111223344", concern: "Blurred vision" },
-            { id: 12, patientName: "Ricardo Lopez", department: "Pediatrics", doctor: "Dr. Mendoza", date: "2026-05-26", status: "approved", phone: "09222334455", concern: "Growth check" },
-        ];
+        const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const DAY_URL = '/admin_acc/appointments/day';
+        const VISIT_BASE = '/admin_acc/appointments';
 
-        let currentWeekOffset = 0;
+        let visitsData = [];
+        let currentDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, local-ish
         let pendingRescheduleId = null;
+        let pendingEditNotesId = null;
 
-        function getWeekRange(offset) {
-            const today = new Date();
-            today.setDate(today.getDate() + (offset * 7));
-            const day = today.getDay();
-            const diffToMonday = day === 0 ? -6 : 1 - day;
-            const monday = new Date(today);
-            monday.setDate(today.getDate() + diffToMonday);
-            const sunday = new Date(monday);
-            sunday.setDate(monday.getDate() + 6);
-            const formatDate = (date) => {
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            };
-            return { start: monday, end: sunday, label: `${formatDate(monday)} - ${formatDate(sunday)}, ${sunday.getFullYear()}` };
+        function shiftDate(dateStr, days) {
+            const d = new Date(dateStr + 'T00:00:00');
+            d.setDate(d.getDate() + days);
+            return d.toISOString().slice(0, 10);
         }
 
-        function updateWeekRange() {
-            const range = getWeekRange(currentWeekOffset);
-            document.getElementById('currentWeekRange').innerText = range.label;
-            renderAppointments();
+        function formatDayLabel(dateStr) {
+            const d = new Date(dateStr + 'T00:00:00');
+            return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         }
 
-        function groupByDate(appointments) {
-            const groups = {};
-            appointments.forEach(apt => {
-                if (!groups[apt.date]) groups[apt.date] = [];
-                groups[apt.date].push(apt);
-            });
-            return groups;
+        function formatBookedAt(ts) {
+            if (!ts) return '';
+            const d = new Date(ts.replace(' ', 'T'));
+            if (isNaN(d)) return ts;
+            return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
         }
 
-        function getFilteredAppointments() {
-            const statusFilter = document.getElementById('statusFilter').value;
-            const deptFilter = document.getElementById('departmentFilter').value;
-            const weekRange = getWeekRange(currentWeekOffset);
-            let filtered = appointmentsData.filter(apt => {
-                const aptDate = new Date(apt.date);
-                const withinWeek = aptDate >= weekRange.start && aptDate <= weekRange.end;
-                const statusMatch = statusFilter === 'all' || apt.status === statusFilter;
-                const deptMatch = deptFilter === 'all' || apt.department === deptFilter;
-                return withinWeek && statusMatch && deptMatch;
-            });
-            filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
-            return filtered;
-        }
+        async function loadDay() {
+            document.getElementById('dayPicker').value = currentDate;
+            document.getElementById('currentDayLabel').innerText = formatDayLabel(currentDate);
 
-        function updateStats() {
-            const allInWeek = appointmentsData.filter(apt => {
-                const weekRange = getWeekRange(currentWeekOffset);
-                const aptDate = new Date(apt.date);
-                return aptDate >= weekRange.start && aptDate <= weekRange.end;
-            });
-            const pending = allInWeek.filter(a => a.status === 'pending').length;
-            const approved = allInWeek.filter(a => a.status === 'approved').length;
-            const completed = allInWeek.filter(a => a.status === 'completed').length;
-            document.getElementById('totalPending').innerText = pending;
-            document.getElementById('totalApproved').innerText = approved;
-            document.getElementById('totalAppointments').innerText = allInWeek.length;
-            document.getElementById('totalCompleted').innerText = completed;
-        }
+            const container = document.getElementById('appointmentsContainer');
+            container.innerHTML = '<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">Loading...</div>';
 
-        function approveAppointment(id) {
-            const apt = appointmentsData.find(a => a.id === id);
-            if (apt && apt.status === 'pending') {
-                apt.status = 'approved';
-                renderAppointments();
-                alert(`Appointment for ${apt.patientName} has been approved.`);
-            }
-        }
-
-        function cancelAppointment(id) {
-            if (confirm('Are you sure you want to cancel this appointment?')) {
-                const apt = appointmentsData.find(a => a.id === id);
-                if (apt) {
-                    apt.status = 'cancelled';
-                    renderAppointments();
-                    alert(`Appointment for ${apt.patientName} has been cancelled.`);
+            try {
+                const res = await fetch(`${DAY_URL}?date=${currentDate}`, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+                if (!data.success) {
+                    container.innerHTML = `<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">${escapeHtml(data.message || 'Failed to load appointments.')}</div>`;
+                    return;
                 }
+                visitsData = data.visits;
+                populateServiceFilter();
+                renderDay();
+            } catch (e) {
+                container.innerHTML = '<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">Could not reach the server. Please try again.</div>';
             }
         }
 
-        function completeAppointment(id) {
-            const apt = appointmentsData.find(a => a.id === id);
-            if (apt && apt.status === 'approved') {
-                apt.status = 'completed';
-                renderAppointments();
-                alert(`Appointment for ${apt.patientName} marked as completed.`);
+        function populateServiceFilter() {
+            const select = document.getElementById('serviceFilter');
+            const current = select.value;
+            const services = [...new Set(visitsData.map(v => v.service_type).filter(Boolean))].sort();
+            select.innerHTML = '<option value="all">All Services</option>' +
+                services.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+            if (services.includes(current)) select.value = current;
+        }
+
+        function getFiltered() {
+            const serviceFilter = document.getElementById('serviceFilter').value;
+            return visitsData.filter(v => serviceFilter === 'all' || v.service_type === serviceFilter);
+        }
+
+        function updateStats(filtered) {
+            document.getElementById('totalAppointments').innerText = filtered.length;
+            document.getElementById('totalPatients').innerText = new Set(filtered.map(v => v.patient_name)).size;
+            document.getElementById('totalDoctors').innerText = new Set(filtered.map(v => v.doctor_name).filter(Boolean)).size;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function renderDay() {
+            const filtered = getFiltered();
+            updateStats(filtered);
+
+            const container = document.getElementById('appointmentsContainer');
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 3rem; background: white; border-radius: 20px;">No appointments found for this day.</div>';
+                return;
             }
+
+            container.innerHTML = `
+                <div class="day-panel">
+                    <table class="appointments-table">
+                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th> </th></tr></thead>
+                        <tbody>
+                            ${filtered.map(v => `
+                                <tr>
+                                    <td><strong>${escapeHtml(v.patient_name || 'Unknown patient')}</strong></td>
+                                    <td>${escapeHtml(v.doctor_name || '—')}</td>
+                                    <td>${escapeHtml(v.service_type || '—')}</td>
+                                    <td><small style="color:#7f8c8d">${formatBookedAt(v.scheduled_at)}</small></td>
+                                    <td>${escapeHtml((v.notes || '').length > 40 ? v.notes.substring(0, 40) + '...' : (v.notes || '—'))}</td>
+                                    <td class="action-buttons">
+                                        <button class="btn-sm btn-edit" onclick="openEditNotesModal(${v.visit_id})"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                                        <button class="btn-sm btn-reschedule" onclick="openRescheduleModal(${v.visit_id})"><i class="fa-regular fa-calendar-xmark"></i> Reschedule</button>
+                                        <button class="btn-sm btn-cancel" onclick="cancelAppointment(${v.visit_id})"><i class="fa-solid fa-trash"></i> Remove</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
         }
 
         function openRescheduleModal(id) {
-            const apt = appointmentsData.find(a => a.id === id);
-            if (apt) {
-                pendingRescheduleId = id;
-                document.getElementById('modalPatientName').innerText = `${apt.patientName} - Current: ${apt.date}`;
-                document.getElementById('newDate').value = apt.date;
-                document.getElementById('rescheduleModal').style.display = 'flex';
+            const visit = visitsData.find(v => v.visit_id === id);
+            if (!visit) return;
+            pendingRescheduleId = id;
+            document.getElementById('err-reschedule').textContent = '';
+            document.getElementById('modalPatientName').innerText = `${visit.patient_name || 'Unknown patient'} — Current: ${visit.visit_date}`;
+            document.getElementById('newDate').value = visit.visit_date;
+            document.getElementById('rescheduleModal').style.display = 'flex';
+        }
+
+        async function confirmReschedule() {
+            if (!pendingRescheduleId) return;
+            const newDate = document.getElementById('newDate').value;
+            const errEl = document.getElementById('err-reschedule');
+            errEl.textContent = '';
+
+            if (!newDate) {
+                errEl.textContent = 'Pick a date.';
+                return;
+            }
+
+            const btn = document.getElementById('confirmRescheduleBtn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch(`${VISIT_BASE}/${pendingRescheduleId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ visit_date: newDate }),
+                });
+                const data = await res.json();
+
+                if (!data.success) {
+                    errEl.textContent = data.message || 'Could not reschedule this appointment.';
+                    return;
+                }
+
+                closeModal();
+                await loadDay(); // the visit may have moved off the currently viewed day
+            } catch (e) {
+                errEl.textContent = 'Could not reach the server. Please try again.';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Confirm';
             }
         }
 
-        function confirmReschedule() {
-            if (pendingRescheduleId) {
-                const apt = appointmentsData.find(a => a.id === pendingRescheduleId);
-                if (apt) {
-                    const newDate = document.getElementById('newDate').value;
-                    apt.date = newDate;
-                    apt.status = 'pending';
-                    renderAppointments();
-                    alert(`Appointment rescheduled to ${newDate}. Status set to pending for re-approval.`);
+        async function cancelAppointment(id) {
+            const visit = visitsData.find(v => v.visit_id === id);
+            if (!visit) return;
+
+            if (!confirm(`Remove the appointment for ${visit.patient_name || 'this patient'}? This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${VISIT_BASE}/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': CSRF_TOKEN, 'Accept': 'application/json' },
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await loadDay();
+                } else {
+                    alert(data.message || 'Could not remove this appointment.');
                 }
-                closeModal();
+            } catch (e) {
+                alert('Could not reach the server. Please try again.');
             }
         }
 
@@ -222,87 +460,160 @@
             pendingRescheduleId = null;
         }
 
-        function renderAppointments() {
-            const filtered = getFilteredAppointments();
-            const grouped = groupByDate(filtered);
-            const sortedDates = Object.keys(grouped).sort();
-            const container = document.getElementById('appointmentsContainer');
-            container.innerHTML = '';
-            if (sortedDates.length === 0) {
-                container.innerHTML = '<div style="text-align: center; padding: 3rem; background: white; border-radius: 20px;">No appointments found for this period.</div>';
-                updateStats();
-                return;
-            }
-            sortedDates.forEach(date => {
-                const appointments = grouped[date];
-                const formattedDate = new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                const pendingCount = appointments.filter(a => a.status === 'pending').length;
-                const dayGroup = document.createElement('div');
-                dayGroup.className = 'day-group';
-                dayGroup.innerHTML = `
-                    <div class="day-header" data-date="${date}">
-                        <div class="day-title">
-                            <span><i class="bi bi-calendar-week"></i></span>
-                            <span>${formattedDate}</span>
-                            <span class="appointment-count">${appointments.length} appointments</span>
-                            ${pendingCount > 0 ? `<span class="appointment-count" style="background: #e67e22;">${pendingCount} pending</span>` : ''}
-                        </div>
-                        <div class="toggle-icon">▼</div>
-                    </div>
-                    <div class="day-content" data-date-content="${date}">
-                        <table class="appointments-table">
-                            <thead><tr><th>Patient</th><th>Department</th><th>Doctor</th><th>Status</th><th>Actions</th></tr></thead>
-                            <tbody>
-                                ${appointments.map(apt => `
-                                    <tr>
-                                        <td><strong>${apt.patientName}</strong><br><small style="color:#7f8c8d">${apt.phone}</small><br><small>${apt.concern.substring(0,30)}</small></td>
-                                        <td>${apt.department}</td>
-                                        <td>${apt.doctor}</td>
-                                        <td><span class="status-badge status-${apt.status}">${apt.status.toUpperCase()}</span></td>
-                                        <td class="action-buttons">
-                                            ${apt.status === 'pending' ? `<button class="btn-sm btn-approve" onclick="approveAppointment(${apt.id})">✓ Approve</button>` : ''}
-                                            ${apt.status === 'approved' ? `<button class="btn-sm btn-approve" onclick="completeAppointment(${apt.id})">✔ Complete</button>` : ''}
-                                            <button class="btn-sm btn-reschedule" onclick="openRescheduleModal(${apt.id})"><i class="fa-regular fa-calendar-xmark"></i> Reschedule</button>
-                                            ${apt.status !== 'cancelled' ? `<button class="btn-sm btn-cancel" onclick="cancelAppointment(${apt.id})">✖ Cancel</button>` : ''}
-                                            <button class="btn-sm btn-view" onclick="alert('View details for ${apt.patientName}')">👁 View</button>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                container.appendChild(dayGroup);
-                const header = dayGroup.querySelector('.day-header');
-                const content = dayGroup.querySelector('.day-content');
-                header.addEventListener('click', () => {
-                    content.classList.toggle('collapsed');
-                    const icon = header.querySelector('.toggle-icon');
-                    icon.style.transform = content.classList.contains('collapsed') ? 'rotate(-90deg)' : 'rotate(0deg)';
-                });
-            });
-            updateStats();
+        function openEditNotesModal(id) {
+            const visit = visitsData.find(v => v.visit_id === id);
+            if (!visit) return;
+            pendingEditNotesId = id;
+            document.getElementById('err-edit-notes').textContent = '';
+            document.getElementById('editNotesPatientName').innerText = `${visit.patient_name || 'Unknown patient'} — ${visit.visit_date}`;
+            document.getElementById('editNotesText').value = visit.notes || '';
+            document.getElementById('editNotesModal').style.display = 'flex';
         }
 
-        document.getElementById('statusFilter').addEventListener('change', () => renderAppointments());
-        document.getElementById('departmentFilter').addEventListener('change', () => renderAppointments());
-        document.getElementById('prevWeekBtn').addEventListener('click', () => { currentWeekOffset--; updateWeekRange(); });
-        document.getElementById('nextWeekBtn').addEventListener('click', () => { currentWeekOffset++; updateWeekRange(); });
-        
-      
-        
+        async function confirmEditNotes() {
+            if (!pendingEditNotesId) return;
+            const newNotes = document.getElementById('editNotesText').value;
+            const errEl = document.getElementById('err-edit-notes');
+            errEl.textContent = '';
+
+            const btn = document.getElementById('confirmEditNotesBtn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch(`${VISIT_BASE}/${pendingEditNotesId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ notes: newNotes }),
+                });
+                const data = await res.json();
+
+                if (!data.success) {
+                    errEl.textContent = data.message || 'Could not save these notes.';
+                    return;
+                }
+
+                closeEditNotesModal();
+                await loadDay();
+            } catch (e) {
+                errEl.textContent = 'Could not reach the server. Please try again.';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save';
+            }
+        }
+
+        function closeEditNotesModal() {
+            document.getElementById('editNotesModal').style.display = 'none';
+            pendingEditNotesId = null;
+        }
+
         function handleLogout() {
             if (confirm('Are you sure you want to logout?')) {
                 alert('Logging out... Redirecting to login page.');
             }
         }
-        
-        updateWeekRange();
-        
-        window.onclick = function(event) {
-            const modal = document.getElementById('rescheduleModal');
-            if (event.target === modal) closeModal();
+
+        /* ── Download dropdown ── */
+        function toggleDownloadMenu() {
+            document.getElementById('downloadDropdown').classList.toggle('open');
         }
+
+        function getExportRows() {
+            return getFiltered().map(v => ({
+                Patient: v.patient_name || 'Unknown patient',
+                Doctor: v.doctor_name || '—',
+                Service: v.service_type || '—',
+                'Scheduled At': formatBookedAt(v.scheduled_at),
+                Notes: v.notes || '',
+            }));
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportCSV() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No appointments to export for this day.'); return; }
+            const headers = Object.keys(rows[0]);
+            const csvLines = [
+                headers.join(','),
+                ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(','))
+            ];
+            const blob = new Blob(["\ufeff" + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            downloadBlob(blob, `appointments_${currentDate}.csv`);
+            toggleDownloadMenu();
+        }
+
+        function exportExcel() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No appointments to export for this day.'); return; }
+            const ws = XLSX.utils.json_to_sheet(rows);
+            ws['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 40 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Appointments');
+            XLSX.writeFile(wb, `appointments_${currentDate}.xlsx`);
+            toggleDownloadMenu();
+        }
+
+        function exportPDF() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No appointments to export for this day.'); return; }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(14);
+            doc.text(`Scheduled Visits - ${formatDayLabel(currentDate)}`, 14, 15);
+            doc.autoTable({
+                startY: 22,
+                head: [['Patient', 'Doctor', 'Service', 'Scheduled At', 'Notes']],
+                body: rows.map(r => [r.Patient, r.Doctor, r.Service, r['Scheduled At'], r.Notes]),
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [14, 98, 170] },
+                columnStyles: { 4: { cellWidth: 60 } },
+            });
+            doc.save(`appointments_${currentDate}.pdf`);
+            toggleDownloadMenu();
+        }
+
+        document.getElementById('downloadBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDownloadMenu();
+        });
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('downloadDropdown');
+            if (dropdown.classList.contains('open') && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
+
+        document.getElementById('serviceFilter').addEventListener('change', () => renderDay());
+        document.getElementById('prevDayBtn').addEventListener('click', () => { currentDate = shiftDate(currentDate, -1); loadDay(); });
+        document.getElementById('nextDayBtn').addEventListener('click', () => { currentDate = shiftDate(currentDate, 1); loadDay(); });
+        document.getElementById('todayBtn').addEventListener('click', () => { currentDate = new Date().toISOString().slice(0, 10); loadDay(); });
+        document.getElementById('dayPicker').addEventListener('change', (e) => {
+            if (e.target.value) { currentDate = e.target.value; loadDay(); }
+        });
+
+        window.onclick = function(event) {
+            const rescheduleModal = document.getElementById('rescheduleModal');
+            const editNotesModal = document.getElementById('editNotesModal');
+            if (event.target === rescheduleModal) closeModal();
+            if (event.target === editNotesModal) closeEditNotesModal();
+        }
+
+        loadDay();
     </script>
 </body>
 </html>

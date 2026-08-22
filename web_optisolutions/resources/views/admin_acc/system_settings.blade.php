@@ -1,11 +1,18 @@
-{{-- resources/views/admin_acc/system_settings --}}
-@extends('admin_acc.layout') {{-- adjust to whatever your admin layout is called --}}
-
-@section('content')
-<div class="container">
-    <div style="flex:1; min-width:0;">
-
-        <div class="page-header">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System Settings</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    @vite(['resources/css/admin_css/user_management.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/system_settings.css'])
+</head>
+<body>
+    @include('admin_acc.header')
+    <div class="container">
+        @include('admin_acc.sidebar')
+        <main style="flex: 1; min-width: 0;">
+            <div class="page-header">
             <h2><i class="bi bi-gear"></i> System Settings</h2>
             <p>Manage clinic hours, about page, contact info, and services</p>
         </div>
@@ -24,6 +31,9 @@
                 <button class="add-patient-btn tab-btn" data-tab="contact" type="button">Contact</button>
                 <button class="add-patient-btn tab-btn" data-tab="services" type="button">Services</button>
             </div>
+            <button class="add-patient-btn" id="addServiceBtn" type="button" onclick="openServiceModal()" style="display:none;">
+                <i class="bi bi-plus-lg"></i> Add Service
+            </button>
         </div>
 
         {{-- HOURS --}}
@@ -121,23 +131,16 @@
         {{-- SERVICES --}}
         <div class="tab-panel" id="tab-services">
 
-            <div class="filter-bar">
-                <div></div>
-                <button class="add-patient-btn" type="button" onclick="openServiceModal()">
-                    <i class="bi bi-plus-lg"></i> Add Service
-                </button>
-            </div>
-
             <div class="patients-table-container">
                 <table class="patients-table">
                     <thead>
                         <tr>
-                            <th>Title</th>
+                            <th>Service</th>
                             <th>Room</th>
                             <th>Schedule</th>
                             <th>Description</th>
                             <th>Status</th>
-                            <th>Actions</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -222,9 +225,6 @@
             </div>
         </div>
 
-    </div>
-</div>
-
 <script>
     // Tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -233,6 +233,7 @@
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            document.getElementById('addServiceBtn').style.display = btn.dataset.tab === 'services' ? 'flex' : 'none';
         });
     });
 
@@ -283,13 +284,7 @@
         if (e.target === serviceModal) closeServiceModal();
     });
 </script>
-
-<style>
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
-.tab-btn { opacity: 0.6; }
-.tab-btn.active { opacity: 1; box-shadow: 0 4px 12px rgba(14, 98, 170, 0.3); }
-.core-value-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-.core-value-row input { flex: 1; }
-</style>
-@endsection
+        </main>
+    </div>
+</body>
+</html>

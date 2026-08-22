@@ -11,6 +11,9 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <title>OptiSolutions - Patient Records</title>
 @vite(['resources/css/admin_css/patients.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 </head>
@@ -56,9 +59,21 @@
                     <option value="all">All Departments</option>
                 </select>
             </div>
-            <button class="add-patient-btn" id="openAddModalBtn">
-                <span><i class="fa-solid fa-plus"></i></span> Add New Patient
-            </button>
+            <div style="display:flex; gap:0.75rem; align-items:center;">
+                <div class="download-dropdown" id="downloadDropdown">
+                    <button type="button" class="download-btn" id="downloadBtn">
+                        <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
+                    </button>
+                    <div class="download-menu">
+                        <button type="button" onclick="exportPDF()"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                        <button type="button" onclick="exportCSV()"><i class="fa-regular fa-file-lines"></i> CSV</button>
+                        <button type="button" onclick="exportExcel()"><i class="fa-regular fa-file-excel"></i> Excel</button>
+                    </div>
+                </div>
+                <button class="add-patient-btn" id="openAddModalBtn">
+                    <span><i class="fa-solid fa-plus"></i></span> Add New Patient
+                </button>
+            </div>
         </div>
 
         <!-- Patients Table -->
@@ -71,6 +86,7 @@
                         <th onclick="sortTable('age')">Age <span class="sort-indicator" id="sort-age"><i class="fa-solid fa-sort"></i></span></th>
                         <th onclick="sortTable('department')">Department <span class="sort-indicator" id="sort-dept"><i class="fa-solid fa-sort"></i></span></th>
                         <th onclick="sortTable('doctor')">Assigned Doctor <span class="sort-indicator" id="sort-doctor"><i class="fa-solid fa-sort"></i></span></th>
+                        <th>Notes</th>
                         <th> </th>
                     </tr>
                 </thead>
@@ -158,6 +174,60 @@
         .visit-history-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.82rem; }
         .visit-history-table th { text-align: left; padding: 0.5rem; color: #95a5a6; font-size: 0.72rem; text-transform: uppercase; border-bottom: 1px solid #f0f4f8; }
         .visit-history-table td { padding: 0.5rem; border-bottom: 1px solid #f0f4f8; }
+
+        /* ── Download button + dropdown ── */
+        .download-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.1rem;
+            background: var(--primary-main, #0E62AA);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+        .download-btn:hover { background: #0b4f8a; }
+        .download-btn .chevron { font-size: 0.65rem; transition: transform 0.2s ease; }
+        .download-dropdown.open .download-btn .chevron { transform: rotate(180deg); }
+        .download-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            overflow: hidden;
+            min-width: 170px;
+            z-index: 50;
+        }
+        .download-dropdown.open .download-menu { display: block; }
+        .download-menu button {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            width: 100%;
+            padding: 0.65rem 1rem;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            color: #333;
+            transition: background 0.15s ease;
+        }
+        .download-menu button:hover { background: #ECF0F1; }
+        .download-menu button i { width: 16px; color: var(--primary-main, #0E62AA); }
     </style>
 
     <script>
@@ -170,20 +240,20 @@
 
         async function loadPatients() {
             const tbody = document.getElementById('patientsTableBody');
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Loading...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Loading...</td></tr>';
 
             try {
                 const res = await fetch(LIST_URL, { headers: { 'Accept': 'application/json' } });
                 const data = await res.json();
                 if (!data.success) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(data.message || 'Failed to load patients.')}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(data.message || 'Failed to load patients.')}</td></tr>`;
                     return;
                 }
                 patientsData = data.patients;
                 populateDepartmentFilter();
                 renderPatients();
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Could not reach the server. Please try again.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Could not reach the server. Please try again.</td></tr>';
             }
         }
 
@@ -203,8 +273,8 @@
             return div.innerHTML;
         }
 
-        // Render patients table
-        function renderPatients() {
+        // Shared filter + sort, used by both the table render and exports
+        function getFilteredPatients() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const deptFilter = document.getElementById('departmentFilter').value;
 
@@ -216,7 +286,6 @@
                 return matchesSearch && matchesDept;
             });
 
-            // Sort
             filtered.sort((a, b) => {
                 let valA = a[currentSort.column];
                 let valB = b[currentSort.column];
@@ -232,10 +301,16 @@
                 return 0;
             });
 
+            return filtered;
+        }
+
+        // Render patients table
+        function renderPatients() {
+            const filtered = getFilteredPatients();
             const tbody = document.getElementById('patientsTableBody');
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No patients found. Click "Add New Patient" to create a record.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No patients found. Click "Add New Patient" to create a record.</td></tr>';
             } else {
                 tbody.innerHTML = filtered.map(patient => `
                     <tr>
@@ -244,6 +319,7 @@
                         <td>${patient.age != null ? patient.age + ' years' : '—'}</td>
                         <td>${escapeHtml(patient.department || '—')}</td>
                         <td>${escapeHtml(patient.doctor || '—')}</td>
+                        <td><small style="color:#7f8c8d">${escapeHtml((patient.notes || '').length > 40 ? patient.notes.substring(0, 40) + '...' : (patient.notes || '—'))}</small></td>
                         <td class="action-buttons">
                             <button class="btn-icon btn-view" onclick="viewPatient(${patient.id})"> <i class="fa-regular fa-eye"></i> View</button>
                             <button class="btn-icon btn-edit" onclick="editPatient(${patient.id})"> <i class="fa-regular fa-edit"></i> Edit</button>
@@ -432,6 +508,87 @@
                 alert('Logging out... Redirecting to login page.');
             }
         }
+
+        /* ── Download dropdown ── */
+        function toggleDownloadMenu() {
+            document.getElementById('downloadDropdown').classList.toggle('open');
+        }
+
+        function getExportRows() {
+            return getFilteredPatients().map(p => ({
+                'Patient ID': p.id,
+                Name: p.name || 'Unknown',
+                Age: p.age != null ? p.age : '—',
+                Department: p.department || '—',
+                'Assigned Doctor': p.doctor || '—',
+                Notes: p.notes || '—',
+            }));
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportCSV() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No patients to export.'); return; }
+            const headers = Object.keys(rows[0]);
+            const csvLines = [
+                headers.join(','),
+                ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(','))
+            ];
+            const blob = new Blob(["\ufeff" + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            downloadBlob(blob, 'patients.csv');
+            toggleDownloadMenu();
+        }
+
+        function exportExcel() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No patients to export.'); return; }
+            const ws = XLSX.utils.json_to_sheet(rows);
+            ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 8 }, { wch: 20 }, { wch: 22 }, { wch: 35 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Patients');
+            XLSX.writeFile(wb, 'patients.xlsx');
+            toggleDownloadMenu();
+        }
+
+        function exportPDF() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No patients to export.'); return; }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(14);
+            doc.text('Patient Records', 14, 15);
+            doc.autoTable({
+                startY: 22,
+                head: [['Patient ID', 'Name', 'Age', 'Department', 'Assigned Doctor', 'Notes']],
+                body: rows.map(r => [r['Patient ID'], r.Name, r.Age, r.Department, r['Assigned Doctor'], r.Notes]),
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [14, 98, 170] },
+                columnStyles: { 5: { cellWidth: 55 } },
+            });
+            doc.save('patients.pdf');
+            toggleDownloadMenu();
+        }
+
+        document.getElementById('downloadBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDownloadMenu();
+        });
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('downloadDropdown');
+            if (dropdown.classList.contains('open') && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
 
         // Event listeners
         document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);

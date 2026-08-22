@@ -6,6 +6,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <title>OptiSolutions - Scheduled Visits</title>
 
     @vite(['resources/css/admin_css/appointments.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/feedback.css'])
@@ -116,6 +119,60 @@
             margin-top: 0.3rem;
         }
         #editNotesModal textarea:focus { outline: none; border-color: #0E62AA; }
+
+        /* ── Download button + dropdown ── */
+        .download-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--primary-main);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+        .download-btn:hover { background: #0b4f8a; }
+        .download-btn .chevron { font-size: 0.65rem; transition: transform 0.2s ease; }
+        .download-dropdown.open .download-btn .chevron { transform: rotate(180deg); }
+        .download-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            background: var(--white);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px var(--shadow);
+            overflow: hidden;
+            min-width: 170px;
+            z-index: 50;
+        }
+        .download-dropdown.open .download-menu { display: block; }
+        .download-menu button {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            width: 100%;
+            padding: 0.65rem 1rem;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            color: var(--text-dark);
+            transition: background 0.15s ease;
+        }
+        .download-menu button:hover { background: var(--light-gray); }
+        .download-menu button i { width: 16px; color: var(--primary-main); }
     </style>
 </head>
 <body>
@@ -153,6 +210,16 @@
                 <select class="filter-select" id="serviceFilter">
                     <option value="all">All Services</option>
                 </select>
+                <div class="download-dropdown" id="downloadDropdown">
+                    <button type="button" class="download-btn" id="downloadBtn">
+                        <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
+                    </button>
+                    <div class="download-menu">
+                        <button type="button" onclick="exportPDF()"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                        <button type="button" onclick="exportCSV()"><i class="fa-regular fa-file-lines"></i> CSV</button>
+                        <button type="button" onclick="exportExcel()"><i class="fa-regular fa-file-excel"></i> Excel</button>
+                    </div>
+                </div>
             </div>
             <div class="day-nav">
                 <button class="day-nav-btn" id="prevDayBtn" title="Previous day">
@@ -450,6 +517,86 @@
                 alert('Logging out... Redirecting to login page.');
             }
         }
+
+        /* ── Download dropdown ── */
+        function toggleDownloadMenu() {
+            document.getElementById('downloadDropdown').classList.toggle('open');
+        }
+
+        function getExportRows() {
+            return getFiltered().map(v => ({
+                Patient: v.patient_name || 'Unknown patient',
+                Doctor: v.doctor_name || '—',
+                Service: v.service_type || '—',
+                'Scheduled At': formatBookedAt(v.scheduled_at),
+                Notes: v.notes || '',
+            }));
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportCSV() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No appointments to export for this day.'); return; }
+            const headers = Object.keys(rows[0]);
+            const csvLines = [
+                headers.join(','),
+                ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(','))
+            ];
+            const blob = new Blob(["\ufeff" + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            downloadBlob(blob, `appointments_${currentDate}.csv`);
+            toggleDownloadMenu();
+        }
+
+        function exportExcel() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No appointments to export for this day.'); return; }
+            const ws = XLSX.utils.json_to_sheet(rows);
+            ws['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 40 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Appointments');
+            XLSX.writeFile(wb, `appointments_${currentDate}.xlsx`);
+            toggleDownloadMenu();
+        }
+
+        function exportPDF() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No appointments to export for this day.'); return; }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(14);
+            doc.text(`Scheduled Visits - ${formatDayLabel(currentDate)}`, 14, 15);
+            doc.autoTable({
+                startY: 22,
+                head: [['Patient', 'Doctor', 'Service', 'Scheduled At', 'Notes']],
+                body: rows.map(r => [r.Patient, r.Doctor, r.Service, r['Scheduled At'], r.Notes]),
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [14, 98, 170] },
+                columnStyles: { 4: { cellWidth: 60 } },
+            });
+            doc.save(`appointments_${currentDate}.pdf`);
+            toggleDownloadMenu();
+        }
+
+        document.getElementById('downloadBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDownloadMenu();
+        });
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('downloadDropdown');
+            if (dropdown.classList.contains('open') && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
 
         document.getElementById('serviceFilter').addEventListener('change', () => renderDay());
         document.getElementById('prevDayBtn').addEventListener('click', () => { currentDate = shiftDate(currentDate, -1); loadDay(); });

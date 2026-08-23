@@ -226,6 +226,12 @@ body {
   font-size: 14px;
   line-height: 1.45;
   word-break: break-word;
+  /* Preserves \n line breaks from the backend (e.g. multi-line
+     "Suggested schedule:" messages) as real line breaks instead of
+     collapsing them into one run-on paragraph. Also preserves
+     ordinary spaces, which is fine since word-break already handles
+     long unbroken strings. */
+  white-space: pre-line;
 }
 
 .chat-message.bot .chat-bubble {
@@ -516,6 +522,10 @@ body {
   margin-bottom: 16px;
   color: var(--gray-900);
   text-align: center;
+  /* Same reasoning as .chat-bubble above — card titles can now carry
+     \n line breaks (e.g. "Schedule Visit Confirmed, Juan!") without
+     collapsing into one run-on line. */
+  white-space: pre-line;
 }
 
 .post-appt-card p {
@@ -661,9 +671,18 @@ body {
 }
 
 .star-btn.active,
+.star-btn.filled,
 .star-btn:hover {
   color: #F5B042;
   transform: scale(1.05);
+}
+
+/* Once a star is picked (see chatbot.js addStarRating), the button is
+   disabled but should stay visually gold — without this, the disabled
+   state's default dimmed styling could make it look unpicked again. */
+.star-btn.filled:disabled {
+  color: #F5B042;
+  opacity: 1;
 }
 
 .comment-box {

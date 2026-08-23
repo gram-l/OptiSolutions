@@ -280,6 +280,21 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // Renders text into a bubble/title element, converting **bold** markers
+  // into real <strong> tags. HTML-escapes first so nothing from the
+  // backend (or, indirectly, from patient input reflected back) can
+  // inject markup — only the ** syntax we control from PHP is honored.
+  // Combined with `white-space: pre-line` in CSS, plain \n line breaks
+  // in the source text also render as real line breaks instead of being
+  // collapsed into one paragraph.
+  function renderBubbleText(el, text) {
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    el.innerHTML = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+
   function addBubble(text, sender = 'bot', persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
@@ -288,10 +303,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
-    bubble.textContent = text;
+    renderBubbleText(bubble, text);
 
     messageWrap.appendChild(bubble);
-    attachTranslateControls(messageWrap, () => bubble.textContent);
+    // Pass the original (un-rendered) text to the translator, not the
+    // bubble's innerHTML/textContent, so ** markers don't leak into
+    // what gets sent for translation.
+    attachTranslateControls(messageWrap, () => text);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
 
@@ -471,7 +489,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const title = document.createElement('div');
     title.className = 'post-appt-title';
-    title.textContent = data.title;
+    // Title can also carry \n / **bold** now (e.g. multi-line card
+    // headers), same rendering path as chat bubbles.
+    renderBubbleText(title, data.title);
     card.appendChild(title);
 
     (data.sections || []).forEach(section => {

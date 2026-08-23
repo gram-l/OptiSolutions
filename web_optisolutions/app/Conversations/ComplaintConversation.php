@@ -8,7 +8,9 @@ use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use Illuminate\Support\Facades\DB;
 use App\Models\admin_models\Complaint;
+use App\Services\ClinicInfoService;
 use App\Services\SentimentAnalysisService;
+use Closure;
 
 class ComplaintConversation extends Conversation
 {
@@ -26,20 +28,76 @@ class ComplaintConversation extends Conversation
         $this->askComplaint();
     }
 
-    public function askComplaint()
+    // Normalize the incoming answer for command matching.
+    protected function normalizeCommand(Answer $answer): string
     {
-        $this->ask('Please describe your concern in detail. We would like to hear your experience from us.', function (Answer $answer) {
+        return strtolower(trim($answer->getValue() ?: $answer->getText()));
+    }
+
+    // Check if the answer is a menu command.
+    protected function isGlobalCommand(Answer $answer): bool
+    {
+        return in_array($this->normalizeCommand($answer), [
+            'schedule visit',
+            'general information',
+            'review', 'submit review/rating',
+            'complaint', 'submit complaint',
+            'cancel', 'menu',
+        ], true);
+    }
+
+    // Route a menu command to the right handler.
+    protected function handleGlobalCommand(Answer $answer, Closure $resumeCurrentStep)
+    {
+        $cmd = $this->normalizeCommand($answer);
+
+        if ($cmd === 'schedule visit') {
+            $this->bot->startConversation(new AppointmentConversation());
+            return;
+        }
+
+        if ($cmd === 'general information') {
+            $this->say(ClinicInfoService::infoCardMessage());
+            $resumeCurrentStep();
+            return;
+        }
+
+        if (in_array($cmd, ['review', 'submit review/rating'], true)) {
+            $this->bot->startConversation(new ReviewConversation($this->patientId, $this->patientName));
+            return;
+        }
+
+        if (in_array($cmd, ['complaint', 'submit complaint'], true)) {
+            $resumeCurrentStep();
+            return;
+        }
+
+        if (in_array($cmd, ['cancel', 'menu'], true)) {
+            $this->say('Okay, cancelled. Type "Menu" anytime to start again.');
+            return;
+        }
+    }
+
+    // Ask the patient to describe their complaint.
+    public function askComplaint(
+        $prompt = 'Please describe your concern in detail. We would like to hear about your experience so we can address it properly.'
+    ) {
+        $this->ask($prompt, function (Answer $answer) use ($prompt) {
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->askComplaint($prompt));
+            }
+
             $text = trim($answer->getText());
 
-            if (strlen($text) < 10) {
-                $this->say('Please provide a more detailed description (at least 10 characters).');
-                return $this->askComplaint();
+            if (mb_strlen($text) < 10) {
+                return $this->askComplaint('Please share a bit more detail about your concern (at least a full sentence) so we can better understand and address it:');
             }
 
             $this->submitComplaint($text);
         });
     }
 
+    // Save the complaint and notify the patient.
     protected function submitComplaint($text)
     {
         try {
@@ -49,8 +107,7 @@ class ComplaintConversation extends Conversation
                 'bot_message'  => 'Complaint recorded',
             ]);
 
-            // Complaint::create() instead of DB::table()->insert()
-            // — gives us a model instance so we can attach a category
+            // Create the complaint record.
             $complaint = Complaint::create([
                 'patient_id'     => $this->patientId,
                 'log_id'         => $logId,
@@ -67,6 +124,7 @@ class ComplaintConversation extends Conversation
         $this->backToMainMenu();
     }
 
+    // Show the main menu and route the chosen action.
     protected function backToMainMenu()
     {
         $question = Question::create('Is there anything else I can help you with?')
@@ -74,10 +132,17 @@ class ComplaintConversation extends Conversation
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),
                 Button::create('General Information')->value('general information'),
-                Button::create('Submit Review/Rating')->value('submit review/rating'),
-                Button::create('Submit Complaint')->value('submit complaint'),
+                Button::create('Submit Review/Rating')->value('review'),
+                Button::create('Submit Complaint')->value('complaint'),
             ]);
 
-        $this->bot->reply($question);
+        $this->ask($question, function (Answer $answer) {
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->backToMainMenu());
+            }
+
+            $this->say('Please choose one of the options above.');
+            $this->backToMainMenu();
+        });
     }
 }

@@ -5,6 +5,20 @@
     <title>Conversation Transcript</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f4f5f7; font-family: Arial, Helvetica, sans-serif;">
+    @php
+        // Converts the same **bold** markdown-style markers used for
+        // chat-bubble styling on the frontend (chatbot.js) into real
+        // <strong> tags for this HTML email. Callers must pass text
+        // that has ALREADY been HTML-escaped (e.g. via e()) — this
+        // only inserts <strong>/</strong> around the escaped content,
+        // it does not escape anything itself.
+        if (!function_exists('polyclinic_transcript_boldify')) {
+            function polyclinic_transcript_boldify(string $escapedText): string
+            {
+                return preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $escapedText);
+            }
+        }
+    @endphp
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; padding:24px 0;">
         <tr>
             <td align="center">
@@ -23,21 +37,54 @@
 
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                 @foreach ($transcript as $entry)
+                                    @php
+                                        $isBot = ($entry['role'] ?? '') === 'Bot';
+                                        $senderLabel = $isBot ? 'PolyClinic Bot' : $patientName;
+                                        // Escape first, then turn **..** into <strong>..</strong>,
+                                        // then let nl2br handle line breaks — same order the bot
+                                        // uses on-screen (escape, then style, then wrap lines).
+                                        $formattedText = nl2br(polyclinic_transcript_boldify(e($entry['text'])));
+                                    @endphp
                                     <tr>
+                                        {{--
+                                            Row-level left/right split — this is the actual fix.
+                                            Previously both roles rendered into the SAME left-hand
+                                            cell (only the label/background color changed via the
+                                            ternaries), so nothing ever moved to the right side no
+                                            matter who sent it. Now the message block itself sits
+                                            in a left OR right <td> depending on role, with an
+                                            empty spacer <td> on the opposite side — the standard
+                                            way to fake flex-style alignment in HTML email, since
+                                            Gmail and most clients ignore flexbox/grid CSS.
+                                        --}}
                                         <td style="padding:6px 0; vertical-align:top;">
-                                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                                 <tr>
-                                                    <td style="width:70%; vertical-align:top;">
-                                                        <span style="display:inline-block; font-size:11px; font-weight:bold; color:{{ $entry['role'] === 'Bot' ? '#0f766e' : '#374151' }}; margin-bottom:2px;">
-                                                            {{ $entry['role'] === 'Bot' ? 'PolyClinic Bot' : $patientName }}
-                                                        </span>
-                                                        <div style="font-size:13px; color:#111827; background-color:{{ $entry['role'] === 'Bot' ? '#ecfdf5' : '#f3f4f6' }}; padding:8px 12px; border-radius:6px; display:inline-block;">
-                                                            {{ $entry['text'] }}
-                                                        </div>
-                                                    </td>
-                                                    <td style="width:30%; text-align:right; vertical-align:top; padding-top:4px;">
-                                                        <span style="font-size:11px; color:#9ca3af;">{{ $entry['time'] }}</span>
-                                                    </td>
+                                                    @if ($isBot)
+                                                        {{-- BOT — left column, white bubble (matches .chat-message.bot .chat-bubble in chatbot.css) --}}
+                                                        <td align="left" style="width:75%; vertical-align:top;">
+                                                            <div style="font-size:11px; font-weight:bold; color:#0F67B3; margin-bottom:3px;">
+                                                                {{ $senderLabel }}
+                                                                <span style="font-weight:normal; color:#9ca3af;">&nbsp;&middot;&nbsp;{{ $entry['time'] }}</span>
+                                                            </div>
+                                                            <div style="font-size:13px; line-height:1.5; color:#1F2A3A; background-color:#ffffff; border:1px solid #E4E9F0; padding:8px 14px; border-radius:18px 18px 18px 5px; display:inline-block; white-space:pre-line;">
+                                                                {!! $formattedText !!}
+                                                            </div>
+                                                        </td>
+                                                        <td style="width:25%;">&nbsp;</td>
+                                                    @else
+                                                        {{-- PATIENT — right column, solid blue bubble (matches .chat-message.user .chat-bubble in chatbot.css) --}}
+                                                        <td style="width:25%;">&nbsp;</td>
+                                                        <td align="right" style="width:75%; vertical-align:top;">
+                                                            <div style="font-size:11px; font-weight:bold; color:#374151; margin-bottom:3px; text-align:right;">
+                                                                {{ $senderLabel }}
+                                                                <span style="font-weight:normal; color:#9ca3af;">&nbsp;&middot;&nbsp;{{ $entry['time'] }}</span>
+                                                            </div>
+                                                            <div style="font-size:13px; line-height:1.5; color:#ffffff; background-color:#0F67B3; padding:8px 14px; border-radius:18px 18px 5px 18px; display:inline-block; text-align:left; white-space:pre-line;">
+                                                                {!! $formattedText !!}
+                                                            </div>
+                                                        </td>
+                                                    @endif
                                                 </tr>
                                             </table>
                                         </td>

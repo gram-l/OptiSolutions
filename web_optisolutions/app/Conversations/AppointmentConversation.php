@@ -193,14 +193,17 @@ class AppointmentConversation extends Conversation
         return strtolower(trim($answer->getValue() ?: $answer->getText()));
     }
 
+    // Check if the answer is a menu command.
     protected function isGlobalCommand(Answer $answer): bool
     {
         return in_array($this->normalizeCommand($answer), [
             'general information',
             'menu',
             'schedule visit',
+            'review', 'submit review/rating',
+            'complaint', 'submit complaint',
             'cancel',
-        ]);
+        ], true);
     }
 
     // Handles a global command typed/clicked during any step.
@@ -211,6 +214,20 @@ class AppointmentConversation extends Conversation
         if ($cmd === 'general information') {
             $this->sayLogged(ClinicInfoService::infoCardMessage());
             $this->askContinueOrRestart($stepKey);
+            return;
+        }
+
+        if (in_array($cmd, ['review', 'submit review/rating'], true)) {
+            $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
+            $this->bot->startConversation(
+                new ReviewConversation($patientId, trim("{$this->fname} {$this->lname}"))
+            );
+            return;
+        }
+
+        if (in_array($cmd, ['complaint', 'submit complaint'], true)) {
+            $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
+            $this->bot->startConversation(new ComplaintConversation($patientId, trim("{$this->fname} {$this->lname}")));
             return;
         }
 
@@ -400,6 +417,7 @@ class AppointmentConversation extends Conversation
             case 'schedule':         $this->suggestSchedule(); break;
             case 'transcript_email': $this->askSendTranscriptEmail(); break;
             case 'post':             $this->askPostAppointment(); break;
+            case 'menu':             $this->sendMainMenu(); break;
             default:                 $this->askName(); break;
         }
     }
@@ -407,6 +425,13 @@ class AppointmentConversation extends Conversation
     // Lets the patient continue, restart, or cancel after a mid-flow info card.
     protected function askContinueOrRestart(string $stepKey)
     {
+        // At the plain main menu there's no schedule-visit-in-progress to
+        // "continue" or "restart" — just drop them back on the menu.
+        if ($stepKey === 'menu') {
+            $this->sendMainMenu();
+            return;
+        }
+
         $question = Question::create('Would you like to continue your schedule visit, or start over?')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
@@ -453,6 +478,13 @@ class AppointmentConversation extends Conversation
             ]);
 
         $this->askLogged($question, function (Answer $answer) {
+            // A genuine free-typed question right at the greeting screen
+            // (instead of a button tap) now reaches staff via
+            // InquiryConversation, rather than being silently ignored.
+            if ($this->handleOffTopicIfAny($answer, 'menu')) {
+                return;
+            }
+
             $choice = $this->normalizeCommand($answer);
             $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
 

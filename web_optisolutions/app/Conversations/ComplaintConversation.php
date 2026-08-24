@@ -8,12 +8,14 @@ use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use Illuminate\Support\Facades\DB;
 use App\Models\admin_models\Complaint;
-use App\Services\ClinicInfoService;
+use App\Conversations\Concerns\HandlesGlobalCommands;
+use App\Conversations\Concerns\HandlesOffTopic;
 use App\Services\SentimentAnalysisService;
-use Closure;
 
 class ComplaintConversation extends Conversation
 {
+    use HandlesGlobalCommands, HandlesOffTopic;
+
     protected $patientId;
     protected $patientName;
 
@@ -26,56 +28,6 @@ class ComplaintConversation extends Conversation
     public function run()
     {
         $this->askComplaint();
-    }
-
-    // Normalize the incoming answer for command matching.
-    protected function normalizeCommand(Answer $answer): string
-    {
-        return strtolower(trim($answer->getValue() ?: $answer->getText()));
-    }
-
-    // Check if the answer is a menu command.
-    protected function isGlobalCommand(Answer $answer): bool
-    {
-        return in_array($this->normalizeCommand($answer), [
-            'schedule visit',
-            'general information',
-            'review', 'submit review/rating',
-            'complaint', 'submit complaint',
-            'cancel', 'menu',
-        ], true);
-    }
-
-    // Route a menu command to the right handler.
-    protected function handleGlobalCommand(Answer $answer, Closure $resumeCurrentStep)
-    {
-        $cmd = $this->normalizeCommand($answer);
-
-        if ($cmd === 'schedule visit') {
-            $this->bot->startConversation(new AppointmentConversation());
-            return;
-        }
-
-        if ($cmd === 'general information') {
-            $this->say(ClinicInfoService::infoCardMessage());
-            $resumeCurrentStep();
-            return;
-        }
-
-        if (in_array($cmd, ['review', 'submit review/rating'], true)) {
-            $this->bot->startConversation(new ReviewConversation($this->patientId, $this->patientName));
-            return;
-        }
-
-        if (in_array($cmd, ['complaint', 'submit complaint'], true)) {
-            $resumeCurrentStep();
-            return;
-        }
-
-        if (in_array($cmd, ['cancel', 'menu'], true)) {
-            $this->say('Okay, cancelled. Type "Menu" anytime to start again.');
-            return;
-        }
     }
 
     // Ask the patient to describe their complaint.
@@ -139,6 +91,13 @@ class ComplaintConversation extends Conversation
         $this->ask($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, fn() => $this->backToMainMenu());
+            }
+
+            // A genuine free-typed question here (instead of a button
+            // tap) now still reaches staff via InquiryConversation,
+            // rather than just getting "please choose an option" forever.
+            if ($this->handleOffTopicIfAny($answer, fn() => $this->backToMainMenu())) {
+                return;
             }
 
             $this->say('Please choose one of the options above.');

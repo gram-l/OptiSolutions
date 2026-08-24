@@ -36,7 +36,7 @@ Route::post('/forgot-password/resend-otp', [ApiForgotPasswordController::class, 
 Route::post('/forgot-password/reset',      [ApiForgotPasswordController::class, 'resetPassword']);
 
 // ── Google login ──
-Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'googleLogin']);
+Route::post('/auth/google', [GoogleAuthController::class, 'googleLogin'])->name('auth.google');
 
 // ── Patient side (PUBLIC — no auth required) ──
 Route::get('/doctors', [PatientDoctorController::class, 'index']);

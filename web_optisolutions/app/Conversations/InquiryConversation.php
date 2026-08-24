@@ -6,15 +6,19 @@ use BotMan\BotMan\Messages\Conversations\Conversation;
 use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
+use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class InquiryConversation extends Conversation
 {
+    use HandlesGlobalCommands;
+
     protected $inquiryType;
     protected $message;
     protected $patientId;
+    protected $patientName;
 
     /**
      * When AppointmentConversation auto-detects an off-topic message
@@ -49,11 +53,28 @@ class InquiryConversation extends Conversation
     public function run()
     {
         $this->patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
+        $this->patientName = $this->bot->userStorage()->find()['patient_name'] ?? null;
 
         if ($this->resumeStepKey) {
             $this->say("No worries, let's sort this out first — we'll pick your schedule visit right back up after.");
         }
 
+        // If we already have the patient's original message (they typed
+        // it while browsing the site / mid-schedule-visit, and got
+        // auto-routed here by off-topic detection), skip the "what is
+        // your inquiry about" category step entirely and send it
+        // straight to staff — don't make them answer extra questions
+        // about something they already asked once.
+        if ($this->prefilledMessage !== null) {
+            $this->inquiryType = 'General';
+            $this->message = trim($this->prefilledMessage);
+            $this->submitInquiry();
+            return;
+        }
+
+        // Only reached for a standalone inquiry someone starts on
+        // purpose (not auto-routed), where we don't yet have any text
+        // from them — so it's fine to ask a category first.
         $this->askInquiryType();
     }
 
@@ -69,6 +90,13 @@ class InquiryConversation extends Conversation
             ]);
 
         $this->ask($question, function (Answer $answer) {
+            // If the patient types "Submit Complaint" / "Menu" / etc.
+            // instead of picking an inquiry type, honor it immediately
+            // rather than treating it as an invalid answer.
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->askInquiryType());
+            }
+
             $this->inquiryType = $answer->getValue() ?: 'General';
             $this->askMessage();
         });
@@ -76,16 +104,13 @@ class InquiryConversation extends Conversation
 
     protected function askMessage($prompt = 'Please type your question or concern:')
     {
-        // If we already have the patient's original message (they typed
-        // it mid-schedule-visit and got routed here automatically),
-        // submit it directly instead of asking them to type it again.
-        if ($this->prefilledMessage !== null) {
-            $this->message = trim($this->prefilledMessage);
-            $this->submitInquiry();
-            return;
-        }
+        $this->ask($prompt, function (Answer $answer) use ($prompt) {
+            // Same escape hatch here: "Submit Complaint" mid-inquiry
+            // switches conversations instead of becoming the inquiry text.
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->askMessage($prompt));
+            }
 
-        $this->ask($prompt, function (Answer $answer) {
             $text = trim($answer->getText());
 
             if ($text === '') {

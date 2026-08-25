@@ -7,9 +7,15 @@ use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use Illuminate\Support\Facades\DB;
+use App\Models\admin_models\Complaint;
+use App\Conversations\Concerns\HandlesGlobalCommands;
+use App\Conversations\Concerns\HandlesOffTopic;
+use App\Services\SentimentAnalysisService;
 
 class ComplaintConversation extends Conversation
 {
+    use HandlesGlobalCommands, HandlesOffTopic;
+
     protected $patientId;
     protected $patientName;
 
@@ -24,20 +30,26 @@ class ComplaintConversation extends Conversation
         $this->askComplaint();
     }
 
-    public function askComplaint()
-    {
-        $this->ask('Please describe your concern in detail. Our patient relations team will respond within 24 hours:', function (Answer $answer) {
+    // Ask the patient to describe their complaint.
+    public function askComplaint(
+        $prompt = 'Please describe your concern in detail. We would like to hear about your experience so we can address it properly.'
+    ) {
+        $this->ask($prompt, function (Answer $answer) use ($prompt) {
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->askComplaint($prompt));
+            }
+
             $text = trim($answer->getText());
 
-            if (strlen($text) < 10) {
-                $this->say('⚠️ Please provide a more detailed description (at least 10 characters) so we can assist you better:');
-                return $this->askComplaint();
+            if (mb_strlen($text) < 10) {
+                return $this->askComplaint('Please share a bit more detail about your concern (at least a full sentence) so we can better understand and address it:');
             }
 
             $this->submitComplaint($text);
         });
     }
 
+    // Save the complaint and notify the patient.
     protected function submitComplaint($text)
     {
         try {
@@ -47,37 +59,49 @@ class ComplaintConversation extends Conversation
                 'bot_message'  => 'Complaint recorded',
             ]);
 
-            $complaintId = DB::table('complaints')->insertGetId([
+            // Create the complaint record.
+            $complaint = Complaint::create([
                 'patient_id'     => $this->patientId,
                 'log_id'         => $logId,
                 'complaint_text' => $text,
-                'status'         => 'pending',
+                'category'       => app(SentimentAnalysisService::class)->categorize($text),
             ]);
 
-            $this->say("Complaint Recorded\n\nReference #: {$complaintId}\nWe acknowledge receipt of your concern. Our team will reach out within 24 hours.");
+            $this->say("Complaint Recorded\n\nReference #: {$complaint->complaint_id}\nWe acknowledge receipt of your concern.");
         } catch (\Exception $e) {
-            $this->say("⚠️ We couldn't record your complaint right now. Please try again, or contact us directly.");
+            \Illuminate\Support\Facades\Log::error('submitComplaint failed: ' . $e->getMessage());
+            $this->say("We couldn't record your complaint right now. Please try again, or contact us directly.");
         }
 
-        $this->askWhatsNext();
+        $this->backToMainMenu();
     }
 
-    protected function askWhatsNext()
+    // Show the main menu and route the chosen action.
+    protected function backToMainMenu()
     {
-        $question = Question::create('Is there anything else you\'d like to do?')
-            ->fallback('Please use the buttons above, or type "menu" anytime to return to the main menu.')
+        $question = Question::create('Is there anything else I can help you with?')
+            ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('⭐ Submit Review/Rating')->value('review'),
-                Button::create("✅ No, I'm all set")->value('done'),
+                Button::create('Schedule Visit')->value('schedule visit'),
+                Button::create('General Information')->value('general information'),
+                Button::create('Submit Review/Rating')->value('review'),
+                Button::create('Submit Complaint')->value('complaint'),
             ]);
 
         $this->ask($question, function (Answer $answer) {
-            if ($answer->getValue() === 'review') {
-                $this->bot->startConversation(new ReviewConversation($this->patientId, $this->patientName));
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->backToMainMenu());
+            }
+
+            // A genuine free-typed question here (instead of a button
+            // tap) now still reaches staff via InquiryConversation,
+            // rather than just getting "please choose an option" forever.
+            if ($this->handleOffTopicIfAny($answer, fn() => $this->backToMainMenu())) {
                 return;
             }
 
-            $this->say('Thank you for choosing PolyClinic Lipa! Have a great day! 😊');
+            $this->say('Please choose one of the options above.');
+            $this->backToMainMenu();
         });
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\admin_models\Feedback;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Models\admin_models\Complaint;
 
 class FeedbackController extends Controller
 {
@@ -17,7 +18,6 @@ class FeedbackController extends Controller
             ->map(function ($f) {
                 return [
                     'id' => $f->feedback_id,
-                    'patient' => 'Patient #' . $f->patient_id,
                     'rating' => (int) $f->star_rating,
                     'comment' => $f->feedback_text,
                     'sentiment' => $f->sentimentResult ? strtolower($f->sentimentResult->sentiment_label) : 'pending',
@@ -28,36 +28,28 @@ class FeedbackController extends Controller
         return view('admin_acc.feedback', ['feedbackData' => $feedback]);
     }
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'log_id' => 'nullable|integer',
-            'patient_id' => 'nullable|integer',
-            'feedback_text' => 'required|string',
-            'star_rating' => 'required|integer|min:1|max:5',
+    public function store(Request $request, SentimentAnalysisService $sentimentService)
+{
+    $validated = $request->validate([
+        'log_id' => 'nullable|integer',
+        'patient_id' => 'nullable|integer',
+        'feedback_text' => 'required|string',
+        'star_rating' => 'required|integer|min:1|max:5',
+    ]);
+
+    $feedback = Feedback::create(array_merge($validated, ['submitted_at' => now()]));
+
+    $result = $sentimentService->analyze($feedback->feedback_text);
+    if ($result) {
+        $feedback->sentimentResult()->create([
+            'sentiment_label' => $result['sentiment_label'],
+            'confidence_score' => $result['confidence_score'],
+            'analyzed_at' => now(),
         ]);
-
-        $feedback = Feedback::create(array_merge($validated, [
-            'submitted_at' => now(),
-        ]));
-
-        // Call Django sentiment API
-        $response = Http::post('http://192.168.254.147:8000/api/predict/', [
-            'feedback_text' => $feedback->feedback_text,
-        ]);
-
-        if ($response->successful()) {
-            $result = $response->json();
-
-            $feedback->sentimentResult()->create([
-                'sentiment_label' => $result['sentiment_label'],
-                'confidence_score' => $result['confidence_score'],
-                'analyzed_at' => now(),
-            ]);
-        }
-
-        return redirect()->back()->with('success', 'Feedback submitted.');
     }
+
+    return redirect()->back()->with('success', 'Feedback submitted.');
+}
 
     // JSON endpoint for the Flutter app (mirrors DoctorController@apiIndex)
 public function apiIndex()
@@ -82,5 +74,40 @@ public function apiIndex()
         });
 
     return response()->json($feedback);
+}
+
+public function diagnoseRootCauses()
+{
+    // Negative-classified feedback
+    $negativeFeedback = Feedback::whereHas('sentimentResult', function ($q) {
+        $q->where('sentiment_label', 'Negative');
+    })->get()->map(function ($f) {
+        return [
+            'id' => $f->feedback_id,
+            'text' => $f->feedback_text,
+            'source' => 'feedback',
+        ];
+    });
+
+    // All complaints (inherently negative, no sentiment check needed)
+    $complaints = Complaint::all()->map(function ($c) {
+        return [
+            'id' => $c->complaint_id,
+            'text' => $c->complaint_text,
+            'source' => 'complaint',
+        ];
+    });
+
+    $items = $negativeFeedback->concat($complaints)->values();
+
+    $response = Http::post('http://127.0.0.1:8001/api/diagnose/', [
+        'items' => $items,
+    ]);
+
+    if ($response->successful()) {
+        return response()->json($response->json());
+    }
+
+    return response()->json(['error' => 'Diagnosis failed'], 500);
 }
 }

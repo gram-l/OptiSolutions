@@ -6,6 +6,7 @@ import 'colors.dart';
 import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
 import '../admin_mobile/services/dashboard_service.dart';
+import '../admin_mobile/services/root_cause_service.dart';
 
 // ---------- MAIN SCREEN ----------
 class DashboardScreen extends StatefulWidget {
@@ -51,6 +52,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ---- 4) Inquiry Volume per weekday ----
   List<int> _inquiryVolumeByDay = List.filled(7, 0);
 
+  // ---- 5) Recurring Root Causes ----
+  final RootCauseService _rootCauseService = RootCauseService();
+  List<MapEntry<String, int>> _rootCauses = [];
+  bool _rootCausesLoading = true;
+
+  static const Map<String, String> _categoryLabels = {
+    'waiting_time': 'Long Waiting Times',
+    'staff_attitude': 'Staff Attitude',
+    'consultation_fees': 'Consultation Fees',
+    'medical_certificate': 'Medical Certificate Delays',
+    'doctor_expertise': 'Doctor Expertise Concerns',
+    'other': 'Other',
+  };
+
   static const List<String> _weekdayLabels = [
     'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
   ];
@@ -71,6 +86,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _loadUserName();
     _loadDashboardData();
+    _loadRootCauses();
+  }
+
+  Future<void> _loadRootCauses() async {
+    setState(() => _rootCausesLoading = true);
+    try {
+      final data = await _rootCauseService.getRootCauses();
+      if (!mounted) return;
+      setState(() {
+        _rootCauses = data.combined;
+        _rootCausesLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _rootCausesLoading = false);
+      // Non-fatal — dashboard still works without this card
+    }
   }
 
   Future<void> _loadUserName() async {
@@ -183,7 +215,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   )
                 : RefreshIndicator(
-                    onRefresh: _loadDashboardData,
+                    onRefresh: () async {
+                      await Future.wait([
+                        _loadDashboardData(),
+                        _loadRootCauses(),
+                      ]);
+                    },
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -217,9 +254,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(height: 16),
                           _SentimentCard(sentimentPercents: _sentimentPercents),
                           const SizedBox(height: 16),
+                          _RootCauseCard(
+                            entries: _rootCauses,
+                            loading: _rootCausesLoading,
+                            labels: _categoryLabels,
+                          ),
+                          const SizedBox(height: 16),
                           //const _RecentActivityCard(),
                           const SizedBox(height: 16),
-                          const _ActionButtonsGrid(),
+                          //const _ActionButtonsGrid(),
                           const SizedBox(height: 16),
                           const Center(
                             child: Padding(
@@ -363,9 +406,9 @@ class _StatGrid extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _StatCard(
-                label: "TODAY'S APPTS",
+                label: "SCHEDULED VISITS",
                 value: '$todaysAppointments',
-                trend: '$pendingApproval pending approval',
+                trend: 'Total Scheduled Today',
               ),
             ),
           ],
@@ -375,7 +418,7 @@ class _StatGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _StatCard(
-                label: 'ACTIVE PATIENTS',
+                label: 'PATIENTS',
                 value: '$activePatients',
                 trend: '$newPatientsThisMonth new this month',
               ),
@@ -931,7 +974,7 @@ class _ActivityItem {
 }*/
 
 // ---------- ACTION BUTTONS GRID ----------
-class _ActionButtonsGrid extends StatelessWidget {
+/*class _ActionButtonsGrid extends StatelessWidget {
   const _ActionButtonsGrid();
 
   @override
@@ -989,7 +1032,7 @@ class _ActionButtonsGrid extends StatelessWidget {
     );
   }
 }
-
+*/
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1025,6 +1068,88 @@ class _ActionButton extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ---------- ROOT CAUSE CARD ----------
+class _RootCauseCard extends StatelessWidget {
+  final List<MapEntry<String, int>> entries;
+  final bool loading;
+  final Map<String, String> labels;
+
+  const _RootCauseCard({
+    required this.entries,
+    required this.loading,
+    required this.labels,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final total = entries.fold<int>(0, (sum, e) => sum + e.value);
+    final top = entries.take(5).toList();
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.troubleshoot_rounded, size: 18, color: AppColors.primary),
+              SizedBox(width: 6),
+              Text('Recurring Issues',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else if (top.isEmpty)
+            const Text('No recurring issues detected yet.',
+                style: TextStyle(color: AppColors.textGrey, fontSize: 12.5))
+          else
+            ...top.map((e) {
+              final percent = total > 0 ? e.value / total : 0.0;
+              final label = labels[e.key] ?? e.key;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(label,
+                              style: const TextStyle(fontSize: 12.5)),
+                        ),
+                        Text('${e.value} mentions',
+                            style: const TextStyle(
+                                fontSize: 11, color: AppColors.textGrey)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: LinearProgressIndicator(
+                        value: percent.clamp(0, 1),
+                        minHeight: 8,
+                        backgroundColor: const Color(0xFFEDEFF5),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFFB71C1C)),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
       ),
     );
   }

@@ -1,5 +1,4 @@
-
-        * {
+* {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -252,7 +251,7 @@
 
         .appointments-table th {
             text-align: left;
-            padding: 1rem 1rem;
+            padding: 0.75rem 1.25rem;
             background: var(--light-gray);
             color: var(--text-dark);
             font-weight: 600;
@@ -260,7 +259,7 @@
         }
 
         .appointments-table td {
-            padding: 1rem 1rem;
+            padding: 0.75rem 1.25rem;
             border-bottom: 1px solid var(--light-gray);
             vertical-align: middle;
         }

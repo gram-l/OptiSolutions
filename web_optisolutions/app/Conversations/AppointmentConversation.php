@@ -8,6 +8,7 @@ use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Services\ClinicInfoService;
 use App\Mail\ConversationTranscriptMail;
+use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -20,47 +21,26 @@ class AppointmentConversation extends Conversation
     protected $doctor, $doctorId, $scheduleDay, $scheduleSlotIndex = 0;
     protected $scheduleSuggestion;
 
-    /**
-     * Full message-by-message log of this conversation, built up as we go
-     * via sayLogged()/askLogged(). Used to email the whole transcript at
-     * the end if the patient wants a copy.
-     * @var array<int, array{role: string, text: string, time: string}>
-     */
+    // Full message log for this conversation, used to email a transcript later.
     protected $transcript = [];
 
-    /**
-     * @var string|null
-     */
+    // Serialized callback for the current askLogged() step.
     protected $pendingAnswerCallback;
 
-    // ---------------------------------------------------------------
-    // TRANSCRIPT LOGGING
-    //
-    // sayLogged()/askLogged() are drop-in replacements for BotMan's
-    // say()/ask() that also record what was sent/received into
-    // $transcript, so we can email the full conversation at the end.
-    //
-    // IMPORTANT — why this looks the way it does:
-    // The previous version of askLogged() passed BotMan a closure that
-    // captured the step's own callback via `use ($callback)` — a
-    // closure wrapping another closure. BotMan/laravel-serializable-
-    // closure has to serialize whatever closure is passed to ask() so
-    // it can be cached and resumed on the next HTTP request, and a
-    // closure-capturing-a-closure via use() does not survive that
-    // serialize/unserialize round-trip reliably. The result: on the
-    // next request the resumed closure came back subtly broken and
-    // never got properly re-bound to the live BotMan instance, so
-    // $this->bot was null and reply() failed with
-    // "Call to a member function reply() on null".
-    //
-    // The fix: askLogged() now passes BotMan a single, non-nested
-    // closure — Closure::fromCallable([$this, 'handleLoggedAnswer']) —
-    // which only references a real method by name, nothing captured
-    // via use(). The actual per-step callback is serialized separately
-    // with BotMan's own closure serializer and stored on a plain
-    // property ($pendingAnswerCallback), which rides along safely as
-    // normal object state whenever the Conversation itself is cached.
-    // ---------------------------------------------------------------
+    // value => label map for the buttons on the most recent question.
+    protected $pendingButtonLabels = [];
+
+    // Step/state to resume after a detour into InquiryConversation.
+    protected $pendingResumeStepKey;
+    protected $pendingResumeState;
+
+    public function __construct($resumeStepKey = null, $resumeState = null)
+    {
+        $this->pendingResumeStepKey = $resumeStepKey;
+        $this->pendingResumeState = $resumeState;
+    }
+
+    // sayLogged()/askLogged() wrap BotMan's say()/ask() and also log to $transcript.
 
     protected function sayLogged($message)
     {
@@ -72,46 +52,60 @@ class AppointmentConversation extends Conversation
     {
         $this->logMessage('Bot', $question);
 
-        // Serialize the step's callback now (we have a live $this->bot
-        // here, since askLogged() is always called during an actual
-        // request) and stash it as a string on a plain property.
+        // Save button labels for this question so answers log nicely.
+        $this->pendingButtonLabels = $this->extractButtonLabels($question);
+
+        // Serialize the step's callback and stash it on a plain property.
         $this->pendingAnswerCallback = $this->bot->serializeClosure(
             Closure::fromCallable($callback)
         );
 
-        // Pass BotMan a simple, single-level closure — no nested use().
+        // Always pass BotMan the same stable handler.
         $this->ask($question, Closure::fromCallable([$this, 'handleLoggedAnswer']));
     }
 
-    /**
-     * The single, stable "next" callback BotMan actually stores/resumes
-     * for every askLogged() call. It logs the answer, then unpacks and
-     * invokes whatever step-specific callback was stashed by askLogged().
-     *
-     * @param Answer $answer
-     * @return mixed
-     */
+    // The single "next" callback BotMan stores for every askLogged() call.
     public function handleLoggedAnswer(Answer $answer)
     {
-        $this->logMessage('You', $answer->getText());
+        $this->logMessage('You', $this->displayTextForAnswer($answer));
 
         $callback = unserialize($this->pendingAnswerCallback)->getClosure();
 
-        // IMPORTANT: unserializing a closure that was bound to $this
-        // (the conversation) reconstructs a SEPARATE, stale copy of
-        // that object — not the live $this we are currently executing
-        // as, which BotMan has already re-attached a working bot to via
-        // setBot() just before this method runs. If we invoked the
-        // unserialized closure as-is, any $this->bot access inside it
-        // would hit that stale copy's bot property, which is null
-        // (Conversation::__sleep() strips 'bot' before caching).
-        //
-        // Rebinding the closure to the current, live $this fixes this:
-        // the callback now runs against the object that actually has
-        // a working bot attached.
+        // Rebind to the live $this so $this->bot works correctly.
         $callback = Closure::bind($callback, $this, static::class);
 
         return $callback($answer);
+    }
+
+    // Builds a value => label map from a Question's buttons.
+    protected function extractButtonLabels($question): array
+    {
+        if (!$question instanceof Question || !method_exists($question, 'getButtons')) {
+            return [];
+        }
+
+        $labels = [];
+        foreach ($question->getButtons() as $button) {
+            $value = $button['value'] ?? null;
+            $label = $button['text'] ?? $button['name'] ?? null;
+            if ($value !== null && $label !== null && $label !== '') {
+                $labels[(string) $value] = $label;
+            }
+        }
+
+        return $labels;
+    }
+
+    // Returns the human-readable text to log for the patient's answer.
+    protected function displayTextForAnswer(Answer $answer): string
+    {
+        $value = (string) ($answer->getValue() ?: $answer->getText());
+
+        if (isset($this->pendingButtonLabels[$value])) {
+            return $this->pendingButtonLabels[$value];
+        }
+
+        return $answer->getText();
     }
 
     protected function logMessage(string $role, $content)
@@ -123,11 +117,7 @@ class AppointmentConversation extends Conversation
         $this->transcript[] = [
             'role' => $role,
             'text' => $text,
-            // FIX: now() was returning server/UTC time (e.g. 01:42 PM)
-            // instead of local Philippine time (e.g. 09:42 PM) — an
-            // 8-hour offset. Converting to Asia/Manila here guarantees
-            // correct local time regardless of the app's default
-            // timezone config.
+            // Local Philippine time for the transcript.
             'time' => now()->timezone('Asia/Manila')->format('h:i A'),
         ];
     }
@@ -136,59 +126,87 @@ class AppointmentConversation extends Conversation
     {
         if ($content instanceof Question) {
             $text = method_exists($content, 'getText') ? $content->getText() : '';
+            $text = trim((string) $text);
+
+            // Include button options in the transcript text.
+            if (method_exists($content, 'getButtons')) {
+                $options = [];
+                foreach ($content->getButtons() as $i => $button) {
+                    $label = trim((string) ($button['text'] ?? $button['name'] ?? ''));
+                    if ($label !== '') {
+                        $options[] = ($i + 1) . ". {$label}";
+                    }
+                }
+                if (!empty($options)) {
+                    $text = ($text !== '' ? $text . "\n" : '') . implode("\n", $options);
+                }
+            }
         } elseif (is_string($content)) {
             $text = $content;
         } else {
             $text = (string) $content;
         }
 
-        // Don't dump raw card JSON payloads into the emailed transcript -
-        // summarize them instead so the email stays readable.
+        // Summarize card payloads instead of dumping raw JSON.
         if (str_starts_with($text, 'INFO_CARD::')) {
             return '[Sent: Clinic Information Card]';
         }
+
         if (str_starts_with($text, 'APPT_CARD::')) {
-            return '[Sent: Schedule Visit Confirmation Card]';
+            $decoded = json_decode(substr($text, strlen('APPT_CARD::')), true);
+
+            if (!$decoded) {
+                return '[Sent: Schedule Visit Confirmation Card]';
+            }
+
+            $lines = [];
+
+            if (!empty($decoded['title'])) {
+                $lines[] = trim(str_replace("\n", ' ', $decoded['title']));
+            }
+
+            foreach (($decoded['sections'] ?? []) as $section) {
+                foreach (($section['rows'] ?? []) as $row) {
+                    $label = $row['label'] ?? '';
+                    $value = $row['value'] ?? '';
+                    if (is_array($value)) {
+                        $value = implode(', ', $value);
+                    }
+                    $lines[] = "{$label}: {$value}";
+                }
+            }
+
+            if (!empty($decoded['footer'])) {
+                $lines[] = trim($decoded['footer']);
+            }
+
+            return implode("\n", $lines);
         }
 
+        // Keep ** markdown markers; the email view renders them as bold.
         return trim($text);
     }
 
-    // ---------------------------------------------------------------
-    // GLOBAL COMMAND INTERCEPTION
-    //
-    // BotMan routes every incoming message to whatever ask() callback
-    // is currently waiting — it does NOT re-check the top-level
-    // hears() patterns in BotManController while a conversation is
-    // active. That's why clicking "General Information" mid-schedule
-    // was previously being swallowed as the answer to "full name",
-    // "contact number", etc.
-    //
-    // Each ask() callback below calls isGlobalCommand() first. If the
-    // incoming answer is actually one of these commands rather than a
-    // real answer, we hand off to handleGlobalCommand() instead of
-    // running the step's normal validation/assignment logic.
-    // ---------------------------------------------------------------
-
+   
     protected function normalizeCommand(Answer $answer): string
     {
         return strtolower(trim($answer->getValue() ?: $answer->getText()));
     }
 
+    // Check if the answer is a menu command.
     protected function isGlobalCommand(Answer $answer): bool
     {
         return in_array($this->normalizeCommand($answer), [
             'general information',
             'menu',
             'schedule visit',
+            'review', 'submit review/rating',
+            'complaint', 'submit complaint',
             'cancel',
-        ]);
+        ], true);
     }
 
-    /**
-     * @param Answer $answer
-     * @param string $stepKey 
-     */
+    // Handles a global command typed/clicked during any step.
     protected function handleGlobalCommand(Answer $answer, string $stepKey)
     {
         $cmd = $this->normalizeCommand($answer);
@@ -196,6 +214,20 @@ class AppointmentConversation extends Conversation
         if ($cmd === 'general information') {
             $this->sayLogged(ClinicInfoService::infoCardMessage());
             $this->askContinueOrRestart($stepKey);
+            return;
+        }
+
+        if (in_array($cmd, ['review', 'submit review/rating'], true)) {
+            $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
+            $this->bot->startConversation(
+                new ReviewConversation($patientId, trim("{$this->fname} {$this->lname}"))
+            );
+            return;
+        }
+
+        if (in_array($cmd, ['complaint', 'submit complaint'], true)) {
+            $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
+            $this->bot->startConversation(new ComplaintConversation($patientId, trim("{$this->fname} {$this->lname}")));
             return;
         }
 
@@ -218,6 +250,138 @@ class AppointmentConversation extends Conversation
         }
     }
 
+    // Off-topic / inquiry detection helpers.
+
+    // Checks common attachment shapes across BotMan drivers.
+    protected function hasAttachment(Answer $answer): bool
+    {
+        $message = $answer->getMessage();
+        if (!$message) {
+            return false;
+        }
+
+        foreach (['getImages', 'getFiles', 'getVideos', 'getAudio'] as $method) {
+            if (method_exists($message, $method) && !empty($message->$method())) {
+                return true;
+            }
+        }
+
+        if (method_exists($message, 'getExtras')) {
+            $extras = $message->getExtras() ?? [];
+            foreach (['attachment', 'attachments', 'image', 'images', 'file', 'files'] as $key) {
+                if (!empty($extras[$key])) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // Heuristic: does this free-typed answer look like a question?
+    protected function looksLikeInquiry(Answer $answer): bool
+    {
+        if (method_exists($answer, 'isInteractiveMessageReply') && $answer->isInteractiveMessageReply()) {
+            return false;
+        }
+
+        $text = trim($answer->getText());
+        if ($text === '') {
+            return false;
+        }
+
+        if (str_ends_with($text, '?')) {
+            return true;
+        }
+
+        $questionWords = [
+            'ano', 'anong', 'bakit', 'paano', 'paanong', 'saan', 'saang', 'nasaan',
+            'kailan', 'sino', 'sinong', 'magkano', 'ilan', 'ilang', 'alin', 'alinng',
+            'pwede', 'puwede', 'meron', 'mayroon',
+            'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could', 'is', 'does',
+        ];
+        $words = preg_split('/\s+/', $text);
+        $firstWord = strtolower(rtrim($words[0] ?? '', '?.,!'));
+
+        return in_array($firstWord, $questionWords, true);
+    }
+
+    // Checks if the text matches a canned clinic-info answer.
+    protected function looksLikeInfoRequest(string $text): bool
+    {
+        return ClinicInfoService::looksLikeInfoRequest($text);
+    }
+
+    // Checks if the text is just an acknowledgment/thank-you.
+    protected function looksLikeAcknowledgment(Answer $answer): bool
+    {
+        if (method_exists($answer, 'isInteractiveMessageReply') && $answer->isInteractiveMessageReply()) {
+            return false;
+        }
+
+        $text = trim($answer->getText());
+        if ($text === '') {
+            return false;
+        }
+
+        return ClinicInfoService::looksLikeAcknowledgment($text);
+    }
+
+    // Entry point every step calls before its own validation.
+    protected function handleOffTopicIfAny(Answer $answer, string $stepKey): bool
+    {
+        // Acknowledgment — reply and re-ask the same step.
+        if ($this->looksLikeAcknowledgment($answer)) {
+            $this->logMessage('You', $answer->getText());
+            $this->sayLogged(ClinicInfoService::acknowledgmentReply());
+            $this->resumeStep($stepKey);
+            return true;
+        }
+
+        // Attachments always go to staff.
+        if ($this->hasAttachment($answer)) {
+            $this->routeToInquiry($answer, $stepKey);
+            return true;
+        }
+
+        if (!$this->looksLikeInquiry($answer)) {
+            return false;
+        }
+
+        $text = trim($answer->getText());
+
+        // Known info request — answer it directly.
+        if ($this->looksLikeInfoRequest($text)) {
+            $this->logMessage('You', $text);
+            $this->sayLogged(ClinicInfoService::answerForText($text) ?? ClinicInfoService::infoCardMessage());
+            $this->askContinueOrRestart($stepKey);
+            return true;
+        }
+
+        // Anything else — route to staff.
+        $this->routeToInquiry($answer, $stepKey);
+        return true;
+    }
+
+    // Routes an off-topic message to staff and stashes progress to resume later.
+    protected function routeToInquiry(Answer $answer, string $stepKey)
+    {
+        $this->logMessage('You', $answer->getText() ?: '[Attachment]');
+        $this->sayLogged("Got it — let me send that to our staff so a real person can take a look. We'll pick your schedule visit right back up after.");
+
+        $state = [
+            'fname' => $this->fname, 'lname' => $this->lname, 'phone' => $this->phone,
+            'dob' => $this->dob, 'email' => $this->email,
+            'service' => $this->service, 'serviceKey' => $this->serviceKey, 'serviceId' => $this->serviceId,
+            'doctor' => $this->doctor, 'doctorId' => $this->doctorId,
+            'scheduleDay' => $this->scheduleDay, 'scheduleSlotIndex' => $this->scheduleSlotIndex,
+            'scheduleSuggestion' => $this->scheduleSuggestion,
+            'transcript' => $this->transcript,
+        ];
+
+        $this->bot->startConversation(new InquiryConversation($answer->getText(), $stepKey, $state));
+    }
+
     protected function resetState()
     {
         $this->fname = $this->lname = $this->phone = $this->dob = $this->email = null;
@@ -227,12 +391,20 @@ class AppointmentConversation extends Conversation
         $this->scheduleSuggestion = null;
         $this->transcript = [];
         $this->pendingAnswerCallback = null;
+        $this->pendingButtonLabels = [];
     }
 
-    /**
-     * Dispatches to the correct step for a given step key. Plain switch
-     * on a string — no closures involved.
-     */
+    // Restores saved state after resuming from InquiryConversation.
+    protected function restoreState(array $state)
+    {
+        foreach ($state as $key => $value) {
+            if (property_exists($this, $key)) {
+                $this->$key = $value;
+            }
+        }
+    }
+
+    // Dispatches to the correct step for a given step key.
     protected function resumeStep(string $stepKey)
     {
         switch ($stepKey) {
@@ -245,23 +417,27 @@ class AppointmentConversation extends Conversation
             case 'schedule':         $this->suggestSchedule(); break;
             case 'transcript_email': $this->askSendTranscriptEmail(); break;
             case 'post':             $this->askPostAppointment(); break;
+            case 'menu':             $this->sendMainMenu(); break;
             default:                 $this->askName(); break;
         }
     }
 
-    /**
-     * Shown right after the general-information card is displayed
-     * mid-schedule-visit. Lets the user decide what to do next instead
-     * of the bot silently deciding for them.
-     */
+    // Lets the patient continue, restart, or cancel after a mid-flow info card.
     protected function askContinueOrRestart(string $stepKey)
     {
+        // At the plain main menu there's no schedule-visit-in-progress to
+        // "continue" or "restart" — just drop them back on the menu.
+        if ($stepKey === 'menu') {
+            $this->sendMainMenu();
+            return;
+        }
+
         $question = Question::create('Would you like to continue your schedule visit, or start over?')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('▶️ Continue Schedule Visit')->value('continue_schedule'),
-                Button::create('🔄 Start Over')->value('restart_schedule'),
-                Button::create('✖️ Cancel')->value('cancel_schedule'),
+                Button::create('Continue Schedule Visit')->value('continue_schedule'),
+                Button::create('Start Over')->value('restart_schedule'),
+                Button::create('Cancel')->value('cancel_schedule'),
             ]);
 
         $this->askLogged($question, function (Answer $followUp) use ($stepKey) {
@@ -289,32 +465,63 @@ class AppointmentConversation extends Conversation
         });
     }
 
+    // Shows the main menu and routes the chosen action.
     protected function sendMainMenu()
     {
-        $question = Question::create('What would you like to do?')
+        $question = Question::create('Hello! Welcome to PolyClinic Lipa. How can I help you today?')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('📋 Schedule Visit')->value('schedule visit'),
-                Button::create('ℹ️ General Information')->value('general information'),
+                Button::create('Schedule Visit')->value('schedule visit'),
+                Button::create('General Information')->value('general information'),
+                Button::create('Submit Review/Rating')->value('review'),
+                Button::create('Submit Complaint')->value('complaint'),
             ]);
-        $this->sayLogged($question);
+
+        $this->askLogged($question, function (Answer $answer) {
+            // A genuine free-typed question right at the greeting screen
+            // (instead of a button tap) now reaches staff via
+            // InquiryConversation, rather than being silently ignored.
+            if ($this->handleOffTopicIfAny($answer, 'menu')) {
+                return;
+            }
+
+            $choice = $this->normalizeCommand($answer);
+            $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
+
+            if ($choice === 'schedule visit') {
+                $this->resetState();
+                $this->askName();
+            } elseif ($choice === 'general information') {
+                $this->sayLogged(ClinicInfoService::infoCardMessage());
+                $this->sendMainMenu();
+            } elseif ($choice === 'review') {
+                $this->bot->startConversation(
+                    new ReviewConversation($patientId, trim("{$this->fname} {$this->lname}"))
+                );
+            } elseif ($choice === 'complaint') {
+                $this->bot->startConversation(new ComplaintConversation($patientId));
+            } else {
+                $this->sayLogged('Please choose one of the options above.');
+                $this->sendMainMenu();
+            }
+        });
     }
 
-    // ---------------------------------------------------------------
-    // Validation helpers (unchanged)
-    // ---------------------------------------------------------------
+    
+    // Validation helpers
+    
 
     protected function validateName($name)
     {
         $trimmed = trim($name);
-        if (!$trimmed) return "⚠️ Name cannot be empty.";
+        if (!$trimmed) return "Name cannot be empty.";
         if (!preg_match("/^[A-Za-zÀ-ÖØ-öø-ÿ'\-. ]+$/u", $trimmed))
-            return "⚠️ Name can only contain letters, spaces, hyphens, or apostrophes.";
+            return "Name can only contain letters, spaces, hyphens, or apostrophes.";
         $words = array_filter(preg_split('/\s+/', $trimmed));
-        if (count($words) < 2) return "⚠️ Please enter your full name";
+        if (count($words) < 2) return "Please enter your full name";
         foreach ($words as $w) {
             if (strlen(preg_replace("/['.]/", '', $w)) < 2)
-                return "⚠️ Each part of your name must be at least 2 characters.";
+                return "Each part of your name must be at least 2 characters.";
         }
         return null;
     }
@@ -322,31 +529,82 @@ class AppointmentConversation extends Conversation
     protected function validatePhone($phone)
     {
         $trimmed = trim($phone);
-        if (!$trimmed) return "⚠️ Contact number cannot be empty.";
+        if (!$trimmed) return "Contact number cannot be empty.";
         $digits = preg_replace('/[\s\-().+]/', '', $trimmed);
         if (!preg_match('/^\d+$/', $digits))
-            return "⚠️ Phone number can only contain digits, spaces, dashes, or parentheses.";
+            return "Phone number can only contain digits, spaces, dashes, or parentheses.";
         $mobileLocal = preg_match('/^09\d{9}$/', $digits);
         $mobileIntl  = preg_match('/^639\d{9}$/', $digits);
         $landline    = preg_match('/^(0\d{9,10}|\d{7,8})$/', $digits);
         if (!$mobileLocal && !$mobileIntl && !$landline)
-            return "⚠️ Please enter a valid PH phone number";
+            return "Please enter a valid Philippine phone number.";
+
+        // Reject numbers that pass the shape check but look fake.
+        if ($this->isFakeLookingNumber($digits))
+            return "This doesn't look like a real phone number. Please double-check and enter it again.";
+
         return null;
+    }
+
+    // Flags obviously fake numbers (repeated, sequential, or patterned digits).
+    protected function isFakeLookingNumber($digits)
+    {
+        // Strip the leading trunk/country code before pattern-checking.
+        $core = $digits;
+        if (str_starts_with($core, '63')) {
+            $core = substr($core, 2);
+        } elseif (str_starts_with($core, '0')) {
+            $core = substr($core, 1);
+        }
+
+        if ($core === '') return false;
+
+        // e.g. 9999999999
+        if (preg_match('/^(\d)\1+$/', $core)) {
+            return true;
+        }
+
+        // e.g. 123456789 or 987654321
+        $isAscending = true;
+        $isDescending = true;
+        for ($i = 1; $i < strlen($core); $i++) {
+            if ((int) $core[$i] !== (int) $core[$i - 1] + 1) $isAscending = false;
+            if ((int) $core[$i] !== (int) $core[$i - 1] - 1) $isDescending = false;
+        }
+        if ($isAscending || $isDescending) {
+            return true;
+        }
+
+        // e.g. 121212121 or 123123123
+        for ($blockLen = 1; $blockLen <= 3; $blockLen++) {
+            if (strlen($core) % $blockLen !== 0) continue;
+            $block = substr($core, 0, $blockLen);
+            if (str_repeat($block, (int) (strlen($core) / $blockLen)) === $core) {
+                return true;
+            }
+        }
+
+        // 6+ of the same digit in a row anywhere.
+        if (preg_match('/(\d)\1{5,}/', $core)) {
+            return true;
+        }
+
+        return false;
     }
 
     protected function validateDOB($dob)
     {
         $trimmed = trim($dob);
-        if (!$trimmed) return "⚠️ Date of birth cannot be empty.";
+        if (!$trimmed) return "Date of birth cannot be empty.";
 
         $parsed = $this->parseDOB($trimmed);
-        if (!$parsed) return "⚠️ Please enter a valid date";
+        if (!$parsed) return "Please enter a valid date.";
 
         $today = new \DateTime('today');
-        if ($parsed > $today) return "⚠️ Date of birth cannot be in the future.";
+        if ($parsed > $today) return "Date of birth cannot be in the future.";
 
         $age = $today->diff($parsed)->y;
-        if ($age > 120) return "⚠️ Please enter a valid date of birth (age must be 120 or below).";
+        if ($age > 120) return "Please enter a valid date of birth (age must be 120 or below).";
 
         return null;
     }
@@ -385,66 +643,84 @@ class AppointmentConversation extends Conversation
     protected function validateEmail($email)
     {
         $trimmed = trim($email);
-        if (!$trimmed) return "⚠️ Email address cannot be empty.";
+        if (!$trimmed) return "Email address cannot be empty.";
         if (!filter_var($trimmed, FILTER_VALIDATE_EMAIL))
-            return "⚠️ Please enter a valid email address";
+            return "Please enter a valid email address.";
         if (str_contains($trimmed, '..'))
-            return "⚠️ Email address cannot contain consecutive dots.";
+            return "Email address cannot contain consecutive dots.";
         return null;
     }
 
     public function run()
     {
+        // Resume a schedule visit that detoured into InquiryConversation.
+        if ($this->pendingResumeStepKey) {
+            $this->restoreState($this->pendingResumeState ?? []);
+            $stepKey = $this->pendingResumeStepKey;
+            $this->pendingResumeStepKey = null;
+            $this->pendingResumeState = null;
+            $this->resumeStep($stepKey);
+            return;
+        }
+
         $this->askName();
     }
 
     // STEP 1: PATIENT INFO (name → phone → dob → email)
 
-    public function askName($prompt = 'Please provide your full name (first and last name):')
+    public function askName($prompt = 'Please provide your full name.')
     {
         $this->askLogged($prompt, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'name');
             }
+            if ($this->handleOffTopicIfAny($answer, 'name')) {
+                return;
+            }
 
             $error = $this->validateName($answer->getText());
             if ($error) {
-                return $this->askName($error . ' (e.g. Juan dela Cruz):');
+                return $this->askName($error . "\nExample: Pedro Cruz");
             }
             $parts = preg_split('/\s+/', trim($answer->getText()));
             $this->fname = array_shift($parts);
             $this->lname = implode(' ', $parts) ?: $this->fname;
-            $this->sayLogged("Thanks, {$this->fname} {$this->lname}!");
             $this->askPhone();
         });
     }
 
-    public function askPhone($prompt = 'Please provide your contact number (e.g. 09XX XXX XXXX):')
+    public function askPhone($prompt = 'Please provide your contact number.')
     {
         $this->askLogged($prompt, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'phone');
             }
+            if ($this->handleOffTopicIfAny($answer, 'phone')) {
+                return;
+            }
 
             $error = $this->validatePhone($answer->getText());
             if ($error) {
-                return $this->askPhone($error . ' (e.g. 09XX XXX XXXX or (043) 123-4567):');
+                return $this->askPhone($error . "\nExample: 09XX XXX XXXX or (043) 123-4567");
             }
             $this->phone = trim($answer->getText());
             $this->askDob();
         });
     }
 
-    public function askDob($prompt = 'Please provide your date of birth (e.g. 05/15/1990 or May 15, 1990):')
+    public function askDob($prompt = 'Please provide your date of birth.')
     {
         $this->askLogged($prompt, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'dob');
             }
+            if ($this->handleOffTopicIfAny($answer, 'dob')) {
+                return;
+            }
 
             $error = $this->validateDOB($answer->getText());
             if ($error) {
-                return $this->askDob($error . ' (e.g. 05/15/1990 or May 15, 1990):');
+                return $this->askDob($error . "\nExample: 05/15/1990 or May 15, 1990");
             }
             $this->dob = trim($answer->getText());
             $this->askEmail();
@@ -457,10 +733,13 @@ class AppointmentConversation extends Conversation
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'email');
             }
+            if ($this->handleOffTopicIfAny($answer, 'email')) {
+                return;
+            }
 
             $error = $this->validateEmail($answer->getText());
             if ($error) {
-                return $this->askEmail($error . ' (e.g. juan@example.com):');
+                return $this->askEmail($error . "\nExample: juan@example.com");
             }
             $this->email = trim($answer->getText());
             $this->askService(); // → move to Step 2
@@ -476,7 +755,7 @@ class AppointmentConversation extends Conversation
         $services = DB::table('services')->where('available', 1)->get();
 
         if ($services->isEmpty()) {
-            $this->sayLogged("⚠️ We couldn't load our services right now. Please try again in a moment.");
+            $this->sayLogged("We couldn't load our services right now. Please try again in a moment.");
             return;
         }
 
@@ -489,6 +768,9 @@ class AppointmentConversation extends Conversation
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'service');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'service')) {
+                return;
             }
 
             $key = $answer->getValue();
@@ -524,13 +806,16 @@ class AppointmentConversation extends Conversation
             fn($d) => Button::create("{$d->doctor_name} — {$d->specialty}")->value((string) $d->doctor_id)
         )->toArray();
 
-        $question = Question::create("Great! Here are our specialists for {$this->service}:")
+        $question = Question::create("Here are our specialists for {$this->service}:")
             ->fallback('Please select a doctor from the buttons above.')
             ->addButtons($buttons);
 
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'doctor');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'doctor')) {
+                return;
             }
 
             $doctorId = (int) $answer->getValue();
@@ -562,17 +847,22 @@ class AppointmentConversation extends Conversation
         $suggestedDate = $this->getNextAvailableDate($slot->day);
         $this->scheduleSuggestion = "{$suggestedDate} at {$this->formatTime($slot->start_time)} - {$this->formatTime($slot->end_time)}";
 
-        $question = Question::create("Suggested schedule: {$this->scheduleSuggestion}
-        \n(Based on {$this->doctor}'s availability — {$slot->day})")
+        // Bold header + date/time + note, each on its own line.
+        $scheduleText = "**Suggested schedule:**\n{$this->scheduleSuggestion}.\nBased on {$this->doctor}'s availability.";
+
+        $question = Question::create($scheduleText)
             ->fallback('Please use the confirmation buttons above.')
             ->addButtons([
-                Button::create('✅ Yes, confirm')->value('confirm_yes'),
-                Button::create('🔄 Suggest alternative')->value('confirm_no'),
+                Button::create('Yes, confirm')->value('confirm_yes'),
+                Button::create('Suggest alternative')->value('confirm_no'),
             ]);
 
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'schedule');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'schedule')) {
+                return;
             }
 
             if ($answer->getValue() === 'confirm_yes') {
@@ -658,13 +948,31 @@ class AppointmentConversation extends Conversation
                 'scheduled_at' => now(),
             ]);
 
+            // Notification failures should not affect the saved appointment.
+            try {
+                AppNotification::create([
+                    'icon'    => 'calendar_today',
+                    'title'   => 'New Schedule Visit',
+                    'message' => "{$this->fname} {$this->lname} scheduled a visit with {$this->doctor} on "
+                        . \Carbon\Carbon::parse($visitDate)->format('M d, Y') . '.',
+                    'is_read' => false,
+                    'color'   => '4CAF50',
+                ]);
+            } catch (\Throwable $notifyError) {
+                Log::error('Failed to create appointment notification: ' . $notifyError->getMessage(), [
+                    'exception' => $notifyError,
+                    'patient_id' => $patientId,
+                ]);
+            }
+
             $this->bot->userStorage()->save([
                 'patient_id' => $patientId,
                 'patient_name' => "{$this->fname} {$this->lname}",
             ]);
 
+            // Confirmation card: title + screenshot note, patient/service/schedule sections.
             $card = [
-                'title' => "Schedule Visit Confirmed, {$this->fname} {$this->lname}!",
+                'title' => "Schedule Visit Confirmed\nPlease take a screenshot of this confirmation for your records.",
                 'sections' => [
                     [
                         'rows' => [
@@ -692,8 +1000,15 @@ class AppointmentConversation extends Conversation
 
             // → move to the transcript-email offer, THEN post-appointment options
             $this->askSendTranscriptEmail();
-        } catch (\Exception $e) {
-            $this->sayLogged("⚠️ We couldn't save your schedule visit right now. Please try again, or contact us directly at 0985 475 5511.");
+        } catch (\Throwable $e) {
+            Log::error('Failed to save schedule visit: ' . $e->getMessage(), [
+                'exception' => $e,
+                'fname' => $this->fname,
+                'lname' => $this->lname,
+                'doctor_id' => $this->doctorId,
+                'service' => $this->service,
+            ]);
+            $this->sayLogged("We couldn't save your schedule visit right now. Please try again, or contact us directly at 0985 475 5511.");
         }
     }
 
@@ -703,24 +1018,25 @@ class AppointmentConversation extends Conversation
 
     protected function askSendTranscriptEmail()
     {
-        $question = Question::create("📧 Would you like us to email you a copy of this whole conversation at {$this->email}?")
+        $question = Question::create("Would you like us to email you a copy of this whole conversation at {$this->email}?")
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('✅ Yes, email it to me')->value('yes_email'),
-                Button::create('➡️ No, skip')->value('no_email'),
+                Button::create('Yes, email it to me')->value('yes_email'),
+                Button::create('No, skip')->value('no_email'),
             ]);
 
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'transcript_email');
             }
+            if ($this->handleOffTopicIfAny($answer, 'transcript_email')) {
+                return;
+            }
 
             $choice = $this->normalizeCommand($answer);
 
             if ($choice === 'yes_email') {
                 $this->sendTranscriptEmail();
-            } else {
-                $this->sayLogged("No problem, we won't send anything.");
             }
 
             $this->askPostAppointment(); // → move to Step 7
@@ -733,39 +1049,56 @@ class AppointmentConversation extends Conversation
             Mail::to($this->email)->send(
                 new ConversationTranscriptMail($this->transcript, trim("{$this->fname} {$this->lname}"))
             );
-            $this->sayLogged("✅ Sent! Please check your inbox (and spam folder) at {$this->email}.");
+            $this->sayLogged("Your conversation transcript has been sent to {$this->email}. Please check your inbox, including your spam folder.");
         } catch (\Throwable $e) {
-            Log::error('Failed to send conversation transcript email: ' . $e->getMessage());
-            $this->sayLogged("⚠️ Sorry, we couldn't send that email right now. Please try again later, or contact us directly.");
+            Log::error('Failed to send conversation transcript email: ' . $e->getMessage(), [
+                'exception' => $e,
+                'email' => $this->email,
+            ]);
+            $this->sayLogged("Sorry, we couldn't send that email right now. Please try again later, or contact us directly.");
         }
     }
 
 
-    // STEP 7: POST-APPOINTMENT ACTIONS (complaint / review / done)
+    // STEP 7: POST-APPOINTMENT ACTIONS (schedule again / info / review / complaint)
 
     protected function askPostAppointment()
     {
-        $question = Question::create('Thank you for scheduling with us!')
+        $this->sayLogged('Thank you for scheduling your visit with us.');
+
+        $question = Question::create('Is there anything else I can help you with?')
             ->fallback('Please use the buttons above.')
             ->addButtons([
-                Button::create('⚠️ File a Complaint')->value('complaint'),
-                Button::create('⭐ Submit Review/Rating')->value('review'),
-                Button::create("✅ No, I'm all set")->value('done'),
+                Button::create('Schedule Visit')->value('post_schedule_visit'),
+                Button::create('General Information')->value('post_general_information'),
+                Button::create('Submit Review/Rating')->value('review'),
+                Button::create('Submit Complaint')->value('complaint'),
             ]);
 
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, 'post');
             }
+            if ($this->handleOffTopicIfAny($answer, 'post')) {
+                return;
+            }
 
+            $choice = $answer->getValue();
             $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
 
-            if ($answer->getValue() === 'complaint') {
-                $this->bot->startConversation(new ComplaintConversation($patientId));
-            } elseif ($answer->getValue() === 'review') {
+            if ($choice === 'post_schedule_visit') {
+                // Restart from the greeting + main menu instead of askName().
+                $this->resetState();
+                $this->sendMainMenu();
+            } elseif ($choice === 'post_general_information') {
+                $this->sayLogged(ClinicInfoService::infoCardMessage());
+            } elseif ($choice === 'review') {
                 $this->bot->startConversation(new ReviewConversation($patientId, "{$this->fname} {$this->lname}"));
+            } elseif ($choice === 'complaint') {
+                $this->bot->startConversation(new ComplaintConversation($patientId));
             } else {
-                $this->sayLogged('Thank you for choosing PolyClinic Lipa! Have a great day! 😊');
+                $this->sayLogged('Please choose one of the options above.');
+                $this->askPostAppointment();
             }
         });
     }

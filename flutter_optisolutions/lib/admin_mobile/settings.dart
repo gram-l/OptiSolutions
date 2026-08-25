@@ -13,6 +13,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   void _navigateTo(String route) {
     if (route != '/settings') {
       Navigator.pushNamed(context, route);
@@ -22,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       //backgroundColor: AppColors.background,
       drawer: SidePanel(
         items: appMenuItems,
@@ -34,29 +37,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 16),
-
-              // Page title
-              Row(
-                children: const [
-                  Icon(Icons.settings_outlined, color: AppColors.textDark, size: 22),
-                  SizedBox(width: 8),
-                  Text(
-                    'Settings',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
+              // ── Merged header: hamburger + icon box + title + subtitle ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 10, 0, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.menu_rounded, color: AppColors.iconColor),
+                          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                        ),
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.settings_outlined,
+                            size: 15,
+                            color: AppColors.iconColor,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Settings',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkNavy,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    const Padding(
+                      padding: EdgeInsets.only(left: 48, top: 4),
+                      child: Text(
+                        'Manage your account preferences',
+                        style: TextStyle(color: AppColors.textGrey, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Manage your account preferences',
-                style: TextStyle(fontSize: 13, color: AppColors.textGrey),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Personal Information section
              _SectionHeader(icon: Icons.person_outline_rounded, label: 'PERSONAL INFORMATION'),
@@ -72,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 20),
 
               // Preferences section
-              _SectionHeader(icon: Icons.tune_rounded, label: 'PREFERENCES'),
+              /*_SectionHeader(icon: Icons.tune_rounded, label: 'PREFERENCES'),
               const SizedBox(height: 8),
               ValueListenableBuilder<ThemeMode>(
                 valueListenable: themeModeNotifier,
@@ -144,7 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => _showComingSoon(context, 'Change Password'),
               ),
               const SizedBox(height: 20),*/
-
+*/
               // Support section
               _SectionHeader(icon: Icons.help_outline_rounded, label: 'SUPPORT'),
               const SizedBox(height: 8),

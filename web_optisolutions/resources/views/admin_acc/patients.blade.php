@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
         <!-- Font Awesome -->
     <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -10,6 +11,9 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <title>OptiSolutions - Patient Records</title>
 @vite(['resources/css/admin_css/patients.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 </head>
@@ -38,16 +42,12 @@
                 <div class="stat-label">Total Patients</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number" id="activePatients">0</div>
-                <div class="stat-label">Active Patients</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="newThisMonth">0</div>
-                <div class="stat-label">New This Month</div>
-            </div>
-            <div class="stat-card">
                 <div class="stat-number" id="departmentsCount">0</div>
                 <div class="stat-label">Departments</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="doctorsCount">0</div>
+                <div class="stat-label">Doctors Involved</div>
             </div>
         </div>
 
@@ -57,22 +57,23 @@
                 <input type="text" class="search-box" id="searchInput" placeholder="Search by name, ID, or doctor...">
                 <select class="filter-select" id="departmentFilter">
                     <option value="all">All Departments</option>
-                    <option value="Ophthalmology">Ophthalmology</option>
-                    <option value="Pediatrics">Pediatrics</option>
-                    <option value="ENT">ENT</option>
-                    <option value="Cardiology">Cardiology</option>
-                    <option value="Dermatology">Dermatology</option>
-                    <option value="Orthopedics">Orthopedics</option>
-                </select>
-                <select class="filter-select" id="statusFilter">
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
                 </select>
             </div>
-            <button class="add-patient-btn" id="openAddModalBtn">
-                <span></span>
-            </button>
+            <div style="display:flex; gap:0.75rem; align-items:center;">
+                <div class="download-dropdown" id="downloadDropdown">
+                    <button type="button" class="download-btn" id="downloadBtn">
+                        <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
+                    </button>
+                    <div class="download-menu">
+                        <button type="button" onclick="exportPDF()"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                        <button type="button" onclick="exportCSV()"><i class="fa-regular fa-file-lines"></i> CSV</button>
+                        <button type="button" onclick="exportExcel()"><i class="fa-regular fa-file-excel"></i> Excel</button>
+                    </div>
+                </div>
+                <button class="add-patient-btn" id="openAddModalBtn">
+                    <span><i class="fa-solid fa-plus"></i></span> Add New Patient
+                </button>
+            </div>
         </div>
 
         <!-- Patients Table -->
@@ -80,12 +81,12 @@
             <table class="patients-table" id="patientsTable">
                 <thead>
                     <tr>
+                        <th>Patient ID</th>
                         <th onclick="sortTable('name')">Patient Name <span class="sort-indicator" id="sort-name"><i class="fa-solid fa-sort"></i></span></th>
                         <th onclick="sortTable('age')">Age <span class="sort-indicator" id="sort-age"><i class="fa-solid fa-sort"></i></span></th>
                         <th onclick="sortTable('department')">Department <span class="sort-indicator" id="sort-dept"><i class="fa-solid fa-sort"></i></span></th>
                         <th onclick="sortTable('doctor')">Assigned Doctor <span class="sort-indicator" id="sort-doctor"><i class="fa-solid fa-sort"></i></span></th>
-                        <th>Patient ID</th>
-                        <th>Status</th>
+                        <th>Notes</th>
                         <th> </th>
                     </tr>
                 </thead>
@@ -104,59 +105,49 @@
                 <input type="hidden" id="patientId" value="">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Full Name *</label>
-                        <input type="text" id="patientName" required placeholder="e.g., Maria Santos">
+                        <label>First Name *</label>
+                        <input type="text" id="patientFirstName" required placeholder="e.g., Maria" maxlength="100">
+                        <div class="field-error" id="err-patient_fname"></div>
                     </div>
                     <div class="form-group">
-                        <label>Age *</label>
-                        <input type="number" id="patientAge" required placeholder="e.g., 35">
+                        <label>Last Name *</label>
+                        <input type="text" id="patientLastName" required placeholder="e.g., Santos" maxlength="100">
+                        <div class="field-error" id="err-patient_lname"></div>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Department *</label>
-                        <select id="patientDepartment" required>
-                            <option value="">Select Department</option>
-                            <option>Ophthalmology</option>
-                            <option>Pediatrics</option>
-                            <option>ENT</option>
-                            <option>Cardiology</option>
-                            <option>Dermatology</option>
-                            <option>Orthopedics</option>
-                        </select>
+                        <label>Birthdate</label>
+                        <input type="date" id="patientBirthdate">
+                        <div class="field-error" id="err-patient_birthdate"></div>
                     </div>
-                    <div class="form-group">
-                        <label>Assigned Doctor *</label>
-                        <select id="patientDoctor" required>
-                            <option value="">Select Doctor</option>
-                            <option>Dr. Maria Reyes</option>
-                            <option>Dr. Jose Mendoza</option>
-                            <option>Dr. Anna Garcia</option>
-                            <option>Dr. Carlos Santos</option>
-                            <option>Dr. Elena Lopez</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
                     <div class="form-group">
                         <label>Contact Number</label>
                         <input type="text" id="patientPhone" placeholder="e.g., 09123456789">
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select id="patientStatus">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
+                        <div class="field-error" id="err-patient_contact"></div>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Medical Notes / Conditions</label>
-                    <textarea id="patientNotes" rows="2" placeholder="Allergies, chronic conditions, medications..."></textarea>
+                    <label>Email</label>
+                    <input type="email" id="patientEmail" placeholder="e.g., maria.santos@email.com">
+                    <div class="field-error" id="err-patient_email"></div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Department</label>
+                        <input type="text" id="patientDepartment" disabled placeholder="No visits yet">
+                    </div>
+                    <div class="form-group">
+                        <label>Assigned Doctor</label>
+                        <input type="text" id="patientDoctor" disabled placeholder="No visits yet">
+                    </div>
+                </div>
+                <p style="font-size:0.78rem; color:#7f8c8d; margin-top:-0.5rem;">
+                    Department and doctor reflect the patient's most recent scheduled visit and update automatically as new visits are added.
+                </p>
                 <div class="modal-buttons">
                     <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn-save">Save Patient</button>
+                    <button type="submit" class="btn-save" id="saveBtn">Save Patient</button>
                 </div>
             </form>
         </div>
@@ -169,120 +160,183 @@
             <div id="viewDetails">
                 <!-- Dynamic content -->
             </div>
+            <div id="viewVisitHistory">
+                <!-- Dynamic content -->
+            </div>
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeViewModal()">Close</button>
             </div>
         </div>
     </div>
 
-    <script>
-        // Mock patient data
-        let patientsData = [
-            { id: "P-1001", name: "Maria Santos", age: 34, department: "Ophthalmology", doctor: "Dr. Maria Reyes", phone: "09123456789", status: "active", notes: "Cataract surgery scheduled for June 15. No known allergies." },
-            { id: "P-1002", name: "John Dela Cruz", age: 5, department: "Pediatrics", doctor: "Dr. Jose Mendoza", phone: "09234567890", status: "active", notes: "Routine vaccination. Mild fever last week." },
-            { id: "P-1003", name: "Anna Rivera", age: 28, department: "ENT", doctor: "Dr. Anna Garcia", phone: "09345678901", status: "active", notes: "Chronic sinusitis. Prescribed antibiotics." },
-            { id: "P-1004", name: "Carlos Gomez", age: 58, department: "Cardiology", doctor: "Dr. Carlos Santos", phone: "09456789012", status: "active", notes: "Hypertension. Regular blood pressure monitoring." },
-            { id: "P-1005", name: "Elena Garcia", age: 42, department: "Dermatology", doctor: "Dr. Elena Lopez", phone: "09567890123", status: "inactive", notes: "Acne treatment completed. Follow-up in 3 months." },
-            { id: "P-1006", name: "Roberto Javier", age: 67, department: "Ophthalmology", doctor: "Dr. Maria Reyes", phone: "09678901234", status: "active", notes: "Glaucoma. Uses eye drops daily." },
-            { id: "P-1007", name: "Sofia Villanueva", age: 12, department: "Pediatrics", doctor: "Dr. Jose Mendoza", phone: "09789012345", status: "active", notes: "Asthma. Uses inhaler as needed." },
-            { id: "P-1008", name: "Luis Martinez", age: 45, department: "ENT", doctor: "Dr. Anna Garcia", phone: "09890123456", status: "active", notes: "Hearing loss. Hearing aid recommended." },
-            { id: "P-1009", name: "Patricia Cruz", age: 52, department: "Cardiology", doctor: "Dr. Carlos Santos", phone: "09901234567", status: "active", notes: "Post-heart attack recovery. Regular checkups." },
-            { id: "P-1010", name: "Miguel Tan", age: 31, department: "Dermatology", doctor: "Dr. Elena Lopez", phone: "09012345678", status: "active", notes: "Eczema. Topical cream prescribed." }
-        ];
+    <style>
+        .field-error { color: #c0392b; font-size: 0.75rem; margin-top: 0.25rem; }
+        .visit-history-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.82rem; }
+        .visit-history-table th { text-align: left; padding: 0.5rem; color: #95a5a6; font-size: 0.72rem; text-transform: uppercase; border-bottom: 1px solid #f0f4f8; }
+        .visit-history-table td { padding: 0.5rem; border-bottom: 1px solid #f0f4f8; }
 
-        let nextPatientIdNum = 1011;
+        /* ── Download button + dropdown ── */
+        .download-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.1rem;
+            background: var(--primary-main, #0E62AA);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+        .download-btn:hover { background: #0b4f8a; }
+        .download-btn .chevron { font-size: 0.65rem; transition: transform 0.2s ease; }
+        .download-dropdown.open .download-btn .chevron { transform: rotate(180deg); }
+        .download-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            overflow: hidden;
+            min-width: 170px;
+            z-index: 50;
+        }
+        .download-dropdown.open .download-menu { display: block; }
+        .download-menu button {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            width: 100%;
+            padding: 0.65rem 1rem;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            color: #333;
+            transition: background 0.15s ease;
+        }
+        .download-menu button:hover { background: #ECF0F1; }
+        .download-menu button i { width: 16px; color: var(--primary-main, #0E62AA); }
+    </style>
+
+    <script>
+        const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const LIST_URL = '/admin_acc/patients/list';
+        const PATIENT_BASE = '/admin_acc/patients';
+
+        let patientsData = [];
         let currentSort = { column: 'name', direction: 'asc' };
 
-        // Helper to generate new patient ID
-        function generatePatientId() {
-            return `P-${nextPatientIdNum++}`;
-        }
-
-        // Calculate age from birth year (simplified)
-        function calculateAge(birthYear) {
-            return new Date().getFullYear() - birthYear;
-        }
-
-        // Render patients table
-        function renderPatients() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const deptFilter = document.getElementById('departmentFilter').value;
-            const statusFilter = document.getElementById('statusFilter').value;
-            
-            let filtered = patientsData.filter(patient => {
-                const matchesSearch = patient.name.toLowerCase().includes(searchTerm) || 
-                                     patient.id.toLowerCase().includes(searchTerm) ||
-                                     patient.doctor.toLowerCase().includes(searchTerm);
-                const matchesDept = deptFilter === 'all' || patient.department === deptFilter;
-                const matchesStatus = statusFilter === 'all' || patient.status === statusFilter;
-                return matchesSearch && matchesDept && matchesStatus;
-            });
-            
-            // Sort
-            filtered.sort((a, b) => {
-                let valA = a[currentSort.column];
-                let valB = b[currentSort.column];
-                if (currentSort.column === 'age') {
-                    valA = Number(valA);
-                    valB = Number(valB);
-                } else {
-                    valA = String(valA).toLowerCase();
-                    valB = String(valB).toLowerCase();
-                }
-                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
-                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-            
+        async function loadPatients() {
             const tbody = document.getElementById('patientsTableBody');
-            
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No patients found. Click "Add New Patient" to create a record.</td></tr>';
-            } else {
-                tbody.innerHTML = filtered.map(patient => `
-                    <tr>
-                        <td style="font-weight: 500;">${escapeHtml(patient.name)}</td>
-                        <td>${patient.age} years</td>
-                        <td>${escapeHtml(patient.department)}</td>
-                        <td>${escapeHtml(patient.doctor)}</td>
-                        <td><code>${patient.id}</code></td>
-                        <td><span class="status-badge status-${patient.status}">${patient.status === 'active' ? '● Active' : '○ Inactive'}</span></td>
-                        <td class="action-buttons">
-                            <button class="btn-icon btn-view" onclick="viewPatient('${patient.id}')"> <i class="fa-regular fa-eye"></i> View</button>
-                            <button class="btn-icon btn-edit" onclick="editPatient('${patient.id}')"> <i class="fa-regular fa-edit"></i> Edit</button>
-                            <button class="btn-icon btn-record" onclick="viewMedicalHistory('${patient.id}')"> <i class="fa-regular fa-file-medical"></i> Records</button>
-                        </td>
-                    </tr>
-                `).join('');
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Loading...</td></tr>';
+
+            try {
+                const res = await fetch(LIST_URL, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+                if (!data.success) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(data.message || 'Failed to load patients.')}</td></tr>`;
+                    return;
+                }
+                patientsData = data.patients;
+                populateDepartmentFilter();
+                renderPatients();
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Could not reach the server. Please try again.</td></tr>';
             }
-            
-            // Update stats
-            updateStats();
         }
-        
-        function updateStats() {
-            const total = patientsData.length;
-            const active = patientsData.filter(p => p.status === 'active').length;
-            const currentMonth = new Date().getMonth();
-            const newThisMonth = patientsData.filter(p => {
-                // Mock: assume patients added in last 30 days (simulate)
-                return p.id >= 'P-1006';
-            }).length;
-            const departments = [...new Set(patientsData.map(p => p.department))].length;
-            
-            document.getElementById('totalPatients').innerText = total;
-            document.getElementById('activePatients').innerText = active;
-            document.getElementById('newThisMonth').innerText = newThisMonth;
-            document.getElementById('departmentsCount').innerText = departments;
+
+        function populateDepartmentFilter() {
+            const select = document.getElementById('departmentFilter');
+            const current = select.value;
+            const depts = [...new Set(patientsData.map(p => p.department).filter(Boolean))].sort();
+            select.innerHTML = '<option value="all">All Departments</option>' +
+                depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+            if (depts.includes(current)) select.value = current;
         }
-        
+
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
+        // Shared filter + sort, used by both the table render and exports
+        function getFilteredPatients() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const deptFilter = document.getElementById('departmentFilter').value;
+
+            let filtered = patientsData.filter(patient => {
+                const matchesSearch = patient.name.toLowerCase().includes(searchTerm) ||
+                                     String(patient.id).toLowerCase().includes(searchTerm) ||
+                                     (patient.doctor || '').toLowerCase().includes(searchTerm);
+                const matchesDept = deptFilter === 'all' || patient.department === deptFilter;
+                return matchesSearch && matchesDept;
+            });
+
+            filtered.sort((a, b) => {
+                let valA = a[currentSort.column];
+                let valB = b[currentSort.column];
+                if (currentSort.column === 'age') {
+                    valA = Number(valA) || 0;
+                    valB = Number(valB) || 0;
+                } else {
+                    valA = String(valA || '').toLowerCase();
+                    valB = String(valB || '').toLowerCase();
+                }
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            return filtered;
+        }
+
+        // Render patients table
+        function renderPatients() {
+            const filtered = getFilteredPatients();
+            const tbody = document.getElementById('patientsTableBody');
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No patients found. Click "Add New Patient" to create a record.</td></tr>';
+            } else {
+                tbody.innerHTML = filtered.map(patient => `
+                    <tr>
+                        <td><code>${patient.id}</code></td>
+                        <td style="font-weight: 500;">${escapeHtml(patient.name)}</td>
+                        <td>${patient.age != null ? patient.age + ' years' : '—'}</td>
+                        <td>${escapeHtml(patient.department || '—')}</td>
+                        <td>${escapeHtml(patient.doctor || '—')}</td>
+                        <td><small style="color:#7f8c8d">${escapeHtml((patient.notes || '').length > 40 ? patient.notes.substring(0, 40) + '...' : (patient.notes || '—'))}</small></td>
+                        <td class="action-buttons">
+                            <button class="btn-icon btn-view" onclick="viewPatient(${patient.id})"> <i class="fa-regular fa-eye"></i> View</button>
+                            <button class="btn-icon btn-edit" onclick="editPatient(${patient.id})"> <i class="fa-regular fa-edit"></i> Edit</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            updateStats(filtered);
+        }
+
+        function updateStats(filtered) {
+            document.getElementById('totalPatients').innerText = patientsData.length;
+            document.getElementById('departmentsCount').innerText = new Set(patientsData.map(p => p.department).filter(Boolean)).size;
+            document.getElementById('doctorsCount').innerText = new Set(patientsData.map(p => p.doctor).filter(Boolean)).size;
+        }
+
         // Sorting
         function sortTable(column) {
             if (currentSort.column === column) {
@@ -291,8 +345,7 @@
                 currentSort.column = column;
                 currentSort.direction = 'asc';
             }
-            
-            // Update sort indicators
+
             ['name', 'age', 'department', 'doctor'].forEach(col => {
                 const indicator = document.getElementById(`sort-${col === 'department' ? 'dept' : col}`);
                 if (col === column) {
@@ -301,128 +354,248 @@
                     indicator.textContent = '↕';
                 }
             });
-            
+
             renderPatients();
         }
-        
+
+        // ── Field error helpers ──
+        function setFieldError(field, message) {
+            const el = document.getElementById(`err-${field}`);
+            if (el) el.textContent = message;
+        }
+        function clearAllFieldErrors() {
+            ['patient_fname', 'patient_lname', 'patient_birthdate', 'patient_contact', 'patient_email']
+                .forEach(f => setFieldError(f, ''));
+        }
+
         // Open Add Modal
         function openAddModal() {
+            clearAllFieldErrors();
             document.getElementById('modalTitle').innerText = 'Add New Patient';
             document.getElementById('patientForm').reset();
             document.getElementById('patientId').value = '';
-            document.getElementById('patientStatus').value = 'active';
+            document.getElementById('patientDepartment').value = '';
+            document.getElementById('patientDoctor').value = '';
             document.getElementById('patientModal').style.display = 'flex';
         }
-        
+
         // Edit Patient
         function editPatient(id) {
             const patient = patientsData.find(p => p.id === id);
             if (!patient) return;
-            
+
+            clearAllFieldErrors();
             document.getElementById('modalTitle').innerText = 'Edit Patient';
             document.getElementById('patientId').value = patient.id;
-            document.getElementById('patientName').value = patient.name;
-            document.getElementById('patientAge').value = patient.age;
-            document.getElementById('patientDepartment').value = patient.department;
-            document.getElementById('patientDoctor').value = patient.doctor;
+            document.getElementById('patientFirstName').value = patient.first_name || '';
+            document.getElementById('patientLastName').value = patient.last_name || '';
+            document.getElementById('patientBirthdate').value = patient.birthdate || '';
             document.getElementById('patientPhone').value = patient.phone || '';
-            document.getElementById('patientStatus').value = patient.status;
-            document.getElementById('patientNotes').value = patient.notes || '';
+            document.getElementById('patientEmail').value = patient.email || '';
+            document.getElementById('patientDepartment').value = patient.department || '';
+            document.getElementById('patientDoctor').value = patient.doctor || '';
             document.getElementById('patientModal').style.display = 'flex';
         }
-        
+
         // Save patient (add or edit)
-        function savePatient(event) {
+        async function savePatient(event) {
             event.preventDefault();
-            
+            clearAllFieldErrors();
+
             const id = document.getElementById('patientId').value;
-            const name = document.getElementById('patientName').value.trim();
-            const age = parseInt(document.getElementById('patientAge').value);
-            const department = document.getElementById('patientDepartment').value;
-            const doctor = document.getElementById('patientDoctor').value;
-            const phone = document.getElementById('patientPhone').value;
-            const status = document.getElementById('patientStatus').value;
-            const notes = document.getElementById('patientNotes').value;
-            
-            if (!name || !age || !department || !doctor) {
-                alert('Please fill in all required fields.');
-                return;
-            }
-            
-            if (id) {
-                // Edit existing
-                const index = patientsData.findIndex(p => p.id === id);
-                if (index !== -1) {
-                    patientsData[index] = { ...patientsData[index], name, age, department, doctor, phone, status, notes };
-                    alert(`Patient record for ${name} has been updated.`);
+            const payload = {
+                patient_fname: document.getElementById('patientFirstName').value.trim(),
+                patient_lname: document.getElementById('patientLastName').value.trim(),
+                patient_birthdate: document.getElementById('patientBirthdate').value || null,
+                patient_contact: document.getElementById('patientPhone').value.trim() || null,
+                patient_email: document.getElementById('patientEmail').value.trim() || null,
+            };
+
+            const isEdit = !!id;
+            const url = isEdit ? `${PATIENT_BASE}/${id}` : PATIENT_BASE;
+
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch(url, {
+                    method: isEdit ? 'PUT' : 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+
+                if (res.status === 422 && data.errors) {
+                    Object.keys(data.errors).forEach(key => setFieldError(key, data.errors[key][0]));
+                    return;
                 }
-            } else {
-                // Add new
-                const newPatient = {
-                    id: generatePatientId(),
-                    name: name,
-                    age: age,
-                    department: department,
-                    doctor: doctor,
-                    phone: phone || '',
-                    status: status,
-                    notes: notes || ''
-                };
-                patientsData.push(newPatient);
-                alert(`New patient ${name} has been added with ID ${newPatient.id}.`);
+
+                if (!data.success) {
+                    alert(data.message || 'Something went wrong.');
+                    return;
+                }
+
+                closeModal();
+                await loadPatients();
+            } catch (e) {
+                alert('Could not reach the server. Please try again.');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Patient';
             }
-            
-            closeModal();
-            renderPatients();
         }
-        
-        // View patient details
-        function viewPatient(id) {
+
+        // View patient details (+ visit history)
+        async function viewPatient(id) {
             const patient = patientsData.find(p => p.id === id);
             if (!patient) return;
-            
+
             const detailsHtml = `
                 <div class="form-group"><strong>Patient ID:</strong> ${patient.id}</div>
                 <div class="form-group"><strong>Full Name:</strong> ${escapeHtml(patient.name)}</div>
-                <div class="form-group"><strong>Age:</strong> ${patient.age} years</div>
-                <div class="form-group"><strong>Department:</strong> ${escapeHtml(patient.department)}</div>
-                <div class="form-group"><strong>Assigned Doctor:</strong> ${escapeHtml(patient.doctor)}</div>
+                <div class="form-group"><strong>Age:</strong> ${patient.age != null ? patient.age + ' years' : 'Unknown'}</div>
+                <div class="form-group"><strong>Birthdate:</strong> ${patient.birthdate || 'Not provided'}</div>
                 <div class="form-group"><strong>Contact:</strong> ${patient.phone || 'Not provided'}</div>
-                <div class="form-group"><strong>Status:</strong> <span class="status-badge status-${patient.status}">${patient.status}</span></div>
-                <div class="form-group"><strong>Medical Notes:</strong><br>${patient.notes || 'No notes available.'}</div>
+                <div class="form-group"><strong>Email:</strong> ${patient.email || 'Not provided'}</div>
             `;
             document.getElementById('viewDetails').innerHTML = detailsHtml;
+            document.getElementById('viewVisitHistory').innerHTML = '<p style="font-size:0.85rem;color:#7f8c8d;">Loading visit history...</p>';
             document.getElementById('viewModal').style.display = 'flex';
+
+            try {
+                const res = await fetch(`${PATIENT_BASE}/${id}/visits`, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+                if (!data.success || data.visits.length === 0) {
+                    document.getElementById('viewVisitHistory').innerHTML = '<p style="font-size:0.85rem;color:#7f8c8d;">No visit history yet.</p>';
+                    return;
+                }
+                document.getElementById('viewVisitHistory').innerHTML = `
+                    <strong style="font-size:0.85rem;">Visit History</strong>
+                    <table class="visit-history-table">
+                        <thead><tr><th>Date</th><th>Service</th><th>Doctor</th><th>Notes</th></tr></thead>
+                        <tbody>
+                            ${data.visits.map(v => `
+                                <tr>
+                                    <td>${v.visit_date || '—'}</td>
+                                    <td>${escapeHtml(v.service_type || '—')}</td>
+                                    <td>${escapeHtml(v.doctor_name || '—')}</td>
+                                    <td>${escapeHtml(v.notes || '—')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                document.getElementById('viewVisitHistory').innerHTML = '<p style="font-size:0.85rem;color:#c0392b;">Could not load visit history.</p>';
+            }
         }
-        
-        function viewMedicalHistory(id) {
-            const patient = patientsData.find(p => p.id === id);
-            alert(`Medical records for ${patient?.name}\n\nThis would show consultation history, prescriptions, lab results, etc. (UI Demo)`);
-        }
-        
+
         function closeModal() {
             document.getElementById('patientModal').style.display = 'none';
         }
-        
+
         function closeViewModal() {
             document.getElementById('viewModal').style.display = 'none';
         }
-        
-        
-        
+
         function handleLogout() {
             if (confirm('Are you sure you want to logout?')) {
                 alert('Logging out... Redirecting to login page.');
             }
         }
-        
+
+        /* ── Download dropdown ── */
+        function toggleDownloadMenu() {
+            document.getElementById('downloadDropdown').classList.toggle('open');
+        }
+
+        function getExportRows() {
+            return getFilteredPatients().map(p => ({
+                'Patient ID': p.id,
+                Name: p.name || 'Unknown',
+                Age: p.age != null ? p.age : '—',
+                Department: p.department || '—',
+                'Assigned Doctor': p.doctor || '—',
+                Notes: p.notes || '—',
+            }));
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportCSV() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No patients to export.'); return; }
+            const headers = Object.keys(rows[0]);
+            const csvLines = [
+                headers.join(','),
+                ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(','))
+            ];
+            const blob = new Blob(["\ufeff" + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            downloadBlob(blob, 'patients.csv');
+            toggleDownloadMenu();
+        }
+
+        function exportExcel() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No patients to export.'); return; }
+            const ws = XLSX.utils.json_to_sheet(rows);
+            ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 8 }, { wch: 20 }, { wch: 22 }, { wch: 35 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Patients');
+            XLSX.writeFile(wb, 'patients.xlsx');
+            toggleDownloadMenu();
+        }
+
+        function exportPDF() {
+            const rows = getExportRows();
+            if (rows.length === 0) { alert('No patients to export.'); return; }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(14);
+            doc.text('Patient Records', 14, 15);
+            doc.autoTable({
+                startY: 22,
+                head: [['Patient ID', 'Name', 'Age', 'Department', 'Assigned Doctor', 'Notes']],
+                body: rows.map(r => [r['Patient ID'], r.Name, r.Age, r.Department, r['Assigned Doctor'], r.Notes]),
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [14, 98, 170] },
+                columnStyles: { 5: { cellWidth: 55 } },
+            });
+            doc.save('patients.pdf');
+            toggleDownloadMenu();
+        }
+
+        document.getElementById('downloadBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDownloadMenu();
+        });
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('downloadDropdown');
+            if (dropdown.classList.contains('open') && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
+
         // Event listeners
         document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);
         document.getElementById('patientForm').addEventListener('submit', savePatient);
         document.getElementById('searchInput').addEventListener('input', () => renderPatients());
         document.getElementById('departmentFilter').addEventListener('change', () => renderPatients());
-        document.getElementById('statusFilter').addEventListener('change', () => renderPatients());
-        
+
         // Close modals on outside click
         window.onclick = function(event) {
             const modal1 = document.getElementById('patientModal');
@@ -430,9 +603,9 @@
             if (event.target === modal1) closeModal();
             if (event.target === modal2) closeViewModal();
         }
-        
-        // Initial render
-        renderPatients();
+
+        // Initial load
+        loadPatients();
     </script>
 </body>
 </html>

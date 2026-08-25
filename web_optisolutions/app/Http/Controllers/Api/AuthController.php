@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Staff\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -30,11 +31,35 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => [
-                'id' => $user->user_id,
-                'name' => $user->first_name . ' ' . $user->last_name,
-                'email' => $user->email,
-            ],
+            'user' => $this->formatUser($user),
+        ]);
+    }
+
+    public function me(Request $request)
+    {
+        return response()->json($this->formatUser($request->user()));
+    }
+
+    public function uploadPhoto(Request $request)
+    {
+        $request->validate([
+            'photo' => 'required|image|max:5120', // 5MB max
+        ]);
+
+        $user = $request->user();
+
+        // Delete old photo if it exists
+        if ($user->profile_photo) {
+            Storage::disk('public')->delete($user->profile_photo);
+        }
+
+        $path = $request->file('photo')->store('profile_photos', 'public');
+
+        $user->profile_photo = $path;
+        $user->save();
+
+        return response()->json([
+            'profile_photo' => Storage::url($path),
         ]);
     }
 
@@ -42,5 +67,21 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out']);
+    }
+
+    private function formatUser($user)
+    {
+        return [
+            'staff_id' => $user->user_id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'contact' => $user->phone_number,
+            'role' => $user->user_role,
+            'department' => $user->user_role,
+            'shift' => null,
+            'profile_photo' => $user->profile_photo
+                ? Storage::url($user->profile_photo)
+                : null,
+        ];
     }
 }

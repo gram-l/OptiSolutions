@@ -36,7 +36,7 @@
                 $weeklyVisitsData = $hasWeeklyData ? $weeklyVisits : array_fill(0, 6, 0);
                 $weeklyVisitsLabels = $weekLabels ?? $defaultWeekLabels;
 
-                // ---- Sentiment Analysis defaults ----
+                // ---- Patient Feedback defaults ----
                 $sentimentTotal = ($positivePercent ?? 0) + ($neutralPercent ?? 0) + ($negativePercent ?? 0);
                 $sentimentRows = [
                     ['label' => 'Positive', 'value' => $sentimentTotal > 0 ? ($positivePercent ?? 0) : 0, 'color' => '#0E62AA'],
@@ -73,44 +73,61 @@
                 </div>
             </div>
 
-            <!-- 1) SERVICE DISTRIBUTION (doughnut) -->
-            <div class="chart-card" style="margin-top: 1.5rem;">
-                <div class="chart-header">
-                    <h3>Service Distribution</h3>
-                </div>
-                <p style="color: #7f8c8d; font-size: 0.9rem;">Distribution of patient visits by service</p>
-                <div style="max-width: 380px; margin: 1rem auto 1.5rem;">
-                    <canvas id="serviceDistributionChart" height="260"></canvas>
-                </div>
-                <div id="serviceDistributionList">
-                    @if($hasServiceData)
-                        @foreach($serviceDistribution as $service)
-                            <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--light-gray);">
-                                <span>{{ $service->service_type }}</span>
-                                <span>{{ $service->total }} visits</span>
-                            </div>
-                        @endforeach
-                    @else
-                        <p style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem;">No service data available yet.</p>
-                    @endif
-                </div>
-            </div>
+            <style>
+                .charts-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 1.5rem;
+                    margin-top: 1.5rem;
+                }
+                .charts-grid .chart-card {
+                    margin-top: 0;
+                }
+                @media (max-width: 900px) {
+                    .charts-grid {
+                        grid-template-columns: 1fr;
+                    }
+                }
+            </style>
 
-            <!-- 2) WEEKLY PATIENT VISITS (line) -->
-            <div class="chart-card" style="margin-top: 1.5rem;">
-                <div class="chart-header">
-                    <h3>Weekly Patient Visits</h3>
+            <div class="charts-grid">
+                <!-- 1) SERVICE DISTRIBUTION (doughnut) -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Service Distribution</h3>
+                    </div>
+                    <p style="color: #7f8c8d; font-size: 0.9rem;">Distribution of patient visits by service</p>
+                    <div style="max-width: 340px; margin: 1rem auto 1.5rem;">
+                        <canvas id="serviceDistributionChart" height="260"></canvas>
+                    </div>
+                    <div id="serviceDistributionList">
+                        @if($hasServiceData)
+                            @foreach($serviceDistribution as $service)
+                                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--light-gray);">
+                                    <span>{{ $service->service_type }}</span>
+                                    <span>{{ $service->total }} visits</span>
+                                </div>
+                            @endforeach
+                        @else
+                            <p style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem;">No service data available yet.</p>
+                        @endif
+                    </div>
                 </div>
-                <p style="color: #7f8c8d; font-size: 0.9rem;">Visits over the last several weeks</p>
-                <div style="margin-top: 1rem;">
-                    <canvas id="weeklyVisitsChart" height="240"></canvas>
-                </div>
-                <p id="weeklyVisitsEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasWeeklyData ? 'display:none;' : '' }}">
-                    No visit data available yet.
-                </p>
-            </div>
 
-            <div class="charts-section" style="margin-top: 1.5rem;">
+                <!-- 2) WEEKLY PATIENT VISITS (line) -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Weekly Patient Visits</h3>
+                    </div>
+                    <p style="color: #7f8c8d; font-size: 0.9rem;">Visits over the last several weeks</p>
+                    <div style="margin-top: 1rem;">
+                        <canvas id="weeklyVisitsChart" height="240"></canvas>
+                    </div>
+                    <p id="weeklyVisitsEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasWeeklyData ? 'display:none;' : '' }}">
+                        No visit data available yet.
+                    </p>
+                </div>
+
                 <!-- 3) INQUIRY VOLUME (bar) -->
                 <div class="chart-card">
                     <div class="chart-header">
@@ -125,10 +142,10 @@
                     </p>
                 </div>
 
-                <!-- 4) SENTIMENT ANALYSIS (custom bars) -->
+                <!-- 4) PATIENT FEEDBACK OVERVIEW (custom bars) -->
                 <div class="chart-card">
                     <div class="chart-header">
-                        <h3>Sentiment Analysis</h3>
+                        <h3>Patient Feedback Overview</h3>
                     </div>
                     <div id="sentimentBars" class="sentiment-bars" style="margin-top: 1.25rem;">
                         @foreach($sentimentRows as $row)
@@ -191,13 +208,6 @@
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="quick-actions">
-                <button class="action-btn action-orange" onclick="window.location.href='chatbotlogs.html'">📋 View All Inquiries</button>
-                <button class="action-btn action-blue" onclick="window.location.href='doctors.html'">➕ Add New Doctor</button>
-                <button class="action-btn action-yellow" onclick="window.location.href='reports.html'">📊 Generate Report</button>
-                <button class="action-btn action-green" onclick="window.location.href='usermanagement.html'">👥 Manage Staff</button>
-            </div>
         </main>
     </div>
 

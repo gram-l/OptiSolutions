@@ -8,75 +8,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   @vite(['resources/css/patient_css/chatbot.css'])
-  <!--
-    NOTE: These attachment-preview rules are kept here inline since
-    chatbot.css isn't part of this file. Feel free to move them into
-    chatbot.css instead — the class names are namespaced (chat-attachment-*)
-    so they won't collide with anything existing.
-  -->
-  <style>
-    .chat-bubble.attachment-bubble {
-      padding: 8px;
-    }
-    .chat-attachment-image {
-      max-width: 220px;
-      max-height: 220px;
-      border-radius: 12px;
-      display: block;
-      object-fit: cover;
-    }
-    .chat-attachment-caption {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 6px;
-      word-break: break-all;
-    }
-    .attachment-preview {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      margin: 0 12px;
-      background: #f3f4f6;
-      border-radius: 10px;
-      font-size: 13px;
-      color: #374151;
-    }
-    .attachment-preview-thumb {
-      width: 36px;
-      height: 36px;
-      object-fit: cover;
-      border-radius: 6px;
-      flex-shrink: 0;
-    }
-    .attachment-preview-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .attachment-preview-remove {
-      background: none;
-      border: none;
-      font-size: 18px;
-      line-height: 1;
-      color: #6b7280;
-      cursor: pointer;
-      padding: 2px 6px;
-    }
-    .attachment-preview-remove:hover {
-      color: #374151;
-    }
-  </style>
 </head>
 <body>
 
-<!-- Trigger button -->
 <button class="chatbot-trigger" id="chatbotTrigger">
   <i class="fa-solid fa-comment-medical"></i>
 </button>
 
-<!-- Chat panel -->
 <div class="chatbot-panel" id="chatbotPanel">
 
   <div class="chat-header">
@@ -96,9 +34,6 @@
 
   <div class="chat-messages" id="chatMessages"></div>
 
-  <!-- Shown when a file has been selected but not yet sent, so the
-       patient can still type a message and/or remove the attachment
-       before sending. -->
   <div class="attachment-preview" id="attachmentPreview">
     <img id="attachmentPreviewImg" class="attachment-preview-thumb" alt="">
     <span id="attachmentPreviewName" class="attachment-preview-name"></span>
@@ -114,9 +49,6 @@
 
 </div>
 
-<div class="footer-note">
-  <a href="{{ route('home') }}">← Back to PolyClinic Lipa</a>
-</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -135,21 +67,95 @@ document.addEventListener('DOMContentLoaded', () => {
   const csrfToken  = document.querySelector('meta[name="csrf-token"]').content;
   const botmanUrl  = '{{ route("botman.handle") }}';
 
-
   const APPT_CARD_PREFIX = 'APPT_CARD::';
   const INFO_CARD_PREFIX = 'INFO_CARD::';
 
+  // PER-MESSAGE TRANSLATION
+
+  async function translateCounterpart(text) {
+    if (!text || !text.trim()) return { text, lang: 'en' };
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) return { text, lang: 'en' };
+      const data = await res.json();
+      return {
+        text: data.translatedText || text,
+        lang: data.detectedSourceLanguage === 'tl' ? 'en' : 'tl',
+      };
+    } catch (e) {
+      console.error('Translation error:', e);
+      return { text, lang: 'en' };
+    }
+  }
+
+  function attachTranslateControls(messageWrap, getOriginalText) {
+    const anchor = document.createElement('div');
+    anchor.style.position = 'relative';
+    anchor.style.display = 'inline-block';
+    anchor.style.maxWidth = '100%';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'msg-translate-btn';
+    btn.innerHTML = '<i class="fa-solid fa-language"></i> Translate';
+
+    const box = document.createElement('div');
+    box.className = 'msg-translation-box';
+
+    let loaded = false;
+    let visible = false;
+
+    btn.addEventListener('click', async () => {
+      if (visible) {
+        box.classList.remove('visible');
+        btn.innerHTML = '<i class="fa-solid fa-language"></i> Translate';
+        visible = false;
+        return;
+      }
+
+      if (!loaded) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Translating...';
+        const originalText = getOriginalText();
+        const result = await translateCounterpart(originalText);
+
+        box.innerHTML = '';
+        const span = document.createElement('span');
+        span.textContent = result.text;
+
+        const collapseBtn = document.createElement('button');
+        collapseBtn.type = 'button';
+        collapseBtn.className = 'msg-translation-collapse';
+        collapseBtn.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+        collapseBtn.addEventListener('click', () => btn.click());
+
+        box.appendChild(span);
+        box.appendChild(collapseBtn);
+        loaded = true;
+      }
+
+      box.classList.add('visible');
+      btn.innerHTML = '<i class="fa-solid fa-language"></i> Hide translation';
+      visible = true;
+    });
+
+    anchor.appendChild(btn);
+    anchor.appendChild(box);
+    messageWrap.appendChild(anchor);
+  }
 
   // SESSION PERSISTENCE
-  
+
   const STORAGE_KEY = 'polyclinic_chat_state';
   const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
 
-  /**
-   * Generates a unique client identifier, used to associate this
-   * browser session with its corresponding BotMan conversation
-   * state on the server.
-   */
   function generateClientId() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -159,11 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /**
-   * Loads the persisted session from localStorage. If no session
-   * exists, or the last recorded activity exceeds the inactivity
-   * timeout, a fresh session is created instead.
-   */
   function loadSession() {
     let saved;
     try {
@@ -179,32 +180,26 @@ document.addEventListener('DOMContentLoaded', () => {
       return {
         clientId: generateClientId(),
         lastActivity: now,
-        history: [], // Array of { kind: 'bubble' | 'buttons' | 'card', ... }
+        history: [],
+        shownReplyIds: [],
       };
     }
+
+    if (!saved.shownReplyIds) saved.shownReplyIds = [];
 
     return saved;
   }
 
   let session = loadSession();
 
-  /**
-   * Persists the current session state and refreshes the
-   * last-activity timestamp.
-   */
   function persistSession() {
     session.lastActivity = Date.now();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   }
 
-  // ============================================================
   // PENDING ATTACHMENT (staged, not yet sent)
-  //
-  // Selecting a file no longer sends it immediately. It's held here
-  // until the patient hits send, so they can still type a message
-  // before or after attaching a photo, or remove it before sending.
-  // ============================================================
-  let pendingAttachment = null; // { file, dataUrl } | null
+
+  let pendingAttachment = null;
 
   function showAttachmentPreview(file, dataUrl) {
     pendingAttachment = { file, dataUrl };
@@ -213,7 +208,6 @@ document.addEventListener('DOMContentLoaded', () => {
       attachmentPreviewImg.src = dataUrl;
       attachmentPreviewImg.style.display = 'block';
     } else {
-      // Non-image file: nothing to thumbnail, just hide the image slot.
       attachmentPreviewImg.style.display = 'none';
       attachmentPreviewImg.src = '';
     }
@@ -228,19 +222,11 @@ document.addEventListener('DOMContentLoaded', () => {
     attachmentPreview.style.display = 'none';
     attachmentPreviewImg.src = '';
     attachmentPreviewName.textContent = '';
-    fileInput.value = ''; // Allows re-selecting the same file later.
+    fileInput.value = '';
   }
 
   attachmentPreviewRemove.addEventListener('click', clearAttachmentPreview);
 
-  /**
-   * Shows the "staff will review" acknowledgment for an attachment.
-   * Returns a Promise that resolves once the bubble has been shown,
-   * so callers (handleSend) can await it before continuing on to a
-   * follow-up backend call — this keeps the two typing indicators
-   * from overlapping when both an attachment AND typed text are
-   * sent together.
-   */
   function acknowledgeAttachment() {
     return new Promise((resolve) => {
       showTyping();
@@ -252,16 +238,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /**
-   * Called on send. Sends whatever combination of typed text and a
-   * staged attachment is currently present:
-   *   - attachment (with or without text) → local attachment bubble,
-   *     ALWAYS followed by the "Our staff will review..." ack.
-   *   - if text is also present, it's sent afterwards through the
-   *     normal backend (BotMan) flow via sendMessage().
-   *   - text only → normal sendMessage() flow (hits backend), same
-   *     as before.
-   */
   async function handleSend() {
     const text = input.value.trim();
     const attachment = pendingAttachment;
@@ -269,22 +245,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text && !attachment) return;
 
     if (attachment) {
-      addAttachmentBubble(attachment.file.name, attachment.dataUrl, 'user');
+      addAttachmentBubble(attachment.file.name, attachment.dataUrl, 'user', true, text || null);
       clearAttachmentPreview();
-      await acknowledgeAttachment(); // Always shown when there's an attachment, text or no text.
+      input.value = '';
+
+      if (text) {
+        await sendMessage(text, text, { skipUserBubble: true });
+      } else {
+        await acknowledgeAttachment();
+      }
+      return;
     }
 
     if (text) {
-      sendMessage(text); // Existing flow: renders bubble + calls the backend.
+      sendMessage(text);
     }
   }
 
-  // ---------- Panel open/close ----------
+  // Panel open/close
   trigger.addEventListener('click', () => {
     panel.classList.toggle('open');
     if (panel.classList.contains('open')) {
       input.focus();
       scrollToBottom();
+      pollForReplies();
     }
   });
 
@@ -296,28 +280,36 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  /**
-   * Renders a single chat bubble.
-   *
-   * Uses textContent rather than innerHTML so that:
-   *   1. Newlines are respected via the `white-space: pre-line` CSS rule.
-   *   2. User-supplied text cannot introduce an XSS vector.
-   *
-   * @param {string}  text
-   * @param {string}  sender  'bot' | 'user'
-   * @param {boolean} persist Whether to record this bubble in the
-   *                          session history. Set to false when
-   *                          replaying history that is already stored.
-   */
+  // Renders text into a bubble/title element, converting **bold** markers
+  // into real <strong> tags. HTML-escapes first so nothing from the
+  // backend (or, indirectly, from patient input reflected back) can
+  // inject markup — only the ** syntax we control from PHP is honored.
+  // Combined with `white-space: pre-line` in CSS, plain \n line breaks
+  // in the source text also render as real line breaks instead of being
+  // collapsed into one paragraph.
+  function renderBubbleText(el, text) {
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    el.innerHTML = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+
   function addBubble(text, sender = 'bot', persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
+    messageWrap.style.display = 'flex';
+    messageWrap.style.flexDirection = 'column';
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
-    bubble.textContent = text;
+    renderBubbleText(bubble, text);
 
     messageWrap.appendChild(bubble);
+    // Pass the original (un-rendered) text to the translator, not the
+    // bubble's innerHTML/textContent, so ** markers don't leak into
+    // what gets sent for translation.
+    attachTranslateControls(messageWrap, () => text);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
 
@@ -329,15 +321,87 @@ document.addEventListener('DOMContentLoaded', () => {
     return bubble;
   }
 
-  /**
-   * Renders a set of quick-reply buttons, as sent by a BotMan
-   * Question object.
-   *
-   * @param {Array}   buttons
-   * @param {boolean} persist Whether to record these buttons in the
-   *                          session history.
-   */
+  // Star rating helpers
+  function isRatingButtons(buttons) {
+    return Array.isArray(buttons) && buttons.length === 5 &&
+      buttons.every((b, i) => String(b.value ?? b.text).trim() === String(i + 1));
+  }
+
+  function addStarRating(buttons, persist = true, selectedIndex = null) {
+    const messageWrap = document.createElement('div');
+    messageWrap.className = 'chat-message bot';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble star-rating-bubble';
+
+    const row = document.createElement('div');
+    row.className = 'star-rating-row';
+
+    const stars = [];
+    // Once a star is picked, the fill locks in and further hover/click
+    // is ignored — this replaces the old behavior where mouseleave
+    // wiped every star back to unfilled right after a choice was made.
+    let selectedIdx = selectedIndex;
+
+    function paintUpTo(idx) {
+      stars.forEach((s, i) => s.classList.toggle('filled', i <= idx));
+    }
+
+    buttons.forEach((btn, idx) => {
+      const starBtn = document.createElement('button');
+      starBtn.type = 'button';
+      starBtn.className = 'star-btn';
+      starBtn.innerHTML = '<i class="fa-solid fa-star"></i>';
+
+      starBtn.addEventListener('mouseenter', () => {
+        if (selectedIdx !== null) return;
+        paintUpTo(idx);
+      });
+
+      starBtn.addEventListener('click', () => {
+        if (selectedIdx !== null) return;
+        selectedIdx = idx;
+
+        paintUpTo(idx);
+        stars.forEach(s => { s.disabled = true; });
+
+        const ratingLabel = `${idx + 1}/5`;
+        sendMessage(btn.value ?? btn.text, ratingLabel);
+      });
+
+      stars.push(starBtn);
+      row.appendChild(starBtn);
+    });
+
+    row.addEventListener('mouseleave', () => {
+      if (selectedIdx !== null) return; // keep the chosen stars colored
+      stars.forEach(s => s.classList.remove('filled'));
+    });
+
+    // Restoring a previously-answered rating (e.g. after a page reload)
+    // — lock it in immediately instead of showing it blank/interactive.
+    if (selectedIdx !== null) {
+      paintUpTo(selectedIdx);
+      stars.forEach(s => { s.disabled = true; });
+    }
+
+    bubble.appendChild(row);
+    messageWrap.appendChild(bubble);
+    messagesEl.appendChild(messageWrap);
+    scrollToBottom();
+
+    if (persist) {
+      session.history.push({ kind: 'star_rating', buttons, selectedIndex: selectedIdx });
+      persistSession();
+    }
+  }
+
   function addButtons(buttons, persist = true) {
+    if (isRatingButtons(buttons)) {
+      addStarRating(buttons, persist);
+      return;
+    }
+
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
 
@@ -349,18 +413,6 @@ document.addEventListener('DOMContentLoaded', () => {
       b.className = 'menu-btn';
       b.textContent = btn.text;
       b.addEventListener('click', () => {
-        // FIX: previously called sendMessage(btn.value ?? btn.text), which
-        // used the SAME string both as the value sent to the backend AND
-        // as the text shown in the user's chat bubble. For buttons like
-        // the doctor list, `value` is a numeric doctor_id (needed by the
-        // backend to look up the doctor), while `text` is the human-
-        // readable label ("Dr. ... — Pediatrics"). That mismatch is why
-        // the chat bubble showed a bare number ("2") instead of the
-        // doctor's name.
-        //
-        // sendMessage() now takes an optional second "displayText"
-        // argument so the bubble can show the button's label while the
-        // backend still receives the value it actually needs.
         sendMessage(btn.value ?? btn.text, btn.text);
       });
       bubble.appendChild(b);
@@ -376,20 +428,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Renders a single row inside a card section. Row shape:
-   *   { label, value, type?, icon? }
-   * type 'text'      (default): "Label: value" with a bold label.
-   * type 'multiline': value is an array of strings, each shown on its
-   *                    own indented line under a single bold label
-   *                    (used for Operating Hours' Mon-Fri / Sat lines).
-   * type 'link':      value is a URL, rendered as a real clickable
-   *                    anchor that opens in a new tab.
-   * `icon`, when present (appointment cards), is prefixed to the label.
-   */
   function renderCardRow(container, row) {
     const type = row.type || 'text';
-    const labelText = (row.icon ? row.icon + ' ' : '') + row.label;
+    const labelText = row.label;
 
     if (type === 'multiline') {
       const labelP = document.createElement('p');
@@ -429,7 +470,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // default: plain "Label: value" row with a bold label
     const p = document.createElement('p');
     const strong = document.createElement('strong');
     strong.textContent = labelText + ':';
@@ -438,30 +478,20 @@ document.addEventListener('DOMContentLoaded', () => {
     container.appendChild(p);
   }
 
-  /**
-   * Renders a structured card built from a JSON payload sent by the
-   * backend — used for both the appointment confirmation (see
-   * submitAppointment() in AppointmentConversation.php) and the
-   * general clinic info reply (see sendClinicInfo() in
-   * BotManController.php). Displays a bold title followed by grouped
-   * sections, each rendered as its own visually-separated block of
-   * labeled rows — instead of a single long run-on message.
-   *
-   * @param {Object}  data       { title, sections: [{ rows: [{icon, label, value}] }], footer }
-   * @param {string}  titleIcon  Emoji prefixed to the title (e.g. '✅' or 'ℹ️').
-   * @param {string}  kind       History-persist tag: 'card' | 'info_card'.
-   * @param {boolean} persist    Whether to record this card in the session history.
-   */
-  function addCard(data, titleIcon, kind, persist = true) {
+  function addCard(data, kind, persist = true) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
+    messageWrap.style.display = 'flex';
+    messageWrap.style.flexDirection = 'column';
 
     const card = document.createElement('div');
     card.className = 'post-appt-card';
 
     const title = document.createElement('div');
     title.className = 'post-appt-title';
-    title.textContent = (titleIcon ? titleIcon + ' ' : '') + data.title;
+    // Title can also carry \n / **bold** now (e.g. multi-line card
+    // headers), same rendering path as chat bubbles.
+    renderBubbleText(title, data.title);
     card.appendChild(title);
 
     (data.sections || []).forEach(section => {
@@ -483,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     messageWrap.appendChild(card);
+    attachTranslateControls(messageWrap, () => card.innerText);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
 
@@ -493,50 +524,43 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function addAppointmentCard(data, persist = true) {
-    addCard(data, '✅', 'card', persist);
+    addCard(data, 'card', persist);
   }
 
   function addInfoCard(data, persist = true) {
-    addCard(data, 'ℹ️', 'info_card', persist);
+    addCard(data, 'info_card', persist);
   }
 
-  /**
-   * Renders an attachment bubble. For image files, shows an actual
-   * inline preview of the image (via a base64 data URL) with the
-   * filename as a small caption underneath. For non-image files,
-   * falls back to a 📎 filename bubble since there's nothing visual
-   * to preview.
-   *
-   * @param {string}  fileName
-   * @param {string|null} dataUrl  Base64 data URL of the file (image
-   *                               previews only), or null for non-image
-   *                               attachments.
-   * @param {string}  sender       'bot' | 'user'
-   * @param {boolean} persist      Whether to record this in session history.
-   */
-  function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true) {
+  function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true, caption = null) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
 
     const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble attachment-bubble';
+
+    if (caption) {
+      const captionEl = document.createElement('div');
+      captionEl.className = 'chat-attachment-caption-text';
+      captionEl.textContent = caption;
+      bubble.appendChild(captionEl);
+    }
 
     if (dataUrl) {
-      bubble.className = 'chat-bubble attachment-bubble';
-
       const img = document.createElement('img');
       img.src = dataUrl;
       img.alt = fileName;
       img.className = 'chat-attachment-image';
       bubble.appendChild(img);
 
-      const caption = document.createElement('div');
-      caption.className = 'chat-attachment-caption';
-      caption.textContent = fileName;
-      bubble.appendChild(caption);
+      const fileLabel = document.createElement('div');
+      fileLabel.className = 'chat-attachment-caption';
+      fileLabel.textContent = fileName;
+      bubble.appendChild(fileLabel);
     } else {
-      // Non-image file: nothing to preview, so just show the filename.
-      bubble.className = 'chat-bubble';
-      bubble.textContent = `📎 Attached: ${fileName}`;
+      const fileLabel = document.createElement('div');
+      fileLabel.className = 'chat-attachment-caption';
+      fileLabel.textContent = `Attached: ${fileName}`;
+      bubble.appendChild(fileLabel);
     }
 
     messageWrap.appendChild(bubble);
@@ -544,45 +568,45 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
 
     if (persist) {
-      session.history.push({ kind: 'attachment', fileName, dataUrl, sender });
+      session.history.push({ kind: 'attachment', fileName, dataUrl, sender, caption });
       persistSession();
     }
 
     return bubble;
   }
 
+
   function restoreConversation() {
     if (session.history.length === 0) {
       addBubble('Hello! Welcome to PolyClinic Lipa. How can I help you today?', 'bot');
-      // Show the main menu buttons right away instead of waiting for the
-      // user to type something first. These values ('schedule visit' /
-      // 'general information') match exactly what the backend's
-      // sendMainMenu() / isGlobalCommand() already expect, so clicking
-      // either button behaves the same as if the backend had sent them.
       addButtons([
-        { text: '📋 Schedule Visit', value: 'schedule visit' },
-        { text: 'ℹ️ General Information', value: 'general information' },
+        { text: 'Schedule Visit', value: 'schedule visit' },
+        { text: 'General Information', value: 'general information' },
+        { text: 'Submit Review/Rating', value: 'submit review/rating' },
+        { text: 'Submit Complaint', value: 'submit complaint' },
       ]);
       return;
     }
 
     session.history.forEach(item => {
       if (item.kind === 'bubble') {
-        addBubble(item.text, item.sender, false); // Already persisted — don't re-save.
+        addBubble(item.text, item.sender, false);
       } else if (item.kind === 'buttons') {
         addButtons(item.buttons, false);
+      } else if (item.kind === 'star_rating') {
+        addStarRating(item.buttons, false, item.selectedIndex ?? null);
       } else if (item.kind === 'card') {
         addAppointmentCard(item.data, false);
       } else if (item.kind === 'info_card') {
         addInfoCard(item.data, false);
       } else if (item.kind === 'attachment') {
-        addAttachmentBubble(item.fileName, item.dataUrl, item.sender, false);
+        addAttachmentBubble(item.fileName, item.dataUrl, item.sender, false, item.caption);
       }
     });
     scrollToBottom();
   }
 
-  // ---------- Typing indicator ----------
+  // Typing indicator
   function showTyping() {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
@@ -602,29 +626,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.remove();
   }
 
-  /**
-   * Sends a message to the BotMan backend and renders the reply.
-   *
-   * Bot text messages are inspected for the APPT_CARD_PREFIX marker.
-   * If present, the remainder of the string is parsed as JSON and
-   * rendered as a structured card via addAppointmentCard(); otherwise
-   * the text is rendered as a normal chat bubble.
-   *
-   * @param {string} text        The value actually sent to the BotMan
-   *                              backend (e.g. a button's value, which
-   *                              may be an ID or an internal keyword).
-   * @param {string} [displayText] What to show in the user's chat
-   *                              bubble. Falls back to `text` when
-   *                              omitted — e.g. when the user typed a
-   *                              message directly into the input box,
-   *                              where the sent text and displayed
-   *                              text are the same thing.
-   */
-  async function sendMessage(text, displayText) {
+  async function sendMessage(text, displayText, opts = {}) {
     text = typeof text === 'string' ? text : String(text ?? '');
     if (!text.trim()) return;
 
-    addBubble(displayText ?? text, 'user');
+    if (!opts.skipUserBubble) {
+      addBubble(displayText ?? text, 'user');
+    }
     input.value = '';
     showTyping();
 
@@ -639,7 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           driver: 'web',
           message: text,
-          userId: session.clientId, // Lets BotMan resume the correct conversation state.
+          userId: session.clientId,
         }),
       });
 
@@ -647,11 +655,10 @@ document.addEventListener('DOMContentLoaded', () => {
       hideTyping();
 
       if (!res.ok) {
-        addBubble('⚠️ Something went wrong reaching the chatbot. Please try again.', 'bot');
+        addBubble('Something went wrong reaching the chatbot. Please try again.', 'bot');
         return;
       }
 
-      // The /botman endpoint returns: { status: 200, messages: [ { text, actions? }, ... ] }
       const messages = Array.isArray(data) ? data : (data.messages || []);
 
       messages.forEach(msg => {
@@ -662,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
               addAppointmentCard(cardData);
             } catch (e) {
               console.error('Failed to parse appointment card payload:', e);
-              addBubble(msg.text, 'bot'); // Fallback: show raw text rather than silently dropping it.
+              addBubble(msg.text, 'bot');
             }
           } else if (msg.text.startsWith(INFO_CARD_PREFIX)) {
             try {
@@ -670,15 +677,13 @@ document.addEventListener('DOMContentLoaded', () => {
               addInfoCard(cardData);
             } catch (e) {
               console.error('Failed to parse info card payload:', e);
-              addBubble(msg.text, 'bot'); // Fallback: show raw text rather than silently dropping it.
+              addBubble(msg.text, 'bot');
             }
           } else {
             addBubble(msg.text, 'bot');
           }
         }
 
-        // Buttons may arrive as msg.actions (BotMan Question object)
-        // or the legacy msg.attachment.buttons format.
         const buttons = msg.actions || (msg.attachment && msg.attachment.buttons);
         if (buttons && buttons.length) {
           addButtons(buttons);
@@ -688,11 +693,11 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       hideTyping();
       console.error('Chat error:', err);
-      addBubble('⚠️ Unable to connect. Please check your internet connection and try again.', 'bot');
+      addBubble('Unable to connect. Please check your internet connection and try again.', 'bot');
     }
   }
 
-  // ---------- Event listeners ----------
+  // Event listeners
   sendBtn.addEventListener('click', handleSend);
 
   input.addEventListener('keydown', (e) => {
@@ -702,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ---------- File attachment (optional) ----------
+  // File attachment (optional)
   attachBtn.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', () => {
@@ -718,9 +723,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ---------- Initialization ----------
+
+  const FALLBACK_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
+  let shownReplyIds = new Set(session.shownReplyIds || []);
+
+  function removeFallbackBubbles() {
+    document.querySelectorAll('.chat-message.bot .chat-bubble').forEach(bubble => {
+      if (bubble.textContent === FALLBACK_TEXT) {
+        bubble.closest('.chat-message').remove();
+      }
+    });
+    session.history = session.history.filter(
+      item => !(item.kind === 'bubble' && item.text === FALLBACK_TEXT)
+    );
+    persistSession();
+  }
+
+  async function pollForReplies() {
+    try {
+      const res = await fetch(`/api/chat/${session.clientId}/updates`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const updates = data.updates || [];
+
+      const newOnes = updates.filter(u => !shownReplyIds.has(u.replyId));
+      if (newOnes.length === 0) return;
+
+      removeFallbackBubbles();
+
+      newOnes.forEach(u => {
+        addBubble(u.message, 'bot');
+        shownReplyIds.add(u.replyId);
+      });
+
+      session.shownReplyIds = Array.from(shownReplyIds);
+      persistSession();
+    } catch (err) {
+      console.error('Poll error:', err);
+    }
+  }
+
+  setInterval(pollForReplies, 5000);
+
+  // Global trigger: open chat + jump straight to Submit Feedback
+  window.openChatbotAndSubmitFeedback = function () {
+    if (!panel.classList.contains('open')) {
+      panel.classList.add('open');
+    }
+    input.focus();
+    scrollToBottom();
+    pollForReplies();
+    sendMessage('submit review/rating', 'Submit Review/Rating');
+  };
+
+  // Global trigger: open chat + jump straight to Schedule Visit
+  window.openChatbotAndScheduleVisit = function () {
+    if (!panel.classList.contains('open')) {
+      panel.classList.add('open');
+    }
+    input.focus();
+    scrollToBottom();
+    pollForReplies();
+    sendMessage('schedule visit', 'Schedule Visit');
+  };
+
+  // Initialization
   restoreConversation();
-  persistSession(); // Refresh the activity timestamp on every page load.
+  persistSession();
+  pollForReplies();
 });
 </script>
 

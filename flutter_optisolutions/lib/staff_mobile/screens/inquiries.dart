@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'staffcolor.dart';
 import 'package:flutter_optisolutions/login.dart';
 import 'dashboard.dart';
 import 'inquiry_chat.dart';
@@ -22,15 +23,33 @@ class _InquiriesPageState extends State<InquiriesPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  // ✅ Now loaded from the database via API instead of hardcoded
   List<Map<String, dynamic>> _allInquiries = [];
   bool _loading = true;
   String? _loadError;
 
+  // Logged-in staff name
+  String _staffName = 'Staff';
+  String _staffEmail = '';
+
   @override
   void initState() {
     super.initState();
+    _loadStaffName();
     _loadInquiries();
+  }
+
+  Future<void> _loadStaffName() async {
+    try {
+      final user = await ApiService.getCurrentUser();
+      if (user != null && mounted) {
+        setState(() {
+          if (user['name'] != null) _staffName = user['name'].toString();
+          if (user['email'] != null) _staffEmail = user['email'].toString();
+        });
+      }
+    } catch (e) {
+      print('Error loading staff name: $e');
+    }
   }
 
   Future<void> _loadInquiries() async {
@@ -44,10 +63,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
         _allInquiries = (result as List).map<Map<String, dynamic>>((inq) {
           return {
             'id': inq['id'],
-            // ✅ FIX: raw database ID, hiwalay sa naka-format na 'id'
-            // (hal. "INQ-123"). Ginagamit ito para sa API calls papunta
-            // sa /inquiries/{dbId}/messages dahil hindi maiintindihan ni
-            // Laravel ang naka-prefix na string sa route model binding.
+
             'dbId': inq['dbId'],
             'patientId': inq['patientId'],
             'department': inq['department'],
@@ -86,8 +102,6 @@ class _InquiriesPageState extends State<InquiriesPage> {
     });
   }
 
-  // ✅ The API already returns the latest message as part of each inquiry
-  // (see Inquiry::toApiArray() in Laravel), so no separate lookup is needed.
   String _getLastMessage(String inquiryId) {
     return _allInquiries.firstWhere((inq) => inq['id'] == inquiryId)['message'];
   }
@@ -134,14 +148,12 @@ class _InquiriesPageState extends State<InquiriesPage> {
                           final lastMessage = _getLastMessage(inquiry['id']);
                           return GestureDetector(
                             onTap: () async {
-                              // ✅ Navigate and wait for result
                               final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => InquiryChatPage(
                                     inquiryId: inquiry['id'],
-                                    // ✅ FIX: ipasa ang raw dbId para gamitin
-                                    // sa API calls sa InquiryChatPage
+
                                     dbId: inquiry['dbId'].toString(),
                                     patientId: inquiry['patientId'],
                                     department: inquiry['department'],
@@ -154,7 +166,6 @@ class _InquiriesPageState extends State<InquiriesPage> {
                                 ),
                               );
 
-                              // ✅ Refresh pagbalik
                               if (result == true) {
                                 setState(() {});
                               }
@@ -196,16 +207,16 @@ class _InquiriesPageState extends State<InquiriesPage> {
               fontWeight: FontWeight.bold,
               fontSize: 22,
               letterSpacing: 0.5,
-              color: Color(0xFF1A237E),
+              color: Colors.black87, //newc
             ),
           ),
         ],
       ),
       backgroundColor: Colors.white,
-      foregroundColor: const Color(0xFF1A237E),
+      foregroundColor: StaffColors.primary,
       elevation: 2,
       centerTitle: false,
-      iconTheme: const IconThemeData(color: Color(0xFF1A237E)),
+      iconTheme: const IconThemeData(color: StaffColors.primary),
       actions: [
         NotificationBadge(
           onTap: () {
@@ -218,7 +229,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
           },
         ),
         IconButton(
-          icon: const Icon(Icons.logout, color: Color(0xFF1A237E)),
+          icon: const Icon(Icons.logout, color: StaffColors.primary),
           onPressed: () {
             _showLogoutDialog(context);
           },
@@ -234,7 +245,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
-            color: const Color(0xFF1A237E),
+            color: StaffColors.primary,
             child: Column(
               children: [
                 const SizedBox(height: 30),
@@ -255,17 +266,17 @@ class _InquiriesPageState extends State<InquiriesPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Staff Name',
-                  style: TextStyle(
+                Text(
+                  _staffName,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Text(
-                  'staff@polyclinic.com',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                Text(
+                  _staffEmail.isNotEmpty ? _staffEmail : 'staff@polyclinic.com',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ],
             ),
@@ -293,10 +304,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
           const Divider(),
           _buildDrawerItem(Icons.logout, 'Logout', false, () {
             Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-            );
+            _showLogoutDialog(context);
           }),
         ],
       ),
@@ -312,17 +320,17 @@ class _InquiriesPageState extends State<InquiriesPage> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade600,
+        color: isActive ? StaffColors.primary : Colors.grey.shade600,
       ),
       title: Text(
         title,
         style: TextStyle(
           fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade800,
+          color: isActive ? StaffColors.primary : Colors.grey.shade800,
         ),
       ),
       trailing: isActive
-          ? Container(width: 4, height: 24, color: const Color(0xFF1A237E))
+          ? Container(width: 4, height: 24, color: StaffColors.primary)
           : null,
       onTap: onTap,
     );
@@ -335,14 +343,18 @@ class _InquiriesPageState extends State<InquiriesPage> {
       color: Colors.white,
       child: Row(
         children: [
-          const Icon(Icons.question_answer, color: Color(0xFF1A237E), size: 28),
+          const Icon(
+            Icons.question_answer,
+            color: StaffColors.primary,
+            size: 28,
+          ),
           const SizedBox(width: 12),
           const Text(
             'Inquiries',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A237E),
+              color: Colors.black87, //newc
             ),
           ),
           const Spacer(),
@@ -439,15 +451,15 @@ class _InquiriesPageState extends State<InquiriesPage> {
             height: 36,
             decoration: BoxDecoration(
               color: isNew
-                  ? const Color(0xFF1A237E).withValues(alpha: 0.2)
-                  : const Color(0xFF1A237E).withValues(alpha: 0.1),
+                  ? StaffColors.primary.withValues(alpha: 0.2)
+                  : StaffColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
               child: Text(
                 id.replaceAll('CHAT-', ''),
                 style: TextStyle(
-                  color: isNew ? const Color(0xFF1A237E) : Colors.grey.shade600,
+                  color: isNew ? StaffColors.primary : Colors.grey.shade600,
                   fontWeight: isNew ? FontWeight.bold : FontWeight.normal,
                   fontSize: 13,
                 ),
@@ -467,7 +479,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
                         fontWeight: isNew ? FontWeight.bold : FontWeight.w500,
                         fontSize: 14,
                         color: isNew
-                            ? const Color(0xFF1A237E)
+                            ? StaffColors.primary
                             : Colors.grey.shade700,
                       ),
                     ),
@@ -556,7 +568,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
           ),
           Icon(
             Icons.chevron_right,
-            color: isNew ? const Color(0xFF1A237E) : Colors.grey,
+            color: isNew ? StaffColors.primary : Colors.grey,
             size: 20,
           ),
         ],
@@ -580,7 +592,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF1A237E),
+        selectedItemColor: StaffColors.primary,
         unselectedItemColor: Colors.grey.shade400,
         selectedFontSize: 11,
         unselectedFontSize: 11,
@@ -628,7 +640,7 @@ class _InquiriesPageState extends State<InquiriesPage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.question_answer),
-            label: 'Inquiries',
+            label: 'Chatbot Inquiries',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
@@ -636,9 +648,12 @@ class _InquiriesPageState extends State<InquiriesPage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.medical_services),
-            label: 'Doctors',
+            label: 'Manage Doctors',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Patients'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'Patient Records',
+          ),
         ],
       ),
     );
@@ -647,22 +662,27 @@ class _InquiriesPageState extends State<InquiriesPage> {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              await ApiService.logout();
+              Navigator.pop(dialogContext);
+              try {
+                await ApiService.logout();
+              } catch (e) {
+                print('Logout error: $e');
+              }
               if (!context.mounted) return;
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
               );
             },
             style: ElevatedButton.styleFrom(

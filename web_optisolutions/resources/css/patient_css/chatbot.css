@@ -51,327 +51,6 @@ body {
 }
 
 /* ============================================
-   NAVBAR
-   ============================================ */
-.navbar {
-  position: sticky;
-  top: 0;
-  background: rgba(255,255,255,0.96);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(0,0,0,0.04);
-  z-index: 100;
-  padding: 14px 32px;
-}
-
-.navbar-inner {
-  max-width: 1280px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 32px;
-  flex-wrap: wrap;
-}
-
-.navbar-logo-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.navbar-logo-img {
-  height: 42px;
-  width: auto;
-  object-fit: contain;
-}
-
-.navbar-logo {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 26px;
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  letter-spacing: -0.3px;
-}
-
-.navbar-logo small {
-  font-size: 11px;
-  font-weight: 500;
-  background: var(--gray-100);
-  color: var(--primary);
-  padding: 2px 8px;
-  border-radius: 40px;
-  margin-left: 8px;
-}
-
-.navbar-nav {
-  display: flex;
-  gap: 28px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.nav-link {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--gray-700);
-  transition: all 0.2s;
-  position: relative;
-  text-decoration: none;
-}
-
-.nav-link:hover {
-  color: var(--primary);
-}
-
-.nav-link.active {
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.nav-link.active::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 0;
-  right: 0;
-  height: 2.5px;
-  background: var(--primary);
-  border-radius: 4px;
-}
-
-.nav-cta {
-  background: var(--primary);
-  color: white;
-  padding: 10px 22px;
-  border-radius: 40px;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.25s;
-  border: none;
-  box-shadow: 0 2px 6px rgba(15,103,179,0.2);
-  cursor: pointer;
-}
-
-.nav-cta:hover {
-  background: var(--primary-dark);
-  transform: translateY(-2px);
-}
-
-/* ============================================
-   SHARED SECTION STYLES
-   ============================================ */
-.section {
-  padding: 80px 40px;
-}
-
-.section-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 36px;
-  font-weight: 700;
-  color: var(--gray-900);
-  margin-bottom: 16px;
-  text-align: center;
-}
-
-.section-subtitle {
-  font-size: 18px;
-  color: var(--gray-500);
-  margin-bottom: 48px;
-  text-align: center;
-  max-width: 700px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.btn {
-  padding: 12px 28px;
-  border-radius: 40px;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.25s;
-  cursor: pointer;
-  border: none;
-  display: inline-block;
-  text-decoration: none;
-}
-
-.btn-primary {
-  background: var(--primary);
-  color: white;
-  box-shadow: 0 4px 12px rgba(15,103,179,0.25);
-}
-
-.btn-primary:hover {
-  background: var(--primary-dark);
-  transform: translateY(-2px);
-}
-
-.btn-outline {
-  background: transparent;
-  color: var(--primary-dark);
-  border: 1.5px solid var(--primary);
-}
-
-.btn-outline:hover {
-  background: var(--primary);
-  color: white;
-}
-
-.btn-group {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.btn-modern-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--primary);
-  color: white;
-  padding: 14px 36px;
-  border-radius: 50px;
-  font-weight: 600;
-  font-size: 15px;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  border: none;
-  cursor: pointer;
-}
-
-.btn-modern-primary:hover {
-  background: var(--primary-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(15, 103, 179, 0.3);
-}
-
-.btn-modern-primary i {
-  transition: transform 0.3s ease;
-}
-
-.btn-modern-primary:hover i {
-  transform: translateX(4px);
-}
-
-.btn-modern-outline {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: transparent;
-  color: var(--primary);
-  padding: 14px 36px;
-  border-radius: 50px;
-  font-weight: 600;
-  font-size: 15px;
-  text-decoration: none;
-  border: 2px solid var(--primary);
-  transition: all 0.3s ease;
-}
-
-.btn-modern-outline:hover {
-  background: var(--primary);
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(15, 103, 179, 0.2);
-}
-
-.btn-modern-outline i {
-  transition: transform 0.3s ease;
-}
-
-.btn-modern-outline:hover i {
-  transform: translateX(4px);
-}
-
-/* ============================================
-   REVIEWS BANNER
-   ============================================ */
-.reviews-banner-footer {
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-  border-radius: 24px;
-  padding: 40px 48px;
-  width: 100%;
-  margin: 48px 0 0;
-  text-align: center;
-  box-shadow: var(--shadow-lg);
-  box-sizing: border-box;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.reviews-banner-footer:hover {
-  transform: scale(1.01);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.2);
-}
-
-.reviews-banner-footer:active {
-  transform: scale(0.99);
-}
-
-.reviews-banner-footer .stars {
-  font-size: 32px;
-  letter-spacing: 4px;
-  color: #FFD700;
-  margin-bottom: 8px;
-}
-
-.reviews-banner-footer .count {
-  font-size: 28px;
-  font-weight: 800;
-  color: white;
-}
-
-.reviews-banner-footer .text {
-  font-size: 14px;
-  color: rgba(255,255,255,0.9);
-  margin-top: 6px;
-}
-
-/* ============================================
-   FOOTER
-   ============================================ */
-.footer {
-  background: var(--gray-900);
-  color: #C9D9E8;
-  padding: 48px 32px;
-  text-align: center;
-  font-size: 14px;
-  margin-top: 60px;
-}
-
-/* ============================================
-   MODAL ANIMATION
-   ============================================ */
-@keyframes modalSlideIn {
-  from { opacity: 0; transform: scale(0.95) translateY(-20px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-/* ============================================
-   RESPONSIVE - GLOBAL
-   ============================================ */
-@media (max-width: 768px) {
-  .navbar-inner { flex-direction: column; gap: 16px; }
-  .navbar-nav { justify-content: center; gap: 16px; }
-  .navbar-logo-wrapper { justify-content: center; }
-  .section { padding: 60px 20px; }
-  .reviews-banner-footer { padding: 24px 20px; border-radius: 16px; }
-}
-
-@media (max-width: 480px) {
-  .navbar-logo { font-size: 20px; }
-  .navbar-logo-img { height: 32px; }
-  .navbar-nav { gap: 10px; }
-  .nav-link { font-size: 13px; }
-  .nav-cta { padding: 8px 16px; font-size: 12px; }
-  .section-title { font-size: 28px; }
-}
-
-/* ============================================
    CHATBOT STYLES
    chatbot.css — import after style.css
    All chatbot text uses a single font-family and
@@ -518,17 +197,41 @@ body {
   background: #F8FAFE;
 }
 
-.chat-message { display: flex; }
-.chat-message.bot { justify-content: flex-start; }
-.chat-message.user { justify-content: flex-end; }
+/* NOTE: chatbot.js sets `messageWrap.style.flexDirection = 'column'`
+   inline on each .chat-message wrapper (to stack the bubble + the
+   "Translate" control vertically). Because it's a column flex now,
+   the axis that controls LEFT/RIGHT placement is the CROSS axis,
+   which is controlled by align-items — NOT justify-content (which
+   would only affect vertical spacing in a column layout). */
+.chat-message {
+  display: flex;
+  flex-direction: column;
+  max-width: 85%;
+}
+
+.chat-message.bot {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.chat-message.user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
 
 .chat-bubble {
-  max-width: 85%;
+  max-width: 100%;
   padding: 10px 16px;
   border-radius: 22px;
   font-size: 14px;
   line-height: 1.45;
   word-break: break-word;
+  /* Preserves \n line breaks from the backend (e.g. multi-line
+     "Suggested schedule:" messages) as real line breaks instead of
+     collapsing them into one run-on paragraph. Also preserves
+     ordinary spaces, which is fine since word-break already handles
+     long unbroken strings. */
+  white-space: pre-line;
 }
 
 .chat-message.bot .chat-bubble {
@@ -667,7 +370,13 @@ body {
    Used by addAttachmentBubble() for image attachments
    that have actually been sent in the conversation.
    ============================================ */
-.chat-bubble.attachment-bubble {
+/* Light background instead of inheriting the big solid-blue chat
+   bubble — the blue now only shows as a thin accent border. */
+.chat-message.user .chat-bubble.attachment-bubble,
+.chat-message.bot .chat-bubble.attachment-bubble {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  color: var(--gray-800);
   padding: 8px;
 }
 
@@ -684,6 +393,16 @@ body {
   color: var(--gray-500);
   margin-top: 6px;
   word-break: break-all;
+}
+
+/* The patient's typed question, shown above the file inside the same
+   bubble — so the text and attachment travel/read as one message. */
+.chat-attachment-caption-text {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--gray-800);
+  padding: 2px 4px 8px;
+  word-break: break-word;
 }
 
 /* ============================================
@@ -803,9 +522,12 @@ body {
   margin-bottom: 16px;
   color: var(--gray-900);
   text-align: center;
+  /* Same reasoning as .chat-bubble above — card titles can now carry
+     \n line breaks (e.g. "Schedule Visit Confirmed, Juan!") without
+     collapsing into one run-on line. */
+  white-space: pre-line;
 }
 
-/* Row text inside a confirmation/info card (Patient / Contact / etc.) */
 .post-appt-card p {
   font-family: 'Inter', sans-serif;
   font-size: 14px;
@@ -819,8 +541,6 @@ body {
   margin-bottom: 0;
 }
 
-/* Groups rows into visually separated blocks: Patient info,
-   Service & Doctor, Scheduled — matching the target layout. */
 .post-appt-section {
   margin-bottom: 14px;
 }
@@ -951,9 +671,18 @@ body {
 }
 
 .star-btn.active,
+.star-btn.filled,
 .star-btn:hover {
   color: #F5B042;
   transform: scale(1.05);
+}
+
+/* Once a star is picked (see chatbot.js addStarRating), the button is
+   disabled but should stay visually gold — without this, the disabled
+   state's default dimmed styling could make it look unpicked again. */
+.star-btn.filled:disabled {
+  color: #F5B042;
+  opacity: 1;
 }
 
 .comment-box {
@@ -965,6 +694,120 @@ body {
   font-family: inherit;
   margin: 10px 0;
   resize: vertical;
+}
+
+/* ============================================
+   PER-MESSAGE TRANSLATE
+   ============================================ */
+.msg-translate-btn {
+  background: var(--primary-light);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  margin: 4px 2px 0 2px;
+  border-radius: 20px;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+
+.msg-translate-btn:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.msg-translate-btn:active {
+  transform: scale(0.96);
+}
+
+.msg-translate-btn i {
+  font-size: 11px;
+  color: inherit;
+}
+
+.msg-translate-btn i.fa-spin {
+  color: var(--primary-dark);
+}
+
+.chat-message.user .msg-translate-btn {
+  align-self: flex-end;
+}
+
+.chat-message.bot .msg-translate-btn {
+  align-self: flex-start;
+}
+
+.msg-translation-box {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  padding: 10px 30px 10px 14px;
+  background: var(--white);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gray-200);
+  border-left: 3px solid var(--primary);
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--gray-800);
+  max-width: 260px;
+  width: max-content;
+  z-index: 30;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.msg-translation-box.visible {
+  display: block;
+  animation: translateBoxIn 0.18s ease forwards;
+}
+
+@keyframes translateBoxIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chat-message.user .msg-translation-box {
+  right: 0;
+}
+
+.chat-message.bot .msg-translation-box {
+  left: 0;
+}
+
+.msg-translation-collapse {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: var(--primary-light);
+  border: none;
+  color: var(--primary-dark);
+  cursor: pointer;
+  font-size: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.msg-translation-collapse:hover {
+  background: var(--primary);
+  color: white;
 }
 
 /* ============================================

@@ -4,97 +4,86 @@ namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
 use App\Models\Staff\ScheduleVisit;
-use App\Models\Staff\User;
 use App\Models\Staff\Doctor;
 use App\Models\Staff\Patient;
 use App\Models\Staff\Inquiry;
+use App\Models\Staff\AppNotification;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Carbon;
-use Carbon\CarbonInterface;
 
 class StaffController extends Controller
 {
-    public function login()
-    {
-        return view('staff.login');
-    }
-
-    public function authenticate(Request $request)
-    {
-        $request->validate([
-            'staff_email' => 'required|email',
-            'staff_password' => 'required',
-        ]);
-
-        $user = User::where('email', $request->staff_email)
-                    ->where('user_role', 'staff')
-                    ->first();
-
-        if (!$user || !Hash::check($request->staff_password, $user->password)) {
-            return back()->withErrors([
-                'staff_email' => 'Invalid email or password.',
-            ])->onlyInput('staff_email');
-        }
-
-        if ($user->status !== 'active') {
-            return back()->withErrors([
-                'staff_email' => 'Your account is inactive. Please contact the administrator.',
-            ])->onlyInput('staff_email');
-        }
-
-        Auth::guard('staff')->login($user);
-        $request->session()->regenerate();
-
-        return redirect()->intended('/staff/dashboard');
-    }
-
     public function dashboard()
     {
         return view('staff.dashboard', $this->buildDashboardData());
     }
 
-    /**
-     * JSON endpoint polled every 30s by dashboard.blade.php's JavaScript
-     * to refresh charts without a full page reload.
-     *
-     * Route to add in routes/staff_acc/web.php (inside the 'staff' middleware group):
-     *   Route::get('/staff/dashboard/data', [StaffController::class, 'data'])->name('staff.dashboard.data');
-     */
     public function data()
     {
         return response()->json($this->buildDashboardData());
     }
 
-    /**
-     * Shared data-building logic so dashboard() and data() never drift apart.
-     */
+    public function updatePhoto(Request $request)
+    {
+        $request->validate([
+            'profile_photo' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        $user = Auth::user();
+
+        // burahin lumang photo kung meron
+        if ($user->profile_photo) {
+            Storage::disk('public')->delete($user->profile_photo);
+        }
+
+        $path = $request->file('profile_photo')->store('profile_photos', 'public');
+
+        $user->profile_photo = $path;
+        $user->save();
+
+        return back()->with('success', 'Profile photo updated!');
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => ['required'],
+            'password' => ['required', 'confirmed', 'min:8'],
+        ]);
+
+        $user = Auth::user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+        }
+
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        return back()->with('success', 'Password updated!');
+    }
+
     private function buildDashboardData(): array
     {
-        // -----------------------------------------------------------
-        // Stat cards
-        // -----------------------------------------------------------
         $totalScheduleVisit = ScheduleVisit::count();
-        $pendingInquiries   = Inquiry::where('resolved_status', 'Pending')->count();
+
+
+        $pendingInquiries = Inquiry::whereNull('inquiry_reply')
+            ->orWhere('inquiry_reply', '')
+            ->count();
+
         $activeDoctors      = Doctor::where('available', 1)->count();
         $totalPatients      = Patient::count();
 
-        // -----------------------------------------------------------
-        // 1) Service Distribution — was hardcoded to collect() (empty).
-        //    Now actually queries schedule_visit.service_type.
-        // -----------------------------------------------------------
         $serviceDistribution = ScheduleVisit::selectRaw('service_type, COUNT(*) as total')
             ->groupBy('service_type')
             ->get();
 
-        // -----------------------------------------------------------
-        // 2) Weekly Patient Visits — was missing entirely.
-        //    Uses visit_date (actual appointment date), last 6 weeks
-        //    including the current week.
-        // -----------------------------------------------------------
         $weekLabels = [];
         $weeklyVisits = [];
         $startOfThisWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
@@ -111,15 +100,9 @@ class StaffController extends Controller
             ])->count();
         }
 
-        // -----------------------------------------------------------
-        // 3) Sentiment Analysis — was hardcoded (75/18/5) regardless of
-        //    real feedback. Now queries the feedback table if it has a
-        //    star_rating column; falls back to the old hardcoded values
-        //    only if the table/column truly isn't there yet.
-        // -----------------------------------------------------------
-        $positivePercent = 75;
-        $neutralPercent  = 18;
-        $negativePercent = 5;
+        $positivePercent = 0;
+        $neutralPercent  = 0;
+        $negativePercent = 0;
 
         if (Schema::hasTable('feedback') && Schema::hasColumn('feedback', 'star_rating')) {
             $feedbackCounts = DB::table('feedback')->selectRaw('
@@ -139,12 +122,7 @@ class StaffController extends Controller
             }
         }
 
-        // -----------------------------------------------------------
-        // 4) Inquiry Volume per Week — was missing entirely.
-        //    inquiries has no date column of its own, so we JOIN to
-        //    chatbot_logs (via log_id) to get chat_time as the date.
-        // -----------------------------------------------------------
-        $inquiryVolumeByDay = array_fill(0, 7, 0); // index 0 = Monday
+        $inquiryVolumeByDay = array_fill(0, 7, 0);
 
         $thisWeekInquiries = DB::table('inquiries')
             ->join('chatbot_logs', 'inquiries.log_id', '=', 'chatbot_logs.log_id')
@@ -155,11 +133,10 @@ class StaffController extends Controller
             ->pluck('chatbot_logs.chat_time');
 
         foreach ($thisWeekInquiries as $chatTime) {
-            $dayIndex = Carbon::parse($chatTime)->dayOfWeekIso - 1; // Mon=0 .. Sun=6
+            $dayIndex = Carbon::parse($chatTime)->dayOfWeekIso - 1;
             $inquiryVolumeByDay[$dayIndex]++;
         }
 
-        // -----------------------------------------------------------
         return [
             'totalScheduleVisit'  => $totalScheduleVisit,
             'pendingInquiries'    => $pendingInquiries,
@@ -172,14 +149,46 @@ class StaffController extends Controller
             'neutralPercent'      => $neutralPercent,
             'negativePercent'     => $negativePercent,
             'inquiryVolumeByDay'  => $inquiryVolumeByDay,
+            'recentActivities'    => $this->buildRecentActivities(),
         ];
     }
 
-    public function logout(Request $request)
+
+    private function buildRecentActivities(int $limit = 5): array
     {
-        Auth::guard('staff')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        return redirect('/staff/login');
+        if (!Schema::hasTable('app_notifications')) {
+            return [];
+        }
+
+        return AppNotification::orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(function ($notif) {
+                [$icon, $color] = $this->iconAndColorForType($notif->type);
+
+                return [
+                    'icon'        => $icon,
+                    'color'       => $color,
+                    'title'       => $notif->title,
+                    'description' => $notif->message,
+                    'time'        => $notif->created_at,
+                    'time_human'  => $notif->created_at
+                        ? $notif->created_at->diffForHumans()
+                        : '',
+                ];
+            })
+            ->values()
+            ->toArray();
+    }
+
+    private function iconAndColorForType(?string $type): array
+    {
+        return match ($type) {
+            'inquiry'     => ['bi-chat-dots', '#e67e22'],
+            'schedule visit' => ['bi-calendar-check', '#2980b9'],
+            'patient'     => ['bi-people', '#8e44ad'],
+            'doctor'      => ['bi-person-badge', '#16a085'],
+            default       => ['bi-bell', '#7f8c8d'],
+        };
     }
 }

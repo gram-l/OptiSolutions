@@ -7,9 +7,15 @@ use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use Illuminate\Support\Facades\DB;
+use App\Models\admin_models\Feedback;
+use App\Conversations\Concerns\HandlesGlobalCommands;
+use App\Conversations\Concerns\HandlesOffTopic;
+use App\Services\SentimentAnalysisService;
 
 class ReviewConversation extends Conversation
 {
+    use HandlesGlobalCommands, HandlesOffTopic;
+
     protected $patientId;
     protected $patientName;
     protected $rating;
@@ -25,37 +31,67 @@ class ReviewConversation extends Conversation
         $this->askRating();
     }
 
+    // Ask the patient for a star rating.
     public function askRating()
     {
-        $question = Question::create('How would you rate your experience with us? ⭐')
+        $question = Question::create('How would you rate your experience with us?')
             ->fallback('Please tap one of the star options above.')
             ->addButtons([
-                Button::create('⭐☆☆☆☆ 1')->value('1'),
-                Button::create('⭐⭐☆☆☆ 2')->value('2'),
-                Button::create('⭐⭐⭐☆☆ 3')->value('3'),
-                Button::create('⭐⭐⭐⭐☆ 4')->value('4'),
-                Button::create('⭐⭐⭐⭐⭐ 5')->value('5'),
+                Button::create('1')->value('1'),
+                Button::create('2')->value('2'),
+                Button::create('3')->value('3'),
+                Button::create('4')->value('4'),
+                Button::create('5')->value('5'),
             ]);
 
         $this->ask($question, function (Answer $answer) {
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->askRating());
+            }
+
+            // Free-typed question instead of a star tap → route to staff
+            // rather than trying to cast it to a rating.
+            if ($this->handleOffTopicIfAny($answer, fn() => $this->askRating())) {
+                return;
+            }
+
             $this->rating = (int) $answer->getValue();
             $this->askFeedbackText();
         });
     }
 
-    public function askFeedbackText()
-    {
-        $this->ask('Would you like to add any comments? (Or type "skip" to submit without comments)', function (Answer $answer) {
-            $text = trim($answer->getText());
+    // Ask for optional comments and handle skip/yes/text replies.
+    public function askFeedbackText(
+        $prompt = 'Please add any comments about your experience, or type "skip" to continue without comments.'
+    ) {
+        $this->ask($prompt, function (Answer $answer) use ($prompt) {
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->askFeedbackText($prompt));
+            }
 
-            if (strtolower($text) === 'skip') {
-                $text = null;
+            $text = trim($answer->getText());
+            $normalized = strtolower($text);
+
+            $skipWords = ['skip', 'no', 'none', 'n/a', 'wala', 'hindi'];
+            $yesWords  = ['yes', 'yep', 'yeah', 'sure', 'oo', 'opo', 'sige'];
+
+            if (in_array($normalized, $skipWords, true)) {
+                return $this->submitReview(null);
+            }
+
+            if (in_array($normalized, $yesWords, true)) {
+                return $this->askFeedbackText('Great, please tell us your comments:');
+            }
+
+            if (mb_strlen($text) < 3) {
+                return $this->askFeedbackText('Please share a bit more detail about your experience, or type "skip" to submit without comments:');
             }
 
             $this->submitReview($text);
         });
     }
 
+    // Save the review and run sentiment analysis if there's a comment.
     protected function submitReview($text)
     {
         try {
@@ -65,7 +101,8 @@ class ReviewConversation extends Conversation
                 'bot_message'  => 'Review recorded',
             ]);
 
-            DB::table('feedback')->insert([
+            // Create the feedback record.
+            $feedback = Feedback::create([
                 'log_id'        => $logId,
                 'patient_id'    => $this->patientId,
                 'feedback_text' => $text,
@@ -73,33 +110,50 @@ class ReviewConversation extends Conversation
                 'submitted_at'  => now(),
             ]);
 
-            $this->say("Thank you for your feedback!\n\nYou rated us {$this->rating}/5 stars. We appreciate you taking the time to help us improve.");
+            if (!empty($text)) {
+                $result = app(SentimentAnalysisService::class)->analyze($text);
+
+                if ($result) {
+                    $feedback->sentimentResult()->create([
+                        'sentiment_label'  => $result['sentiment_label'],
+                        'confidence_score' => $result['confidence_score'],
+                        'analyzed_at'      => now(),
+                    ]);
+                }
+            }
+
+            $this->say("Thank you for your feedback!\n\nYou rated us {$this->rating}/5. We appreciate you taking the time to help us improve.");
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('submitReview failed: ' . $e->getMessage());
             $this->say("⚠️ We couldn't record your review right now. Please try again, or contact us directly.");
         }
 
-        // FIX: same pattern as ComplaintConversation — offer a real,
-        // clickable next step instead of a static "type menu" line that
-        // free-typed commands like "complaint" wouldn't be recognized by.
-        $this->askWhatsNext();
+        $this->backToMainMenu();
     }
 
-    protected function askWhatsNext()
+    // Show the main menu and route the chosen action.
+    protected function backToMainMenu()
     {
-        $question = Question::create('Is there anything else you\'d like to do?')
-            ->fallback('Please use the buttons above, or type "menu" anytime to return to the main menu.')
+        $question = Question::create('Is there anything else I can help you with?')
+            ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
-                Button::create('⚠️ File a Complaint')->value('complaint'),
-                Button::create("✅ No, I'm all set")->value('done'),
+                Button::create('Schedule Visit')->value('schedule visit'),
+                Button::create('General Information')->value('general information'),
+                Button::create('Submit Review/Rating')->value('review'),
+                Button::create('Submit Complaint')->value('complaint'),
             ]);
 
         $this->ask($question, function (Answer $answer) {
-            if ($answer->getValue() === 'complaint') {
-                $this->bot->startConversation(new ComplaintConversation($this->patientId, $this->patientName));
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->backToMainMenu());
+            }
+
+            if ($this->handleOffTopicIfAny($answer, fn() => $this->backToMainMenu())) {
                 return;
             }
 
-            $this->say('Thank you for choosing PolyClinic Lipa! Have a great day! 😊');
+            $this->say('Please choose one of the options above.');
+            $this->backToMainMenu();
         });
     }
 }

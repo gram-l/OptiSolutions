@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
         <!-- Font Awesome -->
     <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -61,8 +62,11 @@
                             <h3 id="patientName">Maria Santos</h3>
                             <p id="patientInfo">ID: P-12345 • Ophthalmology</p>
                         </div>
-                        <div>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
                             <span class="status-badge status-active" id="statusBadge">Active</span>
+                            <button class="btn-sm btn-success" id="resolveBtn" style="display:none; border:none; border-radius:20px; padding:0.4rem 0.9rem; cursor:pointer;">
+                                <i class="bi bi-check-circle"></i> Resolve
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -82,124 +86,61 @@
     </div>
 
     <script>
-        // Mock data for chat logs (UI only, no complex backend)
-        const chatLogs = [
-            {
-                id: 1,
-                name: "CHAT-001",
-                avatar: "MS",
-                patientId: "P-12345",
-                department: "Ophthalmology",
-                lastMessage: "When will my eye consultation be scheduled?",
-                timestamp: "2026-05-22T10:30:00",
-                unread: true,
-                status: "active",
-                conversation: [
-                    { sender: "patient", text: "Hello, I need information about my upcoming eye consultation.", time: "10:25 AM" },
-                    { sender: "bot", text: "Hello Maria! I'd be happy to help. Could you please provide your patient ID?", time: "10:26 AM" },
-                    { sender: "patient", text: "My ID is P-12345", time: "10:27 AM" },
-                    { sender: "bot", text: "Thank you! I see you have a consultation scheduled with Dr. Reyes on May 28th. Would you like to reschedule or ask about preparation?", time: "10:28 AM" },
-                    { sender: "patient", text: "When will my eye consultation be scheduled?", time: "10:30 AM" },
-                    { sender: "bot", text: "Based on your records, the consultation is tentatively scheduled for June 15th. Would you like me to connect you with an admin for confirmation?", time: "10:31 AM" }
-                ]
-            },
-            {
-                id: 2,
-                name: "CHAT-002",
-                avatar: "JD",
-                patientId: "P-67890",
-                department: "Pediatrics",
-                lastMessage: "My son has a fever, what should I do?",
-                timestamp: "2026-05-22T09:15:00",
-                unread: true,
-                status: "pending",
-                conversation: [
-                    { sender: "patient", text: "My son is 5 years old and has jaw pain since last night. What should I do?", time: "09:00 AM" },
-                    { sender: "bot", text: "I'm sorry to hear that. Has he taken any medication yet?", time: "09:02 AM" },
-                    { sender: "patient", text: "We gave him paracetamol 2 hours ago.", time: "09:05 AM" },
-                    { sender: "patient", text: "My son has a fever, what should I do?", time: "09:15 AM" },
-                    { sender: "bot", text: "Please monitor his temperature. Would you like to schedule a consultation?", time: "09:17 AM" }
-                ]
-            },
-            {
-                id: 3,
-                name: "CHAT-003",
-                avatar: "AR",
-                patientId: "P-24680",
-                department: "ENT",
-                lastMessage: "Thank you for the information!",
-                timestamp: "2026-05-21T16:45:00",
-                unread: false,
-                status: "resolved",
-                conversation: [
-                    { sender: "patient", text: "I have been experiencing ringing in my ears for a week.", time: "04:20 PM" },
-                    { sender: "bot", text: "That sounds like tinnitus. Have you had any recent exposure to loud noises?", time: "04:22 PM" },
-                    { sender: "patient", text: "No, not really. Should I see a specialist?", time: "04:25 PM" },
-                    { sender: "bot", text: "Yes, I recommend booking an appointment with our ENT department. Dr. Mendoza has availability next Tuesday.", time: "04:30 PM" },
-                    { sender: "patient", text: "Thank you for the information!", time: "04:45 PM" }
-                ]
-            },
-            {
-                id: 4,
-                name: "CHAT-004",
-                avatar: "CG",
-                patientId: "P-13579",
-                department: "Cardiology",
-                lastMessage: "Can I get a prescription refill?",
-                timestamp: "2026-05-21T11:20:00",
-                unread: false,
-                status: "active",
-                conversation: [
-                    { sender: "patient", text: "I'm running out of my blood pressure medication.", time: "11:00 AM" },
-                    { sender: "bot", text: "I can help with that. When was your last check-up with Dr. Santos?", time: "11:05 AM" },
-                    { sender: "patient", text: "About 2 months ago.", time: "11:10 AM" },
-                    { sender: "patient", text: "Can I get a prescription refill?", time: "11:20 AM" },
-                    { sender: "bot", text: "I'll notify the clinic. Please expect a call within 24 hours for prescription renewal.", time: "11:22 AM" }
-                ]
-            },
-            {
-                id: 5,
-                name: "CHAT-005",
-                avatar: "EG",
-                patientId: "P-97531",
-                department: "Dermatology",
-                lastMessage: "Is my appointment still confirmed?",
-                timestamp: "2026-05-20T14:30:00",
-                unread: true,
-                status: "pending",
-                conversation: [
-                    { sender: "patient", text: "I have an appointment tomorrow at 2 PM with Dr. Lopez.", time: "02:15 PM" },
-                    { sender: "bot", text: "Yes, I see that appointment. Would you like to confirm or reschedule?", time: "02:18 PM" },
-                    { sender: "patient", text: "Is my appointment still confirmed?", time: "02:30 PM" },
-                    { sender: "bot", text: "Yes, your appointment is confirmed for May 23rd at 2:00 PM. Please arrive 15 minutes early.", time: "02:32 PM" }
-                ]
-            }
-        ];
+        // Real data, passed in from ChatbotInquiryController@index (was
+        // previously a hardcoded mock array with no backend connection).
+        const chatLogs = @json($inquiriesData);
+        const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
         let currentChatId = null;
 
         // Render chat list
         function renderChatList(filterText = "") {
             const chatListEl = document.getElementById("chatList");
-            const filteredLogs = chatLogs.filter(log => 
+            const filteredLogs = chatLogs.filter(log =>
                 log.name.toLowerCase().includes(filterText.toLowerCase()) ||
                 log.department.toLowerCase().includes(filterText.toLowerCase()) ||
                 log.lastMessage.toLowerCase().includes(filterText.toLowerCase())
             );
-            
-            chatListEl.innerHTML = filteredLogs.map(chat => `
-                <li class="chat-item ${currentChatId === chat.id ? 'active' : ''}" data-id="${chat.id}">
+
+            if (filteredLogs.length === 0) {
+                chatListEl.innerHTML = `<li style="padding:1.5rem; text-align:center; color:#7f8c8d;">No inquiries found.</li>`;
+                return;
+            }
+
+            // NOTE: `chat.name` is now the actual display name (Patient #ID
+            // or the guest's given name / "Guest") instead of the INQ code.
+            // The INQ code (chat.inquiryCode) is now shown in the preview
+            // line instead, so the ticket reference isn't lost.
+            chatListEl.innerHTML = filteredLogs.map(chat => {
+                const isResolved = chat.rawStatus === 'Resolved';
+                // Unresolved indicator: a small colored dot next to the name.
+                // Shown regardless of read/unread state, since "unread" only
+                // tracks whether an admin has opened it, not whether the
+                // inquiry itself has been resolved.
+                const statusDot = !isResolved
+                    ? `<span class="unresolved-dot status-dot-${chat.status}" title="${chat.rawStatus}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chat.rawStatus === 'Pending' ? '#e74c3c' : '#f39c12'};margin-left:6px;flex-shrink:0;"></span>`
+                    : '';
+
+                return `
+                <li class="chat-item ${currentChatId === chat.id ? 'active' : ''} ${!isResolved ? 'unresolved' : ''}" data-id="${chat.id}">
                     <div class="chat-avatar">${chat.avatar}</div>
                     <div class="chat-info">
-                        <div class="chat-name">
-                            ${chat.name}
+                        <div class="chat-name" style="display:flex; align-items:center;">
+                            ${escapeHtml(chat.name)}
+                            ${statusDot}
                             <span class="chat-time">${formatTime(chat.timestamp)}</span>
                         </div>
-                        <div class="chat-preview">${chat.lastMessage.substring(0, 50)}${chat.unread ? '<span class="unread-badge">New</span>' : ''}</div>
+                        <div class="chat-preview" style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">
+                                ${chat.inquiryCode} • ${chat.lastMessage.substring(0, 40)}${chat.unread ? '<span class="unread-badge">New</span>' : ''}
+                            </span>
+                            ${!isResolved ? `<span class="unresolved-label" style="color:${chat.rawStatus === 'Pending' ? '#e74c3c' : '#f39c12'}; font-weight:600; flex-shrink:0; white-space:nowrap;">${chat.rawStatus}</span>` : ''}
+                        </div>
                     </div>
                 </li>
-            `).join("");
-            
+            `;
+            }).join("");
+
             // Add click event listeners to chat items
             document.querySelectorAll('.chat-item').forEach(item => {
                 item.addEventListener('click', () => {
@@ -208,144 +149,212 @@
                 });
             });
         }
-        
+
         // Format time for display
         function formatTime(timestamp) {
             const date = new Date(timestamp);
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-            
+
             if (msgDate.getTime() === today.getTime()) {
                 return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             } else {
                 return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
             }
         }
-        
+
+        // Show/hide the reply box and Resolve button based on the chat's
+        // current status. Pulled out into its own function so it can be
+        // re-run after sending a reply or resolving, not just on initial
+        // open — previously those actions could change chat.rawStatus
+        // without the buttons ever updating to match.
+        function updateActionVisibility(chat) {
+            const isResolved = chat.rawStatus === 'Resolved';
+            document.getElementById("replyArea").style.display = isResolved ? "none" : "flex";
+            document.getElementById("resolveBtn").style.display = isResolved ? "none" : "inline-flex";
+        }
+
         // Open a specific chat
         function openChat(chatId) {
             const chat = chatLogs.find(c => c.id === chatId);
             if (!chat) return;
-            
+
             currentChatId = chatId;
-            
-            // Mark as read
+
+            // Mark as read (locally — the actual "read" state is really
+            // just resolved_status !== 'Pending' server-side, updated once
+            // an Admin/Staff member actually replies).
             chat.unread = false;
             renderChatList(document.getElementById("searchInput").value);
-            
+
             // Hide empty state, show conversation elements
             document.getElementById("emptyState").style.display = "none";
             document.getElementById("conversationHeader").style.display = "block";
-            document.getElementById("replyArea").style.display = "flex";
-            
-            // Update header
+
+            updateActionVisibility(chat);
+
+            // Update header — now includes the INQ ticket code alongside
+            // the patient ID and department, since chat.name shows the
+            // actual person's name instead of the INQ code.
             document.getElementById("patientName").innerText = chat.name;
-            document.getElementById("patientInfo").innerHTML = `ID: ${chat.patientId} • ${chat.department}`;
+            document.getElementById("patientInfo").innerHTML = `${chat.inquiryCode} • ID: ${chat.patientId} • ${chat.department}`;
             const statusBadge = document.getElementById("statusBadge");
             statusBadge.className = `status-badge status-${chat.status}`;
-            statusBadge.innerText = chat.status === "active" ? "Active" : chat.status === "pending" ? "Pending" : "Resolved";
-            
+            statusBadge.innerText = chat.status === "active" ? "In Progress" : chat.status === "pending" ? "Pending" : "Resolved";
+
             // Render messages
             renderMessages(chat.conversation);
         }
-        
+
         // Render conversation messages
         function renderMessages(messages) {
             const messagesArea = document.getElementById("messagesArea");
             messagesArea.innerHTML = messages.map(msg => `
                 <div class="message">
                     <div class="message-avatar ${msg.sender === 'patient' ? 'patient' : ''}">
-                        ${msg.sender === 'patient' ? '👤' : '🤖'}
+                        ${msg.sender === 'patient' ? '👤' : '🧑‍💼'}
                     </div>
                     <div class="message-content ${msg.sender === 'bot' ? 'bot' : ''}">
                         <div class="message-sender ${msg.sender === 'patient' ? 'patient' : ''}">
-                            ${msg.sender === 'patient' ? 'Patient' : 'Chatbot'}
+                            ${escapeHtml(msg.senderLabel || (msg.sender === 'patient' ? 'Patient' : 'Admin'))}
                         </div>
                         <div class="message-text">${escapeHtml(msg.text)}</div>
                         <div class="message-time">${msg.time}</div>
                     </div>
                 </div>
             `).join("");
-            
+
             // Scroll to bottom
             messagesArea.scrollTop = messagesArea.scrollHeight;
         }
-        
+
         // Simple escape HTML to prevent XSS
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
-        // Send reply functionality (UI only)
-        function sendReply() {
+
+        // Send reply — now actually posts to the backend and saves into
+        // the shared inquiry_replies thread (visible to Staff too).
+        async function sendReply() {
             const input = document.getElementById("replyInput");
             const messageText = input.value.trim();
             if (!messageText || currentChatId === null) return;
-            
+
             const chat = chatLogs.find(c => c.id === currentChatId);
             if (!chat) return;
-            
-            // Add admin reply to conversation (UI only)
-            const now = new Date();
-            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            
-            chat.conversation.push({
-                sender: "bot",
-                text: messageText,
-                time: timeString
-            });
-            
-            // Update last message preview
-            chat.lastMessage = messageText;
-            chat.timestamp = now.toISOString();
-            
-            // Re-render messages and chat list
-            renderMessages(chat.conversation);
-            renderChatList(document.getElementById("searchInput").value);
-            
-            // Clear input
-            input.value = "";
-            
-            // Show temporary success indicator
+
             const sendBtn = document.getElementById("sendBtn");
-            const originalText = sendBtn.innerText;
-            sendBtn.innerText = "Sent!";
-            setTimeout(() => {
-                sendBtn.innerText = originalText;
-            }, 1000);
+            sendBtn.disabled = true;
+
+            try {
+                const res = await fetch(`/admin_acc/chatbot_logs/${currentChatId}/reply`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ message: messageText }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to send reply.');
+
+                chat.conversation.push({
+                    sender: 'bot',
+                    senderLabel: 'Admin',
+                    text: messageText,
+                    time: data.time,
+                });
+                chat.lastMessage = messageText;
+                chat.timestamp = new Date().toISOString();
+                chat.rawStatus = data.status;
+                chat.status = data.status === 'Pending' ? 'pending' : (data.status === 'Resolved' ? 'resolved' : 'active');
+
+                renderMessages(chat.conversation);
+                renderChatList(document.getElementById("searchInput").value);
+                input.value = "";
+
+                // Keep the header badge and reply/resolve buttons in sync
+                // with the (possibly changed) status returned by the server.
+                const statusBadge = document.getElementById("statusBadge");
+                statusBadge.className = `status-badge status-${chat.status}`;
+                statusBadge.innerText = chat.status === "active" ? "In Progress" : chat.status === "pending" ? "Pending" : "Resolved";
+                updateActionVisibility(chat);
+
+                const originalText = sendBtn.innerText;
+                sendBtn.innerText = "Sent!";
+                setTimeout(() => { sendBtn.innerText = originalText; }, 1000);
+            } catch (e) {
+                alert(e.message || 'Failed to send reply. Please try again.');
+            } finally {
+                sendBtn.disabled = false;
+            }
         }
-        
-        // Navigation functions
-        
-        
-        
+
+        // Mark the current inquiry as resolved.
+        async function resolveInquiry() {
+            if (currentChatId === null) return;
+            const chat = chatLogs.find(c => c.id === currentChatId);
+            if (!chat) return;
+
+            if (!confirm('Mark this inquiry as resolved?')) return;
+
+            const resolveBtn = document.getElementById("resolveBtn");
+            resolveBtn.disabled = true;
+
+            try {
+                const res = await fetch(`/admin_acc/chatbot_logs/${currentChatId}/resolve`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': CSRF,
+                        'Accept': 'application/json',
+                    },
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to resolve.');
+
+                chat.rawStatus = 'Resolved';
+                chat.status = 'resolved';
+                chat.unread = false;
+                openChat(currentChatId);
+                renderChatList(document.getElementById("searchInput").value);
+            } catch (e) {
+                alert(e.message || 'Failed to resolve inquiry.');
+            } finally {
+                resolveBtn.disabled = false;
+            }
+        }
+
         function handleLogout() {
             if (confirm('Are you sure you want to logout?')) {
                 alert('Logging out... Redirecting to login page.');
             }
         }
-        
+
         // Search functionality
         document.getElementById("searchInput").addEventListener("input", (e) => {
             renderChatList(e.target.value);
         });
-        
+
         // Send button click
         document.getElementById("sendBtn").addEventListener("click", sendReply);
-        
+
         // Enter key to send
         document.getElementById("replyInput").addEventListener("keypress", (e) => {
             if (e.key === "Enter") {
                 sendReply();
             }
         });
-        
+
+        // Resolve button click
+        document.getElementById("resolveBtn").addEventListener("click", resolveInquiry);
+
         // Initial render
         renderChatList("");
-        
+
         // Auto-select first chat if exists
         if (chatLogs.length > 0) {
             setTimeout(() => {

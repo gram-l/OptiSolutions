@@ -7,15 +7,22 @@ class ProfileData {
   static String staffId = 'N/A';
   static String department = 'N/A';
   static String shift = 'N/A';
+  static String? photoUrl;
 
   static Future<void> load() async {
-    final result = await ApiService.get('/me');
+    final raw = await ApiService.get('/me'); //newc
+    final result =
+        (raw is Map<String, dynamic> && raw.containsKey('data')) //newc
+        ? Map<String, dynamic>.from(raw['data']) //newc
+        : Map<String, dynamic>.from(raw); //newc
+
     name = result['name'] ?? 'Staff';
     email = result['email'] ?? '';
     contact = result['contact'] ?? 'N/A';
     staffId = result['staff_id']?.toString() ?? 'N/A';
     department = result['department'] ?? 'N/A';
     shift = result['shift'] ?? 'N/A';
+    photoUrl = result['profile_photo'];
   }
 
   // Saves edits from the Settings page back to the database, then updates

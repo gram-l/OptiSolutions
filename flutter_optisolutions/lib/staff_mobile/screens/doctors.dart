@@ -1,4 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:csv/csv.dart';
+import 'package:excel/excel.dart' as xls;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'staffcolor.dart';
 import 'package:flutter_optisolutions/login.dart';
 import 'dashboard.dart';
 import 'inquiries.dart';
@@ -8,6 +16,7 @@ import 'profile.dart';
 import 'notifications.dart';
 import 'settings.dart';
 import '../widgets/notification_badge.dart';
+import '../widgets/center_snackbar.dart';
 import '../services/api_service.dart';
 
 class DoctorsPage extends StatefulWidget {
@@ -22,15 +31,44 @@ class _DoctorsPageState extends State<DoctorsPage> {
   String _searchQuery = '';
   String _selectedDepartment = 'All Departments';
 
-  // ✅ Now loaded from the database via API instead of hardcoded
+  // Loaded from the database via API
   List<Map<String, dynamic>> _allDoctors = [];
   bool _loading = true;
   String? _loadError;
 
+  // Logged-in staff name 
+  String _staffName = 'Staff';
+  String _staffEmail = '';
+
+  static const List<String> _weekDays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
   @override
   void initState() {
     super.initState();
+    _loadStaffName();
     _loadDoctors();
+  }
+
+  Future<void> _loadStaffName() async {
+    try {
+      final user = await ApiService.getCurrentUser();
+      if (user != null && mounted) {
+        setState(() {
+          if (user['name'] != null) _staffName = user['name'].toString();
+          if (user['email'] != null) _staffEmail = user['email'].toString();
+        });
+      }
+    } catch (e) {
+      print('Error loading staff name: $e');
+    }
   }
 
   Future<void> _loadDoctors() async {
@@ -43,13 +81,14 @@ class _DoctorsPageState extends State<DoctorsPage> {
       setState(() {
         _allDoctors = (result as List).map<Map<String, dynamic>>((doc) {
           return {
-            // ✅ FIX: safe fallbacks for every field that could come back null
+
             'id': doc['id'],
             'name': (doc['name'] ?? 'Unknown').toString(),
             'specialty': (doc['specialty'] ?? 'General').toString(),
             'status': (doc['status'] ?? 'Unavailable').toString(),
-            'schedule': (doc['schedule'] ?? 'Not set').toString(),
-            'time': (doc['time'] ?? 'Not set').toString(),
+
+            'scheduleByDay': _groupSchedules(doc['schedules'] as List? ?? []),
+            'isActive': doc['is_active'] == 1,
             'avatar': (doc['avatar'] ?? '').toString(),
             'color': _hexToColor(doc['color']),
           };
@@ -70,14 +109,14 @@ class _DoctorsPageState extends State<DoctorsPage> {
     try {
       return Color(int.parse('FF$cleanHex', radix: 16));
     } catch (_) {
-      // ✅ FIX: if the hex string is malformed, don't crash — just fall back
+      
       return Colors.blueGrey;
     }
   }
 
   // Get unique departments for filter
   List<String> get _departments {
-    // ✅ FIX: no more "as String" hard cast — use a safe fallback instead
+   
     List<String> depts = _allDoctors
         .map((doc) => (doc['specialty'] ?? 'General').toString())
         .toSet()
@@ -101,7 +140,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       result = result.where((doc) {
-        // ✅ FIX: safe null handling before calling .toLowerCase()
+        
         final name = (doc['name'] ?? '').toString().toLowerCase();
         final specialty = (doc['specialty'] ?? '').toString().toLowerCase();
         return name.contains(query) || specialty.contains(query);
@@ -111,103 +150,265 @@ class _DoctorsPageState extends State<DoctorsPage> {
     return result;
   }
 
-  // Toggle availability status — now saves to the database
-  void _toggleAvailability(String name) async {
-    final index = _allDoctors.indexWhere((doc) => doc['name'] == name);
-    if (index == -1) return;
 
-    final doctor = _allDoctors[index];
-    final newStatus = doctor['status'] == 'Available'
-        ? 'Unavailable'
-        : 'Available';
-
-    try {
-      await ApiService.patch('/doctors/${doctor['id']}', {'status': newStatus});
-      setState(() {
-        final updatedDoctor = Map<String, dynamic>.from(_allDoctors[index]);
-        updatedDoctor['status'] = newStatus;
-        _allDoctors[index] = updatedDoctor;
-      });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${doctor['name']} is now $newStatus'),
-          backgroundColor: newStatus == 'Available' ? Colors.green : Colors.red,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+  TimeOfDay? _timeFromHHmm(String? hhmm) {
+    if (hhmm == null || hhmm.isEmpty) return null;
+    final parts = hhmm.split(':');
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h, minute: m);
   }
 
-  // Edit Schedule
+  /// Converts a TimeOfDay back into "HH:mm" (24-hour) for the API.
+  String _hhmmFromTime(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  /// Friendly 12-hour display, e.g. "8:00 AM".
+  String _formatTimeOfDay(TimeOfDay? t) {
+    if (t == null) return '';
+    final hour12 = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+    final minute = t.minute.toString().padLeft(2, '0');
+    return '$hour12:$minute $period';
+  }
+
+
+  Map<String, List<Map<String, TimeOfDay?>>> _groupSchedules(
+    List apiSchedules,
+  ) {
+    final Map<String, List<Map<String, TimeOfDay?>>> result = {
+      for (final d in _weekDays) d: <Map<String, TimeOfDay?>>[],
+    };
+    for (final entry in apiSchedules) {
+      if (entry is! Map) continue;
+      final day = (entry['day'] ?? '').toString();
+      if (!_weekDays.contains(day)) continue;
+      result[day]!.add({
+        'start': _timeFromHHmm(entry['start_time']?.toString()),
+        'end': _timeFromHHmm(entry['end_time']?.toString()),
+      });
+    }
+    return result;
+  }
+
+  List<Map<String, String?>> _flattenSchedule(
+    Map<String, List<Map<String, TimeOfDay?>>> schedule,
+  ) {
+    final entries = <Map<String, String?>>[];
+    for (final day in _weekDays) {
+      for (final session in schedule[day]!) {
+        entries.add({
+          'day': day,
+          'start_time': session['start'] != null
+              ? _hhmmFromTime(session['start']!)
+              : null,
+          'end_time': session['end'] != null
+              ? _hhmmFromTime(session['end']!)
+              : null,
+        });
+      }
+    }
+    return entries;
+  }
+
+  /// e.g. "Mon, Tue, Wed, Thu, Fri"
+  String _scheduleDaysSummary(Map<String, List<Map<String, TimeOfDay?>>> s) {
+    final activeDays = _weekDays.where((d) => s[d]!.isNotEmpty).toList();
+    if (activeDays.isEmpty) return 'Not set';
+    return activeDays.map((d) => d.substring(0, 3)).join(', ');
+  }
+
+  /// e.g. "8:00 AM - 11:00 AM | 2:00 PM - 6:00 PM"
+  String _scheduleSessionsSummary(
+    Map<String, List<Map<String, TimeOfDay?>>> s,
+  ) {
+    final sessions = <String>{};
+    for (final d in _weekDays) {
+      for (final session in s[d]!) {
+        final start = _formatTimeOfDay(session['start']);
+        final end = _formatTimeOfDay(session['end']);
+        if (start.isNotEmpty && end.isNotEmpty) {
+          sessions.add('$start - $end');
+        }
+      }
+    }
+    if (sessions.isEmpty) return 'Not set';
+    return sessions.join(' | ');
+  }
+
+  // Edit Schedule — checklist (Mon-Sun) + multiple sessions per day
   void _editSchedule(Map<String, dynamic> doctor) {
-    TextEditingController daysController = TextEditingController(
-      text: doctor['schedule'],
-    );
-    TextEditingController timeController = TextEditingController(
-      text: doctor['time'],
-    );
+    
+    final source =
+        doctor['scheduleByDay'] as Map<String, List<Map<String, TimeOfDay?>>>;
+    final Map<String, List<Map<String, TimeOfDay?>>> schedule = {
+      for (final d in _weekDays)
+        d: source[d]!.map((s) => Map<String, TimeOfDay?>.from(s)).toList(),
+    };
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) {
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setStateDialog) {
+          Future<void> addSession(String day) async {
+            final start = await showTimePicker(
+              context: dialogContext,
+              initialTime: const TimeOfDay(hour: 8, minute: 0),
+              helpText: 'Start time',
+            );
+            if (start == null) return;
+            if (!dialogContext.mounted) return;
+            final end = await showTimePicker(
+              context: dialogContext,
+              initialTime: const TimeOfDay(hour: 11, minute: 0),
+              helpText: 'End time',
+            );
+            if (end == null) return;
+            setStateDialog(() {
+              schedule[day]!.add({'start': start, 'end': end});
+            });
+          }
+
+          Future<void> editSession(String day, int index) async {
+            final current = schedule[day]![index];
+            final start = await showTimePicker(
+              context: dialogContext,
+              initialTime:
+                  current['start'] ?? const TimeOfDay(hour: 8, minute: 0),
+              helpText: 'Start time',
+            );
+            if (start == null) return;
+            if (!dialogContext.mounted) return;
+            final end = await showTimePicker(
+              context: dialogContext,
+              initialTime:
+                  current['end'] ?? const TimeOfDay(hour: 11, minute: 0),
+              helpText: 'End time',
+            );
+            if (end == null) return;
+            setStateDialog(() {
+              schedule[day]![index] = {'start': start, 'end': end};
+            });
+          }
+
           return AlertDialog(
             title: Text('Edit Schedule - ${doctor['name']}'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: daysController,
-                  decoration: const InputDecoration(
-                    labelText: 'Days (e.g. Mon - Fri)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: timeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Time (e.g. 8:00am - 3:00pm)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.access_time),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Current: ${doctor['schedule']} | ${doctor['time']}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
+            contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _weekDays.map((day) {
+                    final sessions = schedule[day]!;
+                    final isChecked = sessions.isNotEmpty;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
                       ),
-                    ],
-                  ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: isChecked,
+                                activeColor: StaffColors.primary,
+                                
+                                onChanged: (checked) async {
+                                  if (checked == true) {
+                                    await addSession(day);
+                                  } else {
+                                    setStateDialog(() {
+                                      schedule[day] = [];
+                                    });
+                                  }
+                                },
+                              ),
+                              Text(
+                                day,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (isChecked) ...[
+                            ...List.generate(sessions.length, (i) {
+                              final s = sessions[i];
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 40,
+                                  bottom: 6,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: InkWell(
+                                        onTap: () => editSession(day, i),
+                                        child: Text(
+                                          '${_formatTimeOfDay(s['start'])} - ${_formatTimeOfDay(s['end'])}',
+                                          style: const TextStyle(fontSize: 13),
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        size: 18,
+                                        color: Colors.red,
+                                      ),
+                                      constraints: const BoxConstraints(),
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () {
+                                        setStateDialog(() {
+                                          schedule[day]!.removeAt(i);
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 40,
+                                bottom: 6,
+                              ),
+                              child: TextButton.icon(
+                                onPressed: () => addSession(day),
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Add session'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: StaffColors.primary,
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(0, 30),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  alignment: Alignment.centerLeft,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  }).toList(),
                 ),
-              ],
+              ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
@@ -217,48 +418,39 @@ class _DoctorsPageState extends State<DoctorsPage> {
                   );
                   if (index == -1) return;
 
-                  final newSchedule = daysController.text.trim().isNotEmpty
-                      ? daysController.text.trim()
-                      : doctor['schedule'];
-                  final newTime = timeController.text.trim().isNotEmpty
-                      ? timeController.text.trim()
-                      : doctor['time'];
+                  final entries = _flattenSchedule(schedule);
 
                   try {
                     await ApiService.patch('/doctors/${doctor['id']}', {
-                      'schedule': newSchedule,
-                      'time': newTime,
+                      'schedules': entries,
                     });
 
                     setState(() {
                       final updatedDoctor = Map<String, dynamic>.from(
                         _allDoctors[index],
                       );
-                      updatedDoctor['schedule'] = newSchedule;
-                      updatedDoctor['time'] = newTime;
+                      updatedDoctor['scheduleByDay'] = schedule;
                       _allDoctors[index] = updatedDoctor;
                     });
 
+                    if (!dialogContext.mounted) return;
+                    Navigator.pop(dialogContext);
                     if (!context.mounted) return;
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Schedule updated successfully!'),
-                        backgroundColor: Colors.green,
-                      ),
+                    showCenterSnackBar(
+                      context,
+                      'Schedule updated successfully!',
                     );
                   } catch (e) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to update: $e'),
-                        backgroundColor: Colors.red,
-                      ),
+                    if (!dialogContext.mounted) return;
+                    showCenterSnackBar(
+                      dialogContext,
+                      'Failed to update: $e',
+                      isError: true,
                     );
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A237E),
+                  backgroundColor: StaffColors.primary,
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('Save'),
@@ -270,55 +462,169 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  // Download data
-  void _downloadData() {
-    final doctorsToDownload = _filteredDoctors;
+  // ─────────────────────────────────────────────
+  //  EXPORT (CSV / Excel / PDF)
+  // ─────────────────────────────────────────────
+  void _showExportSheet() {
+    final doctorsToExport = _filteredDoctors;
 
-    if (doctorsToDownload.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No doctors to download'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+    if (doctorsToExport.isEmpty) {
+      showCenterSnackBar(context, 'No doctors to export', isError: true);
       return;
     }
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
           children: [
-            Icon(Icons.download_done, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Download Successful'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.description, size: 50, color: Colors.blue),
-            const SizedBox(height: 8),
-            Text('Downloaded ${doctorsToDownload.length} doctor(s)'),
-            Text(
-              'Department: $_selectedDepartment',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            if (_searchQuery.isNotEmpty)
-              Text(
-                'Search: "$_searchQuery"',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ListTile(
+              leading: const Icon(
+                Icons.table_chart_outlined,
+                color: StaffColors.primary,
               ),
+              title: const Text('Export as CSV'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportCsv();
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.grid_on_rounded,
+                color: StaffColors.primary,
+              ),
+              title: const Text('Export as Excel'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportExcel();
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.picture_as_pdf_outlined,
+                color: StaffColors.primary,
+              ),
+              title: const Text('Export as PDF'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportPdf();
+              },
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
+  }
+
+  List<List<String>> get _exportRows {
+    final rows = <List<String>>[
+      ['Name', 'Department', 'Status', 'Schedule', 'Time'],
+    ];
+    for (final d in _filteredDoctors) {
+      final scheduleByDay =
+          d['scheduleByDay'] as Map<String, List<Map<String, TimeOfDay?>>>;
+      final scheduleLabel = _scheduleDaysSummary(scheduleByDay);
+      final timeLabel = _scheduleSessionsSummary(scheduleByDay);
+      rows.add([
+        (d['name'] ?? '').toString(),
+        (d['specialty'] ?? '').toString(),
+        (d['status'] ?? '').toString(),
+        scheduleLabel,
+        timeLabel,
+      ]);
+    }
+    return rows;
+  }
+
+  Future<File> _writeToDownloads(String filename, List<int> bytes) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  Future<void> _exportCsv() async {
+    try {
+      final csv = const ListToCsvConverter().convert(_exportRows);
+      final file = await _writeToDownloads('doctors.csv', csv.codeUnits);
+      await Share.shareXFiles([XFile(file.path)], text: 'Doctors list export');
+      if (!mounted) return;
+      showCenterSnackBar(context, 'CSV exported successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      showCenterSnackBar(
+        context,
+        'CSV export failed. Please try again.',
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _exportExcel() async {
+    try {
+      final workbook = xls.Excel.createExcel();
+      final sheet = workbook['Doctors'];
+      for (final row in _exportRows) {
+        sheet.appendRow(row.map((c) => xls.TextCellValue(c)).toList());
+      }
+      final bytes = workbook.encode();
+      if (bytes == null) {
+        if (!mounted) return;
+        showCenterSnackBar(
+          context,
+          'Excel export failed. Please try again.',
+          isError: true,
+        );
+        return;
+      }
+      final file = await _writeToDownloads('doctors.xlsx', bytes);
+      await Share.shareXFiles([XFile(file.path)], text: 'Doctors list export');
+      if (!mounted) return;
+      showCenterSnackBar(context, 'Excel file exported successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      showCenterSnackBar(
+        context,
+        'Excel export failed. Please try again.',
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _exportPdf() async {
+    try {
+      final doc = pw.Document();
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4.landscape,
+          build: (context) => pw.Table.fromTextArray(
+            headers: _exportRows.first,
+            data: _exportRows.skip(1).toList(),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            headerStyle: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+      );
+      final bytes = await doc.save();
+      final file = await _writeToDownloads('doctors.pdf', bytes);
+      await Share.shareXFiles([XFile(file.path)], text: 'Doctors list export');
+      if (!mounted) return;
+      showCenterSnackBar(context, 'PDF exported successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      showCenterSnackBar(
+        context,
+        'PDF export failed. Please try again.',
+        isError: true,
+      );
+    }
   }
 
   @override
@@ -371,7 +677,6 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  // ✅ UPDATED AppBar with NotificationBadge
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Row(
@@ -389,18 +694,18 @@ class _DoctorsPageState extends State<DoctorsPage> {
               fontWeight: FontWeight.bold,
               fontSize: 22,
               letterSpacing: 0.5,
-              color: Color(0xFF1A237E),
+              color: Colors.black87, //newc
             ),
           ),
         ],
       ),
       backgroundColor: Colors.white,
-      foregroundColor: const Color(0xFF1A237E),
+      foregroundColor: StaffColors.primary,
       elevation: 2,
       centerTitle: false,
-      iconTheme: const IconThemeData(color: Color(0xFF1A237E)),
+      iconTheme: const IconThemeData(color: StaffColors.primary),
       actions: [
-        // ✅ NOTIFICATION BADGE
+       
         NotificationBadge(
           onTap: () {
             Navigator.push(
@@ -411,9 +716,9 @@ class _DoctorsPageState extends State<DoctorsPage> {
             );
           },
         ),
-        // ✅ LOGOUT BUTTON
+       
         IconButton(
-          icon: const Icon(Icons.logout, color: Color(0xFF1A237E)),
+          icon: const Icon(Icons.logout, color: StaffColors.primary),
           onPressed: () {
             _showLogoutDialog(context);
           },
@@ -422,7 +727,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  // ✅ UPDATED Drawer - REMOVED Notifications
+
   Widget _buildDrawer() {
     return Drawer(
       child: Column(
@@ -430,7 +735,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
-            color: const Color(0xFF1A237E),
+            color: StaffColors.primary,
             child: Column(
               children: [
                 const SizedBox(height: 30),
@@ -451,17 +756,17 @@ class _DoctorsPageState extends State<DoctorsPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Staff Name',
-                  style: TextStyle(
+                Text(
+                  _staffName,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Text(
-                  'staff@polyclinic.com',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                Text(
+                  _staffEmail.isNotEmpty ? _staffEmail : 'staff@polyclinic.com',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ],
             ),
@@ -473,7 +778,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
               MaterialPageRoute(builder: (context) => const ProfilePage()),
             );
           }),
-          // ❌ REMOVED Notifications from drawer
+          
           _buildDrawerItem(Icons.settings, 'Settings', false, () {
             Navigator.pop(context);
             Navigator.push(
@@ -490,10 +795,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
           const Divider(),
           _buildDrawerItem(Icons.logout, 'Logout', false, () {
             Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-            );
+            _showLogoutDialog(context);
           }),
         ],
       ),
@@ -509,17 +811,17 @@ class _DoctorsPageState extends State<DoctorsPage> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade600,
+        color: isActive ? StaffColors.primary : Colors.grey.shade600,
       ),
       title: Text(
         title,
         style: TextStyle(
           fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade800,
+          color: isActive ? StaffColors.primary : Colors.grey.shade800,
         ),
       ),
       trailing: isActive
-          ? Container(width: 4, height: 24, color: const Color(0xFF1A237E))
+          ? Container(width: 4, height: 24, color: StaffColors.primary)
           : null,
       onTap: onTap,
     );
@@ -535,7 +837,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
         children: [
           const Icon(
             Icons.medical_services,
-            color: Color(0xFF1A237E),
+            color: StaffColors.primary,
             size: 28,
           ),
           const SizedBox(width: 12),
@@ -544,16 +846,16 @@ class _DoctorsPageState extends State<DoctorsPage> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A237E),
+              color: Colors.black87, //newc
             ),
           ),
           const Spacer(),
           ElevatedButton.icon(
-            onPressed: _downloadData,
+            onPressed: _showExportSheet,
             icon: const Icon(Icons.download, size: 18),
             label: const Text('Download'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A237E),
+              backgroundColor: StaffColors.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               shape: RoundedRectangleBorder(
@@ -620,10 +922,13 @@ class _DoctorsPageState extends State<DoctorsPage> {
             child: DropdownButton<String>(
               value: _selectedDepartment,
               underline: const SizedBox(),
-              icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF1A237E)),
+              icon: const Icon(
+                Icons.arrow_drop_down,
+                color: StaffColors.primary,
+              ),
               style: const TextStyle(
                 fontSize: 13,
-                color: Color(0xFF1A237E),
+                color: StaffColors.primary,
                 fontWeight: FontWeight.w500,
               ),
               onChanged: (String? newValue) {
@@ -663,6 +968,12 @@ class _DoctorsPageState extends State<DoctorsPage> {
   // Doctor Card
   Widget _buildDoctorCard(Map<String, dynamic> doctor) {
     final bool isAvailable = doctor['status'] == 'Available';
+
+    
+    final scheduleByDay =
+        doctor['scheduleByDay'] as Map<String, List<Map<String, TimeOfDay?>>>;
+    final scheduleLabel = _scheduleDaysSummary(scheduleByDay);
+    final timeLabel = _scheduleSessionsSummary(scheduleByDay);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -713,7 +1024,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A237E),
+                        color: Colors.black87, //newc
                       ),
                     ),
                     // Department/Specialty badge
@@ -723,7 +1034,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A237E).withValues(alpha: 0.1),
+                        color: StaffColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -731,7 +1042,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFF1A237E),
+                          color: StaffColors.primary,
                         ),
                       ),
                     ),
@@ -792,68 +1103,96 @@ class _DoctorsPageState extends State<DoctorsPage> {
               children: [
                 const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text(
-                  doctor['schedule'],
-                  style: const TextStyle(fontSize: 13, color: Colors.black87),
+                Expanded(
+                  child: Text(
+                    scheduleLabel,
+                    style: const TextStyle(fontSize: 13, color: Colors.black87),
+                  ),
                 ),
-                const SizedBox(width: 16),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
                 const Icon(Icons.access_time, size: 14, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text(
-                  doctor['time'],
-                  style: const TextStyle(fontSize: 13, color: Colors.black87),
+                Expanded(
+                  child: Text(
+                    timeLabel,
+                    style: const TextStyle(fontSize: 13, color: Colors.black87),
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          // Buttons: Availability and Edit Schedule
-          Row(
-            children: [
-              Expanded(
+          
+          Builder(
+            builder: (context) {
+              final bool doctorActive = doctor['isActive'] == true;
+              return SizedBox(
+                width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _toggleAvailability(doctor['name']),
-                  label: const Text('Availability'),
+                  onPressed: () {
+                    if (!doctorActive) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Schedule Locked'),
+                          content: const Text(
+                            "You cannot change this doctor's schedule because the administrator marked the doctor as inactive.",
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
+                      );
+                      return;
+                    }
+                    _editSchedule(doctor);
+                  },
+                  icon: Icon(
+                    Icons.edit,
+                    size: 16,
+                    color: doctorActive ? StaffColors.primary : Colors.grey,
+                  ),
+                  label: Text(
+                    'Edit Schedule',
+                    style: TextStyle(
+                      color: doctorActive ? StaffColors.primary : Colors.grey,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(
-                      0xFF1A237E,
-                    ).withValues(alpha: 0.05),
-                    foregroundColor: const Color(0xFF1A237E),
+                    backgroundColor: doctorActive
+                        ? StaffColors.primary.withValues(alpha: 0.05)
+                        : Colors.grey.withValues(alpha: 0.08),
+                    foregroundColor: doctorActive
+                        ? StaffColors.primary
+                        : Colors.grey,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                       side: BorderSide(
-                        color: const Color(0xFF1A237E).withValues(alpha: 0.2),
+                        color: doctorActive
+                            ? StaffColors.primary.withValues(alpha: 0.2)
+                            : Colors.grey.withValues(alpha: 0.3),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Edit Schedule Button
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _editSchedule(doctor),
-                  icon: const Icon(Icons.edit, size: 16),
-                  label: const Text('Edit Schedule'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(
-                      0xFF1A237E,
-                    ).withValues(alpha: 0.05),
-                    foregroundColor: const Color(0xFF1A237E),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(
-                        color: const Color(0xFF1A237E).withValues(alpha: 0.2),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ],
       ),
@@ -876,7 +1215,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF1A237E),
+        selectedItemColor: StaffColors.primary,
         unselectedItemColor: Colors.grey.shade400,
         selectedFontSize: 11,
         unselectedFontSize: 11,
@@ -930,7 +1269,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.question_answer),
-            label: 'Inquiries',
+            label: 'Chatbot Inquiries',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
@@ -938,34 +1277,42 @@ class _DoctorsPageState extends State<DoctorsPage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.medical_services),
-            label: 'Doctors',
+            label: 'Manage Doctors',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Patients'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'Patient Records',
+          ),
         ],
       ),
     );
   }
 
-  // ✅ ADD Logout Dialog
+ 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              await ApiService.logout();
+              Navigator.pop(dialogContext);
+              try {
+                await ApiService.logout();
+              } catch (e) {
+                print('Logout error: $e');
+              }
               if (!context.mounted) return;
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
               );
             },
             style: ElevatedButton.styleFrom(

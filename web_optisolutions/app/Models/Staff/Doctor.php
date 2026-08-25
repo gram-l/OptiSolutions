@@ -11,7 +11,7 @@ class Doctor extends Model
 {
     protected $table = 'doctors';
     protected $primaryKey = 'doctor_id';
-    public $timestamps = false; // palitan sa true kung may created_at/updated_at ang table mo
+    public $timestamps = false;
 
     protected $fillable = [
         'doctor_name', 'gender', 'specialty', 'years_experience', 'education',
@@ -20,7 +20,18 @@ class Doctor extends Model
 
     public function patients()
     {
-        return $this->hasMany(Patient::class, 'doctor_id', 'doctor_id');
+        // Patients aren't linked to a doctor directly — the real
+        // connection is through schedule_visit (doctor -> schedule_visit
+        // -> patient). distinct() collapses a patient down to one row
+        // even if they've had several visits with this doctor.
+        return $this->hasManyThrough(
+            Patient::class,
+            ScheduleVisit::class,
+            'doctor_id',   // Foreign key on schedule_visit referencing doctors
+            'patient_id',  // Foreign key on patients referencing schedule_visit
+            'doctor_id',   // Local key on doctors
+            'patient_id'   // Local key on schedule_visit
+        )->select('patients.*')->distinct();
     }
 
     public function appointments()
@@ -33,14 +44,10 @@ class Doctor extends Model
         return $this->hasMany(DoctorSchedule::class, 'doctor_id', 'doctor_id');
     }
 
-    /**
-     * I-convert ang doctor data papunta sa array format na inaasahan ng
-     * Flutter app (DoctorsPage): id, name, specialty, status, schedule,
-     * time, avatar, color
-     */
+
     public function toApiArray()
     {
-        // Kunin ang initials para sa avatar, hal. "Juan Dela Cruz" -> "JD"
+  
         $nameParts = preg_split('/\s+/', trim($this->doctor_name ?? ''));
         $initials = strtoupper(substr($nameParts[0] ?? '', 0, 1) . substr($nameParts[count($nameParts) - 1] ?? '', 0, 1));
 
@@ -50,7 +57,7 @@ class Doctor extends Model
         $schedules = $this->relationLoaded('schedules') ? $this->schedules : $this->schedules()->get();
 
         if ($schedules->isNotEmpty()) {
-            // I-order ang days base sa normal na linggo (Mon -> Sun)
+           
             $dayOrder = ['Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3, 'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6, 'Sunday' => 7];
             $days = $schedules->pluck('day')->unique()
                 ->sortBy(fn($d) => $dayOrder[$d] ?? 99)
@@ -60,13 +67,22 @@ class Doctor extends Model
                 ? ($days->first() . ' - ' . $days->last())
                 : $days->first();
 
-            // Ipagpalagay na parehong oras kada araw; kunin na lang sa unang record
+            
             $first = $schedules->first();
             if ($first->start_time && $first->end_time) {
                 $timeStr = Carbon::parse($first->start_time)->format('g:ia')
                     . ' - ' . Carbon::parse($first->end_time)->format('g:ia');
             }
         }
+
+    
+        $schedulesList = $schedules->map(function ($s) {
+            return [
+                'day'        => $s->day,
+                'start_time' => $s->start_time ? Carbon::parse($s->start_time)->format('H:i') : null,
+                'end_time'   => $s->end_time ? Carbon::parse($s->end_time)->format('H:i') : null,
+            ];
+        })->values();
 
         return [
             'id'        => $this->doctor_id,
@@ -75,6 +91,8 @@ class Doctor extends Model
             'status'    => $this->available ? 'Available' : 'Unavailable',
             'schedule'  => $scheduleStr,
             'time'      => $timeStr,
+            'schedules' => $schedulesList,
+            'is_active' => (int) $this->available,
             'avatar'    => $initials ?: 'DR',
             'color'     => '#1A237E',
         ];

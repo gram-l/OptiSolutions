@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\admin_acc;
 
 use App\Http\Controllers\Controller;
+use App\Models\Staff\Inquiry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -11,17 +12,17 @@ class AdminDashboardController extends Controller
 {
     public function index()
     {
-        $data = $this->buildDashboardData();
+        $data = $this->getDashboardData();
 
         return view('admin_acc.dashboard', $data);
     }
 
     public function data(Request $request)
     {
-        return response()->json($this->buildDashboardData());
+        return response()->json($this->getDashboardData());
     }
 
-    private function buildDashboardData(): array
+    public function getDashboardData(): array
     {
         // ---- Stat cards ----
         $totalInquiries      = DB::table('inquiries')->count();
@@ -71,9 +72,24 @@ class AdminDashboardController extends Controller
         }
 
         // ---- 3) Sentiment Analysis ----
-        $positive = DB::table('feedback')->where('star_rating', '>=', 4)->count();
-        $neutral  = DB::table('feedback')->where('star_rating', '=', 3)->count();
-        $negative = DB::table('feedback')->where('star_rating', '>', 0)->where('star_rating', '<', 3)->count();
+        // Previously this derived sentiment from a star_rating threshold
+        // (>=4 positive, ==3 neutral, <3 negative), which didn't match the
+        // real ML-classified sentiment shown on the Feedback page
+        // (sentiment_results.sentiment_label, set by SentimentAnalysisService
+        // when feedback is submitted). Joining to sentiment_results here so
+        // the dashboard and the Feedback page always agree on the numbers.
+        // Feedback rows that haven't been analyzed yet (no sentiment_results
+        // row) are simply excluded from the total, same as how the Feedback
+        // page treats them ('pending').
+        $sentimentCounts = DB::table('feedback')
+            ->join('sentiment_results', 'sentiment_results.feedback_id', '=', 'feedback.feedback_id')
+            ->select('sentiment_results.sentiment_label', DB::raw('COUNT(*) as total'))
+            ->groupBy('sentiment_results.sentiment_label')
+            ->pluck('total', 'sentiment_label');
+
+        $positive = $sentimentCounts['Positive'] ?? 0;
+        $neutral  = $sentimentCounts['Neutral'] ?? 0;
+        $negative = $sentimentCounts['Negative'] ?? 0;
         $sentimentTotal = $positive + $neutral + $negative;
 
         $positivePercent = $sentimentTotal > 0 ? round($positive / $sentimentTotal * 100) : 0;
@@ -81,21 +97,33 @@ class AdminDashboardController extends Controller
         $negativePercent = $sentimentTotal > 0 ? round($negative / $sentimentTotal * 100) : 0;
 
         // ---- 4) Inquiry Volume per weekday (this week) ----
-        // NOTE: inquiries has no created_at column in the current schema
-        // (only replied_at, which is null until a staff member replies).
-        // Using replied_at here means unresolved/unreplied inquiries won't
-        // be counted. If you want accurate "volume received per day", add a
-        // created_at timestamp column to the inquiries table.
+        // Previously this counted `replied_at`, which meant unresolved /
+        // not-yet-replied inquiries never showed up in the chart. Chatbot
+        // Inquiries (ChatbotInquiryController) already sources the real
+        // "message received" timestamp from the inquiry's `log` relation
+        // (chat_time on the chat log row), falling back to created_at.
+        // We reuse that same logic here so the chart reflects *all*
+        // inquiries received this week, not just the replied ones.
         $inquiryVolumeByDay = array_fill(0, 7, 0); // Mon..Sun
-        $inquiries = DB::table('inquiries')
-            ->whereNotNull('replied_at')
-            ->whereBetween('replied_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
-            ->get(['replied_at']);
+        $weekStartForInquiries = Carbon::now()->startOfWeek();
+        $weekEndForInquiries   = Carbon::now()->endOfWeek();
 
-        foreach ($inquiries as $inquiry) {
-            $dayIndex = Carbon::parse($inquiry->replied_at)->dayOfWeekIso - 1; // Mon=0..Sun=6
-            $inquiryVolumeByDay[$dayIndex]++;
-        }
+        Inquiry::with('log')
+            ->get()
+            ->each(function (Inquiry $inquiry) use (&$inquiryVolumeByDay, $weekStartForInquiries, $weekEndForInquiries) {
+                $timestamp = optional($inquiry->log)->chat_time ?? $inquiry->created_at ?? null;
+
+                if (!$timestamp) {
+                    return;
+                }
+
+                $timestamp = Carbon::parse($timestamp);
+
+                if ($timestamp->between($weekStartForInquiries, $weekEndForInquiries)) {
+                    $dayIndex = $timestamp->dayOfWeekIso - 1; // Mon=0..Sun=6
+                    $inquiryVolumeByDay[$dayIndex]++;
+                }
+            });
 
         return [
             'totalInquiries'       => $totalInquiries,

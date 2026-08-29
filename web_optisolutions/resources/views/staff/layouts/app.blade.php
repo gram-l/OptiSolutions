@@ -89,7 +89,6 @@
                 </button>
                 <button class="notif-tab" data-filter="inquiry" onclick="setNotifFilter('inquiry')">Chatbot</button>
                 <button class="notif-tab" data-filter="schedule_visit" onclick="setNotifFilter('schedule_visit')">Appointments</button>
-                <button class="notif-tab" data-filter="patient" onclick="setNotifFilter('patient')">Patients</button>
                 <button class="notif-tab" data-filter="system" onclick="setNotifFilter('system')">System</button>
             </div>
 
@@ -110,7 +109,9 @@
             <aside class="sidebar">
                 <div class="sidebar-header">
                     <div class="sidebar-brand">
-                        <img src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic" class="sidebar-brand-icon">
+                        <div class="sidebar-brand-icon">
+                            <i class="fa-solid fa-hospital"></i>
+                        </div>
                         <span class="sidebar-brand-text">Polyclinic</span>
                     </div>
                     <button
@@ -127,12 +128,12 @@
 
                 <a href="{{ route('staff.dashboard') }}" style="text-decoration: none; color: inherit; display: block;">
                     <div class="nav-item {{ request()->routeIs('staff.dashboard*') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+                        <i class="bi bi-bar-chart-fill"></i> <span>Dashboard</span>
                     </div>
                 </a>
                 <a href="{{ route('staff.appointments') }}" style="text-decoration: none; color: inherit; display: block;">
                     <div class="nav-item {{ request()->routeIs('staff.appointments*') ? 'active' : '' }}">
-                        <i class="bi bi-calendar-check"></i> <span>Scheduled Visits</span>
+                        <i class="bi bi-journal-medical"></i> <span>Scheduled Visits</span>
                     </div>
                 </a>
                 <a href="{{ route('staff.inquiries') }}" style="text-decoration: none; color: inherit; display: block;">
@@ -142,12 +143,12 @@
                 </a>
                 <a href="{{ route('staff.doctors') }}" style="text-decoration: none; color: inherit; display: block;">
                     <div class="nav-item {{ request()->routeIs('staff.doctors*') ? 'active' : '' }}">
-                        <i class="bi bi-person-badge"></i> <span>Manage Doctors</span>
+                        <i class="fa-solid fa-user-doctor"></i> <span>Manage Doctors</span>
                     </div>
                 </a>
                 <a href="{{ route('staff.patients') }}" style="text-decoration: none; color: inherit; display: block;">
                     <div class="nav-item {{ request()->routeIs('staff.patients*') ? 'active' : '' }}">
-                        <i class="bi bi-people"></i> <span>Patient Records</span>
+                        <i class="bi bi-hospital"></i> <span>Patient Records</span>
                     </div>
                 </a>
             </aside>
@@ -243,14 +244,14 @@
 
         <div class="settings-panel-header">
             <div class="settings-panel-title"><i class="bi bi-gear"></i> Settings</div>
-            <p class="settings-panel-subtitle">Manage your account preferences</p>
+            <p class="settings-panel-subtitle">Manage clinic-wide preferences, security, and account options</p>
         </div>
 
         <div class="settings-panel-body">
 
             {{-- LEFT: sidebar nav --}}
             <div class="settings-sidebar">
-                <div class="settings-sidebar-label">General</div>
+                <div class="settings-sidebar-label">GENERAL</div>
                 <button type="button" class="settings-nav-item active" data-tab="notifications" onclick="switchSettingsTab('notifications')">
                     <i class="bi bi-bell"></i> Notifications
                 </button>
@@ -258,7 +259,7 @@
                     <i class="bi bi-palette"></i> Appearance
                 </button>
 
-                <div class="settings-sidebar-label">Account</div>
+                <div class="settings-sidebar-label">ACCOUNT</div>
                 <button type="button" class="settings-nav-item" data-tab="profile" onclick="switchSettingsTab('profile')">
                     <i class="bi bi-person"></i> Profile
                 </button>
@@ -267,14 +268,6 @@
                 </button>
                 <button type="button" class="settings-nav-item" data-tab="privacy" onclick="switchSettingsTab('privacy')">
                     <i class="bi bi-shield-check"></i> Data &amp; Privacy
-                </button>
-
-                <div class="settings-sidebar-label">Clinic</div>
-                <button type="button" class="settings-nav-item" data-tab="clinicinfo" onclick="switchSettingsTab('clinicinfo')">
-                    <i class="bi bi-building"></i> Clinic Info
-                </button>
-                <button type="button" class="settings-nav-item" data-tab="workinghours" onclick="switchSettingsTab('workinghours')">
-                    <i class="bi bi-clock"></i> Working Hours
                 </button>
 
                 <form method="POST" action="{{ route('logout') }}" class="settings-logout-form">
@@ -295,11 +288,11 @@
 
                     <div class="settings-toggle-row">
                         <div class="settings-item-text">
-                            <div class="settings-item-title">New appointment bookings</div>
+                            <div class="settings-item-title">New appointment</div>
                             <div class="settings-item-desc">Alert when a patient books an appointment</div>
                         </div>
                         <label class="toggle-switch">
-                            <input type="checkbox" class="notif-pref-toggle" data-pref="appointments" onchange="saveNotifPref('appointments', this.checked)">
+                            <input type="checkbox" class="notif-pref-toggle" data-pref="appointments" checked onchange="saveNotifPref('appointments', this.checked)">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -310,18 +303,7 @@
                             <div class="settings-item-desc">Alert when a patient message needs a reply</div>
                         </div>
                         <label class="toggle-switch">
-                            <input type="checkbox" class="notif-pref-toggle" data-pref="inquiries" onchange="saveNotifPref('inquiries', this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="settings-toggle-row">
-                        <div class="settings-item-text">
-                            <div class="settings-item-title">New patient records</div>
-                            <div class="settings-item-desc">Alert when a new patient record is added</div>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" class="notif-pref-toggle" data-pref="patients" onchange="saveNotifPref('patients', this.checked)">
+                            <input type="checkbox" class="notif-pref-toggle" data-pref="inquiries" checked onchange="saveNotifPref('inquiries', this.checked)">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -345,8 +327,8 @@
 
                     <div class="settings-toggle-row">
                         <div class="settings-item-text">
-                            <div class="settings-item-title">Dark Mode</div>
-                            <div class="settings-item-desc">Switch the dashboard theme</div>
+                            <div class="settings-item-title">Dark mode</div>
+                            <div class="settings-item-desc">Switch to a darker color theme</div>
                         </div>
                         <label class="toggle-switch">
                             <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode(this.checked)">
@@ -355,69 +337,38 @@
                     </div>
                 </div>
 
-                {{-- PROFILE --}}
+{{-- PROFILE --}}
                 <div class="settings-tab-panel" id="settings-tab-profile">
-                    <div class="settings-content-title"><i class="bi bi-person-badge"></i> My Profile</div>
-                    <p class="settings-content-subtitle">View your personal details</p>
+                    <div class="settings-content-title"><i class="bi bi-person-badge"></i> Profile</div>
+                    <p class="settings-content-subtitle">Your account details for this installation</p>
 
-                    <div class="profile-modal-photo-wrap" style="margin: 1rem 0 1.5rem;">
-                        <div class="profile-modal-photo-circle">
-                            <div class="profile-modal-photo">
-                                @if(Auth::user() && Auth::user()->profile_photo)
-                                    <img src="{{ asset('storage/' . Auth::user()->profile_photo) }}" alt="Profile photo">
-                                @else
-                                    {{ Auth::user() ? strtoupper(substr(Auth::user()->name, 0, 1)) : 'S' }}
-                                @endif
-                            </div>
-                        </div>
-                        <div class="profile-modal-badge">Clinic Staff</div>
+                    <div class="info-modal-field" style="margin-top: 1.5rem;">
+                        <div class="info-modal-label">App version</div>
+                        <div class="info-modal-value">{{ config('app.version', 'v1.0.0') }}</div>
                     </div>
 
-                    <div class="profile-modal-field">
-                        <i class="bi bi-person"></i>
-                        <div>
-                            <div class="profile-modal-field-label">Name</div>
-                            <div class="profile-modal-field-value">{{ Auth::user()->name ?? '-' }}</div>
+                    <div class="info-modal-field">
+                        <div class="info-modal-label">Last login</div>
+                        <div class="info-modal-value">
+                            {{ Auth::user()->last_login_at ? \Carbon\Carbon::parse(Auth::user()->last_login_at)->format('M d, g:i A') : 'N/A' }}
                         </div>
                     </div>
 
-                    <div class="profile-modal-field">
-                        <i class="bi bi-envelope"></i>
-                        <div>
-                            <div class="profile-modal-field-label">Email</div>
-                            <div class="profile-modal-field-value">{{ Auth::user()->email ?? '-' }}</div>
-                        </div>
+                    <div class="info-modal-field">
+                        <div class="info-modal-label">Account role</div>
+                        <div class="info-modal-value">{{ ucfirst(Auth::user()->user_role ?? 'Admin') }}</div>
                     </div>
 
-                    <div class="profile-modal-field">
-                        <i class="bi bi-telephone"></i>
-                        <div>
-                            <div class="profile-modal-field-label">Contact</div>
-                            <div class="profile-modal-field-value">{{ Auth::user()->phone_number ?? '-' }}</div>
-                        </div>
-                    </div>
-
-                    <div class="profile-modal-field">
-                        <i class="bi bi-briefcase"></i>
-                        <div>
-                            <div class="profile-modal-field-label">Staff ID</div>
-                            <div class="profile-modal-field-value">{{ Auth::user()->user_id ?? Auth::user()->id ?? '-' }}</div>
-                        </div>
-                    </div>
-
-                    <div class="profile-modal-field">
-                        <i class="bi bi-building"></i>
-                        <div>
-                            <div class="profile-modal-field-label">Role</div>
-                            <div class="profile-modal-field-value">{{ ucfirst(Auth::user()->user_role ?? 'Staff') }}</div>
-                        </div>
+                    <div class="info-modal-field">
+                        <div class="info-modal-label">Last backup</div>
+                        <div class="info-modal-value">{{ config('app.last_backup', 'Not configured') }}</div>
                     </div>
                 </div>
 
                 {{-- SECURITY --}}
                 <div class="settings-tab-panel" id="settings-tab-security">
-                    <div class="settings-content-title"><i class="bi bi-shield-lock"></i> Security</div>
-                    <p class="settings-content-subtitle">Manage your password and account security</p>
+                    <div class="settings-content-title"><i class="bi bi-shield-lock"></i> Security & Access</div>
+                    <p class="settings-content-subtitle">Update your password and session settings</p>
 
                     @if($errors->has('current_password') || $errors->has('password'))
                         <div class="error-message show">
@@ -425,79 +376,84 @@
                         </div>
                     @endif
 
+                    <div class="settings-section-heading" style="margin-top: 1.5rem; font-size: 0.8rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">CHANGE PASSWORD</div>
+                    
+                    {{-- Working Password Form --}}
                     <form method="POST" action="{{ route('staff.profile.password') }}" id="changePasswordForm">
                         @csrf
                         @method('PUT')
 
                         <div class="form-group">
-                            <label>Current Password</label>
-                            <input type="password" name="current_password" required autocomplete="current-password">
+                            <label>Current password</label>
+                            <input type="password" name="current_password" placeholder="Enter current password" required autocomplete="current-password">
                         </div>
 
                         <div class="form-group">
-                            <label>New Password</label>
-                            <input type="password" name="password" required autocomplete="new-password" minlength="8">
+                            <label>New password</label>
+                            <input type="password" name="password" placeholder="Enter new password" required autocomplete="new-password" minlength="8">
                         </div>
 
                         <div class="form-group">
-                            <label>Confirm New Password</label>
-                            <input type="password" name="password_confirmation" required autocomplete="new-password" minlength="8">
+                            <label>Confirm new password</label>
+                            <input type="password" name="password_confirmation" placeholder="Re-enter new password" required autocomplete="new-password" minlength="8">
                         </div>
 
-                        <button type="submit" class="btn-sm btn-primary" style="padding: 0.7rem 2rem; margin-top: 0.5rem;">Update Password</button>
+                        <div style="text-align: right;">
+                            <button type="submit" class="btn-sm btn-primary" style="padding: 0.7rem 1.5rem; margin-top: 0.5rem;"><i class="bi bi-check-lg"></i> Update Password</button>
+                        </div>
+                    </form>
+
+                    <div class="settings-section-heading" style="margin-top: 2.5rem; font-size: 0.8rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">SESSION</div>
+                    
+                    {{-- Working Session Form --}}
+                    <form method="POST" action="{{ route('staff.profile.session') ?? '#' }}" id="updateSessionForm">
+                        @csrf
+                        <div class="settings-toggle-row">
+                            <div class="settings-item-text">
+                                <div class="settings-item-title">Session timeout</div>
+                                <div class="settings-item-desc">Automatically log out after inactivity</div>
+                            </div>
+                            <select name="session_timeout" class="form-control" style="width: auto; display: inline-block; padding: 0.4rem 1rem;" onchange="this.form.submit()">
+                                <option value="15" {{ config('session.lifetime') == 15 ? 'selected' : '' }}>15 minutes</option>
+                                <option value="30" {{ config('session.lifetime') == 30 ? 'selected' : '' }}>30 minutes</option>
+                                <option value="60" {{ config('session.lifetime') == 60 ? 'selected' : '' }}>1 hour</option>
+                                <option value="never" {{ config('session.lifetime') > 60 ? 'selected' : '' }}>Never</option>
+                            </select>
+                        </div>
                     </form>
                 </div>
 
                 {{-- DATA & PRIVACY --}}
                 <div class="settings-tab-panel" id="settings-tab-privacy">
                     <div class="settings-content-title"><i class="bi bi-shield-check"></i> Data &amp; Privacy</div>
-                    <p class="settings-content-subtitle">How patient data is handled</p>
+                    <p class="settings-content-subtitle">Manage clinic data and stored records</p>
 
-                    <ul class="privacy-list">
-                        <li>Patient records are encrypted and stored securely.</li>
-                        <li>Only authorized staff can access patient information.</li>
-                        <li>Staff access is limited based on assigned roles and permissions.</li>
-                        <li>Patient information must not be shared with unauthorized persons.</li>
-                        <li>All access to patient data is logged for accountability.</li>
-                        <li>Any suspected unauthorized access must be reported to the administrator.</li>
-                    </ul>
-                </div>
-
-                {{-- CLINIC INFO --}}
-                <div class="settings-tab-panel" id="settings-tab-clinicinfo">
-                    <div class="settings-content-title"><i class="bi bi-building"></i> Clinic Info</div>
-                    <p class="settings-content-subtitle">Basic clinic details</p>
-
-                    <div class="info-modal-field">
-                        <div class="info-modal-label">Clinic Name</div>
-                        <div class="info-modal-value">PolyClinic Lipa</div>
+                    <div class="settings-toggle-row" style="align-items: center; border-bottom: 1px solid #eee; padding-bottom: 1rem; margin-top: 1.5rem;">
+                        <div class="settings-item-text">
+                            <div class="settings-item-title">Terms & Conditions</div>
+                            <div class="settings-item-desc">Review the terms shown to patients on login</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius: 20px; padding: 0.3rem 1rem;"><i class="bi bi-eye"></i> View</button>
                     </div>
-                    <div class="info-modal-field">
-                        <div class="info-modal-label">Address</div>
-                        <div class="info-modal-value">TM Kalaw St., Lipa City, Batangas 4217</div>
-                    </div>
-                    <div class="info-modal-field">
-                        <div class="info-modal-label">Contact No.</div>
-                        <div class="info-modal-value">0985 475 5511</div>
-                    </div>
-                </div>
 
-                {{-- WORKING HOURS --}}
-                <div class="settings-tab-panel" id="settings-tab-workinghours">
-                    <div class="settings-content-title"><i class="bi bi-clock"></i> Working Hours</div>
-                    <p class="settings-content-subtitle">Clinic operating schedule</p>
+                    <div class="settings-toggle-row" style="align-items: center; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
+                        <div class="settings-item-text">
+                            <div class="settings-item-title">Export patient data</div>
+                            <div class="settings-item-desc">Download records as a CSV file</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius: 20px; padding: 0.3rem 1rem;"><i class="bi bi-download"></i> Export</button>
+                    </div>
 
-                    <div class="info-modal-field">
-                        <div class="info-modal-label">Operating Hours</div>
-                        <div class="info-modal-value">Monday - Friday: 8:00 AM - 6:00 PM | Saturday: 9:00 AM - 1:00 PM</div>
+                    <div class="settings-toggle-row" style="align-items: center; border-bottom: none;">
+                        <div class="settings-item-text">
+                            <div class="settings-item-title">Clear cached data</div>
+                            <div class="settings-item-desc">Free up space used by cached images and files</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius: 20px; padding: 0.3rem 1rem;"><i class="bi bi-trash"></i> Clear</button>
                     </div>
                 </div>
 
             </div>
-        </div>
-
-        <div style="text-align:center; color:#b0b8c1; font-size:0.75rem; margin-top:14px;">
-            PolyClinic Staff v2.0
         </div>
     </div>
 </div>
@@ -634,7 +590,7 @@
 
 
         function notifCategory(type) {
-            return ['inquiry', 'schedule_visit', 'patient'].includes(type) ? type : 'system';
+            return ['inquiry', 'schedule_visit'].includes(type) ? type : 'system';
         }
 
         function setNotifFilter(filter) {

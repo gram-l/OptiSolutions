@@ -12,6 +12,8 @@ Route::middleware(['auth', 'staff'])->group(function () {
 
     Route::post('/staff/profile/photo', [StaffController::class, 'updatePhoto'])->name('staff.profile.photo');
     Route::put('/staff/profile/password', [StaffController::class, 'updatePassword'])->name('staff.profile.password');
+    Route::post('/staff/profile/session', [StaffController::class, 'updateSession'])
+    ->name('staff.profile.session');
     
     // DASHBOARD
     Route::get('/staff/dashboard', [StaffController::class, 'dashboard'])->name('staff.dashboard');

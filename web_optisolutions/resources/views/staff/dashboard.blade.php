@@ -4,7 +4,7 @@
 <div class="container">
 
     <!-- WELCOME BANNER -->
-    <div style="background: var(--primary-main); border-radius: 20px; padding: 2rem 2.5rem; color: white; margin-bottom: 2rem;">
+    <div style="background: var(--primary-main); border-radius: 20px; padding: 2rem 2.5rem; color: white; margin-bottom: 0.85rem;">
         <h2 style="margin: 0; font-weight: 700;">
             Welcome, {{ auth()->user()->name ?? 'Staff' }}!
         </h2>
@@ -13,7 +13,7 @@
         </p>
     </div>
 
-    <div class="stats-grid">
+    <div class="stats-grid" style="margin-bottom: 0.85rem;">
         <div class="stat-card">
             <div class="stat-label" style="text-transform: uppercase; font-size: 0.75rem; font-weight: 600; color: #7f8c8d; letter-spacing: 0.5px; margin-bottom: 0.6rem;">
                 Total Schedule Visit
@@ -87,8 +87,8 @@
         .charts-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 1.5rem;
-            margin-top: 2rem;
+            gap: 0.85rem;
+            margin-top: 0.85rem;
         }
         .charts-grid .dashboard-card {
             margin-top: 0;
@@ -127,7 +127,7 @@
         <!-- 2) WEEKLY PATIENT VISITS (line) -->
         <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow);">
             <h3 style="color: var(--text-dark);">Weekly Patient Visits</h3>
-            <p style="color: #7f8c8d; font-size: 0.9rem;">Visits from schedule_visit over the last several weeks</p>
+            <p style="color: #7f8c8d; font-size: 0.9rem;">Scheduled visit over the last several weeks</p>
 
             <div style="margin-top: 1rem;">
                 <canvas id="weeklyVisitsChart" height="240"></canvas>
@@ -178,7 +178,7 @@
     </div>
 
     <!-- RECENT ACTIVITY -->
-    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 1.5rem;">
+    <div class="dashboard-card" style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); margin-top: 0.85rem;">
         <h3 style="color: var(--text-dark);">Recent Activities</h3>
         <div id="recentActivityList">
             @forelse($recentActivities as $activity)

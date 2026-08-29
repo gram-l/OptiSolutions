@@ -14,6 +14,7 @@ use App\Services\ClinicInfoService;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
+use App\Models\Staff\AppNotification;
 use App\Middleware\CaptureReplyMiddleware;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -178,10 +179,15 @@ class BotManController extends Controller
                 ]);
 
                 $openInquiry->save();
+
+                // Notify staff that the patient replied again on an
+                // already-open inquiry, so it doesn't get missed.
+                $this->notifyStaffOfInquiry($openInquiry, 'New Inquiry Reply', 'A patient replied to an existing ' . strtolower($openInquiry->inquiry_type) . ' inquiry.');
+
                 return;
             }
 
-            Inquiry::create([
+            $inquiry = Inquiry::create([
                 'patient_id'      => $patientId,
                 'guest_name'      => $guestName,
                 'log_id'          => $log->log_id,
@@ -191,8 +197,26 @@ class BotManController extends Controller
                 'created_at'      => now(),
             ]);
 
+            $this->notifyStaffOfInquiry($inquiry, 'New Inquiry', 'A new ' . strtolower($inquiry->inquiry_type) . ' inquiry has been submitted.');
+
         } catch (\Throwable $e) {
             Log::error('Failed to record inquiry: ' . $e->getMessage());
+        }
+    }
+
+    protected function notifyStaffOfInquiry(Inquiry $inquiry, string $title, string $message): void
+    {
+        try {
+            AppNotification::create([
+                'user_id'      => null, // broadcast to all staff/admin
+                'type'         => 'inquiry',
+                'title'        => $title,
+                'message'      => $message,
+                'reference_id' => $inquiry->inquiry_id,
+                'is_read'      => false,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to create inquiry notification: ' . $e->getMessage());
         }
     }
 

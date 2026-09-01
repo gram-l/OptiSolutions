@@ -240,6 +240,9 @@
         }
 
         function sentimentTag(sentiment) {
+            if (sentiment === 'no_comment') {
+                return '<span class="sentiment-tag sentiment-none">—</span>';
+            }
             const map = {
                 positive: '😊 Positive',
                 neutral: '😐 Neutral',

@@ -11,41 +11,45 @@ use App\Models\admin_models\Complaint;
 class FeedbackController extends Controller
 {
     public function index()
-    {
-        $feedback = Feedback::with('sentimentResult')
-            ->orderBy('submitted_at', 'desc')
-            ->get()
-            ->map(function ($f) {
-                return [
-                    'id' => $f->feedback_id,
-                    'rating' => (int) $f->star_rating,
-                    'comment' => $f->feedback_text,
-                    'sentiment' => $f->sentimentResult ? strtolower($f->sentimentResult->sentiment_label) : 'pending',
-                    'date' => $f->submitted_at,
-                ];
-            });
+{
+    $feedback = Feedback::with('sentimentResult')
+        ->orderBy('submitted_at', 'desc')
+        ->get()
+        ->map(function ($f) {
+            return [
+                'id' => $f->feedback_id,
+                'rating' => (int) $f->star_rating,
+                'comment' => $f->feedback_text,
+                'sentiment' => trim($f->feedback_text ?? '') === ''
+                    ? 'no_comment'
+                    : ($f->sentimentResult ? strtolower($f->sentimentResult->sentiment_label) : 'pending'),
+                'date' => $f->submitted_at,
+            ];
+        });
 
-        return view('admin_acc.feedback', ['feedbackData' => $feedback]);
-    }
-
-    public function store(Request $request, SentimentAnalysisService $sentimentService)
+    return view('admin_acc.feedback', ['feedbackData' => $feedback]);
+}
+public function store(Request $request, SentimentAnalysisService $sentimentService)
 {
     $validated = $request->validate([
         'log_id' => 'nullable|integer',
         'patient_id' => 'nullable|integer',
-        'feedback_text' => 'required|string',
+        'feedback_text' => 'nullable|string',
         'star_rating' => 'required|integer|min:1|max:5',
     ]);
 
     $feedback = Feedback::create(array_merge($validated, ['submitted_at' => now()]));
 
-    $result = $sentimentService->analyze($feedback->feedback_text);
-    if ($result) {
-        $feedback->sentimentResult()->create([
-            'sentiment_label' => $result['sentiment_label'],
-            'confidence_score' => $result['confidence_score'],
-            'analyzed_at' => now(),
-        ]);
+    // Only classify if there's actual comment text
+    if (trim($feedback->feedback_text ?? '') !== '') {
+        $result = $sentimentService->analyze($feedback->feedback_text);
+        if ($result) {
+            $feedback->sentimentResult()->create([
+                'sentiment_label' => $result['sentiment_label'],
+                'confidence_score' => $result['confidence_score'],
+                'analyzed_at' => now(),
+            ]);
+        }
     }
 
     return redirect()->back()->with('success', 'Feedback submitted.');

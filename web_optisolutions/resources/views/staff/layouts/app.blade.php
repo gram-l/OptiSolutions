@@ -431,9 +431,9 @@
                     <div class="settings-toggle-row" style="align-items: center; border-bottom: 1px solid #eee; padding-bottom: 1rem; margin-top: 1.5rem;">
                         <div class="settings-item-text">
                             <div class="settings-item-title">Terms & Conditions</div>
-                            <div class="settings-item-desc">Review the terms shown to patients on login</div>
+                            <div class="settings-item-desc">Review the terms for patients and staff</div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius: 20px; padding: 0.3rem 1rem;"><i class="bi bi-eye"></i> View</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius: 20px; padding: 0.3rem 1rem;" onclick="openStaffTermsModal();"><i class="bi bi-eye"></i> View</button>
                     </div>
 
                     <div class="settings-toggle-row" style="align-items: center; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
@@ -441,7 +441,7 @@
                             <div class="settings-item-title">Export patient data</div>
                             <div class="settings-item-desc">Download records as a CSV file</div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius: 20px; padding: 0.3rem 1rem;"><i class="bi bi-download"></i> Export</button>
+                        <a href="{{ route('staff.patients.export') }}" class="btn btn-sm btn-outline-secondary" style="border-radius: 20px; padding: 0.3rem 1rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.35rem;"><i class="bi bi-download"></i> Export</a>
                     </div>
 
                     <div class="settings-toggle-row" style="align-items: center; border-bottom: none;">
@@ -454,6 +454,135 @@
                 </div>
 
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== TERMS & CONDITIONS MODAL (Patients + Staff) ===== -->
+<div class="modal-overlay" id="staffTermsModalOverlay" style="z-index: 2100;" onclick="if(event.target === this) closeStaffTermsModal();">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3><i class="bi bi-file-earmark-text" style="color: var(--primary-main); margin-right: 0.4rem;"></i> Terms &amp; Conditions</h3>
+            <button class="modal-close" onclick="closeStaffTermsModal();" aria-label="Close">&times;</button>
+        </div>
+
+        {{-- Sub-tabs: Patients / Staff --}}
+        <div style="display: flex; gap: 0.5rem; border-bottom: 1px solid var(--light-gray); margin-bottom: 1.25rem;">
+            <button type="button" class="terms-subtab active" data-terms-tab="patients" onclick="switchTermsTab('patients')"
+                style="background: none; border: none; padding: 0 0 0.75rem; margin-right: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--primary-main); border-bottom: 2px solid var(--primary-main); cursor: pointer;">
+                For Patients
+            </button>
+            <button type="button" class="terms-subtab" data-terms-tab="staff" onclick="switchTermsTab('staff')"
+                style="background: none; border: none; padding: 0 0 0.75rem; font-size: 0.9rem; font-weight: 600; color: #7f8c8d; border-bottom: 2px solid transparent; cursor: pointer;">
+                For Staff
+            </button>
+        </div>
+
+        {{-- ===== PATIENT TERMS ===== --}}
+        <div class="terms-tab-panel" id="terms-tab-patients">
+            <p style="color: #7f8c8d; font-size: 0.8rem; margin-bottom: 1.25rem;">Last updated: August 2026</p>
+
+            <p style="font-size: 0.92rem; line-height: 1.7; color: var(--text-dark); margin-bottom: 1rem;">
+                These terms explain how PolyClinic's online scheduling system
+                collects and uses patient information, in compliance with the
+                Data Privacy Act of 2012 (RA 10173) and the issuances of the
+                National Privacy Commission (NPC).
+            </p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">What We Collect</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
+                Name, contact number, date of birth, email address, and the
+                service/doctor selected when you schedule a visit through our
+                chatbot. Complaint or feedback details are collected only if
+                you choose to submit them.
+            </p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">Why We Collect It</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
+                To schedule and confirm your appointment, match you with an
+                available specialist, send confirmations or transcripts you
+                request, and respond to feedback. We do not use your data for
+                advertising or profiling.
+            </p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">Your Rights</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
+                Under the Data Privacy Act, you have the right to be informed,
+                access, correct, object to processing, request erasure or
+                blocking, request data portability, and file a complaint with
+                PolyClinic or the National Privacy Commission (NPC).
+            </p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">Contact</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0;">
+                TM Kalaw St., Lipa City, Batangas 4217 &middot; 0985 475 5511
+            </p>
+        </div>
+
+        {{-- ===== STAFF TERMS ===== --}}
+        <div class="terms-tab-panel" id="terms-tab-staff" style="display: none;">
+            <p style="color: #7f8c8d; font-size: 0.8rem; margin-bottom: 1.25rem;">Last updated: September 2026</p>
+
+            <p style="font-size: 0.92rem; line-height: 1.7; color: var(--text-dark); margin-bottom: 1rem;">
+                These Terms &amp; Conditions govern the use of the OptiSolutions
+                system ("the System") by PolyClinic staff, doctors, and
+                administrators. By logging in to and using the System, you
+                agree to comply with these Terms.
+            </p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">1. Purpose of the System</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
+                OptiSolutions is PolyClinic Lipa's internal clinic management
+                system, used to manage appointments, chatbot inquiries, doctor
+                schedules, patient records, and related clinic operations.
+                Access is granted solely to perform your official duties.
+            </p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">2. Account Access and Responsibility</h4>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Keep your username and password confidential; do not share credentials with anyone.</li>
+                <li>You are responsible for all actions performed under your account.</li>
+                <li>Log out after each use, especially on shared or public devices.</li>
+                <li>Report suspected unauthorized access to the system administrator immediately.</li>
+            </ul>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">3. Acceptable Use</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">You must not access records outside your assigned tasks, bypass security features, misuse the System toward patients or coworkers, or introduce unauthorized software.</p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">4. Confidentiality of Patient Information</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
+                As a staff member with access to patient data, you are
+                personally bound by the obligations described in the Patient
+                terms above under the Data Privacy Act of 2012. Patient
+                information must only be used for scheduling, treatment, and
+                clinic operations, and must never be disclosed, copied, or
+                shared outside the System except as required by your official
+                duties.
+            </p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">5. Data Accuracy</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Information entered into the System must be accurate, complete, and in good faith. Deliberately false or misleading entries are a violation of these Terms.</p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">6. Monitoring and Activity Logs</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">The System may log account activity (logins, record changes, data access) for security and accountability. Logs may be reviewed when investigating suspected misuse.</p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">7. System Availability</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Uninterrupted access is not guaranteed. Maintenance, updates, or technical issues may cause temporary downtime; keep a manual fallback for critical tasks.</p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">8. Consequences of Violation</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Violations &mdash; including unauthorized data access, credential sharing, or misuse &mdash; may result in disciplinary action, suspension of access, and liability under applicable law.</p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">9. Changes to These Terms</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">These Terms may be updated to reflect changes in clinic policy, system features, or legal requirements. Continued use after an update means you accept the revised Terms.</p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">10. Contact Us</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0;">
+                TM Kalaw St., Lipa City, Batangas 4217 &middot; 0985 475 5511
+            </p>
+        </div>
+
+        <div style="text-align: right; margin-top: 1.5rem;">
+            <button type="button" class="btn-sm btn-primary" onclick="closeStaffTermsModal();">Close</button>
         </div>
     </div>
 </div>
@@ -500,6 +629,25 @@
         }
         function closeSettingsModal() {
             document.getElementById('settingsModalOverlay').classList.remove('show');
+        }
+
+        //  STAFF TERMS & CONDITIONS MODAL
+        function openStaffTermsModal() {
+            document.getElementById('staffTermsModalOverlay').classList.add('show');
+        }
+        function closeStaffTermsModal() {
+            document.getElementById('staffTermsModalOverlay').classList.remove('show');
+        }
+        function switchTermsTab(tab) {
+            document.querySelectorAll('.terms-subtab').forEach(function (btn) {
+                const active = btn.dataset.termsTab === tab;
+                btn.classList.toggle('active', active);
+                btn.style.color = active ? 'var(--primary-main)' : '#7f8c8d';
+                btn.style.borderBottomColor = active ? 'var(--primary-main)' : 'transparent';
+            });
+            document.querySelectorAll('.terms-tab-panel').forEach(function (panel) {
+                panel.style.display = panel.id === 'terms-tab-' + tab ? 'block' : 'none';
+            });
         }
 
         @if($errors->has('current_password') || $errors->has('password'))

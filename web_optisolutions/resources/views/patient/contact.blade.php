@@ -54,11 +54,5 @@
 @include('patient.partials.chatbot-widget')
 
 @vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
-
-<script>
-  function openChatForReview() {
-    document.getElementById('chatbotTrigger')?.click();
-  }
-</script>
 </body>
 </html>

@@ -73,6 +73,26 @@ class ClinicInfoService
         'contact', 'number', 'phone', 'tawag', 'call', 'telepono',
     ];
 
+    // Words that signal the patient is complaining/venting rather than
+    // asking for information — even when their message also happens to
+    // contain an info keyword like "services" or "doctor". e.g.
+    // "Bakit ang tagal ng services nyo?" contains "services" but is a
+    // complaint about slow service, not a request for the services list.
+    protected static array $complaintSignalWords = [
+        // Tagalog
+        'tagal', 'matagal', 'katagalan', 'ang bagal', 'mabagal', 'bagal',
+        'reklamo', 'nagrereklamo', 'problema', 'ayaw', 'nakakainis',
+        'nakakadismaya', 'pangit', 'masama', 'nagagalit', 'galit',
+        'hindi maganda', 'di maganda', 'sobrang tagal', 'sobrang bagal',
+        'walang pakundangan', 'bastos', 'walang kwenta', 'sayang',
+        // English
+        'slow', 'delay', 'delayed', 'delays', 'late', 'waiting for hours',
+        'waited for hours', 'poor service', 'bad service', 'terrible',
+        'awful', 'horrible', 'disappointed', 'disappointing', 'complaint',
+        'complain', 'complaining', 'rude', 'unacceptable', 'worst',
+        'never again', 'waste of time', 'wasted my time',
+    ];
+
     // Maps common specialty terms to the corresponding doctor specialty.
     protected static array $specialtyAliases = [
         'Pediatrics' => [
@@ -104,6 +124,44 @@ class ClinicInfoService
             'ophthalmology', 'ophthalmologist', 'mata', 'eye', 'eyes',
         ],
     ];
+
+    // Detects complaint/negative-sentiment tone so a message that merely
+    // mentions an info keyword ("services", "doctor", "hours", etc.)
+    // alongside a complaint word is routed to staff instead of being
+    // answered with the matching info card. This is the fast, free
+    // first pass — checked before the ML sentiment call below.
+    public static function looksLikeComplaint(string $text): bool
+    {
+        $lower = mb_strtolower($text);
+        foreach (self::$complaintSignalWords as $kw) {
+            if (str_contains($lower, $kw)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Second-pass classifier for messages that matched an info keyword
+    // but weren't caught by the static complaint word list — e.g.
+    // phrasing that's negative in tone without using any of the words
+    // above. Only called for keyword-matched text (see
+    // looksLikeInfoRequest()) so ordinary "does not match anything"
+    // messages skip the extra API round-trip and go straight to staff
+    // as before. Fails safe: if the ML service is unreachable or
+    // returns nothing, we don't block a legitimate info answer over it.
+    public static function isNegativeSentiment(string $text): bool
+    {
+        $result = app(SentimentAnalysisService::class)->analyze($text);
+
+        if (!$result) {
+            return false;
+        }
+
+        $label = $result['sentiment_label'] ?? null;
+        $confidence = (float) ($result['confidence_score'] ?? 1);
+
+        return $label === 'Negative' && $confidence >= 0.5;
+    }
 
     // ACKNOWLEDGMENT / GRATITUDE DETECTION
 
@@ -264,6 +322,33 @@ class ClinicInfoService
         return null;
     }
 
+    // Matches free text against the service_conditions table (condition
+    // name → service), e.g. "asthma" → IM-Pulmonology, "hernia repair"
+    // → Surgery. This is driven entirely by the DB table your admin
+    // panel manages, so any condition an admin adds there becomes
+    // something the bot can answer for immediately — no code change
+    // needed. Longer/more specific condition names are checked first
+    // so e.g. "cataract treatment" wins over a shorter partial overlap.
+    public static function matchServiceByCondition(string $text): ?object
+    {
+        $lower = mb_strtolower($text);
+
+        $rows = DB::table('service_conditions')
+            ->join('services', 'service_conditions.service_id', '=', 'services.service_id')
+            ->where('services.available', 1)
+            ->select('service_conditions.condition_name', 'services.*')
+            ->get()
+            ->sortByDesc(fn ($row) => mb_strlen($row->condition_name));
+
+        foreach ($rows as $row) {
+            if (str_contains($lower, mb_strtolower($row->condition_name))) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
     // Determines which information category the given text is asking about.
     
     public static function detectInfoIntent(string $text): ?string
@@ -311,6 +396,15 @@ class ClinicInfoService
             return 'doctors';
         }
 
+        // Condition/symptom lookup driven by the service_conditions
+        // table — catches things like "Do you treat asthma?" or "May
+        // sakit ako sa puso" that don't contain any of the generic
+        // "service" keywords below, but are answerable straight from
+        // data your admin panel already manages.
+        if (self::matchServiceByCondition($text) !== null) {
+            return 'service_for_condition';
+        }
+
         foreach (self::$serviceKeywords as $kw) {
             if (str_contains($lower, $kw)) return 'services';
         }
@@ -321,9 +415,36 @@ class ClinicInfoService
         return null;
     }
 
+    // Central "info request vs. inquiry" classifier used by every step
+    // in the bot (main menu, name/phone/dob/email, service/doctor
+    // selection, Review, Complaint). Anything that returns false here
+    // falls through to routeToInquiry() and is auto-forwarded to staff.
     public static function looksLikeInfoRequest(string $text): bool
     {
-        return self::detectInfoIntent($text) !== null;
+        // No matching topic at all (services/doctors/hours/location/
+        // contact/how-to-schedule) — not an info request, regardless
+        // of tone. Goes straight to staff.
+        if (self::detectInfoIntent($text) === null) {
+            return false;
+        }
+
+        // A topic keyword matched, but the message reads like a
+        // complaint riding on that same word (e.g. "ang tagal ng
+        // services nyo?" mentions "services" but isn't asking what
+        // services you offer). Cheap keyword check first...
+        if (self::looksLikeComplaint($text)) {
+            return false;
+        }
+
+        // ...then the ML sentiment check for negative-toned phrasing
+        // the static word list doesn't catch. Only runs for
+        // keyword-matched text, so plainly off-topic messages skip
+        // the extra API round-trip.
+        if (self::isNegativeSentiment($text)) {
+            return false;
+        }
+
+        return true;
     }
 
     // Returns the ready-to-send reply for free text, or null if it isn't an info request.
@@ -341,6 +462,13 @@ class ClinicInfoService
             return $specialty !== null
                 ? self::doctorsForSpecialtyMessage($specialty)
                 : self::doctorsListMessage();
+        }
+
+        if ($intent === 'service_for_condition') {
+            $match = self::matchServiceByCondition($text);
+            return $match !== null
+                ? self::serviceForConditionMessage($match)
+                : self::servicesListMessage();
         }
 
         return match ($intent) {
@@ -607,6 +735,31 @@ class ClinicInfoService
             'title' => 'PolyClinic Lipa - Our Services',
             'sections' => [['rows' => $rows]],
             'footer' => 'Type "Schedule Visit" to book any of these services.',
+        ];
+
+        return self::INFO_CARD_PREFIX . json_encode($card);
+    }
+
+    // Builds the reply for a matched service_conditions row — tells the
+    // patient which department handles their condition, plus the room
+    // and schedule, straight from the services table.
+    public static function serviceForConditionMessage(object $match): string
+    {
+        $rows = [
+            ['label' => 'Department', 'value' => $match->title, 'type' => 'text'],
+        ];
+
+        if (!empty($match->description)) {
+            $rows[] = ['label' => 'About', 'value' => $match->description, 'type' => 'text'];
+        }
+
+        $rows[] = ['label' => 'Room', 'value' => $match->room ?: 'Please ask our staff', 'type' => 'text'];
+        $rows[] = ['label' => 'Schedule', 'value' => $match->schedule ?: 'Please ask our staff for availability', 'type' => 'text'];
+
+        $card = [
+            'title' => "PolyClinic Lipa - {$match->condition_name}",
+            'sections' => [['rows' => $rows]],
+            'footer' => 'Type "Schedule Visit" to book with this department.',
         ];
 
         return self::INFO_CARD_PREFIX . json_encode($card);

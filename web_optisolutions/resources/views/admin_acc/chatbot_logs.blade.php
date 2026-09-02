@@ -64,7 +64,7 @@
                         </div>
                         <div style="display:flex; align-items:center; gap:0.5rem;">
                             <span class="status-badge status-active" id="statusBadge">Active</span>
-                            <button class="btn-sm btn-success" id="resolveBtn" style="display:none; border:none; border-radius:20px; padding:0.4rem 0.9rem; cursor:pointer;">
+                            <button class="resolve-btn-modern" id="resolveBtn">
                                 <i class="bi bi-check-circle"></i> Resolve
                             </button>
                         </div>
@@ -85,6 +85,20 @@
         </div>
     </div>
 
+    <!-- Custom confirm modal (replaces window.confirm) -->
+    <div class="modal-overlay" id="confirmModalOverlay" style="display:none;">
+        <div class="modal-box">
+            <p id="confirmModalMessage"></p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="confirmModalCancel">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" id="confirmModalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container (replaces window.alert) -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <script>
         // Real data, passed in from ChatbotInquiryController@index (was
         // previously a hardcoded mock array with no backend connection).
@@ -92,6 +106,23 @@
         const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
         let currentChatId = null;
+
+        // How many chat items are shown before a "See more" control appears.
+        const PAGE_SIZE = 6;
+        let visibleCount = PAGE_SIZE;
+
+        // Status -> dot color / label, used for the top-right of each chat item.
+        // Colors pulled from the site's own palette (chatbot_logs.css :root vars)
+        // instead of arbitrary red/orange/green.
+        function getStatusMeta(chat) {
+            if (chat.rawStatus === 'Resolved') {
+                return { color: '#7f8c8d', showDot: false, label: 'Resolved' };
+            }
+            if (chat.rawStatus === 'Pending') {
+                return { color: 'var(--primary-dark)', showDot: true, label: 'Pending' };
+            }
+            return { color: 'var(--primary-main)', showDot: true, label: chat.rawStatus || 'In Progress' };
+        }
 
         // Render chat list
         function renderChatList(filterText = "") {
@@ -107,39 +138,48 @@
                 return;
             }
 
-            // NOTE: `chat.name` is now the actual display name (Patient #ID
-            // or the guest's given name / "Guest") instead of the INQ code.
-            // The INQ code (chat.inquiryCode) is now shown in the preview
-            // line instead, so the ticket reference isn't lost.
-            chatListEl.innerHTML = filteredLogs.map(chat => {
+            const itemsToShow = filteredLogs.slice(0, visibleCount);
+
+            // Layout per item:
+            //   Guest                      *  Pending
+            //   INQ-007                   Aug 26
+            // Top row: name (left) + status dot/label (right).
+            // Bottom row: inquiry code (left) + date/time (right).
+            let html = itemsToShow.map(chat => {
                 const isResolved = chat.rawStatus === 'Resolved';
-                // Unresolved indicator: a small colored dot next to the name.
-                // Shown regardless of read/unread state, since "unread" only
-                // tracks whether an admin has opened it, not whether the
-                // inquiry itself has been resolved.
-                const statusDot = !isResolved
-                    ? `<span class="unresolved-dot status-dot-${chat.status}" title="${chat.rawStatus}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chat.rawStatus === 'Pending' ? '#e74c3c' : '#f39c12'};margin-left:6px;flex-shrink:0;"></span>`
-                    : '';
+                const meta = getStatusMeta(chat);
 
                 return `
                 <li class="chat-item ${currentChatId === chat.id ? 'active' : ''} ${!isResolved ? 'unresolved' : ''}" data-id="${chat.id}">
-                    <div class="chat-avatar">${chat.avatar}</div>
+                    <div class="chat-avatar">
+                        ${chat.avatar}
+                        ${chat.unread ? '<span class="avatar-unread-dot" title="Unread"></span>' : ''}
+                    </div>
                     <div class="chat-info">
-                        <div class="chat-name" style="display:flex; align-items:center;">
-                            ${escapeHtml(chat.name)}
-                            ${statusDot}
-                            <span class="chat-time">${formatTime(chat.timestamp)}</span>
-                        </div>
-                        <div class="chat-preview" style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
-                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">
-                                ${chat.inquiryCode} • ${chat.lastMessage.substring(0, 40)}${chat.unread ? '<span class="unread-badge">New</span>' : ''}
+                        <div class="chat-name">
+                            <span class="chat-name-text">${escapeHtml(chat.name)}</span>
+                            <span class="chat-status-label" style="color:${meta.color};">
+                                ${meta.showDot ? `<span class="status-dot-inline" style="background:${meta.color};"></span>` : ''}
+                                ${meta.label}
                             </span>
-                            ${!isResolved ? `<span class="unresolved-label" style="color:${chat.rawStatus === 'Pending' ? '#e74c3c' : '#f39c12'}; font-weight:600; flex-shrink:0; white-space:nowrap;">${chat.rawStatus}</span>` : ''}
+                        </div>
+                        <div class="chat-preview">
+                            <span class="chat-code">${chat.inquiryCode}</span>
+                            <span class="chat-time">${formatTime(chat.timestamp)}</span>
                         </div>
                     </div>
                 </li>
             `;
             }).join("");
+
+            if (filteredLogs.length > visibleCount) {
+                html += `
+                <li class="see-more-item">
+                    <button class="see-more-btn" id="seeMoreBtn">See more (${filteredLogs.length - visibleCount} more)</button>
+                </li>`;
+            }
+
+            chatListEl.innerHTML = html;
 
             // Add click event listeners to chat items
             document.querySelectorAll('.chat-item').forEach(item => {
@@ -148,6 +188,14 @@
                     openChat(id);
                 });
             });
+
+            const seeMoreBtn = document.getElementById('seeMoreBtn');
+            if (seeMoreBtn) {
+                seeMoreBtn.addEventListener('click', () => {
+                    visibleCount += PAGE_SIZE;
+                    renderChatList(document.getElementById("searchInput").value);
+                });
+            }
         }
 
         // Format time for display
@@ -236,6 +284,44 @@
             return div.innerHTML;
         }
 
+        // Custom confirm modal — replaces window.confirm().
+        // Resolves to true/false depending on which button was clicked.
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('confirmModalOverlay');
+                document.getElementById('confirmModalMessage').textContent = message;
+                overlay.style.display = 'flex';
+
+                const cancelBtn = document.getElementById('confirmModalCancel');
+                const confirmBtn = document.getElementById('confirmModalConfirm');
+
+                function cleanup(result) {
+                    overlay.style.display = 'none';
+                    cancelBtn.removeEventListener('click', onCancel);
+                    confirmBtn.removeEventListener('click', onConfirm);
+                    resolve(result);
+                }
+                function onCancel() { cleanup(false); }
+                function onConfirm() { cleanup(true); }
+
+                cancelBtn.addEventListener('click', onCancel);
+                confirmBtn.addEventListener('click', onConfirm);
+            });
+        }
+
+        // Toast notification — replaces window.alert().
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('toast-hide');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
         // Send reply — now actually posts to the backend and saves into
         // the shared inquiry_replies thread (visible to Staff too).
         async function sendReply() {
@@ -288,7 +374,7 @@
                 sendBtn.innerText = "Sent!";
                 setTimeout(() => { sendBtn.innerText = originalText; }, 1000);
             } catch (e) {
-                alert(e.message || 'Failed to send reply. Please try again.');
+                showToast(e.message || 'Failed to send reply. Please try again.');
             } finally {
                 sendBtn.disabled = false;
             }
@@ -300,10 +386,13 @@
             const chat = chatLogs.find(c => c.id === currentChatId);
             if (!chat) return;
 
-            if (!confirm('Mark this inquiry as resolved?')) return;
+            const confirmed = await showConfirm('Mark this inquiry as resolved?');
+            if (!confirmed) return;
 
             const resolveBtn = document.getElementById("resolveBtn");
             resolveBtn.disabled = true;
+            const originalResolveText = resolveBtn.innerHTML;
+            resolveBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Resolving...`;
 
             try {
                 const res = await fetch(`/admin_acc/chatbot_logs/${currentChatId}/resolve`, {
@@ -321,21 +410,25 @@
                 chat.unread = false;
                 openChat(currentChatId);
                 renderChatList(document.getElementById("searchInput").value);
+                showToast('Inquiry marked as resolved.', 'success');
             } catch (e) {
-                alert(e.message || 'Failed to resolve inquiry.');
+                showToast(e.message || 'Failed to resolve inquiry.');
             } finally {
                 resolveBtn.disabled = false;
+                resolveBtn.innerHTML = originalResolveText;
             }
         }
 
-        function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                alert('Logging out... Redirecting to login page.');
+        async function handleLogout() {
+            const confirmed = await showConfirm('Are you sure you want to logout?');
+            if (confirmed) {
+                showToast('Logging out... Redirecting to login page.', 'success');
             }
         }
 
         // Search functionality
         document.getElementById("searchInput").addEventListener("input", (e) => {
+            visibleCount = PAGE_SIZE; // reset pagination on a new search
             renderChatList(e.target.value);
         });
 

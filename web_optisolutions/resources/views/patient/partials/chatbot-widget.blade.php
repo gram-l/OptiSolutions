@@ -34,6 +34,8 @@
 
   <div class="chat-messages" id="chatMessages"></div>
 
+  <div class="quick-replies" id="quickReplies"></div>
+
   <div class="attachment-preview" id="attachmentPreview">
     <img id="attachmentPreviewImg" class="attachment-preview-thumb" alt="">
     <span id="attachmentPreviewName" class="attachment-preview-name"></span>
@@ -56,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const panel      = document.getElementById('chatbotPanel');
   const closeBtn   = document.getElementById('chatClose');
   const messagesEl = document.getElementById('chatMessages');
+  const quickRepliesEl = document.getElementById('quickReplies');
   const input      = document.getElementById('chatInput');
   const sendBtn    = document.getElementById('chatSend');
   const attachBtn  = document.getElementById('attachBtn');
@@ -69,6 +72,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const APPT_CARD_PREFIX = 'APPT_CARD::';
   const INFO_CARD_PREFIX = 'INFO_CARD::';
+
+  // Guards against overlapping requests — rapid clicking a quick-reply
+  // button or mashing Enter before the first response comes back used
+  // to fire multiple parallel /botman calls. Input, send button, and
+  // all quick-reply buttons are disabled while a request is in flight.
+  let isSending = false;
+
+  function setSendingState(sending) {
+    isSending = sending;
+    input.disabled = sending;
+    sendBtn.disabled = sending;
+    if (attachBtn) attachBtn.disabled = sending;
+    quickRepliesEl.querySelectorAll('.quick-reply-btn').forEach(b => {
+      b.disabled = sending;
+    });
+  }
 
   // PER-MESSAGE TRANSLATION
 
@@ -396,23 +415,91 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function addButtons(buttons, persist = true) {
-    if (isRatingButtons(buttons)) {
-      addStarRating(buttons, persist);
+  // Renders the current option set as a pinned "quick replies" row
+  // sitting above the input box (Messenger-style), instead of inside
+  // the scrolling message list — so the patient never has to scroll
+  // up to find the buttons for the question that was just asked.
+  function renderQuickReplies(buttons) {
+    quickRepliesEl.innerHTML = '';
+
+    if (!buttons || !buttons.length) {
+      quickRepliesEl.classList.remove('visible');
       return;
     }
 
+    buttons.forEach(btn => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'quick-reply-btn';
+      b.textContent = btn.text;
+      b.addEventListener('click', () => {
+        sendMessage(btn.value ?? btn.text, btn.text);
+      });
+      quickRepliesEl.appendChild(b);
+    });
+
+    quickRepliesEl.classList.add('visible');
+  }
+
+  // Clears the quick-replies bar (used when a new question comes in
+  // with no button options at all, or when starting a fresh
+  // conversation) — but the bar is no longer auto-cleared just
+  // because the patient answered; it stays visible until the next
+  // set of options replaces it.
+  function clearQuickReplies() {
+    quickRepliesEl.innerHTML = '';
+    quickRepliesEl.classList.remove('visible');
+  }
+
+  // Recognizes the top-level 4-button main menu (Schedule Visit /
+  // General Information / Submit Review/Rating / Submit Complaint),
+  // regardless of which conversation produced it or which value
+  // convention it uses under the hood. AppointmentConversation's
+  // post-appointment menu, for example, reuses the same 4 labels but
+  // with its own distinct values ('post_schedule_visit', etc.), so
+  // this matches on the visible label text rather than the value —
+  // any button set with these exact 4 labels always gets the pinned
+  // "quick replies" treatment. Every other button set (service list,
+  // doctor list, schedule confirmation, star rating, etc.) renders
+  // inline instead, see addInlineButtons() below.
+  const MAIN_MENU_LABELS = new Set([
+    'schedule visit',
+    'general information',
+    'submit review/rating',
+    'submit complaint',
+  ]);
+
+  function isMainMenuButtons(buttons) {
+    return Array.isArray(buttons) && buttons.length === 4 &&
+      buttons.every(b => MAIN_MENU_LABELS.has(String(b.text ?? b.value).trim().toLowerCase()));
+  }
+
+  // Renders a button set inline, as part of the scrolling message
+  // list right under the question that was just asked — for service
+  // lists, doctor lists, schedule confirmation, and any other
+  // non-main-menu option set. Once one option is tapped, every button
+  // in the set is disabled so an earlier, already-answered set can't
+  // be re-clicked out of order.
+  function addInlineButtons(buttons) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
 
     const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble menu-grid';
+    bubble.className = 'chat-bubble inline-buttons-bubble';
 
     buttons.forEach(btn => {
       const b = document.createElement('button');
-      b.className = 'menu-btn';
+      b.type = 'button';
+      b.className = 'inline-reply-btn';
       b.textContent = btn.text;
       b.addEventListener('click', () => {
+        // Once answered, remove the whole button set instead of
+        // leaving a muted/disabled copy sitting in the message
+        // history — avoids a stale-looking duplicate when the very
+        // next reply shows a fresh (and sometimes near-identical) set
+        // of options, e.g. the post-appointment menu followed by a
+        // Complaint/Review conversation's own main menu.
+        messageWrap.remove();
         sendMessage(btn.value ?? btn.text, btn.text);
       });
       bubble.appendChild(b);
@@ -421,6 +508,20 @@ document.addEventListener('DOMContentLoaded', () => {
     messageWrap.appendChild(bubble);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
+  }
+
+  function addButtons(buttons, persist = true) {
+    if (isRatingButtons(buttons)) {
+      addStarRating(buttons, persist);
+      return;
+    }
+
+    if (isMainMenuButtons(buttons)) {
+      renderQuickReplies(buttons);
+    } else {
+      clearQuickReplies();
+      addInlineButtons(buttons);
+    }
 
     if (persist) {
       session.history.push({ kind: 'buttons', buttons });
@@ -588,11 +689,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    session.history.forEach(item => {
+    session.history.forEach((item, idx) => {
+      const isLast = idx === session.history.length - 1;
+
       if (item.kind === 'bubble') {
         addBubble(item.text, item.sender, false);
       } else if (item.kind === 'buttons') {
-        addButtons(item.buttons, false);
+        // Only the most recent, still-unanswered option set gets
+        // restored into the live quick-replies bar. Earlier button
+        // sets in the history were already answered (the next item
+        // is always the patient's reply), so re-showing them would
+        // offer stale, already-actioned choices.
+        if (isLast) {
+          addButtons(item.buttons, false);
+        }
       } else if (item.kind === 'star_rating') {
         addStarRating(item.buttons, false, item.selectedIndex ?? null);
       } else if (item.kind === 'card') {
@@ -628,7 +738,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function sendMessage(text, displayText, opts = {}) {
     text = typeof text === 'string' ? text : String(text ?? '');
-    if (!text.trim()) return;
+    if (!text.trim() || isSending) return;
+
+    setSendingState(true);
 
     if (!opts.skipUserBubble) {
       addBubble(displayText ?? text, 'user');
@@ -655,11 +767,16 @@ document.addEventListener('DOMContentLoaded', () => {
       hideTyping();
 
       if (!res.ok) {
-        addBubble('Something went wrong reaching the chatbot. Please try again.', 'bot');
+        if (res.status === 429) {
+          addBubble("You're sending messages a bit too quickly. Please wait a moment and try again.", 'bot');
+        } else {
+          addBubble('Something went wrong reaching the chatbot. Please try again.', 'bot');
+        }
         return;
       }
 
       const messages = Array.isArray(data) ? data : (data.messages || []);
+      let hadButtons = false;
 
       messages.forEach(msg => {
         if (msg.text) {
@@ -687,13 +804,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const buttons = msg.actions || (msg.attachment && msg.attachment.buttons);
         if (buttons && buttons.length) {
           addButtons(buttons);
+          hadButtons = true;
         }
       });
+
+      // The step we just landed on has no button options of its own
+      // (e.g. "Please provide your full name.") — clear the pinned
+      // bar instead of leaving the previous step's buttons sitting
+      // there looking clickable when they no longer apply.
+      if (!hadButtons) {
+        clearQuickReplies();
+      }
 
     } catch (err) {
       hideTyping();
       console.error('Chat error:', err);
       addBubble('Unable to connect. Please check your internet connection and try again.', 'bot');
+    } finally {
+      setSendingState(false);
     }
   }
 

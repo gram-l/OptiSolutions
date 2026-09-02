@@ -14,6 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <title>OptiSolutions - Patient Records</title>
 @vite(['resources/css/admin_css/patients.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 </head>
@@ -156,14 +157,25 @@
     <!-- View Patient Details Modal -->
     <div id="viewModal" class="modal">
         <div class="modal-content">
-            <h3>Patient Details</h3>
-            <div id="viewDetails">
-                <!-- Dynamic content -->
-            </div>
-            <div id="viewVisitHistory">
-                <!-- Dynamic content -->
+            <div id="viewCaptureArea">
+                <h3>Patient Details</h3>
+                <div id="viewDetails">
+                    <!-- Dynamic content -->
+                </div>
+                <div id="viewVisitHistory">
+                    <!-- Dynamic content -->
+                </div>
             </div>
             <div class="modal-buttons">
+                <div class="download-dropdown" id="viewDownloadDropdown">
+                    <button type="button" class="download-btn" id="viewDownloadBtn">
+                        <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
+                    </button>
+                    <div class="download-menu">
+                        <button type="button" onclick="exportViewAsImage()"><i class="fa-regular fa-file-image"></i> Image (PNG)</button>
+                        <button type="button" onclick="exportViewAsPDF()"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                    </div>
+                </div>
                 <button class="btn-cancel" onclick="closeViewModal()">Close</button>
             </div>
         </div>
@@ -237,6 +249,7 @@
 
         let patientsData = [];
         let currentSort = { column: 'name', direction: 'asc' };
+        let currentViewPatientId = null;
 
         async function loadPatients() {
             const tbody = document.getElementById('patientsTableBody');
@@ -455,6 +468,8 @@
             const patient = patientsData.find(p => p.id === id);
             if (!patient) return;
 
+            currentViewPatientId = id;
+
             const detailsHtml = `
                 <div class="form-group"><strong>Patient ID:</strong> ${patient.id}</div>
                 <div class="form-group"><strong>Full Name:</strong> ${escapeHtml(patient.name)}</div>
@@ -509,7 +524,7 @@
             }
         }
 
-        /* ── Download dropdown ── */
+        /* ── Download dropdown (table export) ── */
         function toggleDownloadMenu() {
             document.getElementById('downloadDropdown').classList.toggle('open');
         }
@@ -586,6 +601,40 @@
         document.addEventListener('click', (e) => {
             const dropdown = document.getElementById('downloadDropdown');
             if (dropdown.classList.contains('open') && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
+
+        /* ── Download dropdown (view modal export) ── */
+        function toggleViewDownloadMenu() {
+            document.getElementById('viewDownloadDropdown').classList.toggle('open');
+        }
+
+        async function exportViewAsImage() {
+            toggleViewDownloadMenu();
+            const el = document.getElementById('viewCaptureArea');
+            const canvas = await html2canvas(el, { backgroundColor: '#ffffff', scale: 2 });
+            canvas.toBlob(blob => downloadBlob(blob, `patient-${currentViewPatientId ?? 'details'}.png`));
+        }
+
+        async function exportViewAsPDF() {
+            toggleViewDownloadMenu();
+            const el = document.getElementById('viewCaptureArea');
+            const canvas = await html2canvas(el, { backgroundColor: '#ffffff', scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'pt', [canvas.width / 2, canvas.height / 2]);
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+            pdf.save(`patient-${currentViewPatientId ?? 'details'}.pdf`);
+        }
+
+        document.getElementById('viewDownloadBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleViewDownloadMenu();
+        });
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('viewDownloadDropdown');
+            if (dropdown && dropdown.classList.contains('open') && !dropdown.contains(e.target)) {
                 dropdown.classList.remove('open');
             }
         });

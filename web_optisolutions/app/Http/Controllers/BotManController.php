@@ -25,8 +25,8 @@ class BotManController extends Controller
     protected const IGNORED_INQUIRY_TEXTS = [
         'schedule visit',
         'general information',
-        'submit complaint',
-        'submit review/rating',
+        'complaint', 'submit complaint',
+        'review', 'submit review/rating',
         'menu',
         "no, i'm all set",
     ];
@@ -39,6 +39,12 @@ class BotManController extends Controller
 
         $incomingText = (string) $request->input('message', '');
         $conversationId = (string) $request->input('userId', '');
+
+        // Normalize free-typed command variants before BotMan reads the request.
+        $canonicalCommand = $this->canonicalizeCommand($incomingText);
+        if ($canonicalCommand !== null) {
+            $request->request->set('message', $canonicalCommand);
+        }
 
         CaptureReplyMiddleware::reset();
         $this->isUnhandledInquiry = false;
@@ -56,11 +62,24 @@ class BotManController extends Controller
             $botman->hears('general information', function ($bot) {
                 Log::info('MATCHED: general information');
                 $bot->reply(ClinicInfoService::infoCardMessage());
+                // Re-show the menu so the buttons don't disappear.
+                $this->sendGreeting($bot, false);
+            });
+
+            // Long-form and short-form phrasing both need to be recognized.
+            $botman->hears('complaint', function ($bot) {
+                Log::info('MATCHED: complaint');
+                $bot->startConversation(new ComplaintConversation());
             });
 
             $botman->hears('submit complaint', function ($bot) {
                 Log::info('MATCHED: submit complaint');
                 $bot->startConversation(new ComplaintConversation());
+            });
+
+            $botman->hears('review', function ($bot) {
+                Log::info('MATCHED: review');
+                $bot->startConversation(new ReviewConversation(null, null));
             });
 
             $botman->hears('submit review/rating', function ($bot) {
@@ -93,6 +112,31 @@ class BotManController extends Controller
         }
     }
 
+    // Maps a free-typed message onto its canonical command text.
+    protected function canonicalizeCommand(string $text): ?string
+    {
+        $normalized = mb_strtolower(trim($text));
+        $normalized = rtrim($normalized, ".!? \t\n\r");
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+        $normalized = preg_replace('/\s*\/\s*/', '/', $normalized);
+
+        // Review/rating variants.
+        if (preg_match('/^(submit\s+)?(review|reviews|rating|ratings|review\/rating|review\/ratings)$/', $normalized)) {
+            return 'submit review/rating';
+        }
+
+        // Complaint variants.
+        if (preg_match('/^(submit\s+|file\s+(a\s+)?|make\s+(a\s+)?)?(complaint|complaints|complain)$/', $normalized)) {
+            return 'submit complaint';
+        }
+
+        // Schedule visit variants.
+        if (preg_match('/^(schedule|book)\s+(a\s+|an\s+|my\s+|the\s+)?(visit|visits|appointment|appointments)$/', $normalized)) {
+            return 'schedule visit';
+        }
+
+        return null;
+    }
 
     protected function handleFallback($bot)
     {
@@ -103,26 +147,14 @@ class BotManController extends Controller
             return;
         }
 
-        // Friendly acknowledgment ("ok", "thanks", "salamat", etc.) —
-        // reply conversationally instead of forwarding a trivial "ok"
-        // or "thanks" to Admin/Staff as if it were an unresolved
-        // concern. Checked BEFORE the info-intent check below so a
-        // short "ok" never gets misread as an info request.
+        // Friendly acknowledgment, e.g. "ok", "thanks", "salamat".
         if (ClinicInfoService::looksLikeAcknowledgment($text)) {
             Log::info('FALLBACK answered as acknowledgment: "' . $text . '"');
             $bot->reply(ClinicInfoService::acknowledgmentReply());
             return;
         }
 
-        // Try to answer directly from clinic data (doctors, services,
-        // location, hours, contact, how-to-schedule) before assuming it
-        // needs a human. This covers questions typed BEFORE any
-        // conversation/menu flow has started (e.g. straight off the
-        // greeting), which previously always fell straight through to
-        // sendInquiryAck() below — AppointmentConversation's own
-        // info-detection only ever ran mid-schedule-visit, so a cold
-        // "What is your clinic hours?" had no chance to be
-        // auto-answered until now.
+        // Try to answer directly from clinic data first.
         $infoReply = ClinicInfoService::answerForText($text);
         if ($infoReply !== null) {
             Log::info('FALLBACK answered from ClinicInfoService: "' . $text . '"');
@@ -196,9 +228,9 @@ class BotManController extends Controller
         }
     }
 
-    protected function sendGreeting($bot)
+    protected function sendGreeting($bot, bool $showGreeting = true)
     {
-        $question = Question::create('Hello! Welcome to PolyClinic Lipa. How can I help you today?')
+        $question = Question::create($showGreeting ? 'Hello! Welcome to PolyClinic Lipa. How can I help you today?' : '')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),

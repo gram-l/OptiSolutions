@@ -10,11 +10,12 @@ use Illuminate\Support\Facades\DB;
 use App\Models\admin_models\Feedback;
 use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
+use App\Conversations\Concerns\HandlesRateLimit;
 use App\Services\SentimentAnalysisService;
 
 class ReviewConversation extends Conversation
 {
-    use HandlesGlobalCommands, HandlesOffTopic;
+    use HandlesGlobalCommands, HandlesOffTopic, HandlesRateLimit;
 
     protected $patientId;
     protected $patientName;
@@ -94,6 +95,12 @@ class ReviewConversation extends Conversation
     // Save the review and run sentiment analysis if there's a comment.
     protected function submitReview($text)
     {
+        if ($this->tooManySubmissions('review')) {
+            $this->say($this->submissionCooldownMessage());
+            $this->backToMainMenu();
+            return;
+        }
+
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
                 'user_id'      => 1,
@@ -134,7 +141,7 @@ class ReviewConversation extends Conversation
     // Show the main menu and route the chosen action.
     protected function backToMainMenu()
     {
-        $question = Question::create('Is there anything else I can help you with?')
+        $question = Question::create('')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),

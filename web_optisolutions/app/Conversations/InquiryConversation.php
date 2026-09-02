@@ -7,13 +7,14 @@ use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Conversations\Concerns\HandlesGlobalCommands;
+use App\Conversations\Concerns\HandlesRateLimit;
 use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class InquiryConversation extends Conversation
 {
-    use HandlesGlobalCommands;
+    use HandlesGlobalCommands, HandlesRateLimit;
 
     protected $inquiryType;
     protected $message;
@@ -124,6 +125,16 @@ class InquiryConversation extends Conversation
 
     protected function submitInquiry()
     {
+        // Higher threshold than Review/Complaint (6 vs 3 per 10 min):
+        // this step can be auto-triggered multiple times in one
+        // legitimate visit (each off-topic detour mid-schedule-visit
+        // routes here), not just from a deliberate one-time submission.
+        if ($this->tooManySubmissions('inquiry', 6, 10)) {
+            $this->say($this->submissionCooldownMessage());
+            $this->resumeAppointmentIfNeeded();
+            return;
+        }
+
         $this->say('Submitting your inquiry...');
 
         try {

@@ -168,13 +168,13 @@
 
 {{-- ===== Hidden Patient Record Template (used only for PNG/PDF download) ===== --}}
 <div id="patientPdfTemplate" style="position: absolute; left: -99999px; top: 0; width: 720px; background: #ffffff; font-family: 'Poppins', sans-serif;">
-    <div style="background: linear-gradient(135deg, #7b2ff7, #b06ab3); padding: 1.5rem 2rem; border-radius: 14px 14px 0 0;">
+    <div style="background: linear-gradient(135deg, #b06ab3, #b06ab3); padding: 1.5rem 2rem; border-radius: 14px 14px 0 0;">
         <div style="color:#ffffff; font-size: 1.6rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;">Patient Record</div>
     </div>
 
     <div style="border: 1px solid #e6d6f2; border-top: none; border-radius: 0 0 14px 14px; padding: 1.75rem 2rem 2rem; background: #ffffff;">
 
-        <div style="background: linear-gradient(90deg, #7b2ff7, #b06ab3); color: #ffffff; text-align: center; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; letter-spacing: 1px; font-size: 0.85rem; margin-bottom: 1.25rem;">
+        <div style="background: linear-gradient(90deg, #b06ab3, #b06ab3); color: #ffffff; text-align: center; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; letter-spacing: 1px; font-size: 0.85rem; margin-bottom: 1.25rem;">
             PERSONAL DETAILS
         </div>
 
@@ -188,17 +188,17 @@
             <div><strong>Assigned Doctor:</strong> <span id="pdfPatientDoctor"></span></div>
         </div>
 
-        <div style="background: linear-gradient(90deg, #7b2ff7, #b06ab3); color: #ffffff; text-align: center; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; letter-spacing: 1px; font-size: 0.85rem; margin-bottom: 1rem;">
+        <div style="background: linear-gradient(90deg, #b06ab3, #b06ab3); color: #ffffff; text-align: center; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; letter-spacing: 1px; font-size: 0.85rem; margin-bottom: 1rem;">
             VISIT HISTORY
         </div>
 
         <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
             <thead>
-                <tr style="border-bottom: 2px solid #7b2ff7;">
-                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #7b2ff7; white-space: nowrap;">DATE</th>
-                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #7b2ff7; white-space: nowrap;">SERVICE</th>
-                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #7b2ff7; white-space: nowrap;">DOCTOR</th>
-                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #7b2ff7;">NOTES / DIAGNOSIS</th>
+                <tr style="border-bottom: 2px solid #b06ab3;">
+                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3; white-space: nowrap;">DATE</th>
+                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3; white-space: nowrap;">SERVICE</th>
+                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3; white-space: nowrap;">DOCTOR</th>
+                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3;">NOTES / DIAGNOSIS</th>
                 </tr>
             </thead>
             <tbody id="pdfVisitTableBody"></tbody>

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Staff;
 use App\Http\Controllers\Controller;
 use App\Models\Staff\Patient;
 use App\Models\Staff\ScheduleVisit;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientController extends Controller
 {
@@ -67,5 +69,52 @@ class PatientController extends Controller
         }
 
         return redirect()->route('staff.patients')->with('success', 'Patient updated successfully!');
+    }
+
+    /**
+     * Export patients list as CSV.
+     */
+    public function export(): StreamedResponse
+    {
+        $filename = 'patients_export_' . now()->format('Y-m-d_His') . '.csv';
+
+        $headers = [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $columns = [
+            'Patient ID',
+            'First Name',
+            'Last Name',
+            'Birthdate',
+            'Email',
+            'Contact Number',
+        ];
+
+        $callback = function () use ($columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            // Chunk lang para hindi malaki ang memory usage kung marami ang records
+            Patient::orderBy('patient_id')->chunk(200, function ($patients) use ($file) {
+                foreach ($patients as $patient) {
+                    fputcsv($file, [
+                        $patient->patient_id,
+                        $patient->patient_fname,
+                        $patient->patient_lname,
+                        $patient->patient_birthdate
+                            ? Carbon::parse($patient->patient_birthdate)->format('Y-m-d')
+                            : '',
+                        $patient->patient_email,
+                        $patient->patient_contact,
+                    ]);
+                }
+            });
+
+            fclose($file);
+        };
+
+        return response()->streamDownload($callback, $filename, $headers);
     }
 }

@@ -79,6 +79,23 @@
         }
         .download-menu button:hover { background: var(--light-gray); }
         .download-menu button i { width: 16px; color: var(--primary-main); }
+
+        /* ── See More / See Less ── */
+        .see-more-wrap {
+            text-align: center;
+            padding: 0.9rem;
+            border-top: 1px solid var(--light-gray);
+        }
+        .see-more-btn {
+            background: none;
+            border: none;
+            color: var(--primary-main);
+            font-weight: 600;
+            font-size: 0.85rem;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .see-more-btn:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -147,7 +164,7 @@
 
             <!-- Feedback List -->
             <div class="feedback-section">
-
+                <div class="section-title">All Patient Feedback</div>
                 <table class="feedback-table" id="feedbackTable">
                     <thead>
                         <tr>
@@ -159,12 +176,48 @@
                     </thead>
                     <tbody id="feedbackTableBody"></tbody>
                 </table>
+                <div class="see-more-wrap" id="feedbackSeeMoreWrap">
+                    <button type="button" class="see-more-btn" id="feedbackSeeMoreBtn" onclick="toggleSeeMore('feedback')">See More</button>
+                </div>
+            </div>
+
+            <!-- Complaint List -->
+            <div class="feedback-section" style="margin-top: 2rem;">
+                <div class="section-title">Complaint List</div>
+                <table class="feedback-table" id="complaintTable">
+                    <thead>
+                        <tr>
+                            <th>Complaint</th>
+                            <th>Category</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="complaintTableBody"></tbody>
+                </table>
+                <div class="see-more-wrap" id="complaintSeeMoreWrap">
+                    <button type="button" class="see-more-btn" id="complaintSeeMoreBtn" onclick="toggleSeeMore('complaint')">See More</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         const feedbackData = @json($feedbackData);
+        const complaintData = @json($complaintData);
+
+        const ROWS_BEFORE_SEE_MORE = 4;
+        let feedbackShowAll = false;
+        let complaintShowAll = false;
+
+        function toggleSeeMore(section) {
+            if (section === 'feedback') {
+                feedbackShowAll = !feedbackShowAll;
+                renderFeedbackTable(getFilteredData());
+            } else {
+                complaintShowAll = !complaintShowAll;
+                renderComplaintTable(complaintData);
+            }
+        }
 
         function renderStars(rating) {
             let stars = '';
@@ -224,12 +277,18 @@
 
         function renderFeedbackTable(filteredData) {
             const tbody = document.getElementById('feedbackTableBody');
+            const seeMoreWrap = document.getElementById('feedbackSeeMoreWrap');
+            const seeMoreBtn = document.getElementById('feedbackSeeMoreBtn');
+
             if (filteredData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No feedback entries found</td></tr>';
+                seeMoreWrap.style.display = 'none';
                 return;
             }
 
-            tbody.innerHTML = filteredData.map(f => `
+            const rowsToShow = feedbackShowAll ? filteredData : filteredData.slice(0, ROWS_BEFORE_SEE_MORE);
+
+            tbody.innerHTML = rowsToShow.map(f => `
                 <tr>
                     <td class="rating-stars">${renderStars(f.rating)}</td>
                     <td class="feedback-comment">${escapeHtml(f.comment)}</td>
@@ -237,6 +296,42 @@
                     <td>${formatDate(f.date)}</td>
                 </tr>
             `).join('');
+
+            if (filteredData.length > ROWS_BEFORE_SEE_MORE) {
+                seeMoreWrap.style.display = 'block';
+                seeMoreBtn.textContent = feedbackShowAll ? 'See Less' : 'See More';
+            } else {
+                seeMoreWrap.style.display = 'none';
+            }
+        }
+
+        function renderComplaintTable(data) {
+            const tbody = document.getElementById('complaintTableBody');
+            const seeMoreWrap = document.getElementById('complaintSeeMoreWrap');
+            const seeMoreBtn = document.getElementById('complaintSeeMoreBtn');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No complaints found</td></tr>';
+                seeMoreWrap.style.display = 'none';
+                return;
+            }
+
+            const rowsToShow = complaintShowAll ? data : data.slice(0, ROWS_BEFORE_SEE_MORE);
+
+            tbody.innerHTML = rowsToShow.map(c => `
+                <tr>
+                    <td class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
+                    <td>${escapeHtml(c.category)}</td>
+                    <td>${formatDate(c.created_at)}</td>
+                </tr>
+            `).join('');
+
+            if (data.length > ROWS_BEFORE_SEE_MORE) {
+                seeMoreWrap.style.display = 'block';
+                seeMoreBtn.textContent = complaintShowAll ? 'See Less' : 'See More';
+            } else {
+                seeMoreWrap.style.display = 'none';
+            }
         }
 
         function sentimentTag(sentiment) {
@@ -296,6 +391,7 @@
             const filtered = getFilteredData();
             renderAnalytics(filtered);
             renderFeedbackTable(filtered);
+            renderComplaintTable(complaintData);
         }
 
         document.getElementById('searchInput').addEventListener('input', refreshAll);

@@ -52,7 +52,7 @@ export default defineConfig({
            // host: '192.168.1.11',
             //host: '192.168.254.147',
            // host: '10.244.36.34', 
-
+//  host: '192.168.254.147',
             // lipa bsu 192.168.193.172
         },
         cors: true,

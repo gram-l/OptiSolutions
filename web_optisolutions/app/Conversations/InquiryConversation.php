@@ -10,6 +10,8 @@ use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationService;
+use App\Models\Notification;
 
 class InquiryConversation extends Conversation
 {
@@ -134,20 +136,27 @@ class InquiryConversation extends Conversation
                 'chat_time'    => now(),
             ]);
 
-            DB::table('inquiries')->insert([
-                'patient_id'      => $this->patientId,
-                'log_id'          => $logId,
-                'inquiry_type'    => $this->inquiryType,
-                'resolved_status' => 'Pending',
-            ]);
+         $inquiryId = DB::table('inquiries')->insertGetId([   // insertGetId, not insert
+            'patient_id'      => $this->patientId,
+            'log_id'          => $logId,
+            'inquiry_type'    => $this->inquiryType,
+            'resolved_status' => 'Pending',
+        ]);
 
-            AppNotification::create([
+        try {
+            $name = $this->patientName ?: ($this->patientId ? "Patient #{$this->patientId}" : 'A guest');
+            NotificationService::newInquiry($name, $inquiryId);
+        } catch (\Throwable $notifyError) {
+            Log::error('Failed to create inquiry notification: ' . $notifyError->getMessage());
+        }
+
+            /*AppNotification::create([
                 'icon'    => 'question_answer',
                 'title'   => 'New Inquiry',
                 'message' => "A new {$this->inquiryType} inquiry has been submitted.",
                 'is_read' => false,
                 'color'   => '2196F3',
-            ]);
+            ]);*/
 
             $this->say("Thank you! Your {$this->inquiryType} inquiry has been sent to our staff. We'll get back to you as soon as possible.");
         } catch (\Throwable $e) {

@@ -48,9 +48,10 @@ class NotificationController extends Controller
     private function iconForType(string $type): string
     {
         return match ($type) {
-            'chatbot'      => 'bi-chat-dots',
-            'appointment', 'appointments' => 'bi-calendar-check',
-            'patient', 'patients'         => 'bi-person-plus',
+            'chat_inquiry' => 'bi-chat-dots',
+            'appointment'  => 'bi-calendar-check',
+            'feedback'     => 'bi-star',
+            'complaint'    => 'bi-exclamation-circle',
             'system'       => 'bi-exclamation-triangle',
             default        => 'bi-bell',
         };

@@ -27,7 +27,21 @@ class FeedbackController extends Controller
             ];
         });
 
-    return view('admin_acc.feedback', ['feedbackData' => $feedback]);
+    $complaints = Complaint::orderByDesc('created_at')
+        ->get()
+        ->map(function ($c) {
+            return [
+                'complaint_id' => $c->complaint_id,
+                'complaint_text' => $c->complaint_text,
+                'category' => $c->category ?? 'Uncategorized',
+                'created_at' => $c->created_at,
+            ];
+        });
+
+    return view('admin_acc.feedback', [
+        'feedbackData' => $feedback,
+        'complaintData' => $complaints,
+    ]);
 }
 public function store(Request $request, SentimentAnalysisService $sentimentService)
 {

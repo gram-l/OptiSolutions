@@ -11,6 +11,8 @@ use App\Models\admin_models\Complaint;
 use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
 use App\Services\SentimentAnalysisService;
+use App\Services\NotificationService;
+use App\Models\Notification;
 
 class ComplaintConversation extends Conversation
 {
@@ -66,6 +68,12 @@ class ComplaintConversation extends Conversation
                 'complaint_text' => $text,
                 'category'       => app(SentimentAnalysisService::class)->categorize($text),
             ]);
+
+        try {
+            NotificationService::newComplaint($this->patientName ?: 'A patient', $complaint->complaint_id);
+        } catch (\Throwable $notifyError) {
+            \Illuminate\Support\Facades\Log::error('Failed to create complaint notification: ' . $notifyError->getMessage());
+        }
 
             $this->say("Complaint Recorded\n\nReference #: {$complaint->complaint_id}\nWe acknowledge receipt of your concern.");
         } catch (\Exception $e) {

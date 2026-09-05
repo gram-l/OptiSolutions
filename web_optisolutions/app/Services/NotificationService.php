@@ -21,39 +21,56 @@ class NotificationService
             'reference_id'   => $referenceId,
             'is_read'        => 0,
             'created_at'     => now(),
+            'updated_at'     => now(),
         ]);
     }
 
-    public static function newInquiry(string $patientName, string $inquiryId): void
+    // type: 'chat_inquiry' — matches the Flutter app's NotifType.inquiry
+    public static function newInquiry(string $patientName, int $inquiryId): void
     {
         self::create(
-            'chatbot',
+            'chat_inquiry',
             'New Chatbot Inquiry',
             "{$patientName} submitted an inquiry the chatbot couldn't answer.",
             'inquiry',
-            (int) $inquiryId
+            $inquiryId
         );
     }
 
-    public static function newFeedback(string $patientName, string $feedbackId): void
+    // type: 'feedback' — matches the Flutter app's NotifType.feedback
+    public static function newFeedback(string $patientName, int $feedbackId): void
     {
         self::create(
-            'system',
+            'feedback',
             'New Feedback Received',
             "{$patientName} submitted new feedback.",
             'feedback',
-            (int) $feedbackId
+            $feedbackId
         );
     }
 
-    public static function newComplaint(string $patientName, string $feedbackId): void
+    // type: 'complaint' — matches the Flutter app's NotifType.complaint
+    public static function newComplaint(string $patientName, int $complaintId): void
     {
         self::create(
-            'system',
+            'complaint',
             'New Complaint Received',
             "{$patientName} filed a complaint that may need review.",
-            'feedback',
-            (int) $feedbackId
+            'complaint',
+            $complaintId
+        );
+    }
+
+    // type: 'appointment' — new; scheduled visits didn't have a helper yet
+    public static function newVisit(string $patientName, string $doctorName, string $visitDate, int $visitId): void
+    {
+        self::create(
+            'appointment',
+            'New Schedule Visit',
+            "{$patientName} scheduled a visit with {$doctorName} on "
+                . \Carbon\Carbon::parse($visitDate)->format('M d, Y') . '.',
+            'visit',
+            $visitId
         );
     }
 
@@ -61,6 +78,4 @@ class NotificationService
     {
         self::create('system', $title, $message);
     }
-    //add this line
-    //NotificationService::newInquiry($patientName, $inquiry->id);
 }

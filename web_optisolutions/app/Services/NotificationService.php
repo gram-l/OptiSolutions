@@ -78,4 +78,18 @@ class NotificationService
     {
         self::create('system', $title, $message);
     }
+
+    // Which notification types a given role is allowed to see.
+    // feedback/complaint are admin-only — staff has no Feedback page to
+    // send those clicks to, and shouldn't see them in the list either.
+    public static function visibleTypesFor(?string $role): array
+    {
+        $all = ['chat_inquiry', 'appointment', 'feedback', 'complaint', 'system'];
+
+        if ($role === 'admin') {
+            return $all;
+        }
+
+        return array_values(array_diff($all, ['feedback', 'complaint']));
+    }
 }

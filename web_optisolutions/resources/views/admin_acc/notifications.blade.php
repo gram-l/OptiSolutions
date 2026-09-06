@@ -263,9 +263,9 @@
                     <button class="notif-tab active" data-filter="all">
                         All <span class="tab-count" id="count-all">0</span>
                     </button>
-                    <button class="notif-tab" data-filter="chatbot">Chatbot</button>
-                    <button class="notif-tab" data-filter="appointments">Appointments</button>
-                    <button class="notif-tab" data-filter="patients">Patients</button>
+                    <button class="notif-tab" data-filter="chat_inquiry">Chatbot</button>
+                    <button class="notif-tab" data-filter="appointment">Scheduled Visit</button>
+                    <button class="notif-tab" data-filter="feedback,complaint">Feedback</button>
                     <button class="notif-tab" data-filter="system">System</button>
                 </div>
             </div>
@@ -276,6 +276,15 @@
 
             <div class="notif-list-scroll" id="notifList">
 
+                @php
+                    // Where each notification type should navigate to on click.
+                    $notifTypeUrls = [
+                        'chat_inquiry' => '/admin_acc/chatbot_logs',
+                        'appointment'  => '/admin_acc/appointments',
+                        'feedback'     => '/admin_acc/feedback',
+                        'complaint'    => '/admin_acc/feedback',
+                    ];
+                @endphp
                 @forelse ($groupedNotifications as $group => $items)
                     <div class="notif-group" data-group="{{ \Illuminate\Support\Str::slug($group) }}">
                         <div class="notif-group-label">{{ $group }}</div>
@@ -283,7 +292,9 @@
                         @foreach ($items as $notification)
                             <div class="notif-row {{ $notification->is_read ? 'read' : 'unread' }}"
                                  data-category="{{ $notification->type }}"
-                                 data-id="{{ $notification->notification_id }}">
+                                 data-id="{{ $notification->notification_id }}"
+                                 data-url="{{ $notifTypeUrls[$notification->type] ?? '' }}"
+                                 style="cursor: {{ isset($notifTypeUrls[$notification->type]) ? 'pointer' : 'default' }};">
 
                                 <div class="notif-icon icon-{{ $notification->type }}">
                                     <i class="bi {{ $notification->icon }}"></i>
@@ -305,7 +316,7 @@
                                         </div>
 
                                         @unless ($notification->is_read)
-                                            <button class="notif-action-link" onclick="markSingleRead({{ $notification->notification_id }}, this)">Mark read</button>
+                                            <button class="notif-action-link" onclick="event.stopPropagation(); markSingleRead({{ $notification->notification_id }}, this)">Mark read</button>
                                         @endunless
                                     </div>
 
@@ -357,7 +368,7 @@
                     let visibleCount = 0;
 
                     rowsInGroup.forEach(row => {
-                        const matches = filter === 'all' || row.dataset.category === filter;
+                        const matches = filter === 'all' || filter.split(',').includes(row.dataset.category);
                         row.style.display = matches ? '' : 'none';
                         if (matches) visibleCount++;
                     });
@@ -369,6 +380,26 @@
 
         // ── Counts ──────────────────────────────────────────────────
         document.getElementById('count-all').textContent = allRows.length;
+
+        // ── Click a row → mark it read, then navigate ────────────────
+        allRows.forEach(row => {
+            const url = row.dataset.url;
+            if (!url) return; // no destination for this type (e.g. system)
+
+            row.addEventListener('click', () => {
+                const markReadBtn = row.querySelector('.notif-action-link');
+                if (markReadBtn) {
+                    fetch(`/admin_acc/notifications/${row.dataset.id}/read`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': CSRF_TOKEN
+                        }
+                    }).catch(() => {});
+                }
+                window.location.href = url;
+            });
+        });
 
         // ── Mark single as read ─────────────────────────────────────
         function markSingleRead(id, btn) {

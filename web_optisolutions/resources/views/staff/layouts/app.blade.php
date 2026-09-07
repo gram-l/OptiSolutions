@@ -431,7 +431,7 @@
                     <div class="settings-toggle-row" style="align-items: center; border-bottom: 1px solid #eee; padding-bottom: 1rem; margin-top: 1.5rem;">
                         <div class="settings-item-text">
                             <div class="settings-item-title">Terms & Conditions</div>
-                            <div class="settings-item-desc">Review the terms for patients and staff</div>
+                            <div class="settings-item-desc">Review the Terms & Conditions for staff</div>
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius: 20px; padding: 0.3rem 1rem;" onclick="openStaffTermsModal();"><i class="bi bi-eye"></i> View</button>
                     </div>
@@ -458,7 +458,7 @@
     </div>
 </div>
 
-<!-- ===== TERMS & CONDITIONS MODAL (Patients + Staff) ===== -->
+    // TERMS & CONDITIONS MODAL
 <div class="modal-overlay" id="staffTermsModalOverlay" style="z-index: 2100;" onclick="if(event.target === this) closeStaffTermsModal();">
     <div class="modal-box">
         <div class="modal-header">
@@ -466,116 +466,167 @@
             <button class="modal-close" onclick="closeStaffTermsModal();" aria-label="Close">&times;</button>
         </div>
 
-        {{-- Sub-tabs: Patients / Staff --}}
-        <div style="display: flex; gap: 0.5rem; border-bottom: 1px solid var(--light-gray); margin-bottom: 1.25rem;">
-            <button type="button" class="terms-subtab active" data-terms-tab="patients" onclick="switchTermsTab('patients')"
-                style="background: none; border: none; padding: 0 0 0.75rem; margin-right: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--primary-main); border-bottom: 2px solid var(--primary-main); cursor: pointer;">
-                For Patients
-            </button>
-            <button type="button" class="terms-subtab" data-terms-tab="staff" onclick="switchTermsTab('staff')"
-                style="background: none; border: none; padding: 0 0 0.75rem; font-size: 0.9rem; font-weight: 600; color: #7f8c8d; border-bottom: 2px solid transparent; cursor: pointer;">
-                For Staff
-            </button>
-        </div>
-
-        {{-- ===== PATIENT TERMS ===== --}}
-        <div class="terms-tab-panel" id="terms-tab-patients">
-            <p style="color: #7f8c8d; font-size: 0.8rem; margin-bottom: 1.25rem;">Last updated: August 2026</p>
-
-            <p style="font-size: 0.92rem; line-height: 1.7; color: var(--text-dark); margin-bottom: 1rem;">
-                These terms explain how PolyClinic's online scheduling system
-                collects and uses patient information, in compliance with the
-                Data Privacy Act of 2012 (RA 10173) and the issuances of the
-                National Privacy Commission (NPC).
-            </p>
-
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">What We Collect</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
-                Name, contact number, date of birth, email address, and the
-                service/doctor selected when you schedule a visit through our
-                chatbot. Complaint or feedback details are collected only if
-                you choose to submit them.
-            </p>
-
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">Why We Collect It</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
-                To schedule and confirm your appointment, match you with an
-                available specialist, send confirmations or transcripts you
-                request, and respond to feedback. We do not use your data for
-                advertising or profiling.
-            </p>
-
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">Your Rights</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
-                Under the Data Privacy Act, you have the right to be informed,
-                access, correct, object to processing, request erasure or
-                blocking, request data portability, and file a complaint with
-                PolyClinic or the National Privacy Commission (NPC).
-            </p>
-
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">Contact</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0;">
-                TM Kalaw St., Lipa City, Batangas 4217 &middot; 0985 475 5511
-            </p>
-        </div>
-
-        {{-- ===== STAFF TERMS ===== --}}
-        <div class="terms-tab-panel" id="terms-tab-staff" style="display: none;">
+        <div class="terms-tab-panel" id="terms-tab-staff">
             <p style="color: #7f8c8d; font-size: 0.8rem; margin-bottom: 1.25rem;">Last updated: September 2026</p>
 
             <p style="font-size: 0.92rem; line-height: 1.7; color: var(--text-dark); margin-bottom: 1rem;">
                 These Terms &amp; Conditions govern the use of the OptiSolutions
-                system ("the System") by PolyClinic staff, doctors, and
+                System ("the System") by PolyClinic Lipa staff, doctors, and
                 administrators. By logging in to and using the System, you
-                agree to comply with these Terms.
+                acknowledge that you have read, understood these Terms.
             </p>
 
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">1. Purpose of the System</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
-                OptiSolutions is PolyClinic Lipa's internal clinic management
-                system, used to manage appointments, chatbot inquiries, doctor
-                schedules, patient records, and related clinic operations.
-                Access is granted solely to perform your official duties.
-            </p>
-
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">2. Account Access and Responsibility</h4>
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">1. Authorized Users</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">The System is intended solely for authorized PolyClinic personnel.</p>
             <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
-                <li>Keep your username and password confidential; do not share credentials with anyone.</li>
-                <li>You are responsible for all actions performed under your account.</li>
-                <li>Log out after each use, especially on shared or public devices.</li>
-                <li>Report suspected unauthorized access to the system administrator immediately.</li>
+                <li>User accounts are created and managed exclusively by the PolyClinic Administrator.</li>
+                <li>Staff members are not permitted to create their own accounts.</li>
+                <li>Access to the System is granted only for official work-related responsibilities.</li>
+                <li>PolyClinic reserves the right to suspend or terminate access at any time when necessary.</li>
             </ul>
 
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">3. Acceptable Use</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">You must not access records outside your assigned tasks, bypass security features, misuse the System toward patients or coworkers, or introduce unauthorized software.</p>
-
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">4. Confidentiality of Patient Information</h4>
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">2. Confidentiality and Data Privacy</h4>
             <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">
-                As a staff member with access to patient data, you are
-                personally bound by the obligations described in the Patient
-                terms above under the Data Privacy Act of 2012. Patient
-                information must only be used for scheduling, treatment, and
-                clinic operations, and must never be disclosed, copied, or
-                shared outside the System except as required by your official
-                duties.
+                The System contains Sensitive Personal Information, including
+                Personally Identifiable Information (PII) and health-related
+                information entrusted to PolyClinic. All users are required to
+                maintain the confidentiality of all patient, employee, and
+                clinic information, and to access information only when
+                required for legitimate business purposes.
             </p>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">Users are strictly prohibited from:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Copying, downloading, exporting, or printing confidential information without authorization.</li>
+                <li>Taking screenshots or screen recordings of patient information.</li>
+                <li>Sharing patient information through personal communication platforms including but not limited to Facebook Messenger, Viber, WhatsApp, Telegram, Gmail, or similar services.</li>
+                <li>Disclosing confidential information to unauthorized individuals.</li>
+            </ul>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Unauthorized disclosure of confidential information may result in disciplinary action, immediate termination of employment, civil liability, and criminal liability under applicable Philippine laws.</p>
 
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">5. Data Accuracy</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Information entered into the System must be accurate, complete, and in good faith. Deliberately false or misleading entries are a violation of these Terms.</p>
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">3. Compliance with the Data Privacy Act of 2012</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">The System complies with Republic Act No. 10173 (Data Privacy Act of 2012). Users acknowledge that they process sensitive personal information as part of their duties and agree to:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Process personal data only for authorized clinical and administrative purposes.</li>
+                <li>Observe confidentiality at all times.</li>
+                <li>Prevent unauthorized access, disclosure, alteration, or destruction of personal information.</li>
+                <li>Report any suspected data breach immediately.</li>
+            </ul>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Any intentional misuse of personal data may constitute a violation of the Data Privacy Act and other applicable laws.</p>
 
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">6. Monitoring and Activity Logs</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">The System may log account activity (logins, record changes, data access) for security and accountability. Logs may be reviewed when investigating suspected misuse.</p>
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">4. Account Security</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">Each staff member is responsible for safeguarding their assigned account. Users must:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Keep usernames and passwords confidential.</li>
+                <li>Never share login credentials with another staff member.</li>
+                <li>Log out after each use, especially on shared or public computers.</li>
+                <li>Immediately report suspected unauthorized access.</li>
+            </ul>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Staff are fully responsible for all activities performed using their assigned account until such access is reported as compromised. Credential sharing is strictly prohibited.</p>
 
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">7. System Availability</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Uninterrupted access is not guaranteed. Maintenance, updates, or technical issues may cause temporary downtime; keep a manual fallback for critical tasks.</p>
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">5. Separation of Clinic Data and Personal Data</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">The System serves solely as a secure portal for authorized access. Users shall not:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Export chat conversations, patient records, or reports to personal storage.</li>
+                <li>Upload clinic information to personal cloud storage services such as Google Drive, iCloud, Dropbox, OneDrive, or similar platforms.</li>
+                <li>Store patient or contact information outside the System unless specifically authorized by management.</li>
+            </ul>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Clinic information must remain within authorized systems.</p>
 
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">8. Consequences of Violation</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Violations &mdash; including unauthorized data access, credential sharing, or misuse &mdash; may result in disciplinary action, suspension of access, and liability under applicable law.</p>
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">6. Monitoring and Audit</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">To maintain operational integrity, quality assurance, and security, PolyClinic continuously monitors activities performed within the System. The Company may record and review:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Login history</li>
+                <li>Chat conversations</li>
+                <li>Patient inquiries</li>
+                <li>Feedback responses</li>
+                <li>Appointment-related actions</li>
+                <li>Administrative actions</li>
+                <li>Activity timestamps</li>
+                <li>System usage logs</li>
+            </ul>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">This monitoring applies only to activities performed within the OptiSolutions System and does not extend to staff's personal accounts, files, or other private content outside the System. By using the System, staff expressly acknowledge and consent to this monitoring.</p>
 
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">9. Changes to These Terms</h4>
-            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">These Terms may be updated to reflect changes in clinic policy, system features, or legal requirements. Continued use after an update means you accept the revised Terms.</p>
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">7. Acceptable Use</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">The System must be used professionally and solely for official clinic operations. Users shall not:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Use the chat or messaging features for personal conversations.</li>
+                <li>Harass, threaten, discriminate against, or abuse patients or co-workers.</li>
+                <li>Provide unauthorized or unscripted medical advice beyond their assigned responsibilities.</li>
+                <li>Use offensive, defamatory, or inappropriate language.</li>
+                <li>Attempt to bypass system security measures.</li>
+            </ul>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Professional communication is expected at all times.</p>
 
-            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">10. Contact Us</h4>
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">8. Intellectual Property</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">All information generated, stored, or processed within the System remains the exclusive property of PolyClinic. This includes but is not limited to:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Chat logs</li>
+                <li>Inquiry records</li>
+                <li>Appointment records</li>
+                <li>Feedback</li>
+                <li>Reports</li>
+                <li>Patient lists</li>
+                <li>Templates</li>
+                <li>Analytics</li>
+                <li>Documentation</li>
+                <li>System-generated data</li>
+            </ul>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Staff acquire no ownership rights over any information created or processed using the System.</p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">9. Compromised or Unauthorized Access</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">If a staff member suspects that their account, or the computer used to access the System, has been compromised or accessed without authorization, they must notify PolyClinic within two (2) hours of becoming aware of the incident. PolyClinic reserves the right to:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Immediately deactivate the user's account.</li>
+                <li>Revoke access to the System.</li>
+                <li>Require additional security verification before restoring access.</li>
+            </ul>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">Failure to promptly report a compromised account may result in disciplinary action.</p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">10. Employment Separation</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">Access to the System is directly tied to active employment. Upon resignation, retirement, suspension, or termination:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>User accounts will be immediately deactivated.</li>
+                <li>Staff shall cease all access to the System.</li>
+                <li>Former employees shall not attempt to regain access using previous credentials.</li>
+            </ul>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">11. Prohibited Activities</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">Users shall not:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Attempt to hack, reverse engineer, or modify the System.</li>
+                <li>Introduce malware or malicious software.</li>
+                <li>Circumvent authentication mechanisms.</li>
+                <li>Access information beyond their authorized permissions.</li>
+                <li>Use another staff member's account.</li>
+                <li>Allow unauthorized individuals to access the System.</li>
+                <li>Use the System for any unlawful purpose.</li>
+            </ul>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">12. Violations</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">Violation of these Terms and Conditions may result in one or more of the following:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>Suspension of System access</li>
+                <li>Immediate account deactivation</li>
+                <li>Administrative or disciplinary sanctions</li>
+                <li>Termination of employment, where warranted</li>
+                <li>Civil liability</li>
+                <li>Criminal prosecution under applicable Philippine laws, including the Data Privacy Act of 2012 and the Cybercrime Prevention Act of 2012</li>
+            </ul>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">13. Amendments</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.75rem;">PolyClinic reserves the right to modify these Terms and Conditions at any time to comply with operational requirements, legal obligations, or security standards. Continued use of the System after such changes constitutes acceptance of the revised Terms.</p>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">14. Acceptance</h4>
+            <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0.5rem;">By logging into and using the OptiSolutions System, you acknowledge that:</p>
+            <ul style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin: 0 0 0.75rem 1.1rem; padding: 0;">
+                <li>You have read and understood these Terms and Conditions.</li>
+                <li>You agree to comply with all applicable clinic policies and Philippine laws.</li>
+                <li>You understand that all activities performed within the System may be monitored and audited.</li>
+                <li>You accept responsibility for maintaining the confidentiality and security of your assigned account and any information accessed through the System.</li>
+                <li>You understand that violations of these Terms may result in disciplinary action, termination of employment, and legal consequences where applicable.</li>
+            </ul>
+
+            <h4 style="color: var(--primary-main); font-size: 1rem; margin: 1.25rem 0 0.5rem;">15. Contact Us</h4>
             <p style="font-size: 0.9rem; line-height: 1.65; color: var(--text-dark); margin-bottom: 0;">
                 TM Kalaw St., Lipa City, Batangas 4217 &middot; 0985 475 5511
             </p>
@@ -638,18 +689,6 @@
         function closeStaffTermsModal() {
             document.getElementById('staffTermsModalOverlay').classList.remove('show');
         }
-        function switchTermsTab(tab) {
-            document.querySelectorAll('.terms-subtab').forEach(function (btn) {
-                const active = btn.dataset.termsTab === tab;
-                btn.classList.toggle('active', active);
-                btn.style.color = active ? 'var(--primary-main)' : '#7f8c8d';
-                btn.style.borderBottomColor = active ? 'var(--primary-main)' : 'transparent';
-            });
-            document.querySelectorAll('.terms-tab-panel').forEach(function (panel) {
-                panel.style.display = panel.id === 'terms-tab-' + tab ? 'block' : 'none';
-            });
-        }
-
         @if($errors->has('current_password') || $errors->has('password'))
             openSettingsModal();
             switchSettingsTab('security');

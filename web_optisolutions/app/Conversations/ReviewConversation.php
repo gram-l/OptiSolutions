@@ -56,7 +56,14 @@ class ReviewConversation extends Conversation
                 return;
             }
 
-            $this->rating = (int) $answer->getValue();
+            $value = (int) $answer->getValue();
+
+            if ($value < 1 || $value > 5) {
+                $this->say('Please tap one of the star ratings from 1 to 5 above.');
+                return $this->askRating();
+            }
+
+            $this->rating = $value;
             $this->askFeedbackText();
         });
     }
@@ -103,7 +110,7 @@ class ReviewConversation extends Conversation
 
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
-                'user_id'      => 1,
+                'user_id'      => $this->patientId,
                 'user_message' => $text ?? '(no comment)',
                 'bot_message'  => 'Review recorded',
             ]);

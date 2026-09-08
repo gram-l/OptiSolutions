@@ -803,6 +803,7 @@ class AppointmentConversation extends Conversation
     {
         $doctors = DB::table('doctors')
             ->where('available', 1)
+            ->where('status', 'Active')
             ->where('specialty', $this->service)
             ->get();
 
@@ -853,6 +854,11 @@ class AppointmentConversation extends Conversation
             return $this->askDoctor();
         }
 
+        // Once we run out of distinct slots, stop offering "suggest
+        // alternative" instead of silently wrapping back to slot 0
+        // (which used to look like the same time was re-suggested
+        // forever with no explanation).
+        $noMoreAlternatives = $this->scheduleSlotIndex >= $schedules->count();
         $slot = $schedules[$this->scheduleSlotIndex] ?? $schedules[0];
         $this->scheduleDay = $slot->day;
         $suggestedDate = $this->getNextAvailableDate($slot->day);
@@ -861,12 +867,18 @@ class AppointmentConversation extends Conversation
         // Bold header + date/time + note, each on its own line.
         $scheduleText = "**Suggested schedule:**\n{$this->scheduleSuggestion}.\nBased on {$this->doctor}'s availability.";
 
+        if ($noMoreAlternatives) {
+            $scheduleText .= "\n\nThis is the last available time slot we have for {$this->doctor}.";
+        }
+
+        $buttons = [Button::create('Yes, confirm')->value('confirm_yes')];
+        if (!$noMoreAlternatives) {
+            $buttons[] = Button::create('Suggest alternative')->value('confirm_no');
+        }
+
         $question = Question::create($scheduleText)
             ->fallback('Please use the confirmation buttons above.')
-            ->addButtons([
-                Button::create('Yes, confirm')->value('confirm_yes'),
-                Button::create('Suggest alternative')->value('confirm_no'),
-            ]);
+            ->addButtons($buttons);
 
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {

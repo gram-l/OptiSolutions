@@ -61,18 +61,43 @@
                     </div>
                 </div>
 
-                <!-- Staff Reply -->
-                @if($inquiry->inquiry_reply)
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
-                    <div style="background: var(--primary-main); padding: 0.8rem 1.5rem; border-radius: 18px; max-width: 80%;">
-                        <strong style="color: white;">Staff</strong>
-                        <p style="margin: 0.2rem 0 0 0; color: white; font-size: 1rem;">{{ $inquiry->inquiry_reply }}</p>
-                        <small style="color: rgba(255,255,255,0.7); font-size: 0.7rem;">
-                            {{ $inquiry->replied_at ? \Carbon\Carbon::parse($inquiry->replied_at)->format('h:i A') : 'N/A' }}
-                        </small>
+                <!-- Full thread: every patient message/attachment and every Staff/Admin reply, in order -->
+                @foreach($inquiry->replies as $reply)
+                    @php $isStaffMsg = $reply->is_staff; @endphp
+                    <div style="display: flex; justify-content: {{ $isStaffMsg ? 'flex-end' : 'flex-start' }}; margin-bottom: 1rem;">
+                        <div style="background: {{ $isStaffMsg ? 'var(--primary-main)' : 'var(--light-gray)' }}; padding: 0.8rem 1.5rem; border-radius: 18px; max-width: 80%;">
+                            <strong style="color: {{ $isStaffMsg ? 'white' : 'var(--text-dark)' }};">{{ $reply->sender }}</strong>
+
+                            @if($reply->attachment_path)
+                                @php
+                                    $attExt = strtolower(pathinfo($reply->attachment_name ?? '', PATHINFO_EXTENSION));
+                                    $isImageAtt = in_array($attExt, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                                @endphp
+                                @if($isImageAtt)
+                                    <div style="margin-top: 0.4rem;">
+                                        <a href="{{ $reply->attachment_url }}" target="_blank" rel="noopener">
+                                            <img src="{{ $reply->attachment_url }}" alt="{{ $reply->attachment_name }}" style="max-width: 220px; max-height: 220px; border-radius: 8px; display: block;">
+                                        </a>
+                                    </div>
+                                @else
+                                    <div style="margin-top: 0.4rem;">
+                                        <a href="{{ $reply->attachment_url }}" target="_blank" rel="noopener" style="color: {{ $isStaffMsg ? 'white' : 'var(--primary-main)' }}; text-decoration: underline;">
+                                            <i class="bi bi-paperclip"></i> {{ $reply->attachment_name ?? 'Attachment' }}
+                                        </a>
+                                    </div>
+                                @endif
+                            @endif
+
+                            @if($reply->message && $reply->message !== '(Sent an attachment)')
+                                <p style="margin: 0.2rem 0 0 0; color: {{ $isStaffMsg ? 'white' : 'var(--text-dark)' }}; font-size: 1rem;">{{ $reply->message }}</p>
+                            @endif
+
+                            <small style="color: {{ $isStaffMsg ? 'rgba(255,255,255,0.7)' : '#7f8c8d' }}; font-size: 0.7rem;">
+                                {{ $reply->created_at ? $reply->created_at->format('h:i A') : 'N/A' }}
+                            </small>
+                        </div>
                     </div>
-                </div>
-                @endif
+                @endforeach
             </div>
 
             <!-- Reply Form -->

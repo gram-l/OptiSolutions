@@ -11,18 +11,17 @@ class InquiryController extends Controller
 {
     public function index()
     {
-        // Eager-load ang 'log' relationship to get user_message
-        $inquiries = Inquiry::with('log')->orderBy('inquiry_id', 'desc')->get();
+        // Eager-load log and replies, should be general for all inquiries
+        $inquiries = Inquiry::with(['log', 'replies'])->orderBy('inquiry_id', 'desc')->get();
 
         return view('staff.inquiries.index', compact('inquiries'));
     }
 
     public function show($id)
     {
-        
-        $inquiries = Inquiry::with('log')->orderBy('inquiry_id', 'desc')->get();
+        $inquiries = Inquiry::with(['log', 'replies'])->orderBy('inquiry_id', 'desc')->get();
 
-        $inquiry = Inquiry::with('log')->findOrFail($id);
+        $inquiry = Inquiry::with(['log', 'replies'])->findOrFail($id);
 
         return view('staff.inquiries.show', compact('inquiries', 'inquiry'));
     }
@@ -35,8 +34,7 @@ class InquiryController extends Controller
 
         $inquiry = Inquiry::findOrFail($id);
 
-        // Isulat sa bagong thread table — parehong makikita ito ng Admin
-        // web panel at ng Admin/Staff Flutter apps (iisang shared table).
+        // Shared table, visible to both Admin and Staff
         InquiryReply::create([
             'inquiry_id' => $inquiry->inquiry_id,
             'user_id'    => $request->user()->user_id ?? null,
@@ -44,12 +42,10 @@ class InquiryController extends Controller
             'message'    => $request->message,
         ]);
 
-        // Panatilihin ding updated ang legacy columns para sa backward
-        // compatibility ng ibang bahagi ng system na baka umaasa pa dito.
+        // Keep legacy columns updated too, for backward compatibility
         $inquiry->inquiry_reply = $request->message;
         $inquiry->replied_at = now();
 
-    
         $inquiry->save();
 
         return redirect()->route('staff.inquiries.show', $id)->with('success', 'Reply sent!');

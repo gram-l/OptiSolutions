@@ -108,10 +108,12 @@ class ChatbotInquiryController extends Controller
 
     foreach ($inquiry->replies as $reply) {
         $conversation[] = [
-            'sender'      => $reply->is_staff ? 'bot' : 'patient',
-            'senderLabel' => $reply->sender,
-            'text'        => $reply->message,
-            'time'        => $reply->created_at->format('g:i A'),
+            'sender'         => $reply->is_staff ? 'bot' : 'patient',
+            'senderLabel'    => $reply->sender,
+            'text'           => $reply->message,
+            'attachmentUrl'  => $reply->attachment_url,
+            'attachmentName' => $reply->attachment_name,
+            'time'           => $reply->created_at->format('g:i A'),
         ];
     }
 

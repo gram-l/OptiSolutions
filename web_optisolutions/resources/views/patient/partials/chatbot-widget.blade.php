@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const attachmentPreviewRemove = document.getElementById('attachmentPreviewRemove');
   const csrfToken  = document.querySelector('meta[name="csrf-token"]').content;
   const botmanUrl  = '{{ route("botman.handle") }}';
+  const attachmentUrl = '{{ route("chatbot.attachment") }}';
 
   const APPT_CARD_PREFIX = 'APPT_CARD::';
   const INFO_CARD_PREFIX = 'INFO_CARD::';
@@ -246,15 +247,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
   attachmentPreviewRemove.addEventListener('click', clearAttachmentPreview);
 
-  function acknowledgeAttachment() {
-    return new Promise((resolve) => {
-      showTyping();
-      setTimeout(() => {
-        hideTyping();
-        addBubble('Thank you for the attachment! Our staff will review it and get back to you shortly.', 'bot');
-        resolve();
-      }, 600);
-    });
+  async function uploadAttachment(file, caption) {
+    showTyping();
+    try {
+      const formData = new FormData();
+      formData.append('attachment', file);
+      formData.append('userId', session.clientId);
+      if (caption) formData.append('caption', caption);
+
+      const res = await fetch(attachmentUrl, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+      hideTyping();
+
+      if (!res.ok || !data.success) {
+        addBubble(data.error || 'Something went wrong uploading the attachment. Please try again.', 'bot');
+        return;
+      }
+
+      addBubble("Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.", 'bot');
+    } catch (e) {
+      hideTyping();
+      console.error('Failed to upload attachment:', e);
+      addBubble('Something went wrong uploading the attachment. Please try again.', 'bot');
+    }
   }
 
   async function handleSend() {
@@ -268,11 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
       clearAttachmentPreview();
       input.value = '';
 
-      if (text) {
-        await sendMessage(text, text, { skipUserBubble: true });
-      } else {
-        await acknowledgeAttachment();
-      }
+      await uploadAttachment(attachment.file, text || null);
       return;
     }
 

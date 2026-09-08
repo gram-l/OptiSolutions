@@ -16,6 +16,7 @@ use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
 use App\Middleware\CaptureReplyMiddleware;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 
 class BotManController extends Controller
@@ -191,40 +192,90 @@ class BotManController extends Controller
 
     protected function recordInquiry(string $conversationId, string $userMessage, ChatbotLog $log, $botman)
     {
+        $this->recordInquiryReply($conversationId, $userMessage, $log);
+    }
+
+    protected function recordInquiryReply(
+        string $conversationId,
+        string $userMessage,
+        ChatbotLog $log,
+        ?string $attachmentPath = null,
+        ?string $attachmentName = null
+    ) {
         try {
-
-            $patientId = null;
-            $guestName = null;
-
             $openInquiry = Inquiry::where('conversation_id', $conversationId)
                 ->where('resolved_status', '!=', 'Resolved')
                 ->orderByDesc('inquiry_id')
                 ->first();
 
-            if ($openInquiry) {
-                InquiryReply::create([
-                    'inquiry_id' => $openInquiry->inquiry_id,
-                    'sender'     => 'Patient',
-                    'message'    => $userMessage,
-                    'is_staff'   => false,
+            if (!$openInquiry) {
+                $openInquiry = Inquiry::create([
+                    'patient_id'      => null,
+                    'guest_name'      => null,
+                    'log_id'          => $log->log_id,
+                    'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                    'inquiry_type'    => 'General',
+                    'resolved_status' => 'Pending',
+                    'created_at'      => now(),
                 ]);
-
-                $openInquiry->save();
-                return;
             }
 
-            Inquiry::create([
-                'patient_id'      => $patientId,
-                'guest_name'      => $guestName,
-                'log_id'          => $log->log_id,
-                'conversation_id' => $conversationId !== '' ? $conversationId : null,
-                'inquiry_type'    => 'General',
-                'resolved_status' => 'Pending',
-                'created_at'      => now(),
+            InquiryReply::create([
+                'inquiry_id'      => $openInquiry->inquiry_id,
+                'sender'          => 'Patient',
+                'message'         => $userMessage,
+                'attachment_path' => $attachmentPath,
+                'attachment_name' => $attachmentName,
             ]);
 
+            $openInquiry->save();
+
+            return $openInquiry;
         } catch (\Throwable $e) {
             Log::error('Failed to record inquiry: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    // attachment upload
+
+    public function attachment(Request $request)
+    {
+        $request->validate([
+            'attachment' => 'required|file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
+            'userId'     => 'nullable|string',
+            'caption'    => 'nullable|string|max:2000',
+        ]);
+
+        $conversationId = (string) $request->input('userId', '');
+        $caption = trim((string) $request->input('caption', ''));
+
+        try {
+            $file = $request->file('attachment');
+            $storedPath = $file->store('chat-attachments', 'public');
+            $originalName = $file->getClientOriginalName();
+
+            $displayMessage = $caption !== '' ? $caption : '(Sent an attachment)';
+
+            $log = ChatbotLog::create([
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'user_message'    => $displayMessage,
+                'bot_message'     => '(no reply)',
+            ]);
+
+            $this->recordInquiryReply($conversationId, $displayMessage, $log, $storedPath, $originalName);
+
+            return response()->json([
+                'success'        => true,
+                'attachmentUrl'  => asset('storage/' . $storedPath),
+                'attachmentName' => $originalName,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to save chatbot attachment: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error'   => 'Something went wrong uploading the attachment. Please try again.',
+            ], 500);
         }
     }
 

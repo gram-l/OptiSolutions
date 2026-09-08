@@ -267,7 +267,8 @@
                         <div class="message-sender ${msg.sender === 'patient' ? 'patient' : ''}">
                             ${escapeHtml(msg.senderLabel || (msg.sender === 'patient' ? 'Patient' : 'Admin'))}
                         </div>
-                        <div class="message-text">${escapeHtml(msg.text)}</div>
+                        ${renderAttachment(msg)}
+                        ${msg.text && msg.text !== '(Sent an attachment)' ? `<div class="message-text">${escapeHtml(msg.text)}</div>` : ''}
                         <div class="message-time">${msg.time}</div>
                     </div>
                 </div>
@@ -275,6 +276,24 @@
 
             // Scroll to bottom
             messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        // Shows an image preview (or a download link for non-image files)
+        // for any message that has a patient-sent attachment.
+        function renderAttachment(msg) {
+            if (!msg.attachmentUrl) return '';
+
+            const isImage = /\.(jpe?g|png|gif|webp)$/i.test(msg.attachmentName || msg.attachmentUrl);
+            const safeUrl = escapeHtml(msg.attachmentUrl);
+            const safeName = escapeHtml(msg.attachmentName || 'Attachment');
+
+            if (isImage) {
+                return `<a href="${safeUrl}" target="_blank" rel="noopener">
+                    <img src="${safeUrl}" alt="${safeName}" style="max-width:220px;max-height:220px;border-radius:8px;display:block;margin-bottom:0.4rem;">
+                </a>`;
+            }
+
+            return `<a href="${safeUrl}" target="_blank" rel="noopener" style="display:inline-block;margin-bottom:0.4rem;">📎 ${safeName}</a>`;
         }
 
         // Simple escape HTML to prevent XSS

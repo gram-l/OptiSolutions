@@ -14,6 +14,7 @@ use App\Services\ClinicInfoService;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
+use App\Models\Staff\AppNotification;
 use App\Middleware\CaptureReplyMiddleware;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -208,29 +209,28 @@ class BotManController extends Controller
                 ->orderByDesc('inquiry_id')
                 ->first();
 
-            if (!$openInquiry) {
-                $openInquiry = Inquiry::create([
-                    'patient_id'      => null,
-                    'guest_name'      => null,
-                    'log_id'          => $log->log_id,
-                    'conversation_id' => $conversationId !== '' ? $conversationId : null,
-                    'inquiry_type'    => 'General',
-                    'resolved_status' => 'Pending',
-                    'created_at'      => now(),
+            if ($openInquiry) {
+                InquiryReply::create([
+                    'inquiry_id' => $openInquiry->inquiry_id,
+                    'sender'     => 'Patient',
+                    'message'    => $userMessage,
+                    'is_staff'   => false,
                 ]);
+
+                $openInquiry->save();
+                return;
             }
 
-            InquiryReply::create([
-                'inquiry_id'      => $openInquiry->inquiry_id,
-                'sender'          => 'Patient',
-                'message'         => $userMessage,
-                'attachment_path' => $attachmentPath,
-                'attachment_name' => $attachmentName,
+            Inquiry::create([
+                'patient_id'      => $patientId,
+                'guest_name'      => $guestName,
+                'log_id'          => $log->log_id,
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'inquiry_type'    => 'General',
+                'resolved_status' => 'Pending',
+                'created_at'      => now(),
             ]);
 
-            $openInquiry->save();
-
-            return $openInquiry;
         } catch (\Throwable $e) {
             Log::error('Failed to record inquiry: ' . $e->getMessage());
             return null;

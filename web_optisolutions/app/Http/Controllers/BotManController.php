@@ -209,6 +209,29 @@ class BotManController extends Controller
                 ->orderByDesc('inquiry_id')
                 ->first();
 
+            if (!$openInquiry) {
+                $openInquiry = Inquiry::create([
+                    'patient_id'      => null,
+                    'guest_name'      => null,
+                    'log_id'          => $log->log_id,
+                    'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                    'inquiry_type'    => 'General',
+                    'resolved_status' => 'Pending',
+                    'created_at'      => now(),
+                ]);
+            }
+
+            InquiryReply::create([
+                'inquiry_id'      => $openInquiry->inquiry_id,
+                'sender'          => 'Patient',
+                'message'         => $userMessage,
+                'attachment_path' => $attachmentPath,
+                'attachment_name' => $attachmentName,
+            ]);
+
+            $openInquiry->save();
+
+            return $openInquiry;
             if ($openInquiry) {
                 InquiryReply::create([
                     'inquiry_id' => $openInquiry->inquiry_id,
@@ -218,10 +241,15 @@ class BotManController extends Controller
                 ]);
 
                 $openInquiry->save();
+
+                // Notify staff that the patient replied again on an
+                // already-open inquiry, so it doesn't get missed.
+                $this->notifyStaffOfInquiry($openInquiry, 'New Inquiry Reply', 'A patient replied to an existing ' . strtolower($openInquiry->inquiry_type) . ' inquiry.');
+
                 return;
             }
 
-            Inquiry::create([
+            $inquiry = Inquiry::create([
                 'patient_id'      => $patientId,
                 'guest_name'      => $guestName,
                 'log_id'          => $log->log_id,
@@ -230,6 +258,8 @@ class BotManController extends Controller
                 'resolved_status' => 'Pending',
                 'created_at'      => now(),
             ]);
+
+            $this->notifyStaffOfInquiry($inquiry, 'New Inquiry', 'A new ' . strtolower($inquiry->inquiry_type) . ' inquiry has been submitted.');
 
         } catch (\Throwable $e) {
             Log::error('Failed to record inquiry: ' . $e->getMessage());

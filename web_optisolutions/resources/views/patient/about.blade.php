@@ -24,8 +24,8 @@
 
     <div class="about-grid-modern">
       <div class="about-text">
-        <p><strong>{{ $clinicInfo->clinic_name ?? 'PolyClinic Lipa' }}</strong> is a multi-specialty clinic located at <strong>{{ $clinicInfo->address ?? 'TM Kalaw St., Lipa City, Batangas, 4217' }}</strong>. We are committed to providing comprehensive and compassionate healthcare to the Lipa community and surrounding areas.</p>
-        <p>{{ $clinicInfo->about_us ?? 'We offer a wide range of services including Pediatrics, Adult Medicine, Ophthalmology, OB-GYN, and Surgery consults. Our team of experienced, board-certified specialists ensures that every patient receives personalized attention and the highest quality of care — from your first consultation to every follow-up after.' }}</p>
+        <p><strong>{{ $clinicInfo->clinic_name }}</strong> is a multi-specialty clinic located at <strong>{{ $clinicInfo->address }}</strong>. We are committed to providing comprehensive and compassionate healthcare to the Lipa community and surrounding areas.</p>
+        <p>{{ $clinicInfo->about_us }}</p>
 
         <!-- Trust badges -->
         <div class="trust-badges">
@@ -57,7 +57,7 @@
             <span class="stat-label">Specialists</span>
           </div>
           <div class="stat-item">
-            <span class="stat-number">{{ $avgRating ?? '4.9' }}</span>
+            <span class="stat-number">{{ $avgRating }}</span>
             <span class="stat-label">Patient Rating</span>
           </div>
         </div>
@@ -79,7 +79,7 @@
           <div class="mv-icon-modern"><i class="fas fa-bullseye"></i></div>
           <div class="mv-content-modern">
             <h3>Our Mission</h3>
-            <p>To deliver accessible, compassionate, and high-quality healthcare to every Filipino family — provided by licensed, board-certified specialists who uphold the highest standards of patient safety, transparency, and ethical care, so every patient can trust us with their health and their family's wellbeing.</p>
+            <p>{{ $clinicInfo->mission }}</p>
           </div>
         </div>
 
@@ -87,7 +87,7 @@
           <div class="mv-icon-modern"><i class="fas fa-eye"></i></div>
           <div class="mv-content-modern">
             <h3>Our Vision</h3>
-            <p>To be the most trusted multi-specialty clinic in Lipa City and Batangas — recognized for clinical excellence, honest and transparent patient care, and a lasting commitment to the health of every community we serve.</p>
+            <p>{{ $clinicInfo->vision }}</p>
           </div>
         </div>
       </div>
@@ -97,30 +97,13 @@
         <div class="mv-content-modern">
           <h3>Our Core Values</h3>
           <div class="values-grid">
-            <div class="value-item">
-              <strong>Compassion</strong>
-              <p>We treat every patient with empathy, dignity, and respect.</p>
-            </div>
-            <div class="value-item">
-              <strong>Excellence</strong>
-              <p>We uphold the highest clinical standards in every consultation.</p>
-            </div>
-            <div class="value-item">
-              <strong>Integrity</strong>
-              <p>We practice honesty and transparency in diagnosis, treatment, and billing.</p>
-            </div>
-            <div class="value-item">
-              <strong>Patient Safety</strong>
-              <p>We follow strict protocols to protect every patient's health and privacy.</p>
-            </div>
-            <div class="value-item">
-              <strong>Teamwork</strong>
-              <p>Our doctors and staff work together to serve our community better.</p>
-            </div>
-            <div class="value-item">
-              <strong>Innovation</strong>
-              <p>We embrace modern technology to improve patient outcomes.</p>
-            </div>
+            @forelse (($clinicInfo->core_values ?? []) as $value)
+              <div class="value-item">
+                <strong>{{ $value }}</strong>
+              </div>
+            @empty
+              <p class="values-empty">Core values have not been set yet.</p>
+            @endforelse
           </div>
         </div>
       </div>

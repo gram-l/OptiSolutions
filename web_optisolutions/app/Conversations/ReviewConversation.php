@@ -12,6 +12,8 @@ use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
 use App\Conversations\Concerns\HandlesRateLimit;
 use App\Services\SentimentAnalysisService;
+use App\Services\NotificationService;
+use App\Models\Notification;
 
 class ReviewConversation extends Conversation
 {
@@ -116,6 +118,12 @@ class ReviewConversation extends Conversation
                 'star_rating'   => $this->rating,
                 'submitted_at'  => now(),
             ]);
+//notification
+        try {
+            NotificationService::newFeedback($this->patientName ?: 'A patient', $feedback->feedback_id);
+        } catch (\Throwable $notifyError) {
+            \Illuminate\Support\Facades\Log::error('Failed to create feedback notification: ' . $notifyError->getMessage());
+        }    
 
             if (!empty($text)) {
                 $result = app(SentimentAnalysisService::class)->analyze($text);

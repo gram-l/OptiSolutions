@@ -10,11 +10,12 @@ use Illuminate\Support\Facades\DB;
 use App\Models\admin_models\Complaint;
 use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
+use App\Conversations\Concerns\HandlesRateLimit;
 use App\Services\SentimentAnalysisService;
 
 class ComplaintConversation extends Conversation
 {
-    use HandlesGlobalCommands, HandlesOffTopic;
+    use HandlesGlobalCommands, HandlesOffTopic, HandlesRateLimit;
 
     protected $patientId;
     protected $patientName;
@@ -52,6 +53,12 @@ class ComplaintConversation extends Conversation
     // Save the complaint and notify the patient.
     protected function submitComplaint($text)
     {
+        if ($this->tooManySubmissions('complaint')) {
+            $this->say($this->submissionCooldownMessage());
+            $this->backToMainMenu();
+            return;
+        }
+
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
                 'user_id'      => 1,
@@ -79,7 +86,7 @@ class ComplaintConversation extends Conversation
     // Show the main menu and route the chosen action.
     protected function backToMainMenu()
     {
-        $question = Question::create('Is there anything else I can help you with?')
+        $question = Question::create('')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),

@@ -465,10 +465,14 @@ class AppointmentConversation extends Conversation
         });
     }
 
-    // Shows the main menu and routes the chosen action.
-    protected function sendMainMenu()
+    // Shows the main menu and routes the chosen action. Pass
+    // $showGreeting = false to re-show just the buttons without
+    // repeating the "Hello! Welcome..." greeting bubble — used when
+    // the menu is being re-displayed right after General Information
+    // was already answered, so the greeting doesn't show up twice.
+    protected function sendMainMenu(bool $showGreeting = true)
     {
-        $question = Question::create('Hello! Welcome to PolyClinic Lipa. How can I help you today?')
+        $question = Question::create($showGreeting ? 'Hello! Welcome to PolyClinic Lipa. How can I help you today?' : '')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),
@@ -493,7 +497,7 @@ class AppointmentConversation extends Conversation
                 $this->askName();
             } elseif ($choice === 'general information') {
                 $this->sayLogged(ClinicInfoService::infoCardMessage());
-                $this->sendMainMenu();
+                $this->sendMainMenu(false);
             } elseif ($choice === 'review') {
                 $this->bot->startConversation(
                     new ReviewConversation($patientId, trim("{$this->fname} {$this->lname}"))
@@ -520,6 +524,11 @@ class AppointmentConversation extends Conversation
         $words = array_filter(preg_split('/\s+/', $trimmed));
         if (count($words) < 2) return "Please enter your full name";
         foreach ($words as $w) {
+            // Allow a single-letter middle initial, with or without a trailing
+            // period (e.g. "D" or "D."), so names like "Juan D. Cruz" pass.
+            if (preg_match("/^[A-Za-zÀ-ÖØ-öø-ÿ]\.?$/u", $w)) {
+                continue;
+            }
             if (strlen(preg_replace("/['.]/", '', $w)) < 2)
                 return "Each part of your name must be at least 2 characters.";
         }
@@ -799,6 +808,8 @@ class AppointmentConversation extends Conversation
 
         if ($doctors->isEmpty()) {
             $this->sayLogged("We currently don't have a specialist for {$this->service}. Returning to main menu.");
+            $this->resetState();
+            $this->sendMainMenu();
             return;
         }
 
@@ -1092,6 +1103,7 @@ class AppointmentConversation extends Conversation
                 $this->sendMainMenu();
             } elseif ($choice === 'post_general_information') {
                 $this->sayLogged(ClinicInfoService::infoCardMessage());
+                $this->askPostAppointment();
             } elseif ($choice === 'review') {
                 $this->bot->startConversation(new ReviewConversation($patientId, "{$this->fname} {$this->lname}"));
             } elseif ($choice === 'complaint') {

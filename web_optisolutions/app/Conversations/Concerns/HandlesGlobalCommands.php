@@ -9,17 +9,15 @@ use App\Conversations\ReviewConversation;
 use App\Conversations\ComplaintConversation;
 use Closure;
 
-/**
- * Shared "global command" handling for conversations that don't need to
- * preserve multi-step, in-progress state the way AppointmentConversation
- * does (Complaint, Review, Inquiry). Typing/clicking any of these values
- * at ANY step of these conversations immediately switches conversations
- * (or, if you're already in the target conversation, just resumes the
- * current step instead of restarting it).
- *
- * AppointmentConversation keeps its own version of this because it needs
- * to stash/resume schedule-visit progress and log to a transcript.
- */
+// Shared "global command" handling for conversations that don't need to
+// preserve multi-step, in-progress state the way AppointmentConversation
+// does (Complaint, Review, Inquiry). Typing/clicking any of these values
+// at any step of these conversations immediately switches conversations
+// (or, if you're already in the target conversation, just resumes the
+// current step instead of restarting it).
+//
+// AppointmentConversation keeps its own version of this because it needs
+// to stash/resume schedule-visit progress and log to a transcript.
 trait HandlesGlobalCommands
 {
     protected function normalizeCommand(Answer $answer): string
@@ -38,12 +36,9 @@ trait HandlesGlobalCommands
         ], true);
     }
 
-    /**
-     * @param Answer  $answer
-     * @param Closure $resumeCurrentStep Re-shows the current step (used
-     *                after a "general information" side-trip, or when the
-     *                command targets the conversation we're already in).
-     */
+    // $answer: the incoming global command.
+    // $resumeCurrentStep: re-shows the current step, used when the
+    // command targets the conversation we're already in.
     protected function handleGlobalCommand(Answer $answer, Closure $resumeCurrentStep)
     {
         $cmd = $this->normalizeCommand($answer);
@@ -54,6 +49,13 @@ trait HandlesGlobalCommands
         }
 
         if ($cmd === 'general information') {
+            // Show the info, then re-show whatever step we were on so
+            // the buttons don't vanish. When this fires from the
+            // post-completion main menu (backToMainMenu()), that step
+            // IS the 4-button menu, so it comes right back. Mid-flow
+            // (e.g. while typing a complaint), it re-asks that same
+            // question instead — a side-trip to general info doesn't
+            // wipe out the flow that was in progress.
             $this->say(ClinicInfoService::infoCardMessage());
             $resumeCurrentStep();
             return;

@@ -18,6 +18,10 @@ class LoginController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
             $user = Auth::user();
+
+            // Record accurate last login timestamp
+            $user->update(['last_login_at' => now()]);
+
             return redirect($user->dashboardRoute());
         }
 

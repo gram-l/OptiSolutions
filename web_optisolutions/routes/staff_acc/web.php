@@ -12,6 +12,8 @@ Route::middleware(['auth', 'staff'])->group(function () {
 
     Route::post('/staff/profile/photo', [StaffController::class, 'updatePhoto'])->name('staff.profile.photo');
     Route::put('/staff/profile/password', [StaffController::class, 'updatePassword'])->name('staff.profile.password');
+    Route::post('/staff/profile/session', [StaffController::class, 'updateSession'])
+    ->name('staff.profile.session');
     
     // DASHBOARD
     Route::get('/staff/dashboard', [StaffController::class, 'dashboard'])->name('staff.dashboard');
@@ -41,6 +43,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
 
     // PATIENTS
     Route::get('/staff/patients', [PatientController::class, 'index'])->name('staff.patients');
+    Route::get('/staff/patients/export', [PatientController::class, 'export'])->name('staff.patients.export');
     Route::get('/staff/patients/{id}', [PatientController::class, 'show'])->name('staff.patients.show');
     Route::get('/staff/patients/{id}/edit', [PatientController::class, 'edit'])->name('staff.patients.edit');
     Route::put('/staff/patients/{id}', [PatientController::class, 'update'])->name('staff.patients.update');

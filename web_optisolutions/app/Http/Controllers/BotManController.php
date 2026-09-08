@@ -14,7 +14,6 @@ use App\Services\ClinicInfoService;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
-use App\Models\Staff\AppNotification;
 use App\Middleware\CaptureReplyMiddleware;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -24,13 +23,39 @@ class BotManController extends Controller
 {
     protected bool $isUnhandledInquiry = false;
 
+    // All button values used anywhere in the bot. These should never be
+    // treated as an inquiry and forwarded to Admin/Staff.
     protected const IGNORED_INQUIRY_TEXTS = [
+        // Main menu
         'schedule visit',
         'general information',
         'complaint', 'submit complaint',
         'review', 'submit review/rating',
         'menu',
+        'cancel',
         "no, i'm all set",
+
+        // Schedule visit: "continue / start over / cancel" prompt
+        'continue schedule visit', 'continue_schedule',
+        'start over', 'restart_schedule',
+        'cancel_schedule',
+
+        // Schedule visit: confirm suggested date & time
+        'yes, confirm', 'confirm_yes',
+        'suggest alternative', 'confirm_no',
+
+        // Schedule visit: "email me the transcript?" prompt
+        'yes, email it to me', 'yes_email',
+        'no, skip', 'no_email',
+
+        // Post-appointment menu
+        'post_schedule_visit', 'post_general_information',
+
+        // Submit Review/Rating: star buttons
+        '1', '2', '3', '4', '5',
+
+        // Standalone inquiry: category buttons
+        'billing', 'medical', 'appointment', 'general',
     ];
 
     public function handle(Request $request)
@@ -156,6 +181,21 @@ class BotManController extends Controller
             return;
         }
 
+        // Plain greeting, e.g. "Hi", "Hello", "Kumusta".
+        if (ClinicInfoService::looksLikeGreeting($text)) {
+            Log::info('FALLBACK answered as greeting: "' . $text . '"');
+            $bot->reply(ClinicInfoService::greetingReply());
+            $this->sendGreeting($bot, false);
+            return;
+        }
+
+        // Patient asking permission to ask, e.g. "Pwede mag tanong?".
+        if (ClinicInfoService::looksLikeAskingPermission($text)) {
+            Log::info('FALLBACK answered as asking-permission: "' . $text . '"');
+            $bot->reply(ClinicInfoService::askingPermissionReply());
+            return;
+        }
+
         // Try to answer directly from clinic data first.
         $infoReply = ClinicInfoService::answerForText($text);
         if ($infoReply !== null) {
@@ -232,35 +272,6 @@ class BotManController extends Controller
             $openInquiry->save();
 
             return $openInquiry;
-            if ($openInquiry) {
-                InquiryReply::create([
-                    'inquiry_id' => $openInquiry->inquiry_id,
-                    'sender'     => 'Patient',
-                    'message'    => $userMessage,
-                    'is_staff'   => false,
-                ]);
-
-                $openInquiry->save();
-
-                // Notify staff that the patient replied again on an
-                // already-open inquiry, so it doesn't get missed.
-                $this->notifyStaffOfInquiry($openInquiry, 'New Inquiry Reply', 'A patient replied to an existing ' . strtolower($openInquiry->inquiry_type) . ' inquiry.');
-
-                return;
-            }
-
-            $inquiry = Inquiry::create([
-                'patient_id'      => $patientId,
-                'guest_name'      => $guestName,
-                'log_id'          => $log->log_id,
-                'conversation_id' => $conversationId !== '' ? $conversationId : null,
-                'inquiry_type'    => 'General',
-                'resolved_status' => 'Pending',
-                'created_at'      => now(),
-            ]);
-
-            $this->notifyStaffOfInquiry($inquiry, 'New Inquiry', 'A new ' . strtolower($inquiry->inquiry_type) . ' inquiry has been submitted.');
-
         } catch (\Throwable $e) {
             Log::error('Failed to record inquiry: ' . $e->getMessage());
             return null;
@@ -311,7 +322,7 @@ class BotManController extends Controller
 
     protected function sendGreeting($bot, bool $showGreeting = true)
     {
-        $question = Question::create($showGreeting ? 'Hello! Welcome to PolyClinic Lipa. How can I help you today?' : '')
+        $question = Question::create($showGreeting ? 'Welcome to PolyClinic Lipa. How can I help you today?' : '')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),

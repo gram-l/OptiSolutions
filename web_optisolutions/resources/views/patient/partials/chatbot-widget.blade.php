@@ -248,6 +248,11 @@ document.addEventListener('DOMContentLoaded', () => {
   attachmentPreviewRemove.addEventListener('click', clearAttachmentPreview);
 
   async function uploadAttachment(file, caption) {
+    // Same guard as sendMessage(): the input/send/attach controls stay
+    // disabled for the whole upload + typing-indicator window so the
+    // patient can't fire off more messages while we're still waiting
+    // on this one (avoids spamming the bot/admin/staff).
+    setSendingState(true);
     showTyping();
     try {
       const formData = new FormData();
@@ -268,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
       hideTyping();
 
       if (!res.ok || !data.success) {
-        addBubble(data.error || 'Something went wrong uploading the attachment. Please try again.', 'bot');
+        addErrorBubble(data.error || 'Something went wrong uploading the attachment. Please try again.');
         return;
       }
 
@@ -276,7 +281,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       hideTyping();
       console.error('Failed to upload attachment:', e);
-      addBubble('Something went wrong uploading the attachment. Please try again.', 'bot');
+      addErrorBubble('Something went wrong uploading the attachment. Please try again.');
+    } finally {
+      setSendingState(false);
     }
   }
 
@@ -358,6 +365,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return bubble;
   }
+
+  // Error bubble: same as addBubble() but with an inline "Refresh"
+  // action so the patient has an easy way to recover from a sudden
+  // error (dropped connection, server hiccup, failed upload) instead
+  // of being stuck. Not persisted to history — it's a transient
+  // notice, re-showing a stale "please refresh" bubble on reload
+  // would be confusing.
+  function addErrorBubble(text) {
+    const bubble = addBubble(text, 'bot', false);
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'msg-translate-btn';
+    refreshBtn.innerHTML = '<i class="fa-solid fa-arrow-rotate-right"></i> Refresh';
+    refreshBtn.style.marginTop = '6px';
+    refreshBtn.addEventListener('click', () => window.location.reload());
+
+    bubble.parentElement.appendChild(refreshBtn);
+    scrollToBottom();
+    return bubble;
+  }
+
+  // Auto-refresh once connectivity is back. If the patient's connection
+  // actually drops mid-chat, there's no reliable way to resume the
+  // in-flight request, so the simplest, least-confusing recovery is to
+  // reload the page as soon as the browser reports we're back online —
+  // the chat history itself is preserved via localStorage (session.history).
+  let wasOffline = false;
+  window.addEventListener('offline', () => {
+    wasOffline = true;
+    addErrorBubble("You've lost your internet connection. I'll refresh automatically once you're back online.");
+    setSendingState(true);
+  });
+  window.addEventListener('online', () => {
+    if (wasOffline) {
+      window.location.reload();
+    }
+  });
 
   // Star rating helpers
   function isRatingButtons(buttons) {
@@ -743,7 +788,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
-    bubble.textContent = '...';
+
+    const dotsWrap = document.createElement('div');
+    dotsWrap.className = 'typing-dots';
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dotsWrap.appendChild(dot);
+    }
+    bubble.appendChild(dotsWrap);
 
     messageWrap.appendChild(bubble);
     messagesEl.appendChild(messageWrap);
@@ -787,9 +840,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!res.ok) {
         if (res.status === 429) {
-          addBubble("You're sending messages a bit too quickly. Please wait a moment and try again.", 'bot');
+          addErrorBubble("You're sending messages a bit too quickly. Please wait a moment and try again.");
         } else {
-          addBubble('Something went wrong reaching the chatbot. Please try again.', 'bot');
+          addErrorBubble('Something went wrong reaching the chatbot. Please try again.');
         }
         return;
       }
@@ -838,7 +891,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       hideTyping();
       console.error('Chat error:', err);
-      addBubble('Unable to connect. Please check your internet connection and try again.', 'bot');
+      addErrorBubble('Unable to connect. Please check your internet connection and try again.');
     } finally {
       setSendingState(false);
     }

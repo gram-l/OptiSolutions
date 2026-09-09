@@ -204,8 +204,25 @@ class BotManController extends Controller
             return;
         }
 
+        // Once this conversation already has an open (not-yet-resolved)
+        // inquiry with Admin/Staff, every further unhandled message the
+        // patient types would otherwise re-trigger this same "forwarded
+        // to Admin/Staff" acknowledgment — annoying if they're typing
+        // several follow-up lines in a row while waiting for a reply.
+        // The message itself is still recorded into that same open
+        // inquiry's thread below (via recordInquiry/recordInquiryReply),
+        // so Admin/Staff still sees it — the patient just isn't shown
+        // the ack bubble more than once per open inquiry.
+        $conversationId = (string) $bot->getMessage()->getSender();
+        $hasOpenInquiry = $conversationId !== '' && Inquiry::where('conversation_id', $conversationId)
+            ->where('resolved_status', '!=', 'Resolved')
+            ->exists();
+
         $this->isUnhandledInquiry = true;
-        $this->sendInquiryAck($bot);
+
+        if (!$hasOpenInquiry) {
+            $this->sendInquiryAck($bot);
+        }
     }
 
     protected function logExchange(string $conversationId, string $userMessage, array $capturedReplies, $botman)

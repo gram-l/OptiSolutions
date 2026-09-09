@@ -121,6 +121,15 @@ class InquiryController extends Controller
             ->get();
 
         $updates = [];
+        // Every inquiry from this chat session that Admin/Staff has
+        // already marked "Resolved" — regardless of whether that came
+        // with one final reply or via a plain "Resolve" click with no
+        // extra message. The widget uses this (not just `updates`) to
+        // know when to bring the 4-option main menu back, since a
+        // resolve-with-no-message wouldn't otherwise produce anything
+        // new for the patient to see.
+        $resolvedInquiryIds = [];
+
         foreach ($inquiries as $inquiry) {
             foreach ($inquiry->replies->where('is_staff', true) as $reply) {
                 $updates[] = [
@@ -132,8 +141,15 @@ class InquiryController extends Controller
                     'status'    => $inquiry->resolved_status,
                 ];
             }
+
+            if ($inquiry->resolved_status === 'Resolved') {
+                $resolvedInquiryIds[] = $inquiry->inquiry_id;
+            }
         }
 
-        return response()->json(['updates' => $updates]);
+        return response()->json([
+            'updates'            => $updates,
+            'resolvedInquiryIds' => $resolvedInquiryIds,
+        ]);
     }
 }

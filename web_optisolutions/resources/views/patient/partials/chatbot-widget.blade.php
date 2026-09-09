@@ -202,10 +202,12 @@ document.addEventListener('DOMContentLoaded', () => {
         lastActivity: now,
         history: [],
         shownReplyIds: [],
+        shownResolvedIds: [],
       };
     }
 
     if (!saved.shownReplyIds) saved.shownReplyIds = [];
+    if (!saved.shownResolvedIds) saved.shownResolvedIds = [];
 
     return saved;
   }
@@ -924,19 +926,38 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  const FALLBACK_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
+  // Both variants of the "sent to Admin/Staff" placeholder — the plain
+  // text-message one and the attachment-upload one — need to disappear
+  // once a real Admin/Staff reply comes in, not just the first one.
+  const FALLBACK_TEXTS = new Set([
+    "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
+    "Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
+  ]);
   let shownReplyIds = new Set(session.shownReplyIds || []);
+  let shownResolvedIds = new Set(session.shownResolvedIds || []);
 
   function removeFallbackBubbles() {
     document.querySelectorAll('.chat-message.bot .chat-bubble').forEach(bubble => {
-      if (bubble.textContent === FALLBACK_TEXT) {
+      if (FALLBACK_TEXTS.has(bubble.textContent)) {
         bubble.closest('.chat-message').remove();
       }
     });
     session.history = session.history.filter(
-      item => !(item.kind === 'bubble' && item.text === FALLBACK_TEXT)
+      item => !(item.kind === 'bubble' && FALLBACK_TEXTS.has(item.text))
     );
     persistSession();
+  }
+
+  // The same 4-option main menu shown on a fresh session (see
+  // restoreConversation) — reused here so it can be brought back once
+  // Admin/Staff marks the patient's inquiry resolved.
+  function showMainMenu() {
+    addButtons([
+      { text: 'Schedule Visit', value: 'schedule visit' },
+      { text: 'General Information', value: 'general information' },
+      { text: 'Submit Review/Rating', value: 'submit review/rating' },
+      { text: 'Submit Complaint', value: 'submit complaint' },
+    ]);
   }
 
   async function pollForReplies() {
@@ -945,18 +966,36 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) return;
       const data = await res.json();
       const updates = data.updates || [];
+      const resolvedIds = data.resolvedInquiryIds || [];
 
       const newOnes = updates.filter(u => !shownReplyIds.has(u.replyId));
-      if (newOnes.length === 0) return;
+      const newlyResolved = resolvedIds.filter(id => !shownResolvedIds.has(id));
 
-      removeFallbackBubbles();
+      if (newOnes.length === 0 && newlyResolved.length === 0) return;
 
-      newOnes.forEach(u => {
-        addBubble(u.message, 'bot');
-        shownReplyIds.add(u.replyId);
-      });
+      if (newOnes.length > 0) {
+        removeFallbackBubbles();
 
-      session.shownReplyIds = Array.from(shownReplyIds);
+        newOnes.forEach(u => {
+          addBubble(u.message, 'bot');
+          shownReplyIds.add(u.replyId);
+        });
+
+        session.shownReplyIds = Array.from(shownReplyIds);
+      }
+
+      // Once Admin/Staff has resolved the inquiry — whether that came
+      // with one last reply or a plain "Resolve" click — hand the
+      // patient back to the main menu automatically instead of leaving
+      // them stuck with nothing to tap.
+      if (newlyResolved.length > 0) {
+        newlyResolved.forEach(id => shownResolvedIds.add(id));
+        session.shownResolvedIds = Array.from(shownResolvedIds);
+
+        addBubble("Your inquiry has been resolved. Is there anything else I can help you with?", 'bot');
+        showMainMenu();
+      }
+
       persistSession();
     } catch (err) {
       console.error('Poll error:', err);

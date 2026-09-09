@@ -49,6 +49,24 @@
             <div style="flex: 1; padding: 0.5rem 0; max-height: 500px; overflow-y: auto; min-height: 350px;">
 
             
+                @php
+                    // Same root cause as the Admin chatbot-inquiries view:
+                    // BotManController::recordInquiryReply() logs a brand-new
+                    // inquiry's first message both into chatbot_logs (what
+                    // $inquiry->log is) and into inquiry_replies (as a
+                    // "Patient" reply), so it would otherwise render twice
+                    // here. Skip the standalone log bubble when the first
+                    // reply is that same Patient message; inquiries from the
+                    // standalone "Submit Inquiry" flow (no matching reply)
+                    // are unaffected and still show the log bubble below.
+                    $firstReply = $inquiry->replies->first();
+                    $logDuplicatedByFirstReply = $inquiry->log
+                        && $firstReply
+                        && !$firstReply->is_staff
+                        && trim((string) $firstReply->message) === trim((string) ($inquiry->log->user_message ?? ''));
+                @endphp
+
+                @unless($logDuplicatedByFirstReply)
                 <div style="display: flex; justify-content: flex-start; margin-bottom: 1rem;">
                     <div style="background: var(--light-gray); padding: 0.8rem 1.5rem; border-radius: 18px; max-width: 80%;">
                         <strong style="color: var(--text-dark);">Patient</strong>
@@ -60,6 +78,7 @@
                         </small>
                     </div>
                 </div>
+                @endunless
 
                 <!-- Full thread: every patient message/attachment and every Staff/Admin reply, in order -->
                 @foreach($inquiry->replies as $reply)

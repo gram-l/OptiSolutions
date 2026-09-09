@@ -97,7 +97,27 @@ class ChatbotInquiryController extends Controller
 
     $conversation = [];
 
-    if ($log) {
+    $replies = $inquiry->replies;
+    $firstReply = $replies->first();
+
+    // `BotManController::recordInquiryReply()` logs every unhandled /
+    // off-topic patient message twice: once into `chatbot_logs`
+    // (what `$inquiry->log` points to) and once into `inquiry_replies`
+    // (sender "Patient") so it shows up in the same thread as
+    // Admin/Staff's replies. For a brand-new inquiry those two records
+    // hold the exact same text, which duplicated the very first bubble
+    // in this view. If the first reply is a Patient message identical
+    // to the log's text, it's that duplicate — skip the log-only entry
+    // and let the (richer, attachment-aware) reply entry represent it
+    // instead. Inquiries created via the standalone "Submit Inquiry"
+    // flow have no matching reply at all, so they're untouched and
+    // still fall back to the log entry below.
+    $logDuplicatedByFirstReply = $log
+        && $firstReply
+        && !$firstReply->is_staff
+        && trim((string) $firstReply->message) === trim((string) ($log->user_message ?? ''));
+
+    if ($log && !$logDuplicatedByFirstReply) {
         $conversation[] = [
             'sender'      => 'patient',
             'senderLabel' => 'Patient',
@@ -106,7 +126,7 @@ class ChatbotInquiryController extends Controller
         ];
     }
 
-    foreach ($inquiry->replies as $reply) {
+    foreach ($replies as $reply) {
         $conversation[] = [
             'sender'         => $reply->is_staff ? 'bot' : 'patient',
             'senderLabel'    => $reply->sender,

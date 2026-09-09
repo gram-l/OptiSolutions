@@ -5,6 +5,7 @@ namespace App\Http\Controllers\admin_acc;
 use App\Http\Controllers\Controller;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
+use App\Services\TypingStatusService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -53,6 +54,13 @@ class ChatbotInquiryController extends Controller
         }
         $inquiry->save();
 
+        // The actual reply just landed, so the patient's "..." indicator
+        // (driven by the typing flag below) should disappear immediately
+        // rather than lingering until its TTL expires.
+        if ($inquiry->conversation_id) {
+            TypingStatusService::setTyping('staff', $inquiry->conversation_id, false);
+        }
+
         return response()->json([
             'message' => 'Reply sent!',
             'time'    => $reply->created_at->format('g:i A'),
@@ -60,11 +68,34 @@ class ChatbotInquiryController extends Controller
         ]);
     }
 
+    /**
+     * Heartbeat hit from the reply input's keystrokes/blur in
+     * chatbot_logs.blade.php. Lets the patient-facing widget show a real
+     * "Admin is typing…" indicator instead of a fake one tied to the
+     * bot's own (instant) responses.
+     */
+    public function typing(Request $request, $id)
+    {
+        $request->validate(['typing' => 'required|boolean']);
+
+        $inquiry = Inquiry::findOrFail($id);
+
+        if ($inquiry->conversation_id) {
+            TypingStatusService::setTyping('staff', $inquiry->conversation_id, $request->boolean('typing'));
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     public function resolve($id)
     {
         $inquiry = Inquiry::findOrFail($id);
         $inquiry->resolved_status = 'Resolved';
         $inquiry->save();
+
+        if ($inquiry->conversation_id) {
+            TypingStatusService::setTyping('staff', $inquiry->conversation_id, false);
+        }
 
         return response()->json(['message' => 'Inquiry resolved!']);
     }

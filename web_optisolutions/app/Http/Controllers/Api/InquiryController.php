@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
+use App\Services\TypingStatusService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -101,6 +102,10 @@ class InquiryController extends Controller
         }
         $inquiry->save();
 
+        if ($inquiry->conversation_id) {
+            TypingStatusService::setTyping('staff', $inquiry->conversation_id, false);
+        }
+
         return response()->json($reply->toApiArray());
     }
 
@@ -151,9 +156,18 @@ class InquiryController extends Controller
             }
         }
 
+        // Real "is typing" presence for Admin/Staff — set by
+        // ChatbotInquiryController@typing / Staff\InquiryController@typing
+        // whenever a human is actively composing a reply for this chat
+        // session. This is the *only* thing that should make the widget's
+        // "..." dots appear — the bot's own replies are computed and
+        // returned synchronously, so they never need a fake typing delay.
+        $staffTyping = TypingStatusService::isTyping('staff', $conversationId);
+
         return response()->json([
             'updates'            => $updates,
             'resolvedInquiryIds' => $resolvedInquiryIds,
+            'staffTyping'        => $staffTyping,
         ]);
     }
 }

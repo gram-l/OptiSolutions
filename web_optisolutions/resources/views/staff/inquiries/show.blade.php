@@ -126,10 +126,10 @@
                     ✓ This inquiry has been marked as resolved. You can still reply if needed.
                 </p>
                 @endif
-                <form method="POST" action="{{ route('staff.inquiries.reply', $inquiry->inquiry_id) }}">
+                <form method="POST" action="{{ route('staff.inquiries.reply', $inquiry->inquiry_id) }}" id="staffReplyForm">
                     @csrf
                     <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" name="message" placeholder="Type your response..." value="{{ $inquiry->inquiry_reply }}" style="flex: 1; padding: 0.8rem 1rem; border: 1px solid var(--light-gray); border-radius: 25px; outline: none; font-family: 'Poppins', sans-serif; font-size: 1rem;" required>
+                        <input type="text" name="message" id="staffReplyInput" placeholder="Type your response..." value="{{ $inquiry->inquiry_reply }}" style="flex: 1; padding: 0.8rem 1rem; border: 1px solid var(--light-gray); border-radius: 25px; outline: none; font-family: 'Poppins', sans-serif; font-size: 1rem;" required>
                         <button type="submit" class="btn-sm btn-primary" style="padding: 0.8rem 2rem; border-radius: 25px; font-size: 1rem;">Send Reply</button>
                     </div>
                 </form>
@@ -137,4 +137,73 @@
         </div>
     </div>
 </div>
+
+<script>
+    // --- Typing presence --------------------------------------------------
+    // Tells the patient-facing widget "a Staff member is actually typing a
+    // reply right now" (via TypingStatusService on the backend), instead of
+    // a fake indicator tied to the bot's own instant responses. The flag
+    // has a short server-side TTL, so it's re-sent every few seconds while
+    // the staff member keeps typing, and cleared on pause/submit/unload.
+    (function () {
+        const input = document.getElementById('staffReplyInput');
+        const form = document.getElementById('staffReplyForm');
+        if (!input || !form) return;
+
+        const typingUrl = "{{ route('staff.inquiries.typing', $inquiry->inquiry_id) }}";
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+            || document.querySelector('input[name="_token"]')?.value;
+
+        let heartbeat = null;
+        let idleTimer = null;
+        let isActive = false;
+
+        function postTyping(isTyping, useBeacon = false) {
+            const body = JSON.stringify({ typing: isTyping });
+            if (useBeacon && navigator.sendBeacon) {
+                // Fires reliably even as the page is unloading (form submit
+                // navigates away), unlike a regular fetch which can get cut off.
+                navigator.sendBeacon(
+                    typingUrl,
+                    new Blob([body], { type: 'application/json' })
+                );
+                return;
+            }
+            fetch(typingUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body,
+            }).catch(() => {}); // best-effort; a missed heartbeat just lets the TTL expire
+        }
+
+        function stopHeartbeat(useBeacon = false) {
+            if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
+            if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+            if (isActive) {
+                isActive = false;
+                postTyping(false, useBeacon);
+            }
+        }
+
+        input.addEventListener('input', () => {
+            if (!isActive) {
+                isActive = true;
+                postTyping(true);
+                heartbeat = setInterval(() => postTyping(true), 3000);
+            }
+
+            // Stop signalling "typing" if staff pauses for a few seconds
+            // without sending — otherwise the dots would sit there forever.
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => stopHeartbeat(), 4000);
+        });
+
+        form.addEventListener('submit', () => stopHeartbeat(true));
+        window.addEventListener('pagehide', () => stopHeartbeat(true));
+    })();
+</script>
 @endsection

@@ -229,6 +229,10 @@
             const chat = chatLogs.find(c => c.id === chatId);
             if (!chat) return;
 
+            // Switching conversations — stop signalling "typing" on
+            // whichever chat we were previously composing a reply for.
+            if (typeof stopTypingHeartbeat === 'function') stopTypingHeartbeat();
+
             currentChatId = chatId;
 
             // Mark as read (locally — the actual "read" state is really
@@ -349,6 +353,11 @@
             const messageText = input.value.trim();
             if (!messageText || currentChatId === null) return;
 
+            // The reply is going out now, so this client's own "typing"
+            // signal should stop (the actual message will clear the flag
+            // server-side too, but there's no reason to keep pinging it).
+            stopTypingHeartbeat();
+
             const chat = chatLogs.find(c => c.id === currentChatId);
             if (!chat) return;
 
@@ -460,6 +469,54 @@
             if (e.key === "Enter") {
                 sendReply();
             }
+        });
+
+        // --- Typing presence -------------------------------------------------
+        // Tells the patient-facing widget "an Admin is actually typing a
+        // reply right now" (via TypingStatusService on the backend), instead
+        // of the old fake "..." that used to appear for every bot response.
+        // The flag has a short server-side TTL, so we re-send it every few
+        // seconds while the admin keeps typing, and clear it immediately on
+        // pause/send/switching conversations.
+        let typingHeartbeat = null;
+        let typingIdleTimer = null;
+        let typingActiveFor = null; // chat id the "typing: true" ping was last sent for
+
+        function postTyping(chatId, isTyping) {
+            if (chatId === null) return;
+            fetch(`/admin_acc/chatbot_logs/${chatId}/typing`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ typing: isTyping }),
+            }).catch(() => {}); // best-effort; a missed heartbeat just lets the TTL expire
+        }
+
+        function stopTypingHeartbeat() {
+            if (typingHeartbeat) { clearInterval(typingHeartbeat); typingHeartbeat = null; }
+            if (typingIdleTimer) { clearTimeout(typingIdleTimer); typingIdleTimer = null; }
+            if (typingActiveFor !== null) {
+                postTyping(typingActiveFor, false);
+                typingActiveFor = null;
+            }
+        }
+
+        document.getElementById("replyInput").addEventListener("input", () => {
+            if (currentChatId === null) return;
+
+            if (typingActiveFor !== currentChatId) {
+                typingActiveFor = currentChatId;
+                postTyping(currentChatId, true);
+                typingHeartbeat = setInterval(() => postTyping(currentChatId, true), 3000);
+            }
+
+            // Stop signalling "typing" if the admin pauses for a few seconds
+            // without sending — otherwise the dots would sit there forever.
+            clearTimeout(typingIdleTimer);
+            typingIdleTimer = setTimeout(stopTypingHeartbeat, 4000);
         });
 
         // Resolve button click

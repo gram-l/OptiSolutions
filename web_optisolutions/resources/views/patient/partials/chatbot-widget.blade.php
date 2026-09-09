@@ -251,11 +251,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function uploadAttachment(file, caption) {
     // Same guard as sendMessage(): the input/send/attach controls stay
-    // disabled for the whole upload + typing-indicator window so the
-    // patient can't fire off more messages while we're still waiting
-    // on this one (avoids spamming the bot/admin/staff).
+    // disabled for the whole upload window so the patient can't fire
+    // off more messages while we're still waiting on this one (avoids
+    // spamming the bot/admin/staff). No typing dots here — this reply
+    // is generated immediately, it isn't a human composing a message.
     setSendingState(true);
-    showTyping();
     try {
       const formData = new FormData();
       formData.append('attachment', file);
@@ -272,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await res.json();
-      hideTyping();
 
       if (!res.ok || !data.success) {
         addErrorBubble(data.error || 'Something went wrong uploading the attachment. Please try again.');
@@ -281,7 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       addBubble("Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.", 'bot');
     } catch (e) {
-      hideTyping();
       console.error('Failed to upload attachment:', e);
       addErrorBubble('Something went wrong uploading the attachment. Please try again.');
     } finally {
@@ -782,8 +780,13 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
   }
 
-  // Typing indicator
+  // Typing indicator — reserved for a real Admin/Staff person actively
+  // composing a reply (see staffTyping in pollForReplies()). Guarded
+  // against duplicates since it's now called on every 3s poll tick
+  // while staffTyping stays true, not just once per request.
   function showTyping() {
+    if (document.getElementById('typingIndicator')) return;
+
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
     messageWrap.id = 'typingIndicator';
@@ -820,7 +823,10 @@ document.addEventListener('DOMContentLoaded', () => {
       addBubble(displayText ?? text, 'user');
     }
     input.value = '';
-    showTyping();
+    // No typing dots here — the bot computes and returns its reply in
+    // this same request/response cycle, there's no one "typing" it.
+    // The "..." indicator is reserved for a real Admin/Staff person
+    // composing a reply (see pollForReplies()/staffTyping below).
 
     try {
       const res = await fetch(botmanUrl, {
@@ -838,7 +844,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await res.json();
-      hideTyping();
 
       if (!res.ok) {
         if (res.status === 429) {
@@ -891,7 +896,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
     } catch (err) {
-      hideTyping();
       console.error('Chat error:', err);
       addErrorBubble('Unable to connect. Please check your internet connection and try again.');
     } finally {
@@ -979,6 +983,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const newOnes = updates.filter(u => !shownReplyIds.has(u.replyId));
       const newlyResolved = resolvedIds.filter(id => !shownResolvedIds.has(id));
 
+      // The only legitimate source of the "..." indicator: a real
+      // Admin/Staff person is actively composing a reply to this chat
+      // right now (see TypingStatusService on the backend). Once their
+      // reply actually lands (newOnes.length > 0, below) we drop it
+      // immediately rather than waiting on the flag to expire.
+      if (data.staffTyping && newOnes.length === 0) {
+        showTyping();
+      } else {
+        hideTyping();
+      }
+
       if (newOnes.length === 0 && newlyResolved.length === 0) return;
 
       if (newOnes.length > 0) {
@@ -1012,7 +1027,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  setInterval(pollForReplies, 5000);
+  // 3s (was 5s) so the real "Admin/Staff is typing…" indicator feels
+  // live rather than lagging noticeably behind their actual keystrokes.
+  setInterval(pollForReplies, 3000);
 
   // Global trigger: open chat + jump straight to Submit Feedback
   window.openChatbotAndSubmitFeedback = function () {

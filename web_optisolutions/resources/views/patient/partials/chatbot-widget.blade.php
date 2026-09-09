@@ -960,7 +960,15 @@ document.addEventListener('DOMContentLoaded', () => {
     ]);
   }
 
+  // Guards against overlapping polling requests — e.g. opening the
+  // panel (which calls pollForReplies immediately) right as the
+  // 5-second interval also fires would otherwise let two fetches race
+  // and both try to render the same "new" reply.
+  let isPolling = false;
+
   async function pollForReplies() {
+    if (isPolling) return;
+    isPolling = true;
     try {
       const res = await fetch(`/api/chat/${session.clientId}/updates`);
       if (!res.ok) return;
@@ -999,6 +1007,8 @@ document.addEventListener('DOMContentLoaded', () => {
       persistSession();
     } catch (err) {
       console.error('Poll error:', err);
+    } finally {
+      isPolling = false;
     }
   }
 

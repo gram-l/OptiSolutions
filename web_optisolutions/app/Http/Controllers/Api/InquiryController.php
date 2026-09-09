@@ -82,7 +82,11 @@ class InquiryController extends Controller
 
         $senderLabel = $user->user_role ?? 'Staff'; // "Admin" o "Staff"
 
-        $reply = InquiryReply::create([
+        // createUnlessDuplicate guards against a double-tap on "Send" in
+        // the Admin/Staff app (or a retried request) inserting the same
+        // reply twice — which would otherwise show up as two identical
+        // bubbles once the patient's widget polls for updates.
+        $reply = InquiryReply::createUnlessDuplicate([
             'inquiry_id' => $inquiry->inquiry_id,
             'user_id'    => $user->user_id ?? null,
             'sender'     => $senderLabel,

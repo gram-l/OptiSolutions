@@ -693,7 +693,7 @@ class AppointmentConversation extends Conversation
             return;
         }
 
-        $this->sayLogged("Before we begin: the information you provide (name, contact number, date of birth, and email) is kept confidential and will only be used for record-keeping and to manage your visit at PolyClinic Lipa.");
+        $this->sayLogged("🔒 **Reminder**\nThe information you provide (name, contact number, date of birth, and email) is kept confidential and will only be used for record-keeping and to manage your visit at PolyClinic Lipa.");
 
         $this->askName();
     }

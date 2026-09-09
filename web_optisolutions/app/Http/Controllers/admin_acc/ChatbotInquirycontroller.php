@@ -33,7 +33,11 @@ class ChatbotInquiryController extends Controller
 
         $inquiry = Inquiry::findOrFail($id);
 
-        $reply = InquiryReply::create([
+        // createUnlessDuplicate guards against a double-click on "Send" (or
+        // a slow request retried) inserting the same reply twice — which
+        // would otherwise show up as two identical bubbles on the
+        // patient's side once the widget polls for updates.
+        $reply = InquiryReply::createUnlessDuplicate([
             'inquiry_id' => $inquiry->inquiry_id,
             'user_id'    => $request->user()->user_id ?? null,
             'sender'     => 'Admin',

@@ -12,6 +12,7 @@ use App\Conversations\ComplaintConversation;
 use App\Conversations\ReviewConversation;
 use App\Services\ClinicInfoService;
 use App\Models\ChatbotLog;
+use App\Models\ChatbotCommand;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
 use App\Models\Staff\AppNotification;
@@ -32,6 +33,15 @@ class BotManController extends Controller
         "no, i'm all set",
     ];
 
+    /**
+     * Admin-managed quick-reply commands (Chatbot Commands admin page),
+     * keyed by normalized trigger_value. Loaded once per request in
+     * handle() so hears()/fallback matching don't hit the DB repeatedly.
+     *
+     * @var \Illuminate\Support\Collection<string, ChatbotCommand>
+     */
+    protected $dynamicCommands;
+
     public function handle(Request $request)
     {
         if ($request->isJson()) {
@@ -49,6 +59,9 @@ class BotManController extends Controller
 
         CaptureReplyMiddleware::reset();
         $this->isUnhandledInquiry = false;
+        $this->dynamicCommands = ChatbotCommand::active()
+            ->get()
+            ->keyBy(fn (ChatbotCommand $c) => $c->trigger_value);
 
         try {
             DriverManager::loadDriver(WebDriver::class);
@@ -92,6 +105,16 @@ class BotManController extends Controller
                 Log::info('MATCHED: menu');
                 $this->sendGreeting($bot);
             });
+
+            // Register one hears() per admin-managed command so button
+            // clicks (which send the trigger_value verbatim) match
+            // directly, same as the built-in commands above.
+            foreach ($this->dynamicCommands as $trigger => $command) {
+                $botman->hears(preg_quote($trigger, '/'), function ($bot) use ($command) {
+                    Log::info('MATCHED: dynamic command "' . $command->trigger_value . '"');
+                    $bot->reply($command->reply_text);
+                });
+            }
 
             $botman->fallback(function ($bot) {
                 Log::info('FALLBACK - Received text: "' . $bot->getMessage()->getText() . '"');
@@ -142,8 +165,9 @@ class BotManController extends Controller
     protected function handleFallback($bot)
     {
         $text = trim($bot->getMessage()->getText());
+        $normalized = mb_strtolower($text);
 
-        if (in_array(mb_strtolower($text), self::IGNORED_INQUIRY_TEXTS, true)) {
+        if (in_array($normalized, self::IGNORED_INQUIRY_TEXTS, true)) {
             Log::info('FALLBACK ignored (known command text): "' . $text . '"');
             return;
         }
@@ -152,6 +176,28 @@ class BotManController extends Controller
         if (ClinicInfoService::looksLikeAcknowledgment($text)) {
             Log::info('FALLBACK answered as acknowledgment: "' . $text . '"');
             $bot->reply(ClinicInfoService::acknowledgmentReply());
+            return;
+        }
+
+        // Admin-managed commands typed as free text rather than
+        // clicked as a button — exact trigger match first, then a
+        // loose "did they type something close to a trigger/label"
+        // match so e.g. "do you accept insurance?" still hits the
+        // "insurance" command without needing an exact phrase.
+        if ($this->dynamicCommands->has($normalized)) {
+            Log::info('FALLBACK answered from dynamic command (exact): "' . $text . '"');
+            $bot->reply($this->dynamicCommands->get($normalized)->reply_text);
+            return;
+        }
+
+        $looseMatch = $this->dynamicCommands->first(function (ChatbotCommand $command) use ($normalized) {
+            return str_contains($normalized, $command->trigger_value)
+                || str_contains($normalized, mb_strtolower($command->label));
+        });
+
+        if ($looseMatch) {
+            Log::info('FALLBACK answered from dynamic command (loose): "' . $text . '"');
+            $bot->reply($looseMatch->reply_text);
             return;
         }
 
@@ -240,13 +286,34 @@ class BotManController extends Controller
     {
         $question = Question::create($showGreeting ? 'Hello! Welcome to PolyClinic Lipa. How can I help you today?' : '')
             ->fallback('Please choose an option from the buttons above.')
-            ->addButtons([
-                Button::create('Schedule Visit')->value('schedule visit'),
-                Button::create('General Information')->value('general information'),
-                Button::create('Submit Review/Rating')->value('submit review/rating'),
-                Button::create('Submit Complaint')->value('submit complaint'),
-            ]);
+            ->addButtons($this->buildMenuButtons());
         $bot->reply($question);
+    }
+
+    /**
+     * Core 4 flow buttons, plus any active admin-managed commands
+     * flagged show_in_menu, in sort_order.
+     *
+     * @return Button[]
+     */
+    protected function buildMenuButtons(): array
+    {
+        $buttons = [
+            Button::create('Schedule Visit')->value('schedule visit'),
+            Button::create('General Information')->value('general information'),
+            Button::create('Submit Review/Rating')->value('submit review/rating'),
+            Button::create('Submit Complaint')->value('submit complaint'),
+        ];
+
+        $extra = ChatbotCommand::inMenu()
+            ->orderBy('sort_order')
+            ->get();
+
+        foreach ($extra as $command) {
+            $buttons[] = Button::create($command->label)->value($command->trigger_value);
+        }
+
+        return $buttons;
     }
 
     protected function sendInquiryAck($bot)

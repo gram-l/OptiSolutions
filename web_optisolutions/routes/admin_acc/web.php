@@ -19,6 +19,7 @@ use App\Http\Controllers\admin_acc\VisitController;
 use App\Http\Controllers\admin_acc\PatientListController;
 use App\Http\Controllers\admin_acc\NotificationController;
 use App\Http\Controllers\admin_acc\FeebackController;
+use App\Http\Controllers\ChatbotCommandController;
 
 Route::get('/sample', function () {
     return view('sample');
@@ -171,3 +172,8 @@ Route::get('/admin_acc/notifications', [NotificationController::class, 'index'])
 Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
 Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 
+
+
+Route::resource('chatbot_commands', ChatbotCommandController::class)
+    ->names('admin_acc.chatbot_commands')
+    ->except(['show']);

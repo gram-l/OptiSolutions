@@ -60,7 +60,7 @@
                             <th>In Menu?</th>
                             <th>Status</th>
                             <th>Order</th>
-                            <th>Actions</th>
+                            <th> </th>
                         </tr>
                     </thead>
                     <tbody>

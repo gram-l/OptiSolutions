@@ -139,7 +139,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin_acc/chatbot_logs', [ChatbotInquiryController::class, 'index'])->name('admin_acc.chatbot_logs');
     Route::post('/admin_acc/chatbot_logs/{id}/reply', [ChatbotInquiryController::class, 'reply'])->name('admin_acc.chatbot_logs.reply');
     Route::post('/admin_acc/chatbot_logs/{id}/resolve', [ChatbotInquiryController::class, 'resolve'])->name('admin_acc.chatbot_logs.resolve');
-
+    Route::post('/admin_acc/chatbot_logs/{id}/unresolve', [ChatbotInquiryController::class, 'unresolve'])->name('admin_acc.chatbot_logs.unresolve');
     //settings routes
      Route::get('/admin_acc/settings', function () {
         return view('admin_acc.partials.settings');

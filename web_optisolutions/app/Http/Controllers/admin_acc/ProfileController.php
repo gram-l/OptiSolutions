@@ -13,7 +13,12 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        $validated = $request->validate([
+        // Named error bag ('profile') and a scoped success key here —
+        // both `session('success')` and the default $errors bag are
+        // global to the request, so every other page's form (e.g. System
+        // Settings' "Save Hours") was also tripping the header's profile
+        // modal open on its own success/validation messages.
+        $validated = $request->validateWithBag('profile', [
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|max:255|unique:users,email,' . $user->user_id . ',user_id',
             'birthday' => 'nullable|date',
@@ -35,6 +40,6 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return redirect()->back()->with('success', 'Profile updated successfully.');
+        return redirect()->back()->with('profile_success', 'Profile updated successfully.');
     }
 }

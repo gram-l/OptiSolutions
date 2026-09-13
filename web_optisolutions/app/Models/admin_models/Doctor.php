@@ -17,6 +17,7 @@ class Doctor extends Model
         'doctor_name',
         'specialty',
         'status',
+        'available',
         'description',
         'schedule',
         'contact_number',

@@ -14,7 +14,10 @@
     
     <title>OptiSolutions - Chatbot Inquiries</title>
     <!-- Vite CSS -->
-    @vite(['resources/css/admin_css/chatbot_logs.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/feedback.css'
+    {{-- feedback.css intentionally NOT loaded here anymore: it redefines
+         .container/.empty-state/.search-box with different rules, and since
+         it was loaded last it silently overrode this page's own styles. --}}
+    @vite(['resources/css/admin_css/chatbot_logs.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'
     ])
 </head>
 <body>
@@ -59,6 +62,9 @@
                 <!-- Conversation Header (hidden by default) -->
                 <div id="conversationHeader" style="display: none;">
                     <div class="chat-conversation-header">
+                        <button class="back-to-list-btn" id="backToListBtn" type="button" aria-label="Back to conversation list">
+                            <i class="bi bi-arrow-left"></i>
+                        </button>
                         <div class="patient-details">
                             <h3 id="patientName">Maria Santos</h3>
                             <p id="patientInfo">ID: P-12345 • Ophthalmology</p>
@@ -234,6 +240,12 @@
             if (typeof stopTypingHeartbeat === 'function') stopTypingHeartbeat();
 
             currentChatId = chatId;
+
+            // On narrow/mobile layouts the list and conversation are two
+            // separate screens (not stacked panes) — opening a chat swaps
+            // to the conversation screen instead of pushing it below the
+            // whole (possibly very long) list.
+            document.getElementById("conversationArea").classList.add("mobile-active");
 
             // Mark as read (locally — the actual "read" state is really
             // just resolved_status !== 'Pending' server-side, updated once
@@ -521,6 +533,12 @@
 
         // Resolve button click
         document.getElementById("resolveBtn").addEventListener("click", resolveInquiry);
+
+        // Back button (mobile only) — return to the conversation list
+        // without losing the currently loaded conversation.
+        document.getElementById("backToListBtn").addEventListener("click", () => {
+            document.getElementById("conversationArea").classList.remove("mobile-active");
+        });
 
         // Initial render
         renderChatList("");

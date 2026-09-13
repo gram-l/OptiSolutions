@@ -987,6 +987,9 @@ body {
   .post-appt-btn { padding: 10px 16px; font-size: 14px; min-width: 130px; }
   .menu-btn { padding: 8px 14px; font-size: 14px; min-width: 100px; }
   .quick-reply-btn { padding: 8px 14px; font-size: 13px; }
+  /* 16px prevents iOS Safari from auto-zooming the page when the
+     patient taps into the chat field; anything smaller triggers it. */
+  .chat-input { font-size: 16px; }
 }
 
 @media (max-width: 480px) {

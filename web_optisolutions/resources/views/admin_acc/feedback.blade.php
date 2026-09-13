@@ -316,10 +316,10 @@
 
             tbody.innerHTML = rowsToShow.map(f => `
                 <tr>
-                    <td class="rating-stars">${renderStars(f.rating)}</td>
-                    <td class="feedback-comment">${escapeHtml(f.comment)}</td>
-                    <td>${sentimentTag(f.sentiment)}</td>
-                    <td>${formatDate(f.date)}</td>
+                    <td data-label="Rating" class="rating-stars">${renderStars(f.rating)}</td>
+                    <td data-label="Comment" class="feedback-comment">${escapeHtml(f.comment)}</td>
+                    <td data-label="Sentiment">${sentimentTag(f.sentiment)}</td>
+                    <td data-label="Date">${formatDate(f.date)}</td>
                 </tr>
             `).join('');
 
@@ -346,9 +346,9 @@
 
             tbody.innerHTML = rowsToShow.map(c => `
                 <tr>
-                    <td class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
-                    <td>${escapeHtml(c.category)}</td>
-                    <td>${formatDate(c.created_at)}</td>
+                    <td data-label="Complaint" class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
+                    <td data-label="Category">${escapeHtml(c.category)}</td>
+                    <td data-label="Date">${formatDate(c.created_at)}</td>
                 </tr>
             `).join('');
 

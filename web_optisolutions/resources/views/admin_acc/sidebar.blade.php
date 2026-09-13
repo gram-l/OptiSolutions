@@ -70,6 +70,8 @@
     </nav>
 </aside>
 
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
 <script>
     (function () {
         const sidebar = document.querySelector('.sidebar');
@@ -88,6 +90,36 @@
             sidebar.classList.toggle('collapsed');
             localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
             syncIcon();
+        });
+
+        // ── Mobile: hamburger-triggered slide-out drawer ──────────────
+        // Independent of the desktop collapse toggle above — on phones
+        // the sidebar is off-canvas by default (see sidebar.css) and
+        // slides in over the page instead of squeezing the layout.
+        const menuBtn = document.getElementById('mobileMenuBtn');
+        const overlay = document.getElementById('sidebarOverlay');
+
+        function openMobileSidebar() {
+            sidebar.classList.add('mobile-open');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileSidebar() {
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        menuBtn?.addEventListener('click', openMobileSidebar);
+        overlay?.addEventListener('click', closeMobileSidebar);
+
+        sidebar.querySelectorAll('.nav-item').forEach((item) => {
+            item.addEventListener('click', closeMobileSidebar);
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) closeMobileSidebar();
         });
     })();
 </script>

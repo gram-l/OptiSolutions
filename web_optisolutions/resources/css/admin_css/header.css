@@ -1,4 +1,15 @@
 /* ===== HEADER ===== */
+
+/* Global mobile safety net: any <img> without more specific sizing
+   (this file loads last on every admin page) can never exceed its
+   container's width, so a raw/unsized image — like a doctor profile
+   photo — can't spill across the screen and cover other controls.
+   More specific rules (e.g. .doctor-avatar img) still win normally. */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
 .header {
     background: #ffffff;
     padding: 0 2rem;
@@ -13,12 +24,40 @@
 }
 
 /* Logo */
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.mobile-menu-btn {
+    display: none;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: #062744;
+    font-size: 1.4rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+
+.mobile-menu-btn:hover {
+    background: #eef2f7;
+}
+
 .logo-section {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     cursor: pointer;
     text-decoration: none;
+    min-width: 0;
 }
 
 .logo-section img {
@@ -307,4 +346,42 @@
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
+}
+
+@media (max-width: 768px) {
+    /* Every page's own CSS has a `.header { flex-direction: column }`
+       rule meant for an older stacked-header design. header.css loads
+       last on every admin page, so this rule (equal specificity, later
+       in the cascade) wins and keeps the header as one row — logo +
+       hamburger on the left, bell + avatar on the right — instead of
+       wrapping onto two lines. */
+    .header {
+        flex-direction: row;
+        gap: 0.5rem;
+        padding: 0 1rem;
+    }
+    .header-controls {
+        gap: 0.35rem;
+    }
+    .mobile-menu-btn {
+        display: flex;
+    }
+    .logo-section h1 {
+        font-size: 1.05rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 0 1rem;
+    }
+    .logo-section h1 {
+        font-size: 1rem;
+    }
+    .dropdown {
+        min-width: 220px;
+    }
 }

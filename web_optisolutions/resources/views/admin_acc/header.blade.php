@@ -1,10 +1,16 @@
 <header class="header">
 
-    {{-- Logo --}}
-    <a class="logo-section" href="/admin_acc/dashboard">
-        <img src="{{ asset('images/polyclinic_logo.png') }}" alt="Polyclinic Logo">
-        <h1>Polyclinic Admin</h1>
-    </a>
+    <div class="header-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu">
+            <i class="bi bi-list"></i>
+        </button>
+
+        {{-- Logo --}}
+        <a class="logo-section" href="/admin_acc/dashboard">
+            <img src="{{ asset('images/polyclinic_logo.png') }}" alt="Polyclinic Logo">
+            <h1>Polyclinic Admin</h1>
+        </a>
+    </div>
 
     {{-- Right Controls --}}
     <div class="header-controls">

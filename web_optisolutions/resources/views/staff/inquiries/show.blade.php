@@ -11,7 +11,7 @@
         <p class="page-subtitle">View and respond to chatbot inquiries</p>
     </div>
 
-    <div class="inquiries-split">
+    <div class="inquiries-split inquiries-split--detail-open">
     
         @include('staff.inquiries.partials.conversations-list', [
             'inquiries' => $inquiries,
@@ -23,6 +23,9 @@
             <!-- Header -->
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--light-gray); padding-bottom: 1rem; margin-bottom: 1rem;">
                 <div>
+                    <a href="{{ route('staff.inquiries') }}" class="conv-back-link">
+                        <i class="bi bi-arrow-left"></i> Back to conversations
+                    </a>
                     <h3 style="color: var(--text-dark); margin: 0;">CHAT-{{ str_pad($inquiry->inquiry_id, 3, '0', STR_PAD_LEFT) }}</h3>
                     <small style="color: #7f8c8d;">
                         ID: {{ $inquiry->patient_id ?? 'N/A' }}

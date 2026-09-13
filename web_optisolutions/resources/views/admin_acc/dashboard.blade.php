@@ -173,8 +173,8 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Recent Activity -->
+<!--
+            
             <div class="activity-section">
                 <div class="activity-header">
                     <h3>Recent Activity</h3>
@@ -208,6 +208,7 @@
                     </div>
                 </div>
             </div>
+-->
 
         </main>
     </div>

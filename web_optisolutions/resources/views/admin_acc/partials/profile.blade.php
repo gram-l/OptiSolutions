@@ -8,8 +8,8 @@
 
     <div class="profile-modal-body">
 
-      @if (session('success'))
-        <div class="profile-alert-success">{{ session('success') }}</div>
+      @if (session('profile_success'))
+        <div class="profile-alert-success">{{ session('profile_success') }}</div>
       @endif
 
       <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data">
@@ -26,27 +26,27 @@
           <div class="profile-photo-input">
             <label>Profile Photo</label>
             <input type="file" name="photo" accept=".jpg,.jpeg,.png">
-            @error('photo') <div class="profile-field-error">{{ $message }}</div> @enderror
+            @error('photo', 'profile') <div class="profile-field-error">{{ $message }}</div> @enderror
           </div>
         </div>
 
         <div class="profile-field">
           <label>Name</label>
           <input type="text" name="name" value="{{ old('name', Auth::user()->name) }}">
-          @error('name') <div class="profile-field-error">{{ $message }}</div> @enderror
+          @error('name', 'profile') <div class="profile-field-error">{{ $message }}</div> @enderror
         </div>
 
         <div class="profile-field">
           <label>Email</label>
           <input type="email" name="email" value="{{ old('email', Auth::user()->email) }}">
-          @error('email') <div class="profile-field-error">{{ $message }}</div> @enderror
+          @error('email', 'profile') <div class="profile-field-error">{{ $message }}</div> @enderror
         </div>
 
         <div class="profile-field">
           <label>Birthday</label>
           <input type="date" name="birthday"
                  value="{{ old('birthday', Auth::user()->birthday ? \Carbon\Carbon::parse(Auth::user()->birthday)->format('Y-m-d') : '') }}">
-          @error('birthday') <div class="profile-field-error">{{ $message }}</div> @enderror
+          @error('birthday', 'profile') <div class="profile-field-error">{{ $message }}</div> @enderror
         </div>
 
         <button type="submit" class="profile-save-btn">Save Changes</button>
@@ -220,7 +220,7 @@
         }
     });
 
-    @if (session('success') || $errors->any())
+    @if (session('profile_success') || $errors->profile->any())
         openProfileModal();
     @endif
 </script>

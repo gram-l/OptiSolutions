@@ -80,16 +80,16 @@ class NotificationService
     }
 
     // Which notification types a given role is allowed to see.
-    // feedback/complaint are admin-only — staff has no Feedback page to
-    // send those clicks to, and shouldn't see them in the list either.
+    // Admin sees everything. Staff only acts on new chatbot inquiries
+    // and newly scheduled visits — feedback/complaint have no staff
+    // page to send those clicks to, and system notices are admin-only
+    // housekeeping, so staff doesn't need those either.
     public static function visibleTypesFor(?string $role): array
     {
-        $all = ['chat_inquiry', 'appointment', 'feedback', 'complaint', 'system'];
-
         if ($role === 'admin') {
-            return $all;
+            return ['chat_inquiry', 'appointment', 'feedback', 'complaint', 'system'];
         }
 
-        return array_values(array_diff($all, ['feedback', 'complaint']));
+        return ['chat_inquiry', 'appointment'];
     }
 }

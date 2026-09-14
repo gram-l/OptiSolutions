@@ -19,6 +19,7 @@ use App\Http\Controllers\admin_acc\VisitController;
 use App\Http\Controllers\admin_acc\PatientListController;
 use App\Http\Controllers\admin_acc\NotificationController;
 use App\Http\Controllers\admin_acc\FeebackController;
+use App\Http\Controllers\ChatbotCommandController;
 
 Route::get('/sample', function () {
     return view('sample');
@@ -138,7 +139,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin_acc/chatbot_logs', [ChatbotInquiryController::class, 'index'])->name('admin_acc.chatbot_logs');
     Route::post('/admin_acc/chatbot_logs/{id}/reply', [ChatbotInquiryController::class, 'reply'])->name('admin_acc.chatbot_logs.reply');
     Route::post('/admin_acc/chatbot_logs/{id}/resolve', [ChatbotInquiryController::class, 'resolve'])->name('admin_acc.chatbot_logs.resolve');
-
+    Route::post('/admin_acc/chatbot_logs/{id}/unresolve', [ChatbotInquiryController::class, 'unresolve'])->name('admin_acc.chatbot_logs.unresolve');
     //settings routes
      Route::get('/admin_acc/settings', function () {
         return view('admin_acc.partials.settings');
@@ -171,3 +172,8 @@ Route::get('/admin_acc/notifications', [NotificationController::class, 'index'])
 Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
 Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 
+
+
+Route::resource('chatbot_commands', ChatbotCommandController::class)
+    ->names('admin_acc.chatbot_commands')
+    ->except(['show']);

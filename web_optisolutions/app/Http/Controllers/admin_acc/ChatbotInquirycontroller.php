@@ -66,6 +66,21 @@ class ChatbotInquiryController extends Controller
     }
 
     /**
+     * Reopen a resolved Inquiry. Mirrors resolve() — reverts the status to
+     * 'In Progress' rather than 'Pending', since a resolved inquiry has
+     * already been engaged with (matches the same status reply() sets
+     * once a reply is sent to a previously-Pending inquiry).
+     */
+    public function unresolve($id)
+    {
+        $inquiry = Inquiry::findOrFail($id);
+        $inquiry->resolved_status = 'In Progress';
+        $inquiry->save();
+
+        return response()->json(['message' => 'Inquiry reopened!']);
+    }
+
+    /**
      * Ayusin ang isang Inquiry papunta sa shape na inaasahan ng JS sa
      * chatbot_logs.blade.php (dating `chatLogs` mock array).
      */

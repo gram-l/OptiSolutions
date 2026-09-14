@@ -117,10 +117,10 @@
         // instead of arbitrary red/orange/green.
         function getStatusMeta(chat) {
             if (chat.rawStatus === 'Resolved') {
-                return { color: '#7f8c8d', showDot: false, label: 'Resolved' };
+                return { color: 'var(--completed)', showDot: false, label: 'Resolved' };
             }
             if (chat.rawStatus === 'Pending') {
-                return { color: 'var(--primary-dark)', showDot: true, label: 'Pending' };
+                return { color: 'var(--pending)', showDot: true, label: 'Pending' };
             }
             return { color: 'var(--primary-main)', showDot: true, label: chat.rawStatus || 'In Progress' };
         }
@@ -221,7 +221,13 @@
         function updateActionVisibility(chat) {
             const isResolved = chat.rawStatus === 'Resolved';
             document.getElementById("replyArea").style.display = isResolved ? "none" : "flex";
-            document.getElementById("resolveBtn").style.display = isResolved ? "none" : "inline-flex";
+
+            const resolveBtn = document.getElementById("resolveBtn");
+            resolveBtn.style.display = "inline-flex";
+            resolveBtn.classList.toggle("is-resolved", isResolved);
+            resolveBtn.innerHTML = isResolved
+                ? `<i class="bi bi-arrow-counterclockwise"></i> Unresolve`
+                : `<i class="bi bi-check-circle"></i> Resolve`;
         }
 
         // Open a specific chat
@@ -247,7 +253,10 @@
             // the patient ID and department, since chat.name shows the
             // actual person's name instead of the INQ code.
             document.getElementById("patientName").innerText = chat.name;
-            document.getElementById("patientInfo").innerHTML = `${chat.inquiryCode} • ID: ${chat.patientId} • ${chat.department}`;
+            const departmentSuffix = (chat.department && chat.department.toLowerCase() !== 'general')
+                ? ` • ${chat.department}`
+                : '';
+            document.getElementById("patientInfo").innerHTML = `${chat.inquiryCode} • ID: ${chat.patientId}${departmentSuffix}`;
             const statusBadge = document.getElementById("statusBadge");
             statusBadge.className = `status-badge status-${chat.status}`;
             statusBadge.innerText = chat.status === "active" ? "In Progress" : chat.status === "pending" ? "Pending" : "Resolved";
@@ -262,7 +271,7 @@
             messagesArea.innerHTML = messages.map(msg => `
                 <div class="message">
                     <div class="message-avatar ${msg.sender === 'patient' ? 'patient' : ''}">
-                        ${msg.sender === 'patient' ? '👤' : '🧑‍💼'}
+                        <i class="fa-solid ${msg.sender === 'patient' ? 'fa-user' : 'fa-user-tie'}"></i>
                     </div>
                     <div class="message-content ${msg.sender === 'bot' ? 'bot' : ''}">
                         <div class="message-sender ${msg.sender === 'patient' ? 'patient' : ''}">
@@ -381,22 +390,29 @@
             }
         }
 
-        // Mark the current inquiry as resolved.
-        async function resolveInquiry() {
+        // Toggle the current inquiry between resolved and reopened.
+        // The resolve button no longer disappears once an inquiry is
+        // resolved — clicking it again reopens the inquiry instead.
+        async function toggleResolve() {
             if (currentChatId === null) return;
             const chat = chatLogs.find(c => c.id === currentChatId);
             if (!chat) return;
 
-            const confirmed = await showConfirm('Mark this inquiry as resolved?');
+            const isResolved = chat.rawStatus === 'Resolved';
+            const confirmed = await showConfirm(
+                isResolved ? 'Mark this inquiry as unresolved?' : 'Mark this inquiry as resolved?'
+            );
             if (!confirmed) return;
 
             const resolveBtn = document.getElementById("resolveBtn");
             resolveBtn.disabled = true;
-            const originalResolveText = resolveBtn.innerHTML;
-            resolveBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Resolving...`;
+            resolveBtn.innerHTML = isResolved
+                ? `<i class="bi bi-hourglass-split"></i> Reopening...`
+                : `<i class="bi bi-hourglass-split"></i> Resolving...`;
 
             try {
-                const res = await fetch(`/admin_acc/chatbot_logs/${currentChatId}/resolve`, {
+                const endpoint = `/admin_acc/chatbot_logs/${currentChatId}/${isResolved ? 'unresolve' : 'resolve'}`;
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': CSRF,
@@ -404,19 +420,20 @@
                     },
                 });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.message || 'Failed to resolve.');
+                if (!res.ok) throw new Error(data.message || 'Failed to update inquiry status.');
 
-                chat.rawStatus = 'Resolved';
-                chat.status = 'resolved';
+                chat.rawStatus = isResolved ? 'In Progress' : 'Resolved';
+                chat.status = isResolved ? 'active' : 'resolved';
                 chat.unread = false;
-                openChat(currentChatId);
-                renderChatList(document.getElementById("searchInput").value);
-                showToast('Inquiry marked as resolved.', 'success');
+                showToast(isResolved ? 'Inquiry reopened.' : 'Inquiry marked as resolved.', 'success');
             } catch (e) {
-                showToast(e.message || 'Failed to resolve inquiry.');
+                showToast(e.message || 'Failed to update inquiry status.');
             } finally {
                 resolveBtn.disabled = false;
-                resolveBtn.innerHTML = originalResolveText;
+                // Re-renders the button label/state from chat.rawStatus,
+                // whether the request succeeded or failed.
+                openChat(currentChatId);
+                renderChatList(document.getElementById("searchInput").value);
             }
         }
 
@@ -443,8 +460,8 @@
             }
         });
 
-        // Resolve button click
-        document.getElementById("resolveBtn").addEventListener("click", resolveInquiry);
+        // Resolve/Unresolve button click
+        document.getElementById("resolveBtn").addEventListener("click", toggleResolve);
 
         // Initial render
         renderChatList("");

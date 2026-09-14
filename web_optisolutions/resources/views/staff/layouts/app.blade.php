@@ -87,9 +87,8 @@
                 <button class="notif-tab active" data-filter="all" onclick="setNotifFilter('all')">
                     All <span class="notif-tab-count" id="notifCountAll" style="display:none;"></span>
                 </button>
-                <button class="notif-tab" data-filter="inquiry" onclick="setNotifFilter('inquiry')">Chatbot</button>
-                <button class="notif-tab" data-filter="schedule_visit" onclick="setNotifFilter('schedule_visit')">Appointments</button>
-                <button class="notif-tab" data-filter="system" onclick="setNotifFilter('system')">System</button>
+                <button class="notif-tab" data-filter="chat_inquiry" onclick="setNotifFilter('chat_inquiry')">Chatbot</button>
+                <button class="notif-tab" data-filter="appointment" onclick="setNotifFilter('appointment')">Scheduled Visit</button>
             </div>
 
             <div class="notif-panel-actions">
@@ -708,8 +707,8 @@
         const notifPrefDefaults = { appointments: true, inquiries: true, patients: true, email: false };
 
         const notifPrefKeyByType = {
-            schedule_visit: 'appointments',
-            inquiry: 'inquiries',
+            appointment: 'appointments',
+            chat_inquiry: 'inquiries',
             patient: 'patients',
         };
 
@@ -760,14 +759,14 @@
 
 
         const notifRoutes = {
-            inquiry: "{{ route('staff.inquiries.show', ':id') }}",
-            schedule_visit: "{{ route('staff.appointments') }}",
+            chat_inquiry: "{{ route('staff.inquiries.show', ':id') }}",
+            appointment: "{{ route('staff.appointments') }}",
         };
 
 
         const notifTypeLabels = {
-            inquiry: 'Chat inquiry',
-            schedule_visit: 'Appointment',
+            chat_inquiry: 'Chat inquiry',
+            appointment: 'Scheduled Visit',
             patient: 'Patient',
         };
 
@@ -777,7 +776,7 @@
 
 
         function notifCategory(type) {
-            return ['inquiry', 'schedule_visit'].includes(type) ? type : 'system';
+            return ['chat_inquiry', 'appointment'].includes(type) ? type : 'system';
         }
 
         function setNotifFilter(filter) {

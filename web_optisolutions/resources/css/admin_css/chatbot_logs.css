@@ -14,6 +14,10 @@
             --light-gray: #ECF0F1;
             --text-dark: #333333;
             --shadow: rgba(0, 0, 0, 0.1);
+            --pending: #f39c12;
+            --approved: #0E62AA;
+            --cancelled: #e74c3c;
+            --completed: #22b34d;
         }
 
         body {
@@ -110,7 +114,7 @@
         }
 
         .page-header {
-            margin-bottom: 2rem;
+            margin-bottom: 1px;
         }
 
         .page-header h2 {
@@ -509,7 +513,7 @@
             font-size: 0.85rem;
             font-weight: 600;
             color: var(--white);
-            background: linear-gradient(135deg, var(--primary-main), var(--primary-dark));
+            background: var(--primary-main);
             box-shadow: 0 2px 8px rgba(14, 98, 170, 0.3);
             cursor: pointer;
             transition: all 0.3s ease;
@@ -527,6 +531,17 @@
         .resolve-btn-modern:disabled {
             opacity: 0.7;
             cursor: not-allowed;
+        }
+
+        /* Shown once an inquiry is resolved — button stays clickable so it
+           can be used to reopen (unresolve) the inquiry. */
+        .resolve-btn-modern.is-resolved {
+            background: #7f8c8d;
+            box-shadow: 0 2px 8px rgba(127, 140, 141, 0.3);
+        }
+
+        .resolve-btn-modern.is-resolved:hover:not(:disabled) {
+            box-shadow: 0 4px 14px rgba(127, 140, 141, 0.4);
         }
 
         /* --- Custom confirm modal (replaces window.confirm) --- */

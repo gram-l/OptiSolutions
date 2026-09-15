@@ -104,8 +104,6 @@ Route::delete('/admin_acc/user_management/{id}',       [UserManagementController
 
 //google login route
 
-
-
 Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'googleLogin'])
     ->name('auth.google');
 
@@ -144,6 +142,15 @@ Route::middleware('auth')->group(function () {
         return view('admin_acc.partials.settings');
     });
 
+    // Settings > Security — password & session (Settings modal forms)
+    // NOTE: renamed to admin.profile.password / admin.profile.session
+    // to match what resources/views/admin_acc/partials/settings.blade.php expects.
+    Route::put('/admin_acc/profile/password', [ProfileController::class, 'updatePassword'])
+        ->name('admin.profile.password');
+
+    Route::put('/admin_acc/profile/session', [ProfileController::class, 'updateSession'])
+        ->name('admin.profile.session');
+
     });
 
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
@@ -165,9 +172,14 @@ Route::post('/admin_acc/patients', [PatientListController::class, 'store']);
 Route::put('/admin_acc/patients/{id}', [PatientListController::class, 'update']);
 Route::get('/admin_acc/patients/{id}/visits', [PatientListController::class, 'apiVisits']);
 
+// Settings > Data & Privacy — patient data export
+// NOTE: renamed to admin.patients.export to match what
+// resources/views/admin_acc/partials/settings.blade.php expects.
+Route::get('/admin_acc/patients/export', [PatientListController::class, 'export'])
+    ->name('admin.patients.export');
+
 // notification routes
 
 Route::get('/admin_acc/notifications', [NotificationController::class, 'index']);
 Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
 Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
-

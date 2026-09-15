@@ -17,7 +17,6 @@ class Complaint extends Model
         'patient_id',
         'log_id',
         'complaint_text',
-        'category',
     ];
 
     protected $casts = [

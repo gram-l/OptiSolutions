@@ -51,80 +51,11 @@ body {
 }
 /* ============================================
    NAVBAR
+   (Styling and mobile behavior now live entirely in
+   resources/js/navbar-loader.js, which injects the nav markup
+   and its own <style> tag on every page. Keeping it in one place
+   avoids the nav rules here silently fighting the shared script.)
    ============================================ */
-.navbar {
-  position: sticky;
-  top: 0;
-  background: var(--white);
-  border-bottom: 1px solid var(--gray-200);
-  z-index: 100;
-  padding: 14px 32px;
-}
-.navbar-inner {
-  max-width: 1280px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 32px;
-  flex-wrap: wrap;
-}
-.navbar-logo-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.navbar-logo {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--gray-900);
-  letter-spacing: -0.3px;
-}
-.navbar-logo-img {
-  height: 42px;
-  width: auto;
-  object-fit: contain;
-}
-.nav-link {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--gray-700);
-  transition: all 0.2s;
-  position: relative;
-  text-decoration: none;
-}
-.nav-link:hover { color: var(--primary); }
-.nav-link.active {
-  color: var(--primary);
-  font-weight: 600;
-}
-.nav-link.active::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 0;
-  right: 0;
-  height: 2.5px;
-  background: var(--primary);
-  border-radius: 4px;
-}
-.nav-cta {
-  background: var(--primary);
-  color: white;
-  padding: 10px 22px;
-  border-radius: 40px;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.25s;
-  border: none;
-  box-shadow: 0 2px 6px rgba(15,103,179,0.2);
-  cursor: pointer;
-}
-.nav-cta:hover {
-  background: var(--primary-dark);
-  transform: translateY(-2px);
-}
 /* ============================================
    SHARED SECTION STYLES
    ============================================ */
@@ -364,19 +295,11 @@ body {
   .footer-modern-social { grid-column: 1 / -1; }
 }
 @media (max-width: 768px) {
-  .navbar-inner { flex-direction: column; gap: 16px; }
-  .navbar-nav { justify-content: center; gap: 16px; }
-  .navbar-logo-wrapper { justify-content: center; }
   .section { padding: 48px 20px; }
   .reviews-banner-footer { padding: 24px 20px; border-radius: 16px; }
   .footer-modern-top { grid-template-columns: 1fr 1fr; text-align: left; }
 }
 @media (max-width: 480px) {
-  .navbar-logo { font-size: 20px; }
-  .navbar-logo-img { height: 32px; }
-  .navbar-nav { gap: 10px; }
-  .nav-link { font-size: 13px; }
-  .nav-cta { padding: 8px 16px; font-size: 12px; }
   .section-title { font-size: 28px; }
   .footer-modern-top { grid-template-columns: 1fr; }
 }
@@ -1233,15 +1156,18 @@ body {
   .stats-modern-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
   .cta-banner-inner { grid-template-columns: 1fr; text-align: center; padding: 40px 32px; }
   .cta-banner-info { justify-content: center; }
+  .cta-info-item { text-align: left; }
   .btn-cta-banner { margin: 0 auto; }
   .cta-banner-map { min-height: 260px; }
   .cta-banner-map iframe { min-height: 260px; }
 }
 @media (max-width: 768px) {
+  .hero-flutter-inner { flex-direction: column; }
+  .hero-flutter-content { flex: none; width: 100%; padding-bottom: 0; }
   .hero-flutter-title { font-size: 28px; }
   .hero-flutter-desc { font-size: 16px; }
-  .hero-flutter-image { justify-content: center; gap: 18px; }
-  .hero-flutter-img { object-position: center; }
+  .hero-flutter-image { flex: none; width: 100%; justify-content: center; gap: 18px; flex-wrap: wrap; margin-top: 24px; }
+  .hero-flutter-img { object-position: center; height: auto; max-width: 220px; align-self: center; }
   .hero-stats-dock { flex: 1 1 100%; width: 100%; max-width: 360px; margin: 0 auto; }
   .services-modern-section, .doctors-modern-section { padding: 48px 20px; }
   .services-modern-title, .doctors-modern-title { font-size: 30px; }
@@ -1256,19 +1182,14 @@ body {
   .doctors-search-box input { font-size: 14px; }
 }
 @media (max-width: 480px) {
-  .navbar-logo { font-size: 20px; }
-  .navbar-logo-img { height: 32px; }
-  .navbar-nav { gap: 10px; }
-  .nav-link { font-size: 13px; }
-  .nav-cta { padding: 8px 16px; font-size: 12px; }
   .section-title { font-size: 28px; }
   .stats-modern-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .stat-modern-number { font-size: 26px; }
   .stat-modern-label { font-size: 14px; }
   .stat-modern-desc { font-size: 11px; }
   .cta-banner-title { font-size: 24px; }
-  .cta-banner-info { flex-direction: column; gap: 12px; }
-  .cta-info-item { justify-content: center; }
+  .cta-banner-info { flex-direction: column; gap: 18px; }
+  .cta-info-item { flex-direction: column; justify-content: center; text-align: center; gap: 8px; }
   .btn-cta-banner { width: 100%; justify-content: center; }
   .cta-banner-map { min-height: 200px; }
   .cta-banner-map iframe { min-height: 200px; }

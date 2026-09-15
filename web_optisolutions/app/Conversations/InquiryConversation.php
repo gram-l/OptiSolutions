@@ -139,14 +139,36 @@ class InquiryConversation extends Conversation
 
         $this->say('Submitting your inquiry...');
 
+        // Same conversation_id BotManController uses to log/attach
+        // follow-up replies to the correct thread. Without this, a
+        // patient's next message would create a duplicate inquiry
+        // instead of continuing this one.
+        $conversationId = $this->bot->getMessage()->getSender();
+
+        // Best-effort guest name: not collected in the standalone
+        // "what's your inquiry about" flow, but available if this
+        // inquiry was routed here mid-schedule-visit (resumeState
+        // carries whatever name the patient had already typed).
+        $guestName = trim(($this->resumeState['fname'] ?? '') . ' ' . ($this->resumeState['lname'] ?? '')) ?: null;
+
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
-                'user_id'      => $this->patientId,
-                'user_message' => $this->message,
-                'bot_message'  => null,
-                'chat_time'    => now(),
+                'user_id'         => $this->patientId,
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'user_message'    => $this->message,
+                'bot_message'     => null,
+                'chat_time'       => now(),
             ]);
 
+            DB::table('inquiries')->insert([
+                'patient_id'      => $this->patientId,
+                'guest_name'      => $guestName,
+                'log_id'          => $logId,
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'inquiry_type'    => $this->inquiryType,
+                'resolved_status' => 'Pending',
+                'created_at'      => now(),
+            ]);
          $inquiryId = DB::table('inquiries')->insertGetId([   // insertGetId, not insert
             'patient_id'      => $this->patientId,
             'log_id'          => $logId,

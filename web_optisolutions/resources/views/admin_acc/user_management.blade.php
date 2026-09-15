@@ -183,17 +183,17 @@
                     const isActive = u.status === 'active';
                     return `
                         <tr id="row-${u.user_id}">
-                            <td>
+                            <td data-label="User">
                                 <div style="display:flex;align-items:center;gap:0.8rem;">
                                     <div class="user-avatar-small">${initials}</div>
                                     <strong>${escapeHtml(u.name)}</strong>
                                 </div>
                             </td>
-                            <td>${escapeHtml(u.email)}</td>
-                            <td><span class="role-badge ${getRoleBadgeClass(u.user_role)}">${u.user_role}</span></td>
-                            <td><span class="status-badge status-${u.status}">${isActive ? '● Active' : '○ Inactive'}</span></td>
-                            <td style="font-size:0.85rem;color:#7f8c8d;">${u.last_login_at ?? 'Never'}</td>
-                            <td class="action-buttons">
+                            <td data-label="Email">${escapeHtml(u.email)}</td>
+                            <td data-label="Role"><span class="role-badge ${getRoleBadgeClass(u.user_role)}">${u.user_role}</span></td>
+                            <td data-label="Status"><span class="status-badge status-${u.status}">${isActive ? '● Active' : '○ Inactive'}</span></td>
+                            <td data-label="Last Login" style="font-size:0.85rem;color:#7f8c8d;">${u.last_login_at ?? 'Never'}</td>
+                            <td data-label="" class="action-buttons">
                                 <button class="btn-icon btn-edit" onclick="openEditModal(${u.user_id})">
                                     <i class="fa-solid fa-pencil"></i> Edit
                                 </button>

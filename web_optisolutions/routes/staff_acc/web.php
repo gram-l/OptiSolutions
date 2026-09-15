@@ -33,6 +33,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
     Route::get('/staff/inquiries/{id}', [InquiryController::class, 'show'])->name('staff.inquiries.show');
     Route::post('/staff/inquiries/{id}/reply', [InquiryController::class, 'reply'])->name('staff.inquiries.reply');
     Route::put('/staff/inquiries/{id}/resolve', [InquiryController::class, 'resolve'])->name('staff.inquiries.resolve');
+    Route::post('/staff/inquiries/{id}/typing', [InquiryController::class, 'typing'])->name('staff.inquiries.typing');
 
     // DOCTORS
     Route::get('/staff/doctors', [DoctorController::class, 'index'])->name('staff.doctors');

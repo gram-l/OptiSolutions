@@ -11,7 +11,7 @@
         <p class="page-subtitle">View and respond to chatbot inquiries</p>
     </div>
 
-    <div class="inquiries-split">
+    <div class="inquiries-split inquiries-split--list-only">
       
         @include('staff.inquiries.partials.conversations-list', ['inquiries' => $inquiries])
 

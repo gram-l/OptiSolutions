@@ -23,9 +23,14 @@
 
     <!-- HEADER -->
     <div class="header">
-        <div class="logo-section">
-            <img src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: cover;">
-            <h1>PolyClinic Staff</h1>
+        <div class="header-left">
+            <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="logo-section">
+                <img src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: cover;">
+                <h1>PolyClinic Staff</h1>
+            </div>
         </div>
 
         <div class="header-actions">
@@ -87,8 +92,9 @@
                 <button class="notif-tab active" data-filter="all" onclick="setNotifFilter('all')">
                     All <span class="notif-tab-count" id="notifCountAll" style="display:none;"></span>
                 </button>
-                <button class="notif-tab" data-filter="chat_inquiry" onclick="setNotifFilter('chat_inquiry')">Chatbot</button>
-                <button class="notif-tab" data-filter="appointment" onclick="setNotifFilter('appointment')">Scheduled Visit</button>
+                <button class="notif-tab" data-filter="inquiry" onclick="setNotifFilter('inquiry')">Chatbot</button>
+                <button class="notif-tab" data-filter="schedule_visit" onclick="setNotifFilter('schedule_visit')">Appointments</button>
+                <button class="notif-tab" data-filter="system" onclick="setNotifFilter('system')">System</button>
             </div>
 
             <div class="notif-panel-actions">
@@ -151,6 +157,8 @@
                     </div>
                 </a>
             </aside>
+
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
             <!-- MAIN CONTENT -->
             <main class="main-content">
@@ -650,6 +658,40 @@
             }
         }
 
+        // MOBILE: hamburger-triggered slide-out drawer, independent of
+        // the desktop collapse toggle above — on phones the sidebar is
+        // off-canvas by default (see staff.css) and slides in over the
+        // page instead of squeezing the layout.
+        (function () {
+            const sidebar = document.querySelector('.sidebar');
+            const menuBtn = document.getElementById('mobileMenuBtn');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (!sidebar || !menuBtn || !overlay) return;
+
+            function openMobileSidebar() {
+                sidebar.classList.add('mobile-open');
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeMobileSidebar() {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            menuBtn.addEventListener('click', openMobileSidebar);
+            overlay.addEventListener('click', closeMobileSidebar);
+
+            sidebar.querySelectorAll('.nav-item').forEach((item) => {
+                item.addEventListener('click', closeMobileSidebar);
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 768) closeMobileSidebar();
+            });
+        })();
+
         //  USER AVATAR DROPDOWN
         function toggleUserDropdown() {
             document.getElementById('staffDropdown').classList.toggle('show');
@@ -707,8 +749,8 @@
         const notifPrefDefaults = { appointments: true, inquiries: true, patients: true, email: false };
 
         const notifPrefKeyByType = {
-            appointment: 'appointments',
-            chat_inquiry: 'inquiries',
+            schedule_visit: 'appointments',
+            inquiry: 'inquiries',
             patient: 'patients',
         };
 
@@ -759,14 +801,14 @@
 
 
         const notifRoutes = {
-            chat_inquiry: "{{ route('staff.inquiries.show', ':id') }}",
-            appointment: "{{ route('staff.appointments') }}",
+            inquiry: "{{ route('staff.inquiries.show', ':id') }}",
+            schedule_visit: "{{ route('staff.appointments') }}",
         };
 
 
         const notifTypeLabels = {
-            chat_inquiry: 'Chat inquiry',
-            appointment: 'Scheduled Visit',
+            inquiry: 'Chat inquiry',
+            schedule_visit: 'Appointment',
             patient: 'Patient',
         };
 
@@ -776,7 +818,7 @@
 
 
         function notifCategory(type) {
-            return ['chat_inquiry', 'appointment'].includes(type) ? type : 'system';
+            return ['inquiry', 'schedule_visit'].includes(type) ? type : 'system';
         }
 
         function setNotifFilter(filter) {

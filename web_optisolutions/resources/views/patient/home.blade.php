@@ -72,7 +72,6 @@
           @for ($i = 1; $i <= 5; $i++)
             <i class="fas fa-star {{ $i <= $statRatingValue ? 'star-filled' : 'star-empty' }}"></i>
           @endfor
-          <span class="stat-rating-count">from 800+ reviews</span>
         </span>
       </div>
     </div>

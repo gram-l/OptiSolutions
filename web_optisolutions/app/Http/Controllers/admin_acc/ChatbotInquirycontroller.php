@@ -5,6 +5,7 @@ namespace App\Http\Controllers\admin_acc;
 use App\Http\Controllers\Controller;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
+use App\Services\TypingStatusService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -33,7 +34,11 @@ class ChatbotInquiryController extends Controller
 
         $inquiry = Inquiry::findOrFail($id);
 
-        $reply = InquiryReply::create([
+        // createUnlessDuplicate guards against a double-click on "Send" (or
+        // a slow request retried) inserting the same reply twice — which
+        // would otherwise show up as two identical bubbles on the
+        // patient's side once the widget polls for updates.
+        $reply = InquiryReply::createUnlessDuplicate([
             'inquiry_id' => $inquiry->inquiry_id,
             'user_id'    => $request->user()->user_id ?? null,
             'sender'     => 'Admin',
@@ -49,11 +54,37 @@ class ChatbotInquiryController extends Controller
         }
         $inquiry->save();
 
+        // The actual reply just landed, so the patient's "..." indicator
+        // (driven by the typing flag below) should disappear immediately
+        // rather than lingering until its TTL expires.
+        if ($inquiry->conversation_id) {
+            TypingStatusService::setTyping('staff', $inquiry->conversation_id, false);
+        }
+
         return response()->json([
             'message' => 'Reply sent!',
             'time'    => $reply->created_at->format('g:i A'),
             'status'  => $inquiry->resolved_status,
         ]);
+    }
+
+    /**
+     * Heartbeat hit from the reply input's keystrokes/blur in
+     * chatbot_logs.blade.php. Lets the patient-facing widget show a real
+     * "Admin is typing…" indicator instead of a fake one tied to the
+     * bot's own (instant) responses.
+     */
+    public function typing(Request $request, $id)
+    {
+        $request->validate(['typing' => 'required|boolean']);
+
+        $inquiry = Inquiry::findOrFail($id);
+
+        if ($inquiry->conversation_id) {
+            TypingStatusService::setTyping('staff', $inquiry->conversation_id, $request->boolean('typing'));
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function resolve($id)
@@ -62,22 +93,11 @@ class ChatbotInquiryController extends Controller
         $inquiry->resolved_status = 'Resolved';
         $inquiry->save();
 
+        if ($inquiry->conversation_id) {
+            TypingStatusService::setTyping('staff', $inquiry->conversation_id, false);
+        }
+
         return response()->json(['message' => 'Inquiry resolved!']);
-    }
-
-    /**
-     * Reopen a resolved Inquiry. Mirrors resolve() — reverts the status to
-     * 'In Progress' rather than 'Pending', since a resolved inquiry has
-     * already been engaged with (matches the same status reply() sets
-     * once a reply is sent to a previously-Pending inquiry).
-     */
-    public function unresolve($id)
-    {
-        $inquiry = Inquiry::findOrFail($id);
-        $inquiry->resolved_status = 'In Progress';
-        $inquiry->save();
-
-        return response()->json(['message' => 'Inquiry reopened!']);
     }
 
     /**
@@ -112,7 +132,27 @@ class ChatbotInquiryController extends Controller
 
     $conversation = [];
 
-    if ($log) {
+    $replies = $inquiry->replies;
+    $firstReply = $replies->first();
+
+    // `BotManController::recordInquiryReply()` logs every unhandled /
+    // off-topic patient message twice: once into `chatbot_logs`
+    // (what `$inquiry->log` points to) and once into `inquiry_replies`
+    // (sender "Patient") so it shows up in the same thread as
+    // Admin/Staff's replies. For a brand-new inquiry those two records
+    // hold the exact same text, which duplicated the very first bubble
+    // in this view. If the first reply is a Patient message identical
+    // to the log's text, it's that duplicate — skip the log-only entry
+    // and let the (richer, attachment-aware) reply entry represent it
+    // instead. Inquiries created via the standalone "Submit Inquiry"
+    // flow have no matching reply at all, so they're untouched and
+    // still fall back to the log entry below.
+    $logDuplicatedByFirstReply = $log
+        && $firstReply
+        && !$firstReply->is_staff
+        && trim((string) $firstReply->message) === trim((string) ($log->user_message ?? ''));
+
+    if ($log && !$logDuplicatedByFirstReply) {
         $conversation[] = [
             'sender'      => 'patient',
             'senderLabel' => 'Patient',
@@ -121,12 +161,14 @@ class ChatbotInquiryController extends Controller
         ];
     }
 
-    foreach ($inquiry->replies as $reply) {
+    foreach ($replies as $reply) {
         $conversation[] = [
-            'sender'      => $reply->is_staff ? 'bot' : 'patient',
-            'senderLabel' => $reply->sender,
-            'text'        => $reply->message,
-            'time'        => $reply->created_at->format('g:i A'),
+            'sender'         => $reply->is_staff ? 'bot' : 'patient',
+            'senderLabel'    => $reply->sender,
+            'text'           => $reply->message,
+            'attachmentUrl'  => $reply->attachment_url,
+            'attachmentName' => $reply->attachment_name,
+            'time'           => $reply->created_at->format('g:i A'),
         ];
     }
 

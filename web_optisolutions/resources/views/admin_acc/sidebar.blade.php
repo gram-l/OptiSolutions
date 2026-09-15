@@ -9,6 +9,10 @@
     </script>
 
     <div class="sidebar-brand-row">
+        <div class="sidebar-brand">
+            <span class="sidebar-brand-mark"><i class="bi bi-hospital"></i></span>
+            <span class="sidebar-brand-name">Polyclinic</span>
+        </div>
         <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Collapse sidebar">
             <i class="bi bi-chevron-double-left"></i>
         </button>
@@ -63,14 +67,10 @@
             <div class="nav-icon"><i class="fa-solid fa-cog"></i></div>
             <span>System Settings</span>
         </div>
-        <div class="nav-item {{ request()->routeIs('admin_acc.chatbot_commands.*') ? 'active' : '' }}"
-             title="Chatbot Commands" data-label="Chatbot Commands"
-             onclick="window.location.href='{{ route('admin_acc.chatbot_commands.index') }}'">
-            <div class="nav-icon"><i class="fa-solid fa-robot"></i></div>
-            <span>Chatbot Commands</span>
-        </div>
     </nav>
 </aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <script>
     (function () {
@@ -90,6 +90,36 @@
             sidebar.classList.toggle('collapsed');
             localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
             syncIcon();
+        });
+
+        // ── Mobile: hamburger-triggered slide-out drawer ──────────────
+        // Independent of the desktop collapse toggle above — on phones
+        // the sidebar is off-canvas by default (see sidebar.css) and
+        // slides in over the page instead of squeezing the layout.
+        const menuBtn = document.getElementById('mobileMenuBtn');
+        const overlay = document.getElementById('sidebarOverlay');
+
+        function openMobileSidebar() {
+            sidebar.classList.add('mobile-open');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileSidebar() {
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        menuBtn?.addEventListener('click', openMobileSidebar);
+        overlay?.addEventListener('click', closeMobileSidebar);
+
+        sidebar.querySelectorAll('.nav-item').forEach((item) => {
+            item.addEventListener('click', closeMobileSidebar);
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) closeMobileSidebar();
         });
     })();
 </script>

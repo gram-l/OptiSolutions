@@ -3,6 +3,8 @@
 namespace App\Conversations\Concerns;
 
 use BotMan\BotMan\Messages\Incoming\Answer;
+use BotMan\BotMan\Messages\Outgoing\Question;
+use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Services\ClinicInfoService;
 use App\Conversations\AppointmentConversation;
 use App\Conversations\ReviewConversation;
@@ -85,9 +87,36 @@ trait HandlesGlobalCommands
             return;
         }
 
-        if (in_array($cmd, ['cancel', 'menu'], true)) {
+        if ($cmd === 'cancel') {
             $this->say('Okay, cancelled. Type "Menu" anytime to start again.');
             return;
         }
+
+        if ($cmd === 'menu') {
+            $this->sendMenu();
+            return;
+        }
+    }
+
+    // Shows the main 4-button menu and routes whatever the patient picks.
+    protected function sendMenu()
+    {
+        $question = Question::create('Hello! Welcome to PolyClinic Lipa. How can I help you today?')
+            ->fallback('Please choose an option from the buttons above.')
+            ->addButtons([
+                Button::create('Schedule Visit')->value('schedule visit'),
+                Button::create('General Information')->value('general information'),
+                Button::create('Submit Review/Rating')->value('submit review/rating'),
+                Button::create('Submit Complaint')->value('submit complaint'),
+            ]);
+
+        $this->ask($question, function (Answer $answer) {
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->sendMenu());
+            }
+
+            $this->say('Please choose one of the options above.');
+            $this->sendMenu();
+        });
     }
 }

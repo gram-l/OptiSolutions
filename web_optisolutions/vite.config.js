@@ -23,7 +23,6 @@ export default defineConfig({
                 'resources/css/admin_css/sidebar.css',
                 'resources/css/admin_css/user_management.css',
                 'resources/css/admin_css/system_settings.css',
-                'resources/css/admin_css/chatbot_commands.css',
 
                 'resources/css/patient_css/about.css',
                 'resources/css/patient_css/app.css',
@@ -48,10 +47,7 @@ export default defineConfig({
         port: 5173,
         strictPort: true,
         hmr: {
-            host: '192.168.254.147',
-            // host: '192.168.1.9',
-            //host: '192.168.192.144',//school
-            //host: '192.168.1.9',
+            host: '192.168.1.7',
             // host: '127.0.0.1',
            // host: '192.168.1.11',
             //host: '192.168.254.147',

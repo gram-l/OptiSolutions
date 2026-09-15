@@ -327,13 +327,13 @@
             } else {
                 tbody.innerHTML = filtered.map(patient => `
                     <tr>
-                        <td><code>${patient.id}</code></td>
-                        <td style="font-weight: 500;">${escapeHtml(patient.name)}</td>
-                        <td>${patient.age != null ? patient.age + ' years' : '—'}</td>
-                        <td>${escapeHtml(patient.department || '—')}</td>
-                        <td>${escapeHtml(patient.doctor || '—')}</td>
-                        <td><small style="color:#7f8c8d">${escapeHtml((patient.notes || '').length > 40 ? patient.notes.substring(0, 40) + '...' : (patient.notes || '—'))}</small></td>
-                        <td class="action-buttons">
+                        <td data-label="Patient ID"><code>${patient.id}</code></td>
+                        <td data-label="Patient Name" style="font-weight: 500;">${escapeHtml(patient.name)}</td>
+                        <td data-label="Age">${patient.age != null ? patient.age + ' years' : '—'}</td>
+                        <td data-label="Department">${escapeHtml(patient.department || '—')}</td>
+                        <td data-label="Assigned Doctor">${escapeHtml(patient.doctor || '—')}</td>
+                        <td data-label="Notes"><small style="color:#7f8c8d">${escapeHtml((patient.notes || '').length > 40 ? patient.notes.substring(0, 40) + '...' : (patient.notes || '—'))}</small></td>
+                        <td data-label="" class="action-buttons">
                             <button class="btn-icon btn-view" onclick="viewPatient(${patient.id})"> <i class="fa-regular fa-eye"></i> View</button>
                             <button class="btn-icon btn-edit" onclick="editPatient(${patient.id})"> <i class="fa-regular fa-edit"></i> Edit</button>
                         </td>

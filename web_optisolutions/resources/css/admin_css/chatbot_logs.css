@@ -14,10 +14,6 @@
             --light-gray: #ECF0F1;
             --text-dark: #333333;
             --shadow: rgba(0, 0, 0, 0.1);
-            --pending: #f39c12;
-            --approved: #0E62AA;
-            --cancelled: #e74c3c;
-            --completed: #22b34d;
         }
 
         body {
@@ -114,7 +110,7 @@
         }
 
         .page-header {
-            margin-bottom: 1px;
+            margin-bottom: 2rem;
         }
 
         .page-header h2 {
@@ -137,7 +133,8 @@
             border-radius: 20px;
             box-shadow: 0 4px 20px var(--shadow);
             overflow: hidden;
-            min-height: 600px;
+            height: calc(100vh - 260px);
+            min-height: 500px;
         }
 
         .chat-list {
@@ -145,6 +142,27 @@
             background: var(--white);
             border-right: 1px solid var(--light-gray);
             overflow-y: auto;
+            height: 100%;
+        }
+
+        .back-to-list-btn {
+            display: none;
+            width: 34px;
+            height: 34px;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 50%;
+            background: var(--light-gray);
+            color: var(--primary-dark);
+            font-size: 1rem;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-right: 0.75rem;
+        }
+
+        .back-to-list-btn:hover {
+            background: #dfe4e8;
         }
 
         .chat-list-header {
@@ -513,7 +531,7 @@
             font-size: 0.85rem;
             font-weight: 600;
             color: var(--white);
-            background: var(--primary-main);
+            background: linear-gradient(135deg, var(--primary-main), var(--primary-dark));
             box-shadow: 0 2px 8px rgba(14, 98, 170, 0.3);
             cursor: pointer;
             transition: all 0.3s ease;
@@ -531,17 +549,6 @@
         .resolve-btn-modern:disabled {
             opacity: 0.7;
             cursor: not-allowed;
-        }
-
-        /* Shown once an inquiry is resolved — button stays clickable so it
-           can be used to reopen (unresolve) the inquiry. */
-        .resolve-btn-modern.is-resolved {
-            background: #7f8c8d;
-            box-shadow: 0 2px 8px rgba(127, 140, 141, 0.3);
-        }
-
-        .resolve-btn-modern.is-resolved:hover:not(:disabled) {
-            box-shadow: 0 4px 14px rgba(127, 140, 141, 0.4);
         }
 
         /* --- Custom confirm modal (replaces window.confirm) --- */
@@ -647,23 +654,43 @@
             to { transform: translateY(-20px); opacity: 0; }
         }
 
+        /* --- Mobile: list and conversation are two separate screens ---
+           Previously both panes stacked in one column, so opening a chat
+           just pushed the conversation below the *entire* (often long)
+           list, and reaching it meant scrolling past every item. Now only
+           one pane shows at a time: the list by default, and the
+           conversation (full width/height) once a chat is opened, with a
+           back button to return to the list. */
         @media (max-width: 768px) {
             .inquiries-container {
-                flex-direction: column;
+                height: calc(100vh - 220px);
             }
             .chat-list {
                 width: 100%;
                 border-right: none;
-                border-bottom: 1px solid var(--light-gray);
+            }
+            .chat-conversation {
+                display: none;
+            }
+            .inquiries-container:has(#conversationArea.mobile-active) .chat-list {
+                display: none;
+            }
+            .inquiries-container:has(#conversationArea.mobile-active) .chat-conversation {
+                display: flex;
+            }
+            .back-to-list-btn {
+                display: flex;
             }
             .message-content {
                 max-width: 90%;
             }
             .container {
-                padding: 0 1rem;
-            }
-            .header {
                 flex-direction: column;
-                gap: 1rem;
+                padding: 0 1rem;
+                align-items: stretch;
+            }
+            .sidebar {
+                width: 100%;
+                position: static;
             }
         }

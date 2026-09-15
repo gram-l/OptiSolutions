@@ -47,12 +47,12 @@
   <div class="container">
     <div class="stats-modern-grid" id="statsGrid">
       <div class="stat-modern-item">
-        <span class="stat-modern-number">15+</span>
+        <span class="stat-modern-number">{{ $yearsOfExcellence ?? 15 }}+</span>
         <span class="stat-modern-label">Years of Excellence</span>
-        <span class="stat-modern-desc">Serving the community since 2011</span>
+        <span class="stat-modern-desc">Serving the community since {{ $clinicInfo->founded_year ?? 2011 }}</span>
       </div>
       <div class="stat-modern-item">
-        <span class="stat-modern-number">50k+</span>
+        <span class="stat-modern-number">{{ number_format($happyPatientsCount ?? 0) }}+</span>
         <span class="stat-modern-label">Happy Patients</span>
         <span class="stat-modern-desc">Trusted by families across Batangas</span>
       </div>
@@ -237,9 +237,6 @@
         return;
       }
 
-      // Animate the whole dock as one block using the FLIP technique off the
-      // group's bounding box, so all 4 stats fly together as a unit from
-      // their old horizontal spot to their new column beside the logo.
       const lastRect = dock.getBoundingClientRect();
       const dx = firstRect.left - lastRect.left;
       const dy = firstRect.top - lastRect.top;

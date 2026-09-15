@@ -63,7 +63,7 @@ class ComplaintConversation extends Conversation
 
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
-                'user_id'      => 1,
+                'user_id'      => $this->patientId,
                 'user_message' => $text,
                 'bot_message'  => 'Complaint recorded',
             ]);

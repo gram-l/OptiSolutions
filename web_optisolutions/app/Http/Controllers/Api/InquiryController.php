@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
+use App\Services\TypingStatusService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -82,7 +83,11 @@ class InquiryController extends Controller
 
         $senderLabel = $user->user_role ?? 'Staff'; // "Admin" o "Staff"
 
-        $reply = InquiryReply::create([
+        // createUnlessDuplicate guards against a double-tap on "Send" in
+        // the Admin/Staff app (or a retried request) inserting the same
+        // reply twice — which would otherwise show up as two identical
+        // bubbles once the patient's widget polls for updates.
+        $reply = InquiryReply::createUnlessDuplicate([
             'inquiry_id' => $inquiry->inquiry_id,
             'user_id'    => $user->user_id ?? null,
             'sender'     => $senderLabel,
@@ -96,6 +101,10 @@ class InquiryController extends Controller
             $inquiry->resolved_status = 'In Progress';
         }
         $inquiry->save();
+
+        if ($inquiry->conversation_id) {
+            TypingStatusService::setTyping('staff', $inquiry->conversation_id, false);
+        }
 
         return response()->json($reply->toApiArray());
     }
@@ -121,6 +130,15 @@ class InquiryController extends Controller
             ->get();
 
         $updates = [];
+        // Every inquiry from this chat session that Admin/Staff has
+        // already marked "Resolved" — regardless of whether that came
+        // with one final reply or via a plain "Resolve" click with no
+        // extra message. The widget uses this (not just `updates`) to
+        // know when to bring the 4-option main menu back, since a
+        // resolve-with-no-message wouldn't otherwise produce anything
+        // new for the patient to see.
+        $resolvedInquiryIds = [];
+
         foreach ($inquiries as $inquiry) {
             foreach ($inquiry->replies->where('is_staff', true) as $reply) {
                 $updates[] = [
@@ -132,8 +150,24 @@ class InquiryController extends Controller
                     'status'    => $inquiry->resolved_status,
                 ];
             }
+
+            if ($inquiry->resolved_status === 'Resolved') {
+                $resolvedInquiryIds[] = $inquiry->inquiry_id;
+            }
         }
 
-        return response()->json(['updates' => $updates]);
+        // Real "is typing" presence for Admin/Staff — set by
+        // ChatbotInquiryController@typing / Staff\InquiryController@typing
+        // whenever a human is actively composing a reply for this chat
+        // session. This is the *only* thing that should make the widget's
+        // "..." dots appear — the bot's own replies are computed and
+        // returned synchronously, so they never need a fake typing delay.
+        $staffTyping = TypingStatusService::isTyping('staff', $conversationId);
+
+        return response()->json([
+            'updates'            => $updates,
+            'resolvedInquiryIds' => $resolvedInquiryIds,
+            'staffTyping'        => $staffTyping,
+        ]);
     }
 }

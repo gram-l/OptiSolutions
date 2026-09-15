@@ -218,10 +218,41 @@ button:hover{
     display: block;
 }
 
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #9fb0be;
+    font-size: 13px;
+    margin: 6px 0 18px;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #dbe6ee;
+}
+
+.divider span {
+    padding: 0 14px;
+}
+
 @media(max-width:900px){
+
+    body {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
 
     .login-container{
         flex-direction:column;
+        height:auto;
+        min-height:calc(100vh - 32px);
+        overflow:visible;
     }
 
     .left-panel,
@@ -235,6 +266,15 @@ button:hover{
 
     .welcome h1{
         font-size:32px;
+    }
+}
+
+@media(max-width:380px){
+    .left-panel{
+        padding:28px 24px;
+    }
+    .right-panel{
+        padding:32px 24px;
     }
 }
 .branding .logo {

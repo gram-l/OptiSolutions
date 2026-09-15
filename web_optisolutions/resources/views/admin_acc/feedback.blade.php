@@ -79,6 +79,35 @@
         }
         .download-menu button:hover { background: var(--light-gray); }
         .download-menu button i { width: 16px; color: var(--primary-main); }
+
+        /* ── See More / See Less ── */
+        .see-more-wrap {
+            text-align: center;
+            padding: 0.9rem;
+            border-top: 1px solid var(--light-gray);
+        }
+        .see-more-btn {
+            background: none;
+            border: none;
+            color: var(--primary-main);
+            font-weight: 600;
+            font-size: 0.85rem;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .see-more-btn:hover { text-decoration: underline; }
+
+        /* ── Section header (title + per-table download button) ── */
+        .section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        .section-title .download-btn {
+            padding: 0.4rem 0.9rem;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -109,16 +138,6 @@
                     <span class="date-filter-sep">to</span>
                     <input type="date" class="date-filter" id="dateToFilter" title="To date">
                 </div>
-                <div class="download-dropdown" id="downloadDropdown">
-                    <button type="button" class="download-btn" id="downloadBtn">
-                        <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
-                    </button>
-                    <div class="download-menu">
-                        <button type="button" onclick="exportPDF()"><i class="fa-regular fa-file-pdf"></i> PDF</button>
-                        <button type="button" onclick="exportCSV()"><i class="fa-regular fa-file-lines"></i> CSV</button>
-                        <button type="button" onclick="exportExcel()"><i class="fa-regular fa-file-excel"></i> Excel</button>
-                    </div>
-                </div>
             </div>
 
             <!-- Overview: sentiment + trend stacked left, recurring patterns tall on the right -->
@@ -147,7 +166,19 @@
 
             <!-- Feedback List -->
             <div class="feedback-section">
-
+                <div class="section-title">
+                    <span>All Patient Feedback</span>
+                    <div class="download-dropdown" id="downloadDropdownFeedback">
+                        <button type="button" class="download-btn" id="downloadBtnFeedback">
+                            <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
+                        </button>
+                        <div class="download-menu">
+                            <button type="button" onclick="exportPDF('feedback')"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                            <button type="button" onclick="exportCSV('feedback')"><i class="fa-regular fa-file-lines"></i> CSV</button>
+                            <button type="button" onclick="exportExcel('feedback')"><i class="fa-regular fa-file-excel"></i> Excel</button>
+                        </div>
+                    </div>
+                </div>
                 <table class="feedback-table" id="feedbackTable">
                     <thead>
                         <tr>
@@ -159,12 +190,60 @@
                     </thead>
                     <tbody id="feedbackTableBody"></tbody>
                 </table>
+                <div class="see-more-wrap" id="feedbackSeeMoreWrap">
+                    <button type="button" class="see-more-btn" id="feedbackSeeMoreBtn" onclick="toggleSeeMore('feedback')">See More</button>
+                </div>
+            </div>
+
+            <!-- Complaint List -->
+            <div class="feedback-section" style="margin-top: 2rem;">
+                <div class="section-title">
+                    <span>Complaint List</span>
+                    <div class="download-dropdown" id="downloadDropdownComplaint">
+                        <button type="button" class="download-btn" id="downloadBtnComplaint">
+                            <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
+                        </button>
+                        <div class="download-menu">
+                            <button type="button" onclick="exportPDF('complaint')"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                            <button type="button" onclick="exportCSV('complaint')"><i class="fa-regular fa-file-lines"></i> CSV</button>
+                            <button type="button" onclick="exportExcel('complaint')"><i class="fa-regular fa-file-excel"></i> Excel</button>
+                        </div>
+                    </div>
+                </div>
+                <table class="feedback-table" id="complaintTable">
+                    <thead>
+                        <tr>
+                            <th>Complaint</th>
+                            <th>Category</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="complaintTableBody"></tbody>
+                </table>
+                <div class="see-more-wrap" id="complaintSeeMoreWrap">
+                    <button type="button" class="see-more-btn" id="complaintSeeMoreBtn" onclick="toggleSeeMore('complaint')">See More</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         const feedbackData = @json($feedbackData);
+        const complaintData = @json($complaintData);
+
+        const ROWS_BEFORE_SEE_MORE = 4;
+        let feedbackShowAll = false;
+        let complaintShowAll = false;
+
+        function toggleSeeMore(section) {
+            if (section === 'feedback') {
+                feedbackShowAll = !feedbackShowAll;
+                renderFeedbackTable(getFilteredData());
+            } else {
+                complaintShowAll = !complaintShowAll;
+                renderComplaintTable(complaintData);
+            }
+        }
 
         function renderStars(rating) {
             let stars = '';
@@ -224,22 +303,67 @@
 
         function renderFeedbackTable(filteredData) {
             const tbody = document.getElementById('feedbackTableBody');
+            const seeMoreWrap = document.getElementById('feedbackSeeMoreWrap');
+            const seeMoreBtn = document.getElementById('feedbackSeeMoreBtn');
+
             if (filteredData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No feedback entries found</td></tr>';
+                seeMoreWrap.style.display = 'none';
                 return;
             }
 
-            tbody.innerHTML = filteredData.map(f => `
+            const rowsToShow = feedbackShowAll ? filteredData : filteredData.slice(0, ROWS_BEFORE_SEE_MORE);
+
+            tbody.innerHTML = rowsToShow.map(f => `
                 <tr>
-                    <td class="rating-stars">${renderStars(f.rating)}</td>
-                    <td class="feedback-comment">${escapeHtml(f.comment)}</td>
-                    <td>${sentimentTag(f.sentiment)}</td>
-                    <td>${formatDate(f.date)}</td>
+                    <td data-label="Rating" class="rating-stars">${renderStars(f.rating)}</td>
+                    <td data-label="Comment" class="feedback-comment">${escapeHtml(f.comment)}</td>
+                    <td data-label="Sentiment">${sentimentTag(f.sentiment)}</td>
+                    <td data-label="Date">${formatDate(f.date)}</td>
                 </tr>
             `).join('');
+
+            if (filteredData.length > ROWS_BEFORE_SEE_MORE) {
+                seeMoreWrap.style.display = 'block';
+                seeMoreBtn.textContent = feedbackShowAll ? 'See Less' : 'See More';
+            } else {
+                seeMoreWrap.style.display = 'none';
+            }
+        }
+
+        function renderComplaintTable(data) {
+            const tbody = document.getElementById('complaintTableBody');
+            const seeMoreWrap = document.getElementById('complaintSeeMoreWrap');
+            const seeMoreBtn = document.getElementById('complaintSeeMoreBtn');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No complaints found</td></tr>';
+                seeMoreWrap.style.display = 'none';
+                return;
+            }
+
+            const rowsToShow = complaintShowAll ? data : data.slice(0, ROWS_BEFORE_SEE_MORE);
+
+            tbody.innerHTML = rowsToShow.map(c => `
+                <tr>
+                    <td data-label="Complaint" class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
+                    <td data-label="Category">${escapeHtml(c.category)}</td>
+                    <td data-label="Date">${formatDate(c.created_at)}</td>
+                </tr>
+            `).join('');
+
+            if (data.length > ROWS_BEFORE_SEE_MORE) {
+                seeMoreWrap.style.display = 'block';
+                seeMoreBtn.textContent = complaintShowAll ? 'See Less' : 'See More';
+            } else {
+                seeMoreWrap.style.display = 'none';
+            }
         }
 
         function sentimentTag(sentiment) {
+            if (sentiment === 'no_comment') {
+                return '<span class="sentiment-tag sentiment-none">—</span>';
+            }
             const map = {
                 positive: '😊 Positive',
                 neutral: '😐 Neutral',
@@ -293,6 +417,7 @@
             const filtered = getFilteredData();
             renderAnalytics(filtered);
             renderFeedbackTable(filtered);
+            renderComplaintTable(complaintData);
         }
 
         document.getElementById('searchInput').addEventListener('input', refreshAll);
@@ -301,11 +426,18 @@
         document.getElementById('dateToFilter').addEventListener('change', refreshAll);
 
         /* ── Download dropdown ── */
-        function toggleDownloadMenu() {
-            document.getElementById('downloadDropdown').classList.toggle('open');
+        function toggleDownloadMenu(section) {
+            document.getElementById(`downloadDropdown${section === 'feedback' ? 'Feedback' : 'Complaint'}`).classList.toggle('open');
         }
 
-        function getExportRows() {
+        function getExportRows(section) {
+            if (section === 'complaint') {
+                return complaintData.map(c => ({
+                    Complaint: c.complaint_text || '',
+                    Category: c.category || '',
+                    Date: formatDate(c.created_at),
+                }));
+            }
             return getFilteredData().map(f => ({
                 Rating: f.rating,
                 Comment: f.comment || '',
@@ -334,58 +466,77 @@
             return `_${new Date().toISOString().slice(0, 10)}`;
         }
 
-        function exportCSV() {
-            const rows = getExportRows();
-            if (rows.length === 0) { alert('No feedback to export for the selected filters.'); return; }
+        function exportCSV(section) {
+            const rows = getExportRows(section);
+            if (rows.length === 0) { alert(`No ${section} to export for the selected filters.`); return; }
             const headers = Object.keys(rows[0]);
             const csvLines = [
                 headers.join(','),
                 ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(','))
             ];
             const blob = new Blob(["\ufeff" + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-            downloadBlob(blob, `feedback${exportFilenameSuffix()}.csv`);
-            toggleDownloadMenu();
+            downloadBlob(blob, `${section}${exportFilenameSuffix()}.csv`);
+            toggleDownloadMenu(section);
         }
 
-        function exportExcel() {
-            const rows = getExportRows();
-            if (rows.length === 0) { alert('No feedback to export for the selected filters.'); return; }
+        function exportExcel(section) {
+            const rows = getExportRows(section);
+            if (rows.length === 0) { alert(`No ${section} to export for the selected filters.`); return; }
             const ws = XLSX.utils.json_to_sheet(rows);
-            ws['!cols'] = [{ wch: 10 }, { wch: 50 }, { wch: 14 }, { wch: 20 }];
+            ws['!cols'] = section === 'complaint'
+                ? [{ wch: 50 }, { wch: 20 }, { wch: 20 }]
+                : [{ wch: 10 }, { wch: 50 }, { wch: 14 }, { wch: 20 }];
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Feedback');
-            XLSX.writeFile(wb, `feedback${exportFilenameSuffix()}.xlsx`);
-            toggleDownloadMenu();
+            XLSX.utils.book_append_sheet(wb, ws, section === 'complaint' ? 'Complaints' : 'Feedback');
+            XLSX.writeFile(wb, `${section}${exportFilenameSuffix()}.xlsx`);
+            toggleDownloadMenu(section);
         }
 
-        function exportPDF() {
-            const rows = getExportRows();
-            if (rows.length === 0) { alert('No feedback to export for the selected filters.'); return; }
+        function exportPDF(section) {
+            const rows = getExportRows(section);
+            if (rows.length === 0) { alert(`No ${section} to export for the selected filters.`); return; }
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.setFontSize(14);
-            doc.text('Feedback & Sentiment Analysis', 14, 15);
-            doc.autoTable({
-                startY: 22,
-                head: [['Rating', 'Comment', 'Sentiment', 'Date']],
-                body: rows.map(r => [r.Rating, r.Comment, r.Sentiment, r.Date]),
-                styles: { fontSize: 9, cellPadding: 3 },
-                headStyles: { fillColor: [14, 98, 170] },
-                columnStyles: { 1: { cellWidth: 80 } },
-            });
-            doc.save(`feedback${exportFilenameSuffix()}.pdf`);
-            toggleDownloadMenu();
+            doc.text(section === 'complaint' ? 'Complaint List' : 'Feedback & Sentiment Analysis', 14, 15);
+            if (section === 'complaint') {
+                doc.autoTable({
+                    startY: 22,
+                    head: [['Complaint', 'Category', 'Date']],
+                    body: rows.map(r => [r.Complaint, r.Category, r.Date]),
+                    styles: { fontSize: 9, cellPadding: 3 },
+                    headStyles: { fillColor: [14, 98, 170] },
+                    columnStyles: { 0: { cellWidth: 90 } },
+                });
+            } else {
+                doc.autoTable({
+                    startY: 22,
+                    head: [['Rating', 'Comment', 'Sentiment', 'Date']],
+                    body: rows.map(r => [r.Rating, r.Comment, r.Sentiment, r.Date]),
+                    styles: { fontSize: 9, cellPadding: 3 },
+                    headStyles: { fillColor: [14, 98, 170] },
+                    columnStyles: { 1: { cellWidth: 80 } },
+                });
+            }
+            doc.save(`${section}${exportFilenameSuffix()}.pdf`);
+            toggleDownloadMenu(section);
         }
 
-        document.getElementById('downloadBtn').addEventListener('click', (e) => {
+        document.getElementById('downloadBtnFeedback').addEventListener('click', (e) => {
             e.stopPropagation();
-            toggleDownloadMenu();
+            toggleDownloadMenu('feedback');
+        });
+        document.getElementById('downloadBtnComplaint').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDownloadMenu('complaint');
         });
         document.addEventListener('click', (e) => {
-            const dropdown = document.getElementById('downloadDropdown');
-            if (dropdown.classList.contains('open') && !dropdown.contains(e.target)) {
-                dropdown.classList.remove('open');
-            }
+            ['downloadDropdownFeedback', 'downloadDropdownComplaint'].forEach(id => {
+                const dropdown = document.getElementById(id);
+                if (dropdown.classList.contains('open') && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove('open');
+                }
+            });
         });
 
         refreshAll();

@@ -17,6 +17,11 @@
         padding: 1.25rem 1rem;
         display: flex;
         flex-direction: column;
+        /* Without this, a flex column child's default min-height:auto
+           lets its content (the scrollable list below) refuse to
+           shrink to fit, so it spills past this panel's height instead
+           of scrolling within it — the "overlap" with the panel below. */
+        min-height: 0;
     }
 
     .conv-list-title {
@@ -39,9 +44,31 @@
     .conv-list {
         overflow-y: auto;
         flex: 1;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
+        /* A row can end up sliced in half at the scroll boundary (the
+           list's height is rarely an exact multiple of row height).
+           Fading it out instead of hard-clipping makes that read as
+           "more below, scroll for it" rather than a rendering glitch. */
+        -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
+        mask-image: linear-gradient(to bottom, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
+        scrollbar-width: thin;
+        scrollbar-color: #cbd3da transparent;
+    }
+
+    .conv-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .conv-list::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .conv-list::-webkit-scrollbar-thumb {
+        background: #cbd3da;
+        border-radius: 3px;
     }
 
     .conv-item {
@@ -149,15 +176,60 @@
         font-size: 1rem;
     }
 
+    .conv-back-link {
+        display: none;
+    }
+
     @media (max-width: 768px) {
         .inquiries-split {
             flex-direction: column;
+            /* The 620px min-height was meant for the two-column desktop
+               layout; once the panels stack it just forced a tall,
+               mostly-empty detail panel below a list that got clipped
+               mid-row at 300px, making the last visible conversation
+               look cut off / overlapping the panel boundary below it. */
+            min-height: 0;
         }
         .conv-list-panel {
             width: 100%;
             border-right: none;
             border-bottom: 1px solid var(--light-gray);
-            max-height: 300px;
+            /* Fixed height (not max-height) so the list's own scrollbar
+               is what clips rows, cleanly, at a consistent boundary
+               instead of the last row being sliced by the panel edge. */
+            height: 320px;
+            flex-shrink: 0;
+        }
+        .conv-detail-panel {
+            min-height: 260px;
+        }
+
+        /* Phone-sized screens behave like a real chat app: tapping a
+           conversation replaces the list with the full conversation
+           (instead of navigating to a page that still shows the list
+           on top, forcing a scroll past it to reach the messages
+           underneath), with a way back to the list. */
+        .inquiries-split--detail-open .conv-list-panel {
+            display: none;
+        }
+        .inquiries-split--detail-open .conv-detail-panel {
+            min-height: 0;
+        }
+        .inquiries-split--list-only .conv-detail-panel {
+            display: none;
+        }
+        .conv-back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary-main);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .conv-back-link:hover {
+            text-decoration: underline;
         }
     }
 
@@ -176,6 +248,12 @@
     }
     body.dark-mode .conv-item:hover {
         background: #232b3d;
+    }
+    body.dark-mode .conv-list {
+        scrollbar-color: #3a4356 transparent;
+    }
+    body.dark-mode .conv-list::-webkit-scrollbar-thumb {
+        background: #3a4356;
     }
     body.dark-mode .conv-item-active {
         background: rgba(14, 98, 170, 0.25);

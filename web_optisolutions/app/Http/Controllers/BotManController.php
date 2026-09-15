@@ -14,22 +14,48 @@ use App\Services\ClinicInfoService;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
-use App\Models\Staff\AppNotification;
 use App\Middleware\CaptureReplyMiddleware;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 
 class BotManController extends Controller
 {
     protected bool $isUnhandledInquiry = false;
 
+    // All button values used anywhere in the bot. These should never be
+    // treated as an inquiry and forwarded to Admin/Staff.
     protected const IGNORED_INQUIRY_TEXTS = [
+        // Main menu
         'schedule visit',
         'general information',
         'complaint', 'submit complaint',
         'review', 'submit review/rating',
         'menu',
+        'cancel',
         "no, i'm all set",
+
+        // Schedule visit: "continue / start over / cancel" prompt
+        'continue schedule visit', 'continue_schedule',
+        'start over', 'restart_schedule',
+        'cancel_schedule',
+
+        // Schedule visit: confirm suggested date & time
+        'yes, confirm', 'confirm_yes',
+        'suggest alternative', 'confirm_no',
+
+        // Schedule visit: "email me the transcript?" prompt
+        'yes, email it to me', 'yes_email',
+        'no, skip', 'no_email',
+
+        // Post-appointment menu
+        'post_schedule_visit', 'post_general_information',
+
+        // Submit Review/Rating: star buttons
+        '1', '2', '3', '4', '5',
+
+        // Standalone inquiry: category buttons
+        'billing', 'medical', 'appointment', 'general',
     ];
 
     public function handle(Request $request)
@@ -155,6 +181,21 @@ class BotManController extends Controller
             return;
         }
 
+        // Plain greeting, e.g. "Hi", "Hello", "Kumusta".
+        if (ClinicInfoService::looksLikeGreeting($text)) {
+            Log::info('FALLBACK answered as greeting: "' . $text . '"');
+            $bot->reply(ClinicInfoService::greetingReply());
+            $this->sendGreeting($bot, false);
+            return;
+        }
+
+        // Patient asking permission to ask, e.g. "Pwede mag tanong?".
+        if (ClinicInfoService::looksLikeAskingPermission($text)) {
+            Log::info('FALLBACK answered as asking-permission: "' . $text . '"');
+            $bot->reply(ClinicInfoService::askingPermissionReply());
+            return;
+        }
+
         // Try to answer directly from clinic data first.
         $infoReply = ClinicInfoService::answerForText($text);
         if ($infoReply !== null) {
@@ -163,8 +204,25 @@ class BotManController extends Controller
             return;
         }
 
+        // Once this conversation already has an open (not-yet-resolved)
+        // inquiry with Admin/Staff, every further unhandled message the
+        // patient types would otherwise re-trigger this same "forwarded
+        // to Admin/Staff" acknowledgment — annoying if they're typing
+        // several follow-up lines in a row while waiting for a reply.
+        // The message itself is still recorded into that same open
+        // inquiry's thread below (via recordInquiry/recordInquiryReply),
+        // so Admin/Staff still sees it — the patient just isn't shown
+        // the ack bubble more than once per open inquiry.
+        $conversationId = (string) $bot->getMessage()->getSender();
+        $hasOpenInquiry = $conversationId !== '' && Inquiry::where('conversation_id', $conversationId)
+            ->where('resolved_status', '!=', 'Resolved')
+            ->exists();
+
         $this->isUnhandledInquiry = true;
-        $this->sendInquiryAck($bot);
+
+        if (!$hasOpenInquiry) {
+            $this->sendInquiryAck($bot);
+        }
     }
 
     protected function logExchange(string $conversationId, string $userMessage, array $capturedReplies, $botman)
@@ -192,53 +250,96 @@ class BotManController extends Controller
 
     protected function recordInquiry(string $conversationId, string $userMessage, ChatbotLog $log, $botman)
     {
+        $this->recordInquiryReply($conversationId, $userMessage, $log);
+    }
+
+    protected function recordInquiryReply(
+        string $conversationId,
+        string $userMessage,
+        ChatbotLog $log,
+        ?string $attachmentPath = null,
+        ?string $attachmentName = null
+    ) {
         try {
-
-            $patientId = null;
-            $guestName = null;
-
             $openInquiry = Inquiry::where('conversation_id', $conversationId)
                 ->where('resolved_status', '!=', 'Resolved')
                 ->orderByDesc('inquiry_id')
                 ->first();
 
-            if ($openInquiry) {
-                InquiryReply::create([
-                    'inquiry_id' => $openInquiry->inquiry_id,
-                    'sender'     => 'Patient',
-                    'message'    => $userMessage,
-                    'is_staff'   => false,
+            if (!$openInquiry) {
+                $openInquiry = Inquiry::create([
+                    'patient_id'      => null,
+                    'guest_name'      => null,
+                    'log_id'          => $log->log_id,
+                    'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                    'inquiry_type'    => 'General',
+                    'resolved_status' => 'Pending',
+                    'created_at'      => now(),
                 ]);
-
-                $openInquiry->save();
-
-                // Notify staff that the patient replied again on an
-                // already-open inquiry, so it doesn't get missed.
-                $this->notifyStaffOfInquiry($openInquiry, 'New Inquiry Reply', 'A patient replied to an existing ' . strtolower($openInquiry->inquiry_type) . ' inquiry.');
-
-                return;
             }
 
-            $inquiry = Inquiry::create([
-                'patient_id'      => $patientId,
-                'guest_name'      => $guestName,
-                'log_id'          => $log->log_id,
-                'conversation_id' => $conversationId !== '' ? $conversationId : null,
-                'inquiry_type'    => 'General',
-                'resolved_status' => 'Pending',
-                'created_at'      => now(),
+            InquiryReply::create([
+                'inquiry_id'      => $openInquiry->inquiry_id,
+                'sender'          => 'Patient',
+                'message'         => $userMessage,
+                'attachment_path' => $attachmentPath,
+                'attachment_name' => $attachmentName,
             ]);
 
-            $this->notifyStaffOfInquiry($inquiry, 'New Inquiry', 'A new ' . strtolower($inquiry->inquiry_type) . ' inquiry has been submitted.');
+            $openInquiry->save();
 
+            return $openInquiry;
         } catch (\Throwable $e) {
             Log::error('Failed to record inquiry: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    // attachment upload
+
+    public function attachment(Request $request)
+    {
+        $request->validate([
+            'attachment' => 'required|file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
+            'userId'     => 'nullable|string',
+            'caption'    => 'nullable|string|max:2000',
+        ]);
+
+        $conversationId = (string) $request->input('userId', '');
+        $caption = trim((string) $request->input('caption', ''));
+
+        try {
+            $file = $request->file('attachment');
+            $storedPath = $file->store('chat-attachments', 'public');
+            $originalName = $file->getClientOriginalName();
+
+            $displayMessage = $caption !== '' ? $caption : '(Sent an attachment)';
+
+            $log = ChatbotLog::create([
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'user_message'    => $displayMessage,
+                'bot_message'     => '(no reply)',
+            ]);
+
+            $this->recordInquiryReply($conversationId, $displayMessage, $log, $storedPath, $originalName);
+
+            return response()->json([
+                'success'        => true,
+                'attachmentUrl'  => asset('storage/' . $storedPath),
+                'attachmentName' => $originalName,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to save chatbot attachment: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error'   => 'Something went wrong uploading the attachment. Please try again.',
+            ], 500);
         }
     }
 
     protected function sendGreeting($bot, bool $showGreeting = true)
     {
-        $question = Question::create($showGreeting ? 'Hello! Welcome to PolyClinic Lipa. How can I help you today?' : '')
+        $question = Question::create($showGreeting ? 'Welcome to PolyClinic Lipa. How can I help you today?' : '')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),

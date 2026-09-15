@@ -23,9 +23,14 @@
 
     <!-- HEADER -->
     <div class="header">
-        <div class="logo-section">
-            <img src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: cover;">
-            <h1>PolyClinic Staff</h1>
+        <div class="header-left">
+            <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="logo-section">
+                <img src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: cover;">
+                <h1>PolyClinic Staff</h1>
+            </div>
         </div>
 
         <div class="header-actions">
@@ -152,6 +157,8 @@
                     </div>
                 </a>
             </aside>
+
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
             <!-- MAIN CONTENT -->
             <main class="main-content">
@@ -650,6 +657,40 @@
                 btn.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
             }
         }
+
+        // MOBILE: hamburger-triggered slide-out drawer, independent of
+        // the desktop collapse toggle above — on phones the sidebar is
+        // off-canvas by default (see staff.css) and slides in over the
+        // page instead of squeezing the layout.
+        (function () {
+            const sidebar = document.querySelector('.sidebar');
+            const menuBtn = document.getElementById('mobileMenuBtn');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (!sidebar || !menuBtn || !overlay) return;
+
+            function openMobileSidebar() {
+                sidebar.classList.add('mobile-open');
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeMobileSidebar() {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            menuBtn.addEventListener('click', openMobileSidebar);
+            overlay.addEventListener('click', closeMobileSidebar);
+
+            sidebar.querySelectorAll('.nav-item').forEach((item) => {
+                item.addEventListener('click', closeMobileSidebar);
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 768) closeMobileSidebar();
+            });
+        })();
 
         //  USER AVATAR DROPDOWN
         function toggleUserDropdown() {

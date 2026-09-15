@@ -12,6 +12,8 @@ use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
 use App\Conversations\Concerns\HandlesRateLimit;
 use App\Services\SentimentAnalysisService;
+use App\Services\NotificationService;
+use App\Models\Notification;
 
 class ReviewConversation extends Conversation
 {
@@ -56,7 +58,14 @@ class ReviewConversation extends Conversation
                 return;
             }
 
-            $this->rating = (int) $answer->getValue();
+            $value = (int) $answer->getValue();
+
+            if ($value < 1 || $value > 5) {
+                $this->say('Please tap one of the star ratings from 1 to 5 above.');
+                return $this->askRating();
+            }
+
+            $this->rating = $value;
             $this->askFeedbackText();
         });
     }
@@ -103,7 +112,7 @@ class ReviewConversation extends Conversation
 
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
-                'user_id'      => 1,
+                'user_id'      => $this->patientId,
                 'user_message' => $text ?? '(no comment)',
                 'bot_message'  => 'Review recorded',
             ]);
@@ -116,6 +125,12 @@ class ReviewConversation extends Conversation
                 'star_rating'   => $this->rating,
                 'submitted_at'  => now(),
             ]);
+//notification
+        try {
+            NotificationService::newFeedback($this->patientName ?: 'A patient', $feedback->feedback_id);
+        } catch (\Throwable $notifyError) {
+            \Illuminate\Support\Facades\Log::error('Failed to create feedback notification: ' . $notifyError->getMessage());
+        }    
 
             if (!empty($text)) {
                 $result = app(SentimentAnalysisService::class)->analyze($text);

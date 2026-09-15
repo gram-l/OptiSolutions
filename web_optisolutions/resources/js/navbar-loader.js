@@ -9,7 +9,13 @@
           <span class="navbar-location-badge">Lipa City</span>
         </div>
 
-        <div class="navbar-nav">
+        <button class="navbar-toggle" id="navbarToggle" type="button" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="navbarMenu">
+          <span class="navbar-toggle-bar"></span>
+          <span class="navbar-toggle-bar"></span>
+          <span class="navbar-toggle-bar"></span>
+        </button>
+
+        <div class="navbar-nav" id="navbarMenu">
           <a href="/home" class="nav-link" data-page="home">Home</a>
           <a href="/about" class="nav-link" data-page="about">About Us</a>
           <a href="/services" class="nav-link" data-page="services">Services</a>
@@ -57,6 +63,10 @@
         background: #ffffff;
         border-bottom: 1px solid var(--nav-border);
         box-sizing: border-box;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        padding: 14px 32px;
       }
 
       .navbar-inner {
@@ -159,6 +169,51 @@
         transform: scaleX(1);
       }
 
+      /* ============ MOBILE MENU TOGGLE (hidden on desktop) ============ */
+
+      .navbar-toggle {
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+        width: 42px;
+        height: 42px;
+        margin-left: auto;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.15s ease;
+      }
+
+      .navbar-toggle:hover {
+        background: var(--nav-primary-tint);
+      }
+
+      .navbar-toggle-bar {
+        display: block;
+        width: 22px;
+        height: 2px;
+        background: var(--nav-primary);
+        border-radius: 2px;
+        transition: transform 0.25s ease, opacity 0.2s ease;
+      }
+
+      .navbar-toggle.is-open .navbar-toggle-bar:nth-child(1) {
+        transform: translateY(7px) rotate(45deg);
+      }
+
+      .navbar-toggle.is-open .navbar-toggle-bar:nth-child(2) {
+        opacity: 0;
+      }
+
+      .navbar-toggle.is-open .navbar-toggle-bar:nth-child(3) {
+        transform: translateY(-7px) rotate(-45deg);
+      }
+
       /* ============ LOGIN BUTTON ============ */
 
       .nav-cta {
@@ -225,6 +280,63 @@
         .navbar-accent, .navbar-accent-image { height: 35px; }
       }
 
+      /* ============ HAMBURGER MODE (phones & small tablets only) ============
+         Below this width the links no longer fit in one row, so instead of
+         letting them get clipped/scroll sideways, they collapse into a
+         dropdown opened by the hamburger button. Nothing above 768px is
+         touched, so laptop/desktop layout is unaffected. */
+
+      @media (max-width: 768px) {
+        .navbar-inner {
+          flex-wrap: wrap;
+          overflow: visible;
+          white-space: normal;
+          position: relative;
+        }
+
+        .navbar-toggle {
+          display: flex;
+        }
+
+        .navbar-nav {
+          order: 3;
+          width: 100%;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0;
+          margin-left: 0;
+          max-height: 0;
+          opacity: 0;
+          overflow: hidden;
+          padding: 0 4px;
+          transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
+        }
+
+        .navbar-nav.is-open {
+          max-height: 500px;
+          opacity: 1;
+          padding: 10px 4px 18px;
+        }
+
+        .nav-link {
+          width: 100%;
+          padding: 13px 8px;
+          border-bottom: 1px solid var(--nav-border);
+        }
+
+        .nav-link::after {
+          display: none;
+        }
+
+        .nav-cta {
+          width: 100%;
+          margin-top: 12px;
+          border-radius: 10px;
+          padding: 13px;
+          text-align: center;
+        }
+      }
+
     </style>
   `;
 
@@ -240,5 +352,45 @@
         link.classList.add('active');
       }
     });
+
+  /* ============ MOBILE MENU TOGGLE BEHAVIOR ============
+     Wires up the hamburger button so it actually opens/closes the
+     collapsed nav on phones/tablets (<=768px). Has no effect on
+     desktop, where .navbar-toggle stays display:none. */
+
+  const toggleBtn = document.getElementById('navbarToggle');
+  const menu = document.getElementById('navbarMenu');
+
+  if (toggleBtn && menu) {
+    const closeMenu = () => {
+      toggleBtn.classList.remove('is-open');
+      menu.classList.remove('is-open');
+      toggleBtn.setAttribute('aria-expanded', 'false');
+    };
+
+    const openMenu = () => {
+      toggleBtn.classList.add('is-open');
+      menu.classList.add('is-open');
+      toggleBtn.setAttribute('aria-expanded', 'true');
+    };
+
+    toggleBtn.addEventListener('click', () => {
+      const isOpen = menu.classList.contains('is-open');
+      isOpen ? closeMenu() : openMenu();
+    });
+
+    // Tapping a link (or the login button) inside the open mobile
+    // menu should close it before navigating away.
+    menu.querySelectorAll('a, button').forEach(el => {
+      el.addEventListener('click', closeMenu);
+    });
+
+    // If the viewport is resized/rotated back to desktop width while
+    // the menu happens to be open, reset it so it doesn't get stuck
+    // open underneath the now-hidden hamburger button.
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 768) closeMenu();
+    });
+  }
 
 })();

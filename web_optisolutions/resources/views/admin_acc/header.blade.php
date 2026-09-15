@@ -1,10 +1,16 @@
 <header class="header">
 
-    {{-- Logo --}}
-    <a class="logo-section" href="/admin_acc/dashboard">
-        <img src="{{ asset('images/polyclinic_logo.png') }}" alt="Polyclinic Logo">
-        <h1>Polyclinic Admin</h1>
-    </a>
+    <div class="header-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu">
+            <i class="bi bi-list"></i>
+        </button>
+
+        {{-- Logo --}}
+        <a class="logo-section" href="/admin_acc/dashboard">
+            <img src="{{ asset('images/polyclinic_logo.png') }}" alt="Polyclinic Logo">
+            <h1>Polyclinic Admin</h1>
+        </a>
+    </div>
 
     {{-- Right Controls --}}
     <div class="header-controls">
@@ -177,7 +183,7 @@
                     let visibleCount = 0;
 
                     rowsInGroup.forEach(row => {
-                        const matches = filter === 'all' || row.dataset.category === filter;
+                        const matches = filter === 'all' || filter.split(',').includes(row.dataset.category);
                         row.style.display = matches ? '' : 'none';
                         if (matches) visibleCount++;
                     });
@@ -191,6 +197,26 @@
         if (countAllEl) {
             countAllEl.textContent = document.querySelectorAll('#notifPanelContainer .notif-row').length;
         }
+
+        // ── Click a row → mark it read, then navigate ────────────────
+        // (This has to live here, not in a <script> tag inside the panel
+        // partial itself — script tags injected via innerHTML don't
+        // execute, so binding has to happen from this persistent,
+        // already-loaded script instead, same as everything else above.)
+        document.querySelectorAll('#notifPanelContainer .notif-row').forEach(row => {
+            const url = row.dataset.url;
+            if (!url) return; // no destination for this type (e.g. system)
+
+            row.addEventListener('click', () => {
+                if (row.querySelector('.notif-action-link')) {
+                    fetch(`/admin_acc/notifications/${row.dataset.id}/read`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+                    }).catch(() => {});
+                }
+                window.location.href = url;
+            });
+        });
 
         document.getElementById('markAllReadBtn')?.addEventListener('click', function () {
             document.querySelectorAll('#notifPanelContainer .notif-row.unread').forEach(row => {

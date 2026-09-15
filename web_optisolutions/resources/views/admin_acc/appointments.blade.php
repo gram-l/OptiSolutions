@@ -34,8 +34,6 @@
             color: #062744;
         }
         .day-nav-btn:hover { background: #f0f4f9; }
-        .day-nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .day-nav-btn:disabled:hover { background: #fff; }
         .day-picker {
             border: 1px solid #d7dce3;
             border-radius: 8px;
@@ -50,6 +48,11 @@
             font-size: 0.8rem;
             cursor: pointer;
             color: #062744;
+        }
+        .current-day-label {
+            font-weight: 600;
+            color: #062744;
+            margin-left: 0.25rem;
         }
 
         /* ── Day table (no more collapsible per-date groups; it's one day) ── */
@@ -207,16 +210,6 @@
                 <select class="filter-select" id="serviceFilter">
                     <option value="all">All Services</option>
                 </select>
-            </div>
-            <div class="day-nav">
-                <button class="day-nav-btn" id="prevDayBtn" title="Previous day">
-                    <i class="fa-solid fa-chevron-left"></i>
-                </button>
-                <input type="date" class="day-picker" id="dayPicker">
-                <button class="day-nav-btn" id="nextDayBtn" title="Next day">
-                    <i class="fa-solid fa-chevron-right"></i>
-                </button>
-                <button class="today-btn" id="todayBtn">Today</button>
                 <div class="download-dropdown" id="downloadDropdown">
                     <button type="button" class="download-btn" id="downloadBtn">
                         <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
@@ -227,6 +220,17 @@
                         <button type="button" onclick="exportExcel()"><i class="fa-regular fa-file-excel"></i> Excel</button>
                     </div>
                 </div>
+            </div>
+            <div class="day-nav">
+                <button class="day-nav-btn" id="prevDayBtn" title="Previous day">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <input type="date" class="day-picker" id="dayPicker">
+                <button class="day-nav-btn" id="nextDayBtn" title="Next day">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+                <button class="today-btn" id="todayBtn">Today</button>
+                <span class="current-day-label" id="currentDayLabel"></span>
             </div>
         </div>
 
@@ -268,80 +272,14 @@
         const VISIT_BASE = '/admin_acc/appointments';
 
         let visitsData = [];
-
-        // Formats a Date object as a local YYYY-MM-DD string. Deliberately
-        // avoids toISOString() here — that converts to UTC first, which in
-        // a UTC+8 timezone silently cancelled out the "next day" shift
-        // (and skipped a day on "previous"), since local midnight is
-        // already the previous day in UTC.
-        function toLocalDateStr(d) {
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        function todayStr() {
-            return toLocalDateStr(new Date());
-        }
+        let currentDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, local-ish
+        let pendingRescheduleId = null;
+        let pendingEditNotesId = null;
 
         function shiftDate(dateStr, days) {
             const d = new Date(dateStr + 'T00:00:00');
             d.setDate(d.getDate() + days);
-            return toLocalDateStr(d);
-        }
-
-        let currentDate = todayStr();
-        let pendingRescheduleId = null;
-        let pendingEditNotesId = null;
-
-        // How many days to search in one direction before giving up (covers
-        // roughly a year either way — enough for any real gap in the
-        // schedule without hammering the server indefinitely).
-        const MAX_DAY_SEARCH = 365;
-
-        async function hasVisitsForDate(dateStr) {
-            try {
-                const res = await fetch(`${DAY_URL}?date=${dateStr}`, { headers: { 'Accept': 'application/json' } });
-                const data = await res.json();
-                return !!(data.success && Array.isArray(data.visits) && data.visits.length > 0);
-            } catch (e) {
-                return false;
-            }
-        }
-
-        // Moves the day-nav in `direction` (-1 or 1), skipping over any day
-        // that has no scheduled visits, and loads the first day it finds
-        // that does.
-        async function goToDayWithVisits(direction) {
-            const prevBtn = document.getElementById('prevDayBtn');
-            const nextBtn = document.getElementById('nextDayBtn');
-            const container = document.getElementById('appointmentsContainer');
-
-            prevBtn.disabled = true;
-            nextBtn.disabled = true;
-            container.innerHTML = '<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">Searching...</div>';
-
-            let candidate = currentDate;
-            let found = null;
-
-            for (let i = 0; i < MAX_DAY_SEARCH; i++) {
-                candidate = shiftDate(candidate, direction);
-                if (await hasVisitsForDate(candidate)) {
-                    found = candidate;
-                    break;
-                }
-            }
-
-            prevBtn.disabled = false;
-            nextBtn.disabled = false;
-
-            if (found) {
-                currentDate = found;
-                loadDay();
-            } else {
-                container.innerHTML = `<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">No ${direction > 0 ? 'upcoming' : 'earlier'} days with scheduled visits found.</div>`;
-            }
+            return d.toISOString().slice(0, 10);
         }
 
         function formatDayLabel(dateStr) {
@@ -358,6 +296,7 @@
 
         async function loadDay() {
             document.getElementById('dayPicker').value = currentDate;
+            document.getElementById('currentDayLabel').innerText = formatDayLabel(currentDate);
 
             const container = document.getElementById('appointmentsContainer');
             container.innerHTML = '<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">Loading...</div>';
@@ -411,7 +350,7 @@
             const container = document.getElementById('appointmentsContainer');
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div style="text-align: center; padding: 3rem; background: white; border-radius: 20px;">No scheduled visit found for this day.</div>';
+                container.innerHTML = '<div style="text-align: center; padding: 3rem; background: white; border-radius: 20px;">No appointments found for this day.</div>';
                 return;
             }
 
@@ -660,9 +599,9 @@
         });
 
         document.getElementById('serviceFilter').addEventListener('change', () => renderDay());
-        document.getElementById('prevDayBtn').addEventListener('click', () => goToDayWithVisits(-1));
-        document.getElementById('nextDayBtn').addEventListener('click', () => goToDayWithVisits(1));
-        document.getElementById('todayBtn').addEventListener('click', () => { currentDate = todayStr(); loadDay(); });
+        document.getElementById('prevDayBtn').addEventListener('click', () => { currentDate = shiftDate(currentDate, -1); loadDay(); });
+        document.getElementById('nextDayBtn').addEventListener('click', () => { currentDate = shiftDate(currentDate, 1); loadDay(); });
+        document.getElementById('todayBtn').addEventListener('click', () => { currentDate = new Date().toISOString().slice(0, 10); loadDay(); });
         document.getElementById('dayPicker').addEventListener('change', (e) => {
             if (e.target.value) { currentDate = e.target.value; loadDay(); }
         });

@@ -12,8 +12,6 @@ use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
-use App\Services\NotificationService;
-use App\Models\Notification;
 use Closure;
 
 class AppointmentConversation extends Conversation
@@ -338,6 +336,27 @@ class AppointmentConversation extends Conversation
             $this->sayLogged(ClinicInfoService::acknowledgmentReply());
             $this->resumeStep($stepKey);
             return true;
+        }
+
+        // Plain greeting ("Hi", "Hello", "Kumusta") — answered directly,
+        // never forwarded to Admin/Staff.
+        $isButtonTap = method_exists($answer, 'isInteractiveMessageReply') && $answer->isInteractiveMessageReply();
+        if (!$isButtonTap) {
+            $freeText = trim($answer->getText());
+
+            if (ClinicInfoService::looksLikeGreeting($freeText)) {
+                $this->logMessage('You', $freeText);
+                $this->sayLogged(ClinicInfoService::greetingReply());
+                $this->resumeStep($stepKey);
+                return true;
+            }
+
+            if (ClinicInfoService::looksLikeAskingPermission($freeText)) {
+                $this->logMessage('You', $freeText);
+                $this->sayLogged(ClinicInfoService::askingPermissionReply());
+                $this->resumeStep($stepKey);
+                return true;
+            }
         }
 
         // Attachments always go to staff.
@@ -674,6 +693,8 @@ class AppointmentConversation extends Conversation
             return;
         }
 
+        $this->sayLogged("🔒 **Reminder**\nThe information you provide (name, contact number, date of birth, and email) is kept confidential and will only be used for record-keeping and to manage your visit at PolyClinic Lipa.");
+
         $this->askName();
     }
 
@@ -805,13 +826,16 @@ class AppointmentConversation extends Conversation
     {
         $doctors = DB::table('doctors')
             ->where('available', 1)
+            ->where('status', 'Active')
             ->where('specialty', $this->service)
             ->get();
 
         if ($doctors->isEmpty()) {
-            $this->sayLogged("We currently don't have a specialist for {$this->service}. Returning to main menu.");
-            $this->resetState();
-            $this->sendMainMenu();
+            $this->sayLogged("We currently don't have a specialist for {$this->service}. Please choose another service:");
+            $this->service = null;
+            $this->serviceKey = null;
+            $this->serviceId = null;
+            $this->askService();
             return;
         }
 
@@ -855,6 +879,11 @@ class AppointmentConversation extends Conversation
             return $this->askDoctor();
         }
 
+        // Once we run out of distinct slots, stop offering "suggest
+        // alternative" instead of silently wrapping back to slot 0
+        // (which used to look like the same time was re-suggested
+        // forever with no explanation).
+        $noMoreAlternatives = $this->scheduleSlotIndex >= $schedules->count();
         $slot = $schedules[$this->scheduleSlotIndex] ?? $schedules[0];
         $this->scheduleDay = $slot->day;
         $suggestedDate = $this->getNextAvailableDate($slot->day);
@@ -863,12 +892,18 @@ class AppointmentConversation extends Conversation
         // Bold header + date/time + note, each on its own line.
         $scheduleText = "**Suggested schedule:**\n{$this->scheduleSuggestion}.\nBased on {$this->doctor}'s availability.";
 
+        if ($noMoreAlternatives) {
+            $scheduleText .= "\n\nThis is the last available time slot we have for {$this->doctor}.";
+        }
+
+        $buttons = [Button::create('Yes, confirm')->value('confirm_yes')];
+        if (!$noMoreAlternatives) {
+            $buttons[] = Button::create('Suggest alternative')->value('confirm_no');
+        }
+
         $question = Question::create($scheduleText)
             ->fallback('Please use the confirmation buttons above.')
-            ->addButtons([
-                Button::create('Yes, confirm')->value('confirm_yes'),
-                Button::create('Suggest alternative')->value('confirm_no'),
-            ]);
+            ->addButtons($buttons);
 
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
@@ -952,8 +987,7 @@ class AppointmentConversation extends Conversation
 
             $visitDate = $this->getNextAvailableISODate($this->scheduleDay);
 
-
-            $visitId = DB::table('schedule_visit')->insertGetId([   // insertGetId, not insert
+            DB::table('schedule_visit')->insert([
                 'doctor_id'    => $this->doctorId,
                 'patient_id'   => $patientId,
                 'service_type' => $this->service,
@@ -962,8 +996,16 @@ class AppointmentConversation extends Conversation
                 'scheduled_at' => now(),
             ]);
 
+            // Notification failures should not affect the saved appointment.
             try {
-                NotificationService::newVisit("{$this->fname} {$this->lname}", $this->doctor, $visitDate, $visitId);
+                AppNotification::create([
+                    'icon'    => 'calendar_today',
+                    'title'   => 'New Schedule Visit',
+                    'message' => "{$this->fname} {$this->lname} scheduled a visit with {$this->doctor} on "
+                        . \Carbon\Carbon::parse($visitDate)->format('M d, Y') . '.',
+                    'is_read' => false,
+                    'color'   => '4CAF50',
+                ]);
             } catch (\Throwable $notifyError) {
                 Log::error('Failed to create appointment notification: ' . $notifyError->getMessage(), [
                     'exception' => $notifyError,

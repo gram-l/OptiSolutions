@@ -325,7 +325,7 @@
                             <span><i class="fa-solid fa-clock"></i></span> Schedule
                         </div>
                         <div class="schedule-text">${escapeHtml(doc.schedule)}</div>
-                        ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="fa-solid fa-phone"></i> ${escapeHtml(doc.phone)}</div>` : ''}
+                        ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;">📞 ${escapeHtml(doc.phone)}</div>` : ''}
                     </div>
                     <div class="card-actions">
                         <button class="btn-icon btn-edit" onclick="openEditModal(${doc.id})">

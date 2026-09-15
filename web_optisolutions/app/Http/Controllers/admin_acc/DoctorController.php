@@ -75,6 +75,11 @@ class DoctorController extends Controller
 
         $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image'])->toArray();
         $doctorData['status'] = $doctorData['status'] ?? 'Active';
+        // `available` is the column every patient-facing surface actually
+        // filters on (chatbot, home page, doctors page, staff side) — keep
+        // it in lockstep with `status` so a new doctor shows up everywhere
+        // consistently from the start.
+        $doctorData['available'] = $doctorData['status'] === 'Active' ? 1 : 0;
 
         if ($request->hasFile('profile_image')) {
             $doctorData['profile_image'] = $request->file('profile_image')->store('doctors', 'public');
@@ -111,6 +116,14 @@ class DoctorController extends Controller
 
         $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image'])->toArray();
 
+        // Same reasoning as store(): if this edit touches `status`, keep
+        // `available` (the field patient-facing pages/chatbot/home/staff
+        // actually filter on) in sync so Activate/Deactivate here takes
+        // effect everywhere, not just on this admin screen.
+        if (!empty($doctorData['status'])) {
+            $doctorData['available'] = $doctorData['status'] === 'Active' ? 1 : 0;
+        }
+
         if ($request->hasFile('profile_image')) {
             // Replacing an existing photo — remove the old file so uploads
             // don't pile up on disk.
@@ -145,6 +158,11 @@ class DoctorController extends Controller
         }
 
         $doctor->status = $doctor->status === 'Active' ? 'Inactive' : 'Active';
+        // Keep `available` in sync — this is the field the patient-facing
+        // doctors page, home page, chatbot, and staff side actually check,
+        // so without this the doctor would keep showing up everywhere
+        // except this one admin screen after being "deactivated".
+        $doctor->available = $doctor->status === 'Active' ? 1 : 0;
         $doctor->save();
 
         $doctor->schedule = $this->formatSchedule($doctor->schedules);

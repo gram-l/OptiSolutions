@@ -8,20 +8,10 @@ use App\Conversations\InquiryConversation;
 use Closure;
 
 /**
- * Shared off-topic detection for conversations that show a button-driven
- * menu and want stray free-typed questions to still reach staff via
- * InquiryConversation, instead of just getting a repeated
- * "please choose one of the options above."
- *
- * Only wire this into steps where free text ISN'T the expected answer
- * (e.g. a button menu) — not into steps where free text is the actual
- * content you want (e.g. typing the complaint itself), or a genuine
- * complaint/comment that happens to contain a question mark would get
- * misrouted.
- *
- * AppointmentConversation keeps its own, richer version of this (it also
- * stashes/resumes in-progress schedule-visit state) — this trait is for
- * Complaint, Review, and similar single-purpose conversations.
+ * Shared off-topic detection: routes stray free-typed questions to staff
+ * on button-driven steps. Don't use on steps where free text is the
+ * expected answer. Used by Complaint, Review, and similar conversations
+ * (AppointmentConversation has its own richer version).
  */
 trait HandlesOffTopic
 {
@@ -97,10 +87,8 @@ trait HandlesOffTopic
     }
 
     /**
-     * @param Answer  $answer
-     * @param Closure $resumeCurrentStep Re-shows the current step after an
-     *                acknowledgment or an answered info-request.
-     * @return bool   True if the answer was off-topic and has been handled.
+     * Handles acknowledgments, greetings, info requests, and inquiries.
+     * Returns true if the answer was off-topic and has been handled.
      */
     protected function handleOffTopicIfAny(Answer $answer, Closure $resumeCurrentStep): bool
     {
@@ -108,6 +96,23 @@ trait HandlesOffTopic
             $this->say(ClinicInfoService::acknowledgmentReply());
             $resumeCurrentStep();
             return true;
+        }
+
+        $isButtonTap = method_exists($answer, 'isInteractiveMessageReply') && $answer->isInteractiveMessageReply();
+        if (!$isButtonTap) {
+            $freeText = trim($answer->getText());
+
+            if (ClinicInfoService::looksLikeGreeting($freeText)) {
+                $this->say(ClinicInfoService::greetingReply());
+                $resumeCurrentStep();
+                return true;
+            }
+
+            if (ClinicInfoService::looksLikeAskingPermission($freeText)) {
+                $this->say(ClinicInfoService::askingPermissionReply());
+                $resumeCurrentStep();
+                return true;
+            }
         }
 
         if ($this->hasAttachment($answer)) {

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
 use App\Models\Staff\AppNotification;
-use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
@@ -48,12 +47,10 @@ class NotificationController extends Controller
     public function markAllAsRead()
     {
         $userId = Auth::user()->user_id;
-        $visibleTypes = NotificationService::visibleTypesFor(Auth::user()->user_role ?? null);
 
         AppNotification::where(function ($q) use ($userId) {
                 $q->where('user_id', $userId)->orWhereNull('user_id');
             })
-            ->whereIn('type', $visibleTypes)
             ->update(['is_read' => 1]);
 
         return response()->json(['success' => true]);

@@ -23,7 +23,6 @@ export default defineConfig({
                 'resources/css/admin_css/sidebar.css',
                 'resources/css/admin_css/user_management.css',
                 'resources/css/admin_css/system_settings.css',
-                'resources/css/admin_css/chatbot_commands.css',
 
                 'resources/css/patient_css/about.css',
                 'resources/css/patient_css/app.css',

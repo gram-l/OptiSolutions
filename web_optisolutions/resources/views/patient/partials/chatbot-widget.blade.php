@@ -34,6 +34,8 @@
 
   <div class="chat-messages" id="chatMessages"></div>
 
+  <div class="quick-replies" id="quickReplies"></div>
+
   <div class="attachment-preview" id="attachmentPreview">
     <img id="attachmentPreviewImg" class="attachment-preview-thumb" alt="">
     <span id="attachmentPreviewName" class="attachment-preview-name"></span>
@@ -56,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const panel      = document.getElementById('chatbotPanel');
   const closeBtn   = document.getElementById('chatClose');
   const messagesEl = document.getElementById('chatMessages');
+  const quickRepliesEl = document.getElementById('quickReplies');
   const input      = document.getElementById('chatInput');
   const sendBtn    = document.getElementById('chatSend');
   const attachBtn  = document.getElementById('attachBtn');
@@ -66,9 +69,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const attachmentPreviewRemove = document.getElementById('attachmentPreviewRemove');
   const csrfToken  = document.querySelector('meta[name="csrf-token"]').content;
   const botmanUrl  = '{{ route("botman.handle") }}';
+  const attachmentUrl = '{{ route("chatbot.attachment") }}';
 
   const APPT_CARD_PREFIX = 'APPT_CARD::';
   const INFO_CARD_PREFIX = 'INFO_CARD::';
+
+  // Guards against overlapping requests — rapid clicking a quick-reply
+  // button or mashing Enter before the first response comes back used
+  // to fire multiple parallel /botman calls. Input, send button, and
+  // all quick-reply buttons are disabled while a request is in flight.
+  let isSending = false;
+
+  function setSendingState(sending) {
+    isSending = sending;
+    input.disabled = sending;
+    sendBtn.disabled = sending;
+    if (attachBtn) attachBtn.disabled = sending;
+    quickRepliesEl.querySelectorAll('.quick-reply-btn').forEach(b => {
+      b.disabled = sending;
+    });
+  }
 
   // PER-MESSAGE TRANSLATION
 
@@ -182,10 +202,12 @@ document.addEventListener('DOMContentLoaded', () => {
         lastActivity: now,
         history: [],
         shownReplyIds: [],
+        shownResolvedIds: [],
       };
     }
 
     if (!saved.shownReplyIds) saved.shownReplyIds = [];
+    if (!saved.shownResolvedIds) saved.shownResolvedIds = [];
 
     return saved;
   }
@@ -227,15 +249,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
   attachmentPreviewRemove.addEventListener('click', clearAttachmentPreview);
 
-  function acknowledgeAttachment() {
-    return new Promise((resolve) => {
-      showTyping();
-      setTimeout(() => {
-        hideTyping();
-        addBubble('Thank you for the attachment! Our staff will review it and get back to you shortly.', 'bot');
-        resolve();
-      }, 600);
-    });
+  async function uploadAttachment(file, caption) {
+    // Same guard as sendMessage(): the input/send/attach controls stay
+    // disabled for the whole upload window so the patient can't fire
+    // off more messages while we're still waiting on this one (avoids
+    // spamming the bot/admin/staff). No typing dots here — this reply
+    // is generated immediately, it isn't a human composing a message.
+    setSendingState(true);
+    try {
+      const formData = new FormData();
+      formData.append('attachment', file);
+      formData.append('userId', session.clientId);
+      if (caption) formData.append('caption', caption);
+
+      const res = await fetch(attachmentUrl, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        addErrorBubble(data.error || 'Something went wrong uploading the attachment. Please try again.');
+        return;
+      }
+
+      addBubble("Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.", 'bot');
+    } catch (e) {
+      console.error('Failed to upload attachment:', e);
+      addErrorBubble('Something went wrong uploading the attachment. Please try again.');
+    } finally {
+      setSendingState(false);
+    }
   }
 
   async function handleSend() {
@@ -249,11 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
       clearAttachmentPreview();
       input.value = '';
 
-      if (text) {
-        await sendMessage(text, text, { skipUserBubble: true });
-      } else {
-        await acknowledgeAttachment();
-      }
+      await uploadAttachment(attachment.file, text || null);
       return;
     }
 
@@ -320,6 +365,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return bubble;
   }
+
+  // Error bubble: same as addBubble() but with an inline "Refresh"
+  // action so the patient has an easy way to recover from a sudden
+  // error (dropped connection, server hiccup, failed upload) instead
+  // of being stuck. Not persisted to history — it's a transient
+  // notice, re-showing a stale "please refresh" bubble on reload
+  // would be confusing.
+  function addErrorBubble(text) {
+    const bubble = addBubble(text, 'bot', false);
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'msg-translate-btn';
+    refreshBtn.innerHTML = '<i class="fa-solid fa-arrow-rotate-right"></i> Refresh';
+    refreshBtn.style.marginTop = '6px';
+    refreshBtn.addEventListener('click', () => window.location.reload());
+
+    bubble.parentElement.appendChild(refreshBtn);
+    scrollToBottom();
+    return bubble;
+  }
+
+  // Auto-refresh once connectivity is back. If the patient's connection
+  // actually drops mid-chat, there's no reliable way to resume the
+  // in-flight request, so the simplest, least-confusing recovery is to
+  // reload the page as soon as the browser reports we're back online —
+  // the chat history itself is preserved via localStorage (session.history).
+  let wasOffline = false;
+  window.addEventListener('offline', () => {
+    wasOffline = true;
+    addErrorBubble("You've lost your internet connection. I'll refresh automatically once you're back online.");
+    setSendingState(true);
+  });
+  window.addEventListener('online', () => {
+    if (wasOffline) {
+      window.location.reload();
+    }
+  });
 
   // Star rating helpers
   function isRatingButtons(buttons) {
@@ -396,23 +479,91 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function addButtons(buttons, persist = true) {
-    if (isRatingButtons(buttons)) {
-      addStarRating(buttons, persist);
+  // Renders the current option set as a pinned "quick replies" row
+  // sitting above the input box (Messenger-style), instead of inside
+  // the scrolling message list — so the patient never has to scroll
+  // up to find the buttons for the question that was just asked.
+  function renderQuickReplies(buttons) {
+    quickRepliesEl.innerHTML = '';
+
+    if (!buttons || !buttons.length) {
+      quickRepliesEl.classList.remove('visible');
       return;
     }
 
+    buttons.forEach(btn => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'quick-reply-btn';
+      b.textContent = btn.text;
+      b.addEventListener('click', () => {
+        sendMessage(btn.value ?? btn.text, btn.text);
+      });
+      quickRepliesEl.appendChild(b);
+    });
+
+    quickRepliesEl.classList.add('visible');
+  }
+
+  // Clears the quick-replies bar (used when a new question comes in
+  // with no button options at all, or when starting a fresh
+  // conversation) — but the bar is no longer auto-cleared just
+  // because the patient answered; it stays visible until the next
+  // set of options replaces it.
+  function clearQuickReplies() {
+    quickRepliesEl.innerHTML = '';
+    quickRepliesEl.classList.remove('visible');
+  }
+
+  // Recognizes the top-level 4-button main menu (Schedule Visit /
+  // General Information / Submit Review/Rating / Submit Complaint),
+  // regardless of which conversation produced it or which value
+  // convention it uses under the hood. AppointmentConversation's
+  // post-appointment menu, for example, reuses the same 4 labels but
+  // with its own distinct values ('post_schedule_visit', etc.), so
+  // this matches on the visible label text rather than the value —
+  // any button set with these exact 4 labels always gets the pinned
+  // "quick replies" treatment. Every other button set (service list,
+  // doctor list, schedule confirmation, star rating, etc.) renders
+  // inline instead, see addInlineButtons() below.
+  const MAIN_MENU_LABELS = new Set([
+    'schedule visit',
+    'general information',
+    'submit review/rating',
+    'submit complaint',
+  ]);
+
+  function isMainMenuButtons(buttons) {
+    return Array.isArray(buttons) && buttons.length === 4 &&
+      buttons.every(b => MAIN_MENU_LABELS.has(String(b.text ?? b.value).trim().toLowerCase()));
+  }
+
+  // Renders a button set inline, as part of the scrolling message
+  // list right under the question that was just asked — for service
+  // lists, doctor lists, schedule confirmation, and any other
+  // non-main-menu option set. Once one option is tapped, every button
+  // in the set is disabled so an earlier, already-answered set can't
+  // be re-clicked out of order.
+  function addInlineButtons(buttons) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
 
     const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble menu-grid';
+    bubble.className = 'chat-bubble inline-buttons-bubble';
 
     buttons.forEach(btn => {
       const b = document.createElement('button');
-      b.className = 'menu-btn';
+      b.type = 'button';
+      b.className = 'inline-reply-btn';
       b.textContent = btn.text;
       b.addEventListener('click', () => {
+        // Once answered, remove the whole button set instead of
+        // leaving a muted/disabled copy sitting in the message
+        // history — avoids a stale-looking duplicate when the very
+        // next reply shows a fresh (and sometimes near-identical) set
+        // of options, e.g. the post-appointment menu followed by a
+        // Complaint/Review conversation's own main menu.
+        messageWrap.remove();
         sendMessage(btn.value ?? btn.text, btn.text);
       });
       bubble.appendChild(b);
@@ -421,6 +572,20 @@ document.addEventListener('DOMContentLoaded', () => {
     messageWrap.appendChild(bubble);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
+  }
+
+  function addButtons(buttons, persist = true) {
+    if (isRatingButtons(buttons)) {
+      addStarRating(buttons, persist);
+      return;
+    }
+
+    if (isMainMenuButtons(buttons)) {
+      renderQuickReplies(buttons);
+    } else {
+      clearQuickReplies();
+      addInlineButtons(buttons);
+    }
 
     if (persist) {
       session.history.push({ kind: 'buttons', buttons });
@@ -588,11 +753,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    session.history.forEach(item => {
+    session.history.forEach((item, idx) => {
+      const isLast = idx === session.history.length - 1;
+
       if (item.kind === 'bubble') {
         addBubble(item.text, item.sender, false);
       } else if (item.kind === 'buttons') {
-        addButtons(item.buttons, false);
+        // Only the most recent, still-unanswered option set gets
+        // restored into the live quick-replies bar. Earlier button
+        // sets in the history were already answered (the next item
+        // is always the patient's reply), so re-showing them would
+        // offer stale, already-actioned choices.
+        if (isLast) {
+          addButtons(item.buttons, false);
+        }
       } else if (item.kind === 'star_rating') {
         addStarRating(item.buttons, false, item.selectedIndex ?? null);
       } else if (item.kind === 'card') {
@@ -606,15 +780,28 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
   }
 
-  // Typing indicator
+  // Typing indicator — reserved for a real Admin/Staff person actively
+  // composing a reply (see staffTyping in pollForReplies()). Guarded
+  // against duplicates since it's now called on every 3s poll tick
+  // while staffTyping stays true, not just once per request.
   function showTyping() {
+    if (document.getElementById('typingIndicator')) return;
+
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
     messageWrap.id = 'typingIndicator';
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
-    bubble.textContent = '...';
+
+    const dotsWrap = document.createElement('div');
+    dotsWrap.className = 'typing-dots';
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dotsWrap.appendChild(dot);
+    }
+    bubble.appendChild(dotsWrap);
 
     messageWrap.appendChild(bubble);
     messagesEl.appendChild(messageWrap);
@@ -628,13 +815,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function sendMessage(text, displayText, opts = {}) {
     text = typeof text === 'string' ? text : String(text ?? '');
-    if (!text.trim()) return;
+    if (!text.trim() || isSending) return;
+
+    setSendingState(true);
 
     if (!opts.skipUserBubble) {
       addBubble(displayText ?? text, 'user');
     }
     input.value = '';
-    showTyping();
+    // No typing dots here — the bot computes and returns its reply in
+    // this same request/response cycle, there's no one "typing" it.
+    // The "..." indicator is reserved for a real Admin/Staff person
+    // composing a reply (see pollForReplies()/staffTyping below).
 
     try {
       const res = await fetch(botmanUrl, {
@@ -652,14 +844,18 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await res.json();
-      hideTyping();
 
       if (!res.ok) {
-        addBubble('Something went wrong reaching the chatbot. Please try again.', 'bot');
+        if (res.status === 429) {
+          addErrorBubble("You're sending messages a bit too quickly. Please wait a moment and try again.");
+        } else {
+          addErrorBubble('Something went wrong reaching the chatbot. Please try again.');
+        }
         return;
       }
 
       const messages = Array.isArray(data) ? data : (data.messages || []);
+      let hadButtons = false;
 
       messages.forEach(msg => {
         if (msg.text) {
@@ -687,13 +883,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const buttons = msg.actions || (msg.attachment && msg.attachment.buttons);
         if (buttons && buttons.length) {
           addButtons(buttons);
+          hadButtons = true;
         }
       });
 
+      // The step we just landed on has no button options of its own
+      // (e.g. "Please provide your full name.") — clear the pinned
+      // bar instead of leaving the previous step's buttons sitting
+      // there looking clickable when they no longer apply.
+      if (!hadButtons) {
+        clearQuickReplies();
+      }
+
     } catch (err) {
-      hideTyping();
       console.error('Chat error:', err);
-      addBubble('Unable to connect. Please check your internet connection and try again.', 'bot');
+      addErrorBubble('Unable to connect. Please check your internet connection and try again.');
+    } finally {
+      setSendingState(false);
     }
   }
 
@@ -724,46 +930,106 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  const FALLBACK_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
+  // Both variants of the "sent to Admin/Staff" placeholder — the plain
+  // text-message one and the attachment-upload one — need to disappear
+  // once a real Admin/Staff reply comes in, not just the first one.
+  const FALLBACK_TEXTS = new Set([
+    "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
+    "Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
+  ]);
   let shownReplyIds = new Set(session.shownReplyIds || []);
+  let shownResolvedIds = new Set(session.shownResolvedIds || []);
 
   function removeFallbackBubbles() {
     document.querySelectorAll('.chat-message.bot .chat-bubble').forEach(bubble => {
-      if (bubble.textContent === FALLBACK_TEXT) {
+      if (FALLBACK_TEXTS.has(bubble.textContent)) {
         bubble.closest('.chat-message').remove();
       }
     });
     session.history = session.history.filter(
-      item => !(item.kind === 'bubble' && item.text === FALLBACK_TEXT)
+      item => !(item.kind === 'bubble' && FALLBACK_TEXTS.has(item.text))
     );
     persistSession();
   }
 
+  // The same 4-option main menu shown on a fresh session (see
+  // restoreConversation) — reused here so it can be brought back once
+  // Admin/Staff marks the patient's inquiry resolved.
+  function showMainMenu() {
+    addButtons([
+      { text: 'Schedule Visit', value: 'schedule visit' },
+      { text: 'General Information', value: 'general information' },
+      { text: 'Submit Review/Rating', value: 'submit review/rating' },
+      { text: 'Submit Complaint', value: 'submit complaint' },
+    ]);
+  }
+
+  // Guards against overlapping polling requests — e.g. opening the
+  // panel (which calls pollForReplies immediately) right as the
+  // 5-second interval also fires would otherwise let two fetches race
+  // and both try to render the same "new" reply.
+  let isPolling = false;
+
   async function pollForReplies() {
+    if (isPolling) return;
+    isPolling = true;
     try {
       const res = await fetch(`/api/chat/${session.clientId}/updates`);
       if (!res.ok) return;
       const data = await res.json();
       const updates = data.updates || [];
+      const resolvedIds = data.resolvedInquiryIds || [];
 
       const newOnes = updates.filter(u => !shownReplyIds.has(u.replyId));
-      if (newOnes.length === 0) return;
+      const newlyResolved = resolvedIds.filter(id => !shownResolvedIds.has(id));
 
-      removeFallbackBubbles();
+      // The only legitimate source of the "..." indicator: a real
+      // Admin/Staff person is actively composing a reply to this chat
+      // right now (see TypingStatusService on the backend). Once their
+      // reply actually lands (newOnes.length > 0, below) we drop it
+      // immediately rather than waiting on the flag to expire.
+      if (data.staffTyping && newOnes.length === 0) {
+        showTyping();
+      } else {
+        hideTyping();
+      }
 
-      newOnes.forEach(u => {
-        addBubble(u.message, 'bot');
-        shownReplyIds.add(u.replyId);
-      });
+      if (newOnes.length === 0 && newlyResolved.length === 0) return;
 
-      session.shownReplyIds = Array.from(shownReplyIds);
+      if (newOnes.length > 0) {
+        removeFallbackBubbles();
+
+        newOnes.forEach(u => {
+          addBubble(u.message, 'bot');
+          shownReplyIds.add(u.replyId);
+        });
+
+        session.shownReplyIds = Array.from(shownReplyIds);
+      }
+
+      // Once Admin/Staff has resolved the inquiry — whether that came
+      // with one last reply or a plain "Resolve" click — hand the
+      // patient back to the main menu automatically instead of leaving
+      // them stuck with nothing to tap.
+      if (newlyResolved.length > 0) {
+        newlyResolved.forEach(id => shownResolvedIds.add(id));
+        session.shownResolvedIds = Array.from(shownResolvedIds);
+
+        addBubble("Your inquiry has been resolved. Is there anything else I can help you with?", 'bot');
+        showMainMenu();
+      }
+
       persistSession();
     } catch (err) {
       console.error('Poll error:', err);
+    } finally {
+      isPolling = false;
     }
   }
 
-  setInterval(pollForReplies, 5000);
+  // 3s (was 5s) so the real "Admin/Staff is typing…" indicator feels
+  // live rather than lagging noticeably behind their actual keystrokes.
+  setInterval(pollForReplies, 3000);
 
   // Global trigger: open chat + jump straight to Submit Feedback
   window.openChatbotAndSubmitFeedback = function () {

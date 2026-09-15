@@ -2,13 +2,110 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Settings</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     @vite(['resources/css/admin_css/user_management.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/system_settings.css'])
+
+    <style>
+        /* ── Scoped modal (renamed from generic .modal/.modal-content so it
+             can never collide with the header's profile modal/dropdown) ── */
+        .ss-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .ss-modal.open { display: flex; }
+        .ss-modal-content {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.75rem;
+            width: 100%;
+            max-width: 480px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 12px 32px var(--shadow);
+        }
+
+        /* ── Popup toast notifications (success / error) ── */
+        #ssToastContainer {
+            position: fixed;
+            top: 1.25rem;
+            right: 1.25rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            pointer-events: none;
+        }
+        .ss-toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            min-width: 280px;
+            max-width: 360px;
+            background: var(--white);
+            border-radius: 10px;
+            padding: 0.9rem 1rem;
+            box-shadow: 0 8px 24px var(--shadow);
+            border-left: 5px solid var(--primary-main);
+            opacity: 0;
+            transform: translateX(30px);
+            animation: ssToastIn 0.25s ease forwards;
+        }
+        .ss-toast.ss-toast-success { border-left-color: #2ecc71; }
+        .ss-toast.ss-toast-error { border-left-color: var(--danger); }
+        .ss-toast .ss-toast-icon {
+            font-size: 1.1rem;
+            margin-top: 0.1rem;
+        }
+        .ss-toast-success .ss-toast-icon { color: #2ecc71; }
+        .ss-toast-error .ss-toast-icon { color: var(--danger); }
+        .ss-toast .ss-toast-body { flex: 1; }
+        .ss-toast .ss-toast-title {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--text-dark);
+            margin-bottom: 0.15rem;
+        }
+        .ss-toast .ss-toast-message {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            line-height: 1.35;
+        }
+        .ss-toast .ss-toast-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #b2b8bf;
+            font-size: 1rem;
+            line-height: 1;
+            padding: 0;
+        }
+        .ss-toast .ss-toast-close:hover { color: var(--text-dark); }
+        .ss-toast.ss-toast-hide {
+            animation: ssToastOut 0.2s ease forwards;
+        }
+        @keyframes ssToastIn {
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes ssToastOut {
+            to { opacity: 0; transform: translateX(30px); }
+        }
+    </style>
 </head>
 <body>
     @include('admin_acc.header')
+
+    {{-- Popup toasts render here via JS; no native alert() is used --}}
+    <div id="ssToastContainer"></div>
+
     <div class="container">
         @include('admin_acc.sidebar')
         <main style="flex: 1; min-width: 0;">
@@ -16,12 +113,6 @@
             <h2><i class="bi bi-gear"></i> System Settings</h2>
             <p>Manage clinic hours, about page, contact info, and services</p>
         </div>
-
-        @if (session('success'))
-            <div class="status-badge status-active" style="display:block; padding: 0.8rem 1.2rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
-                {{ session('success') }}
-            </div>
-        @endif
 
         {{-- Tabs --}}
         <div class="filter-bar">
@@ -180,9 +271,9 @@
             </div>
         </div>
 
-        {{-- Service Add/Edit Modal --}}
-        <div class="modal" id="serviceModal">
-            <div class="modal-content">
+        {{-- Service Add/Edit Modal (scoped .ss-modal — see <style> above) --}}
+        <div class="ss-modal" id="serviceModal">
+            <div class="ss-modal-content">
                 <h3 id="serviceModalTitle">Add Service</h3>
                 <form id="serviceForm" method="POST">
                     @csrf
@@ -249,7 +340,8 @@
         container.appendChild(row);
     }
 
-    // Service modal
+    // Service modal (scoped: uses the .ss-modal "open" class, not display toggling
+    // shared with any other modal on the page)
     const serviceModal = document.getElementById('serviceModal');
     const serviceForm   = document.getElementById('serviceForm');
 
@@ -273,15 +365,55 @@
             serviceForm.action = `/admin_acc/system_settings/services`;
         }
 
-        serviceModal.style.display = 'flex';
+        serviceModal.classList.add('open');
     }
 
     function closeServiceModal() {
-        serviceModal.style.display = 'none';
+        serviceModal.classList.remove('open');
     }
 
     serviceModal.addEventListener('click', (e) => {
         if (e.target === serviceModal) closeServiceModal();
+    });
+
+    // ── Popup toast notifications ──
+    function ssShowToast(type, title, message) {
+        const container = document.getElementById('ssToastContainer');
+        const toast = document.createElement('div');
+        toast.className = `ss-toast ss-toast-${type}`;
+
+        const icon = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill';
+        toast.innerHTML = `
+            <i class="bi ${icon} ss-toast-icon"></i>
+            <div class="ss-toast-body">
+                <div class="ss-toast-title">${title}</div>
+                <div class="ss-toast-message">${message}</div>
+            </div>
+            <button type="button" class="ss-toast-close" aria-label="Close">&times;</button>
+        `;
+
+        const remove = () => {
+            toast.classList.add('ss-toast-hide');
+            setTimeout(() => toast.remove(), 200);
+        };
+
+        toast.querySelector('.ss-toast-close').addEventListener('click', remove);
+        container.appendChild(toast);
+        setTimeout(remove, 4500);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        @if (session('success'))
+            ssShowToast('success', 'Saved', @json(session('success')));
+        @endif
+
+        @if (session('error'))
+            ssShowToast('error', 'Unsuccessful', @json(session('error')));
+        @endif
+
+        @if ($errors->any())
+            ssShowToast('error', 'Unsuccessful', @json($errors->first()));
+        @endif
     });
 </script>
         </main>

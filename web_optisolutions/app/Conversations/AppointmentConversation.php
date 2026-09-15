@@ -338,6 +338,27 @@ class AppointmentConversation extends Conversation
             return true;
         }
 
+        // Plain greeting ("Hi", "Hello", "Kumusta") — answered directly,
+        // never forwarded to Admin/Staff.
+        $isButtonTap = method_exists($answer, 'isInteractiveMessageReply') && $answer->isInteractiveMessageReply();
+        if (!$isButtonTap) {
+            $freeText = trim($answer->getText());
+
+            if (ClinicInfoService::looksLikeGreeting($freeText)) {
+                $this->logMessage('You', $freeText);
+                $this->sayLogged(ClinicInfoService::greetingReply());
+                $this->resumeStep($stepKey);
+                return true;
+            }
+
+            if (ClinicInfoService::looksLikeAskingPermission($freeText)) {
+                $this->logMessage('You', $freeText);
+                $this->sayLogged(ClinicInfoService::askingPermissionReply());
+                $this->resumeStep($stepKey);
+                return true;
+            }
+        }
+
         // Attachments always go to staff.
         if ($this->hasAttachment($answer)) {
             $this->routeToInquiry($answer, $stepKey);
@@ -465,10 +486,14 @@ class AppointmentConversation extends Conversation
         });
     }
 
-    // Shows the main menu and routes the chosen action.
-    protected function sendMainMenu()
+    // Shows the main menu and routes the chosen action. Pass
+    // $showGreeting = false to re-show just the buttons without
+    // repeating the "Hello! Welcome..." greeting bubble — used when
+    // the menu is being re-displayed right after General Information
+    // was already answered, so the greeting doesn't show up twice.
+    protected function sendMainMenu(bool $showGreeting = true)
     {
-        $question = Question::create('Hello! Welcome to PolyClinic Lipa. How can I help you today?')
+        $question = Question::create($showGreeting ? 'Hello! Welcome to PolyClinic Lipa. How can I help you today?' : '')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),
@@ -493,7 +518,7 @@ class AppointmentConversation extends Conversation
                 $this->askName();
             } elseif ($choice === 'general information') {
                 $this->sayLogged(ClinicInfoService::infoCardMessage());
-                $this->sendMainMenu();
+                $this->sendMainMenu(false);
             } elseif ($choice === 'review') {
                 $this->bot->startConversation(
                     new ReviewConversation($patientId, trim("{$this->fname} {$this->lname}"))
@@ -520,6 +545,11 @@ class AppointmentConversation extends Conversation
         $words = array_filter(preg_split('/\s+/', $trimmed));
         if (count($words) < 2) return "Please enter your full name";
         foreach ($words as $w) {
+            // Allow a single-letter middle initial, with or without a trailing
+            // period (e.g. "D" or "D."), so names like "Juan D. Cruz" pass.
+            if (preg_match("/^[A-Za-zÀ-ÖØ-öø-ÿ]\.?$/u", $w)) {
+                continue;
+            }
             if (strlen(preg_replace("/['.]/", '', $w)) < 2)
                 return "Each part of your name must be at least 2 characters.";
         }
@@ -663,6 +693,8 @@ class AppointmentConversation extends Conversation
             return;
         }
 
+        $this->sayLogged("🔒 **Reminder**\nThe information you provide (name, contact number, date of birth, and email) is kept confidential and will only be used for record-keeping and to manage your visit at PolyClinic Lipa.");
+
         $this->askName();
     }
 
@@ -794,11 +826,16 @@ class AppointmentConversation extends Conversation
     {
         $doctors = DB::table('doctors')
             ->where('available', 1)
+            ->where('status', 'Active')
             ->where('specialty', $this->service)
             ->get();
 
         if ($doctors->isEmpty()) {
-            $this->sayLogged("We currently don't have a specialist for {$this->service}. Returning to main menu.");
+            $this->sayLogged("We currently don't have a specialist for {$this->service}. Please choose another service:");
+            $this->service = null;
+            $this->serviceKey = null;
+            $this->serviceId = null;
+            $this->askService();
             return;
         }
 
@@ -842,6 +879,11 @@ class AppointmentConversation extends Conversation
             return $this->askDoctor();
         }
 
+        // Once we run out of distinct slots, stop offering "suggest
+        // alternative" instead of silently wrapping back to slot 0
+        // (which used to look like the same time was re-suggested
+        // forever with no explanation).
+        $noMoreAlternatives = $this->scheduleSlotIndex >= $schedules->count();
         $slot = $schedules[$this->scheduleSlotIndex] ?? $schedules[0];
         $this->scheduleDay = $slot->day;
         $suggestedDate = $this->getNextAvailableDate($slot->day);
@@ -850,12 +892,18 @@ class AppointmentConversation extends Conversation
         // Bold header + date/time + note, each on its own line.
         $scheduleText = "**Suggested schedule:**\n{$this->scheduleSuggestion}.\nBased on {$this->doctor}'s availability.";
 
+        if ($noMoreAlternatives) {
+            $scheduleText .= "\n\nThis is the last available time slot we have for {$this->doctor}.";
+        }
+
+        $buttons = [Button::create('Yes, confirm')->value('confirm_yes')];
+        if (!$noMoreAlternatives) {
+            $buttons[] = Button::create('Suggest alternative')->value('confirm_no');
+        }
+
         $question = Question::create($scheduleText)
             ->fallback('Please use the confirmation buttons above.')
-            ->addButtons([
-                Button::create('Yes, confirm')->value('confirm_yes'),
-                Button::create('Suggest alternative')->value('confirm_no'),
-            ]);
+            ->addButtons($buttons);
 
         $this->askLogged($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
@@ -1092,6 +1140,7 @@ class AppointmentConversation extends Conversation
                 $this->sendMainMenu();
             } elseif ($choice === 'post_general_information') {
                 $this->sayLogged(ClinicInfoService::infoCardMessage());
+                $this->askPostAppointment();
             } elseif ($choice === 'review') {
                 $this->bot->startConversation(new ReviewConversation($patientId, "{$this->fname} {$this->lname}"));
             } elseif ($choice === 'complaint') {

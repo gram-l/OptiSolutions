@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\admin_models\ClinicInfo;
 use App\Models\admin_models\Service;
 use Illuminate\Http\Request;
+use Throwable;
 
 class SystemSettingsController extends Controller
 {
@@ -44,6 +45,8 @@ class SystemSettingsController extends Controller
             'website'         => 'sometimes|nullable|url|max:255',
         ];
 
+        // Validation failures still redirect back with $errors, which the
+        // view turns into an error popup (see system_settings.blade.php).
         $validated = $request->validate(
             array_intersect_key($rules, array_flip($fieldsByGroup[$group]))
         );
@@ -52,7 +55,13 @@ class SystemSettingsController extends Controller
             $validated['core_values'] = array_values(array_filter($validated['core_values']));
         }
 
-        $clinic->update($validated);
+        try {
+            $clinic->update($validated);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Something went wrong while saving. Please try again.');
+        }
 
         return back()->with('success', ucfirst($group) . ' updated successfully.');
     }

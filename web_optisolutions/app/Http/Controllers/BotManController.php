@@ -16,19 +16,46 @@ use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
 use App\Middleware\CaptureReplyMiddleware;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 
 class BotManController extends Controller
 {
     protected bool $isUnhandledInquiry = false;
 
+    // All button values used anywhere in the bot. These should never be
+    // treated as an inquiry and forwarded to Admin/Staff.
     protected const IGNORED_INQUIRY_TEXTS = [
+        // Main menu
         'schedule visit',
         'general information',
-        'submit complaint',
-        'submit review/rating',
+        'complaint', 'submit complaint',
+        'review', 'submit review/rating',
         'menu',
+        'cancel',
         "no, i'm all set",
+
+        // Schedule visit: "continue / start over / cancel" prompt
+        'continue schedule visit', 'continue_schedule',
+        'start over', 'restart_schedule',
+        'cancel_schedule',
+
+        // Schedule visit: confirm suggested date & time
+        'yes, confirm', 'confirm_yes',
+        'suggest alternative', 'confirm_no',
+
+        // Schedule visit: "email me the transcript?" prompt
+        'yes, email it to me', 'yes_email',
+        'no, skip', 'no_email',
+
+        // Post-appointment menu
+        'post_schedule_visit', 'post_general_information',
+
+        // Submit Review/Rating: star buttons
+        '1', '2', '3', '4', '5',
+
+        // Standalone inquiry: category buttons
+        'billing', 'medical', 'appointment', 'general',
     ];
 
     public function handle(Request $request)
@@ -39,6 +66,12 @@ class BotManController extends Controller
 
         $incomingText = (string) $request->input('message', '');
         $conversationId = (string) $request->input('userId', '');
+
+        // Normalize free-typed command variants before BotMan reads the request.
+        $canonicalCommand = $this->canonicalizeCommand($incomingText);
+        if ($canonicalCommand !== null) {
+            $request->request->set('message', $canonicalCommand);
+        }
 
         CaptureReplyMiddleware::reset();
         $this->isUnhandledInquiry = false;
@@ -56,11 +89,24 @@ class BotManController extends Controller
             $botman->hears('general information', function ($bot) {
                 Log::info('MATCHED: general information');
                 $bot->reply(ClinicInfoService::infoCardMessage());
+                // Re-show the menu so the buttons don't disappear.
+                $this->sendGreeting($bot, false);
+            });
+
+            // Long-form and short-form phrasing both need to be recognized.
+            $botman->hears('complaint', function ($bot) {
+                Log::info('MATCHED: complaint');
+                $bot->startConversation(new ComplaintConversation());
             });
 
             $botman->hears('submit complaint', function ($bot) {
                 Log::info('MATCHED: submit complaint');
                 $bot->startConversation(new ComplaintConversation());
+            });
+
+            $botman->hears('review', function ($bot) {
+                Log::info('MATCHED: review');
+                $bot->startConversation(new ReviewConversation(null, null));
             });
 
             $botman->hears('submit review/rating', function ($bot) {
@@ -93,6 +139,31 @@ class BotManController extends Controller
         }
     }
 
+    // Maps a free-typed message onto its canonical command text.
+    protected function canonicalizeCommand(string $text): ?string
+    {
+        $normalized = mb_strtolower(trim($text));
+        $normalized = rtrim($normalized, ".!? \t\n\r");
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+        $normalized = preg_replace('/\s*\/\s*/', '/', $normalized);
+
+        // Review/rating variants.
+        if (preg_match('/^(submit\s+)?(review|reviews|rating|ratings|review\/rating|review\/ratings)$/', $normalized)) {
+            return 'submit review/rating';
+        }
+
+        // Complaint variants.
+        if (preg_match('/^(submit\s+|file\s+(a\s+)?|make\s+(a\s+)?)?(complaint|complaints|complain)$/', $normalized)) {
+            return 'submit complaint';
+        }
+
+        // Schedule visit variants.
+        if (preg_match('/^(schedule|book)\s+(a\s+|an\s+|my\s+|the\s+)?(visit|visits|appointment|appointments)$/', $normalized)) {
+            return 'schedule visit';
+        }
+
+        return null;
+    }
 
     protected function handleFallback($bot)
     {
@@ -103,26 +174,29 @@ class BotManController extends Controller
             return;
         }
 
-        // Friendly acknowledgment ("ok", "thanks", "salamat", etc.) —
-        // reply conversationally instead of forwarding a trivial "ok"
-        // or "thanks" to Admin/Staff as if it were an unresolved
-        // concern. Checked BEFORE the info-intent check below so a
-        // short "ok" never gets misread as an info request.
+        // Friendly acknowledgment, e.g. "ok", "thanks", "salamat".
         if (ClinicInfoService::looksLikeAcknowledgment($text)) {
             Log::info('FALLBACK answered as acknowledgment: "' . $text . '"');
             $bot->reply(ClinicInfoService::acknowledgmentReply());
             return;
         }
 
-        // Try to answer directly from clinic data (doctors, services,
-        // location, hours, contact, how-to-schedule) before assuming it
-        // needs a human. This covers questions typed BEFORE any
-        // conversation/menu flow has started (e.g. straight off the
-        // greeting), which previously always fell straight through to
-        // sendInquiryAck() below — AppointmentConversation's own
-        // info-detection only ever ran mid-schedule-visit, so a cold
-        // "What is your clinic hours?" had no chance to be
-        // auto-answered until now.
+        // Plain greeting, e.g. "Hi", "Hello", "Kumusta".
+        if (ClinicInfoService::looksLikeGreeting($text)) {
+            Log::info('FALLBACK answered as greeting: "' . $text . '"');
+            $bot->reply(ClinicInfoService::greetingReply());
+            $this->sendGreeting($bot, false);
+            return;
+        }
+
+        // Patient asking permission to ask, e.g. "Pwede mag tanong?".
+        if (ClinicInfoService::looksLikeAskingPermission($text)) {
+            Log::info('FALLBACK answered as asking-permission: "' . $text . '"');
+            $bot->reply(ClinicInfoService::askingPermissionReply());
+            return;
+        }
+
+        // Try to answer directly from clinic data first.
         $infoReply = ClinicInfoService::answerForText($text);
         if ($infoReply !== null) {
             Log::info('FALLBACK answered from ClinicInfoService: "' . $text . '"');
@@ -130,8 +204,25 @@ class BotManController extends Controller
             return;
         }
 
+        // Once this conversation already has an open (not-yet-resolved)
+        // inquiry with Admin/Staff, every further unhandled message the
+        // patient types would otherwise re-trigger this same "forwarded
+        // to Admin/Staff" acknowledgment — annoying if they're typing
+        // several follow-up lines in a row while waiting for a reply.
+        // The message itself is still recorded into that same open
+        // inquiry's thread below (via recordInquiry/recordInquiryReply),
+        // so Admin/Staff still sees it — the patient just isn't shown
+        // the ack bubble more than once per open inquiry.
+        $conversationId = (string) $bot->getMessage()->getSender();
+        $hasOpenInquiry = $conversationId !== '' && Inquiry::where('conversation_id', $conversationId)
+            ->where('resolved_status', '!=', 'Resolved')
+            ->exists();
+
         $this->isUnhandledInquiry = true;
-        $this->sendInquiryAck($bot);
+
+        if (!$hasOpenInquiry) {
+            $this->sendInquiryAck($bot);
+        }
     }
 
     protected function logExchange(string $conversationId, string $userMessage, array $capturedReplies, $botman)
@@ -159,46 +250,96 @@ class BotManController extends Controller
 
     protected function recordInquiry(string $conversationId, string $userMessage, ChatbotLog $log, $botman)
     {
+        $this->recordInquiryReply($conversationId, $userMessage, $log);
+    }
+
+    protected function recordInquiryReply(
+        string $conversationId,
+        string $userMessage,
+        ChatbotLog $log,
+        ?string $attachmentPath = null,
+        ?string $attachmentName = null
+    ) {
         try {
-
-            $patientId = null;
-            $guestName = null;
-
             $openInquiry = Inquiry::where('conversation_id', $conversationId)
                 ->where('resolved_status', '!=', 'Resolved')
                 ->orderByDesc('inquiry_id')
                 ->first();
 
-            if ($openInquiry) {
-                InquiryReply::create([
-                    'inquiry_id' => $openInquiry->inquiry_id,
-                    'sender'     => 'Patient',
-                    'message'    => $userMessage,
-                    'is_staff'   => false,
+            if (!$openInquiry) {
+                $openInquiry = Inquiry::create([
+                    'patient_id'      => null,
+                    'guest_name'      => null,
+                    'log_id'          => $log->log_id,
+                    'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                    'inquiry_type'    => 'General',
+                    'resolved_status' => 'Pending',
+                    'created_at'      => now(),
                 ]);
-
-                $openInquiry->save();
-                return;
             }
 
-            Inquiry::create([
-                'patient_id'      => $patientId,
-                'guest_name'      => $guestName,
-                'log_id'          => $log->log_id,
-                'conversation_id' => $conversationId !== '' ? $conversationId : null,
-                'inquiry_type'    => 'General',
-                'resolved_status' => 'Pending',
-                'created_at'      => now(),
+            InquiryReply::create([
+                'inquiry_id'      => $openInquiry->inquiry_id,
+                'sender'          => 'Patient',
+                'message'         => $userMessage,
+                'attachment_path' => $attachmentPath,
+                'attachment_name' => $attachmentName,
             ]);
 
+            $openInquiry->save();
+
+            return $openInquiry;
         } catch (\Throwable $e) {
             Log::error('Failed to record inquiry: ' . $e->getMessage());
+            return null;
         }
     }
 
-    protected function sendGreeting($bot)
+    // attachment upload
+
+    public function attachment(Request $request)
     {
-        $question = Question::create('Hello! Welcome to PolyClinic Lipa. How can I help you today?')
+        $request->validate([
+            'attachment' => 'required|file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
+            'userId'     => 'nullable|string',
+            'caption'    => 'nullable|string|max:2000',
+        ]);
+
+        $conversationId = (string) $request->input('userId', '');
+        $caption = trim((string) $request->input('caption', ''));
+
+        try {
+            $file = $request->file('attachment');
+            $storedPath = $file->store('chat-attachments', 'public');
+            $originalName = $file->getClientOriginalName();
+
+            $displayMessage = $caption !== '' ? $caption : '(Sent an attachment)';
+
+            $log = ChatbotLog::create([
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'user_message'    => $displayMessage,
+                'bot_message'     => '(no reply)',
+            ]);
+
+            $this->recordInquiryReply($conversationId, $displayMessage, $log, $storedPath, $originalName);
+
+            return response()->json([
+                'success'        => true,
+                'attachmentUrl'  => asset('storage/' . $storedPath),
+                'attachmentName' => $originalName,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to save chatbot attachment: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error'   => 'Something went wrong uploading the attachment. Please try again.',
+            ], 500);
+        }
+    }
+
+    protected function sendGreeting($bot, bool $showGreeting = true)
+    {
+        $question = Question::create($showGreeting ? 'Welcome to PolyClinic Lipa. How can I help you today?' : '')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),

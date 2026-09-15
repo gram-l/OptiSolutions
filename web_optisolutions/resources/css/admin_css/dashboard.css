@@ -1,5 +1,4 @@
-
-        *{
+*{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -382,6 +381,7 @@
         @media (max-width: 768px) {
             .container {
                 flex-direction: column;
+                padding: 0 1rem;
             }
             .sidebar {
                 width: 100%;
@@ -390,9 +390,4 @@
             .analytics-grid {
                 grid-template-columns: 1fr;
             }
-            .header {
-                flex-direction: column;
-                gap: 1rem;
-            }
         }
-   

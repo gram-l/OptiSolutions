@@ -121,7 +121,18 @@ Route::get('/privacy-notice', function () {
 
 // ===== BotMan route =====
 // Receives messages from the chat widget (script.js) and returns BotMan's reply
-Route::post('/botman', [BotManController::class, 'handle'])->name('botman.handle');
+// Throttled per IP (40 messages/minute is generous for a real back-and-forth
+// conversation but blocks scripted flooding of this public, unauthenticated
+// endpoint). Laravel returns a 429 automatically once exceeded.
+Route::post('/botman', [BotManController::class, 'handle'])
+    ->middleware('throttle:40,1')
+    ->name('botman.handle');
+
+// Receives a file the patient attaches in the chat widget and links it
+// into their inquiry thread so Admin/Staff can see it too.
+Route::post('/chatbot/attachment', [BotManController::class, 'attachment'])
+    ->middleware('throttle:40,1')
+    ->name('chatbot.attachment');
 
 // Serve CSS files directly from resources/css/{folder} (no Vite needed)
 Route::get('/patient-css/{file}', function ($file) {

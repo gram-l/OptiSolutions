@@ -10,11 +10,14 @@ use Illuminate\Support\Facades\DB;
 use App\Models\admin_models\Complaint;
 use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
+use App\Conversations\Concerns\HandlesRateLimit;
 use App\Services\SentimentAnalysisService;
+use App\Services\NotificationService;
+use App\Models\Notification;
 
 class ComplaintConversation extends Conversation
 {
-    use HandlesGlobalCommands, HandlesOffTopic;
+    use HandlesGlobalCommands, HandlesOffTopic, HandlesRateLimit;
 
     protected $patientId;
     protected $patientName;
@@ -52,9 +55,15 @@ class ComplaintConversation extends Conversation
     // Save the complaint and notify the patient.
     protected function submitComplaint($text)
     {
+        if ($this->tooManySubmissions('complaint')) {
+            $this->say($this->submissionCooldownMessage());
+            $this->backToMainMenu();
+            return;
+        }
+
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
-                'user_id'      => 1,
+                'user_id'      => $this->patientId,
                 'user_message' => $text,
                 'bot_message'  => 'Complaint recorded',
             ]);
@@ -66,6 +75,12 @@ class ComplaintConversation extends Conversation
                 'complaint_text' => $text,
                 'category'       => app(SentimentAnalysisService::class)->categorize($text),
             ]);
+
+        try {
+            NotificationService::newComplaint($this->patientName ?: 'A patient', $complaint->complaint_id);
+        } catch (\Throwable $notifyError) {
+            \Illuminate\Support\Facades\Log::error('Failed to create complaint notification: ' . $notifyError->getMessage());
+        }
 
             $this->say("Complaint Recorded\n\nReference #: {$complaint->complaint_id}\nWe acknowledge receipt of your concern.");
         } catch (\Exception $e) {
@@ -79,7 +94,7 @@ class ComplaintConversation extends Conversation
     // Show the main menu and route the chosen action.
     protected function backToMainMenu()
     {
-        $question = Question::create('Is there anything else I can help you with?')
+        $question = Question::create('')
             ->fallback('Please choose an option from the buttons above.')
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),

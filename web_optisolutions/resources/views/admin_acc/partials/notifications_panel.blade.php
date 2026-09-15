@@ -14,9 +14,9 @@
                 <button class="notif-tab active" data-filter="all">
                     All <span class="tab-count" id="count-all">0</span>
                 </button>
-                <button class="notif-tab" data-filter="chatbot">Chatbot</button>
-                <button class="notif-tab" data-filter="appointments">Appointments</button>
-                <button class="notif-tab" data-filter="patients">Patients</button>
+                <button class="notif-tab" data-filter="chat_inquiry">Chatbot</button>
+                <button class="notif-tab" data-filter="appointment">Scheduled Visit</button>
+                <button class="notif-tab" data-filter="feedback,complaint">Feedback</button>
                 <button class="notif-tab" data-filter="system">System</button>
             </div>
         </div>
@@ -27,6 +27,14 @@
 
         <div class="notif-list-scroll" id="notifList">
 
+            @php
+                $notifTypeUrls = [
+                    'chat_inquiry' => '/admin_acc/chatbot_logs',
+                    'appointment'  => '/admin_acc/appointments',
+                    'feedback'     => '/admin_acc/feedback',
+                    'complaint'    => '/admin_acc/feedback',
+                ];
+            @endphp
             @forelse ($groupedNotifications as $group => $items)
                 <div class="notif-group" data-group="{{ \Illuminate\Support\Str::slug($group) }}">
                     <div class="notif-group-label">{{ $group }}</div>
@@ -34,7 +42,9 @@
                     @foreach ($items as $notification)
                         <div class="notif-row {{ $notification->is_read ? 'read' : 'unread' }}"
                              data-category="{{ $notification->type }}"
-                             data-id="{{ $notification->notification_id }}">
+                             data-id="{{ $notification->notification_id }}"
+                             data-url="{{ $notifTypeUrls[$notification->type] ?? '' }}"
+                             style="cursor: {{ isset($notifTypeUrls[$notification->type]) ? 'pointer' : 'default' }};">
 
                             <div class="notif-icon icon-{{ $notification->type }}">
                                 <i class="bi {{ $notification->icon }}"></i>
@@ -56,7 +66,7 @@
                                     </div>
 
                                     @unless ($notification->is_read)
-                                        <button class="notif-action-link" onclick="markSingleRead({{ $notification->notification_id }}, this)">Mark read</button>
+                                        <button class="notif-action-link" onclick="event.stopPropagation(); markSingleRead({{ $notification->notification_id }}, this)">Mark read</button>
                                     @endunless
                                 </div>
 

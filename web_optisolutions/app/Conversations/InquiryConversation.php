@@ -7,13 +7,16 @@ use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Conversations\Concerns\HandlesGlobalCommands;
+use App\Conversations\Concerns\HandlesRateLimit;
 use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationService;
+use App\Models\Notification;
 
 class InquiryConversation extends Conversation
 {
-    use HandlesGlobalCommands;
+    use HandlesGlobalCommands, HandlesRateLimit;
 
     protected $inquiryType;
     protected $message;
@@ -124,30 +127,69 @@ class InquiryConversation extends Conversation
 
     protected function submitInquiry()
     {
+        // Higher threshold than Review/Complaint (6 vs 3 per 10 min):
+        // this step can be auto-triggered multiple times in one
+        // legitimate visit (each off-topic detour mid-schedule-visit
+        // routes here), not just from a deliberate one-time submission.
+        if ($this->tooManySubmissions('inquiry', 6, 10)) {
+            $this->say($this->submissionCooldownMessage());
+            $this->resumeAppointmentIfNeeded();
+            return;
+        }
+
         $this->say('Submitting your inquiry...');
+
+        // Same conversation_id BotManController uses to log/attach
+        // follow-up replies to the correct thread. Without this, a
+        // patient's next message would create a duplicate inquiry
+        // instead of continuing this one.
+        $conversationId = $this->bot->getMessage()->getSender();
+
+        // Best-effort guest name: not collected in the standalone
+        // "what's your inquiry about" flow, but available if this
+        // inquiry was routed here mid-schedule-visit (resumeState
+        // carries whatever name the patient had already typed).
+        $guestName = trim(($this->resumeState['fname'] ?? '') . ' ' . ($this->resumeState['lname'] ?? '')) ?: null;
 
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
-                'user_id'      => $this->patientId,
-                'user_message' => $this->message,
-                'bot_message'  => null,
-                'chat_time'    => now(),
+                'user_id'         => $this->patientId,
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'user_message'    => $this->message,
+                'bot_message'     => null,
+                'chat_time'       => now(),
             ]);
 
             DB::table('inquiries')->insert([
                 'patient_id'      => $this->patientId,
+                'guest_name'      => $guestName,
                 'log_id'          => $logId,
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
                 'inquiry_type'    => $this->inquiryType,
                 'resolved_status' => 'Pending',
+                'created_at'      => now(),
             ]);
+         $inquiryId = DB::table('inquiries')->insertGetId([   // insertGetId, not insert
+            'patient_id'      => $this->patientId,
+            'log_id'          => $logId,
+            'inquiry_type'    => $this->inquiryType,
+            'resolved_status' => 'Pending',
+        ]);
 
-            AppNotification::create([
+        try {
+            $name = $this->patientName ?: ($this->patientId ? "Patient #{$this->patientId}" : 'A guest');
+            NotificationService::newInquiry($name, $inquiryId);
+        } catch (\Throwable $notifyError) {
+            Log::error('Failed to create inquiry notification: ' . $notifyError->getMessage());
+        }
+
+            /*AppNotification::create([
                 'icon'    => 'question_answer',
                 'title'   => 'New Inquiry',
                 'message' => "A new {$this->inquiryType} inquiry has been submitted.",
                 'is_read' => false,
                 'color'   => '2196F3',
-            ]);
+            ]);*/
 
             $this->say("Thank you! Your {$this->inquiryType} inquiry has been sent to our staff. We'll get back to you as soon as possible.");
         } catch (\Throwable $e) {

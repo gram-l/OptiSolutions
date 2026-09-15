@@ -67,7 +67,7 @@
     </div>
 
     @if($patients->count() > 0)
-        <table class="data-table" id="patientsTable">
+        <table class="data-table table-cards" id="patientsTable">
             <thead>
                 <tr>
                     <th>Patient ID</th>
@@ -83,11 +83,11 @@
                     $dept = $p->latestVisit->doctor->specialty ?? 'N/A';
                 @endphp
                 <tr data-department="{{ strtolower($dept) }}">
-                    <td>{{ $p->patient_id }}</td>
-                    <td>{{ $p->full_name }}</td>
-                    <td>{{ $dept }}</td>
-                    <td>{{ $p->latestVisit->doctor->doctor_name ?? 'N/A' }}</td>
-                    <td style="display: flex; gap: 0.5rem;">
+                    <td data-label="Patient ID">{{ $p->patient_id }}</td>
+                    <td data-label="Patient Name">{{ $p->full_name }}</td>
+                    <td data-label="Department">{{ $dept }}</td>
+                    <td data-label="Assigned Doctor">{{ $p->latestVisit->doctor->doctor_name ?? 'N/A' }}</td>
+                    <td data-label="" class="table-cards-actions" style="display: flex; gap: 0.5rem;">
                         <button type="button" class="btn-sm btn-primary" onclick="openViewPatientModal('{{ $p->patient_id }}')">View</button>
                         <button type="button" class="btn-sm btn-warning" onclick="openEditPatientModal('{{ $p->patient_id }}')">Edit</button>
                     </td>
@@ -109,44 +109,103 @@
             <button type="button" class="modal-close" onclick="closeViewPatientModal()" aria-label="Close">&times;</button>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Patient ID</label>
-                <p id="viewPatientId" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
+        <div id="patientCaptureArea" style="background: white; padding: 0.25rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label style="font-weight: 600; color: var(--text-dark);">Patient ID</label>
+                    <p id="viewPatientId" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
+                </div>
+                <div>
+                    <label style="font-weight: 600; color: var(--text-dark);">Patient Name</label>
+                    <p id="viewPatientName" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
+                </div>
+                <div>
+                    <label style="font-weight: 600; color: var(--text-dark);">Department (latest visit)</label>
+                    <p id="viewPatientDept" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
+                </div>
+                <div>
+                    <label style="font-weight: 600; color: var(--text-dark);">Assigned Doctor (latest visit)</label>
+                    <p id="viewPatientDoctor" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
+                </div>
+                <div>
+                    <label style="font-weight: 600; color: var(--text-dark);">Birthday</label>
+                    <p id="viewPatientBirthdate" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
+                </div>
+                <div>
+                    <label style="font-weight: 600; color: var(--text-dark);">Contact</label>
+                    <p id="viewPatientContact" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
+                </div>
+                <div style="grid-column: span 2;">
+                    <label style="font-weight: 600; color: var(--text-dark);">Email</label>
+                    <p id="viewPatientEmail" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
+                </div>
             </div>
-            <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Patient Name</label>
-                <p id="viewPatientName" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
-            </div>
-            <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Department (latest visit)</label>
-                <p id="viewPatientDept" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
-            </div>
-            <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Assigned Doctor (latest visit)</label>
-                <p id="viewPatientDoctor" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
-            </div>
-            <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Birthday</label>
-                <p id="viewPatientBirthdate" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
-            </div>
-            <div>
-                <label style="font-weight: 600; color: var(--text-dark);">Contact</label>
-                <p id="viewPatientContact" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
-            </div>
-            <div style="grid-column: span 2;">
-                <label style="font-weight: 600; color: var(--text-dark);">Email</label>
-                <p id="viewPatientEmail" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
+
+            <div style="margin-top: 1.5rem;">
+                <label style="font-weight: 600; color: var(--text-dark);">Notes / Diagnosis</label>
+                <div id="viewPatientVisits"></div>
             </div>
         </div>
 
-        <div style="margin-top: 1.5rem;">
-            <label style="font-weight: 600; color: var(--text-dark);">Notes / Diagnosis</label>
-            <div id="viewPatientVisits"></div>
-        </div>
-
-        <div style="display:flex; justify-content:flex-end; margin-top: 1.5rem;">
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:0.75rem; margin-top: 1.5rem;">
+            <div style="position: relative;">
+                <button type="button" class="btn-sm btn-primary" id="downloadPatientBtn" style="padding:0.8rem 1.5rem; display:inline-flex; align-items:center; gap:0.5rem;" onclick="toggleDownloadMenu(event)">
+                    <i class="bi bi-download"></i> Download <i class="bi bi-chevron-down" style="font-size:0.7rem;"></i>
+                </button>
+                <div id="downloadMenu" class="download-menu">
+                    <button type="button" class="download-menu-item" onclick="downloadPatientAsImage()">
+                        <i class="bi bi-file-earmark-image"></i> Image (PNG)
+                    </button>
+                    <button type="button" class="download-menu-item" onclick="downloadPatientAsPDF()">
+                        <i class="bi bi-file-earmark-pdf"></i> PDF
+                    </button>
+                </div>
+            </div>
             <button type="button" class="btn-sm btn-secondary" style="padding:0.8rem 2rem;" onclick="closeViewPatientModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+{{-- ===== Hidden Patient Record Template (used only for PNG/PDF download) ===== --}}
+<div id="patientPdfTemplate" style="position: absolute; left: -99999px; top: 0; width: 720px; background: #ffffff; font-family: 'Poppins', sans-serif;">
+    <div style="background: linear-gradient(135deg, #b06ab3, #b06ab3); padding: 1.5rem 2rem; border-radius: 14px 14px 0 0;">
+        <div style="color:#ffffff; font-size: 1.6rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;">Patient Record</div>
+    </div>
+
+    <div style="border: 1px solid #e6d6f2; border-top: none; border-radius: 0 0 14px 14px; padding: 1.75rem 2rem 2rem; background: #ffffff;">
+
+        <div style="background: linear-gradient(90deg, #b06ab3, #b06ab3); color: #ffffff; text-align: center; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; letter-spacing: 1px; font-size: 0.85rem; margin-bottom: 1.25rem;">
+            PERSONAL DETAILS
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem 2rem; font-size: 0.92rem; color: #2d2d2d; margin-bottom: 1.75rem;">
+            <div><strong>Patient ID:</strong> <span id="pdfPatientId"></span></div>
+            <div><strong>Full Name:</strong> <span id="pdfPatientName"></span></div>
+            <div><strong>Birthdate:</strong> <span id="pdfPatientBirthdate"></span></div>
+            <div><strong>Contact No.:</strong> <span id="pdfPatientContact"></span></div>
+            <div><strong>Email:</strong> <span id="pdfPatientEmail"></span></div>
+            <div><strong>Department:</strong> <span id="pdfPatientDept"></span></div>
+            <div><strong>Assigned Doctor:</strong> <span id="pdfPatientDoctor"></span></div>
+        </div>
+
+        <div style="background: linear-gradient(90deg, #b06ab3, #b06ab3); color: #ffffff; text-align: center; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; letter-spacing: 1px; font-size: 0.85rem; margin-bottom: 1rem;">
+            VISIT HISTORY
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid #b06ab3;">
+                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3; white-space: nowrap;">DATE</th>
+                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3; white-space: nowrap;">SERVICE</th>
+                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3; white-space: nowrap;">DOCTOR</th>
+                    <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3;">NOTES / DIAGNOSIS</th>
+                </tr>
+            </thead>
+            <tbody id="pdfVisitTableBody"></tbody>
+        </table>
+
+        <div style="margin-top: 1.75rem; font-size: 0.72rem; color: #999; text-align: right;">
+            Generated on <span id="pdfGeneratedDate"></span> &middot; PolyClinic Staff Records
         </div>
     </div>
 </div>
@@ -292,9 +351,13 @@
         return div.innerHTML;
     }
 
+    let currentViewPatientId = null;
+
     function openViewPatientModal(patientId) {
         const data = patientViewMap[patientId];
         if (!data) return;
+
+        currentViewPatientId = patientId;
 
         document.getElementById('viewPatientId').textContent = data.patientId;
         document.getElementById('viewPatientName').textContent = data.fullName;
@@ -325,11 +388,113 @@
     function closeViewPatientModal() {
         document.getElementById('viewPatientModal').classList.remove('show');
         document.body.style.overflow = '';
+        const menu = document.getElementById('downloadMenu');
+        if (menu) menu.classList.remove('show');
     }
 
     document.getElementById('viewPatientModal').addEventListener('click', function (e) {
         if (e.target === this) closeViewPatientModal();
     });
+
+    // ===== Download Patient Details (PNG / PDF) =====
+
+    function toggleDownloadMenu(e) {
+        e.stopPropagation();
+        document.getElementById('downloadMenu').classList.toggle('show');
+    }
+
+    document.addEventListener('click', function (e) {
+        const menu = document.getElementById('downloadMenu');
+        const btn = document.getElementById('downloadPatientBtn');
+        if (!menu || !btn) return;
+        if (!menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+            menu.classList.remove('show');
+        }
+    });
+
+    function buildPatientPdfTemplate(patientId) {
+        const data = patientViewMap[patientId];
+        if (!data) return null;
+
+        document.getElementById('pdfPatientId').textContent = data.patientId;
+        document.getElementById('pdfPatientName').textContent = data.fullName;
+        document.getElementById('pdfPatientBirthdate').textContent = data.birthdate;
+        document.getElementById('pdfPatientContact').textContent = data.contact;
+        document.getElementById('pdfPatientEmail').textContent = data.email;
+        document.getElementById('pdfPatientDept').textContent = data.dept;
+        document.getElementById('pdfPatientDoctor').textContent = data.doctorName;
+        document.getElementById('pdfGeneratedDate').textContent = new Date().toLocaleString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+        });
+
+        const tbody = document.getElementById('pdfVisitTableBody');
+        if (data.visits.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="padding:0.75rem 0.6rem; text-align:center; color:#999;">No visit records.</td></tr>';
+        } else {
+            tbody.innerHTML = data.visits.map(function (v) {
+                return '<tr style="border-bottom:1px solid #eee;">' +
+                    '<td style="padding:0.55rem 0.6rem; vertical-align:top; white-space:nowrap;">' + escapeHtml(v.date) + '</td>' +
+                    '<td style="padding:0.55rem 0.6rem; vertical-align:top; white-space:nowrap;">' + escapeHtml(v.serviceType) + '</td>' +
+                    '<td style="padding:0.55rem 0.6rem; vertical-align:top; white-space:nowrap;">' + escapeHtml(v.doctorName) + '</td>' +
+                    '<td style="padding:0.55rem 0.6rem; vertical-align:top;">' + escapeHtml(v.notes) + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        return document.getElementById('patientPdfTemplate');
+    }
+
+    function downloadPatientAsImage() {
+        document.getElementById('downloadMenu').classList.remove('show');
+
+        if (typeof html2canvas === 'undefined') {
+            alert('Download tool is still loading. Please try again in a moment.');
+            return;
+        }
+
+        const el = buildPatientPdfTemplate(currentViewPatientId);
+        if (!el) return;
+
+        html2canvas(el, { backgroundColor: '#ffffff', scale: 2 }).then(function (canvas) {
+            const link = document.createElement('a');
+            link.download = 'patient-' + (currentViewPatientId ?? 'record') + '.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }).catch(function (err) {
+            console.error('PNG download failed:', err);
+            alert('Failed to generate image. Please try again.');
+        });
+    }
+
+    function downloadPatientAsPDF() {
+        document.getElementById('downloadMenu').classList.remove('show');
+
+        if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+            alert('Download tool is still loading. Please try again in a moment.');
+            return;
+        }
+
+        const el = buildPatientPdfTemplate(currentViewPatientId);
+        if (!el) return;
+
+        html2canvas(el, { backgroundColor: '#ffffff', scale: 2 }).then(function (canvas) {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'pt', 'a4');
+
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const margin = 30;
+            const imgWidth = pageWidth - margin * 2;
+            const imgHeight = canvas.height * (imgWidth / canvas.width);
+
+            const imgData = canvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+
+            pdf.save('patient-' + (currentViewPatientId ?? 'record') + '.pdf');
+        }).catch(function (err) {
+            console.error('PDF download failed:', err);
+            alert('Failed to generate PDF. Please try again.');
+        });
+    }
 
     // ===== Edit Patient Modal =====
 
@@ -387,4 +552,9 @@
         }
     });
 </script>
+
+@push('scripts')
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+@endpush
 @endsection

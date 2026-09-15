@@ -1,184 +1,212 @@
-<style>
-    .inquiries-split {
-        display: flex;
-        gap: 1.25rem;
-        align-items: stretch;
-        background: white;
-        border-radius: 20px;
-        box-shadow: var(--shadow);
-        overflow: hidden;
-        min-height: 620px;
-    }
+@extends('staff.layouts.app')
 
-    .conv-list-panel {
-        width: 340px;
-        flex-shrink: 0;
-        border-right: 1px solid var(--light-gray);
-        padding: 1.25rem 1rem;
-        display: flex;
-        flex-direction: column;
-    }
+@section('content')
+@include('staff.inquiries.partials.inquiries-styles')
 
-    .conv-list-title {
-        margin: 0 0 0.75rem 0;
-        color: var(--text-dark);
-    }
+<div class="container">
+    <div class="page-title-group" style="margin-bottom: 1rem;">
+        <h3 style="margin: 0;">
+            <i class="bi bi-chat-square-text"></i> Chatbot Inquiries
+        </h3>
+        <p class="page-subtitle">View and respond to chatbot inquiries</p>
+    </div>
 
-    .conv-search {
-        width: 100%;
-        padding: 0.6rem 1rem;
-        border: 1px solid var(--light-gray);
-        border-radius: 20px;
-        outline: none;
-        font-family: 'Poppins', sans-serif;
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-        box-sizing: border-box;
-    }
+    <div class="inquiries-split inquiries-split--detail-open">
+    
+        @include('staff.inquiries.partials.conversations-list', [
+            'inquiries' => $inquiries,
+            'selectedId' => $inquiry->inquiry_id,
+        ])
 
-    .conv-list {
-        overflow-y: auto;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
+    
+        <div class="conv-detail-panel">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--light-gray); padding-bottom: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <a href="{{ route('staff.inquiries') }}" class="conv-back-link">
+                        <i class="bi bi-arrow-left"></i> Back to conversations
+                    </a>
+                    <h3 style="color: var(--text-dark); margin: 0;">CHAT-{{ str_pad($inquiry->inquiry_id, 3, '0', STR_PAD_LEFT) }}</h3>
+                    <small style="color: #7f8c8d;">
+                        ID: {{ $inquiry->patient_id ?? 'N/A' }}
+                        @if($inquiry->inquiry_type)
+                            &bull; {{ $inquiry->inquiry_type }}
+                        @endif
+                    </small>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <span class="status-badge {{ $inquiry->resolved_status === 'Pending' ? 'status-pending' : ($inquiry->resolved_status === 'Resolved' ? 'status-confirmed' : 'status-pending') }}">
+                        {{ $inquiry->resolved_status }}
+                    </span>
+                    @if($inquiry->resolved_status !== 'Resolved')
+                    <form action="{{ route('staff.inquiries.resolve', $inquiry->inquiry_id) }}" method="POST" style="display:inline;">
+                        @csrf
+                        @method('PUT')
+                        <button type="submit" class="btn-sm btn-success">Resolve</button>
+                    </form>
+                    @endif
+                </div>
+            </div>
 
-    .conv-item {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.7rem 0.6rem;
-        border-radius: 12px;
-        text-decoration: none;
-        color: inherit;
-        border-left: 3px solid transparent;
-        transition: background 0.15s ease;
-    }
+            <!-- Messages -->
+            <div style="flex: 1; padding: 0.5rem 0; max-height: 500px; overflow-y: auto; min-height: 350px;">
 
-    .conv-item:hover {
-        background: #f4f6f8;
-    }
+            
+                @php
+                    // Same root cause as the Admin chatbot-inquiries view:
+                    // BotManController::recordInquiryReply() logs a brand-new
+                    // inquiry's first message both into chatbot_logs (what
+                    // $inquiry->log is) and into inquiry_replies (as a
+                    // "Patient" reply), so it would otherwise render twice
+                    // here. Skip the standalone log bubble when the first
+                    // reply is that same Patient message; inquiries from the
+                    // standalone "Submit Inquiry" flow (no matching reply)
+                    // are unaffected and still show the log bubble below.
+                    $firstReply = $inquiry->replies->first();
+                    $logDuplicatedByFirstReply = $inquiry->log
+                        && $firstReply
+                        && !$firstReply->is_staff
+                        && trim((string) $firstReply->message) === trim((string) ($inquiry->log->user_message ?? ''));
+                @endphp
 
-    .conv-item-active {
-        background: #eaf2fb;
-        border-left: 3px solid var(--primary-main);
-    }
+                @unless($logDuplicatedByFirstReply)
+                <div style="display: flex; justify-content: flex-start; margin-bottom: 1rem;">
+                    <div style="background: var(--light-gray); padding: 0.8rem 1.5rem; border-radius: 18px; max-width: 80%;">
+                        <strong style="color: var(--text-dark);">Patient</strong>
+                        <p style="margin: 0.2rem 0 0 0; color: var(--text-dark); font-size: 1rem;">
+                            {{ $inquiry->log->user_message ?? 'No message found.' }}
+                        </p>
+                        <small style="color: #7f8c8d; font-size: 0.7rem;">
+                            {{ $inquiry->log && $inquiry->log->chat_time ? \Carbon\Carbon::parse($inquiry->log->chat_time)->format('h:i A') : 'N/A' }}
+                        </small>
+                    </div>
+                </div>
+                @endunless
 
-    .conv-avatar {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: var(--primary-main);
-        color: #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 0.72rem;
-        letter-spacing: 0.02em;
-        flex-shrink: 0;
-        line-height: 1;
-    }
+                <!-- Full thread: every patient message/attachment and every Staff/Admin reply, in order -->
+                @foreach($inquiry->replies as $reply)
+                    @php $isStaffMsg = $reply->is_staff; @endphp
+                    <div style="display: flex; justify-content: {{ $isStaffMsg ? 'flex-end' : 'flex-start' }}; margin-bottom: 1rem;">
+                        <div style="background: {{ $isStaffMsg ? 'var(--primary-main)' : 'var(--light-gray)' }}; padding: 0.8rem 1.5rem; border-radius: 18px; max-width: 80%;">
+                            <strong style="color: {{ $isStaffMsg ? 'white' : 'var(--text-dark)' }};">{{ $reply->sender }}</strong>
 
-    .conv-item-body {
-        min-width: 0;
-        flex: 1;
-    }
+                            @if($reply->attachment_path)
+                                @php
+                                    $attExt = strtolower(pathinfo($reply->attachment_name ?? '', PATHINFO_EXTENSION));
+                                    $isImageAtt = in_array($attExt, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                                @endphp
+                                @if($isImageAtt)
+                                    <div style="margin-top: 0.4rem;">
+                                        <a href="{{ $reply->attachment_url }}" target="_blank" rel="noopener">
+                                            <img src="{{ $reply->attachment_url }}" alt="{{ $reply->attachment_name }}" style="max-width: 220px; max-height: 220px; border-radius: 8px; display: block;">
+                                        </a>
+                                    </div>
+                                @else
+                                    <div style="margin-top: 0.4rem;">
+                                        <a href="{{ $reply->attachment_url }}" target="_blank" rel="noopener" style="color: {{ $isStaffMsg ? 'white' : 'var(--primary-main)' }}; text-decoration: underline;">
+                                            <i class="bi bi-paperclip"></i> {{ $reply->attachment_name ?? 'Attachment' }}
+                                        </a>
+                                    </div>
+                                @endif
+                            @endif
 
-    .conv-item-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 0.5rem;
-    }
+                            @if($reply->message && $reply->message !== '(Sent an attachment)')
+                                <p style="margin: 0.2rem 0 0 0; color: {{ $isStaffMsg ? 'white' : 'var(--text-dark)' }}; font-size: 1rem;">{{ $reply->message }}</p>
+                            @endif
 
-    .conv-item-id {
-        font-weight: 600;
-        color: var(--text-dark);
-        font-size: 0.9rem;
-    }
+                            <small style="color: {{ $isStaffMsg ? 'rgba(255,255,255,0.7)' : '#7f8c8d' }}; font-size: 0.7rem;">
+                                {{ $reply->created_at ? $reply->created_at->format('h:i A') : 'N/A' }}
+                            </small>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
 
-    .conv-item-date {
-        font-size: 0.75rem;
-        color: #7f8c8d;
-        white-space: nowrap;
-    }
+            <!-- Reply Form -->
+            <div style="border-top: 1px solid var(--light-gray); padding-top: 1rem; margin-top: 1rem;">
+                @if($inquiry->resolved_status === 'Resolved')
+                <p style="color: var(--primary-main); font-size: 0.9rem; margin-bottom: 0.75rem;">
+                    ✓ This inquiry has been marked as resolved. You can still reply if needed.
+                </p>
+                @endif
+                <form method="POST" action="{{ route('staff.inquiries.reply', $inquiry->inquiry_id) }}" id="staffReplyForm">
+                    @csrf
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" name="message" id="staffReplyInput" placeholder="Type your response..." value="{{ $inquiry->inquiry_reply }}" style="flex: 1; padding: 0.8rem 1rem; border: 1px solid var(--light-gray); border-radius: 25px; outline: none; font-family: 'Poppins', sans-serif; font-size: 1rem;" required>
+                        <button type="submit" class="btn-sm btn-primary" style="padding: 0.8rem 2rem; border-radius: 25px; font-size: 1rem;">Send Reply</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
-    .conv-item-preview {
-        font-size: 0.82rem;
-        color: #7f8c8d;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-    }
+<script>
+    // --- Typing presence --------------------------------------------------
+    // Tells the patient-facing widget "a Staff member is actually typing a
+    // reply right now" (via TypingStatusService on the backend), instead of
+    // a fake indicator tied to the bot's own instant responses. The flag
+    // has a short server-side TTL, so it's re-sent every few seconds while
+    // the staff member keeps typing, and cleared on pause/submit/unload.
+    (function () {
+        const input = document.getElementById('staffReplyInput');
+        const form = document.getElementById('staffReplyForm');
+        if (!input || !form) return;
 
-    .conv-unread-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--primary-main);
-        flex-shrink: 0;
-    }
+        const typingUrl = "{{ route('staff.inquiries.typing', $inquiry->inquiry_id) }}";
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+            || document.querySelector('input[name="_token"]')?.value;
 
-    .conv-empty {
-        text-align: center;
-        color: #7f8c8d;
-        padding: 2rem 0;
-    }
+        let heartbeat = null;
+        let idleTimer = null;
+        let isActive = false;
 
-
-    .conv-detail-panel {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        padding: 1.25rem 1.5rem;
-        min-width: 0;
-    }
-
-    .conv-detail-empty {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #7f8c8d;
-        text-align: center;
-        font-size: 1rem;
-    }
-
-    @media (max-width: 768px) {
-        .inquiries-split {
-            flex-direction: column;
+        function postTyping(isTyping, useBeacon = false) {
+            const body = JSON.stringify({ typing: isTyping });
+            if (useBeacon && navigator.sendBeacon) {
+                // Fires reliably even as the page is unloading (form submit
+                // navigates away), unlike a regular fetch which can get cut off.
+                navigator.sendBeacon(
+                    typingUrl,
+                    new Blob([body], { type: 'application/json' })
+                );
+                return;
+            }
+            fetch(typingUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body,
+            }).catch(() => {}); // best-effort; a missed heartbeat just lets the TTL expire
         }
-        .conv-list-panel {
-            width: 100%;
-            border-right: none;
-            border-bottom: 1px solid var(--light-gray);
-            max-height: 300px;
-        }
-    }
 
-    /* ===== DARK MODE ===== */
-    body.dark-mode .inquiries-split {
-        background: #1a2130;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    }
-    body.dark-mode .conv-search {
-        background: #232b3d;
-        color: #e4e8ee;
-        border-color: #2a3346;
-    }
-    body.dark-mode .conv-search::placeholder {
-        color: #7f8c93;
-    }
-    body.dark-mode .conv-item:hover {
-        background: #232b3d;
-    }
-    body.dark-mode .conv-item-active {
-        background: rgba(14, 98, 170, 0.25);
-        border-left-color: var(--primary-light);
-    }
-</style>
+        function stopHeartbeat(useBeacon = false) {
+            if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
+            if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+            if (isActive) {
+                isActive = false;
+                postTyping(false, useBeacon);
+            }
+        }
+
+        input.addEventListener('input', () => {
+            if (!isActive) {
+                isActive = true;
+                postTyping(true);
+                heartbeat = setInterval(() => postTyping(true), 3000);
+            }
+
+            // Stop signalling "typing" if staff pauses for a few seconds
+            // without sending — otherwise the dots would sit there forever.
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => stopHeartbeat(), 4000);
+        });
+
+        form.addEventListener('submit', () => stopHeartbeat(true));
+        window.addEventListener('pagehide', () => stopHeartbeat(true));
+    })();
+</script>
+@endsection

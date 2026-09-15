@@ -67,7 +67,7 @@
     </div>
 
     @if($doctors->count() > 0)
-        <table class="data-table" id="doctorsTable">
+        <table class="data-table table-cards" id="doctorsTable">
             <thead>
                 <tr>
                     <th>Name</th>
@@ -80,21 +80,21 @@
             <tbody>
                 @foreach($doctors as $doc)
                 <tr data-specialty="{{ strtolower($doc->specialty) }}">
-                    <td>{{ $doc->doctor_name }}</td>
-                    <td>{{ $doc->specialty }}</td>
-                    <td>
+                    <td data-label="Name">{{ $doc->doctor_name }}</td>
+                    <td data-label="Specialty">{{ $doc->specialty }}</td>
+                    <td data-label="Schedule">
                         @forelse($doc->schedules as $sched)
                             {{ $sched->day }} {{ \Carbon\Carbon::parse($sched->start_time)->format('h:i A') }}–{{ \Carbon\Carbon::parse($sched->end_time)->format('h:i A') }}<br>
                         @empty
                             N/A
                         @endforelse
                     </td>
-                    <td>
+                    <td data-label="Status">
                         <span class="status-badge {{ $doc->available ? 'status-confirmed' : 'status-pending' }}">
                             {{ $doc->available ? 'Available' : 'Unavailable' }}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="" class="table-cards-actions">
                         @if($doc->available)
                             {{-- Available pa yung doctor, pwede i-edit — pop-up modal na lang, walang page navigation --}}
                             <button type="button" class="btn-sm btn-secondary" onclick="openEditModal({{ $doc->doctor_id }})">Edit</button>

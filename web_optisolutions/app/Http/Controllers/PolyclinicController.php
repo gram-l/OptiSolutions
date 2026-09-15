@@ -14,10 +14,22 @@ class PolyclinicController extends Controller
 
         $clinicInfo = ClinicInfo::first();
         $specialistsCount = DB::table('doctors')->where('available', 1)->count();
+
         $avgRating = DB::table('feedback')->avg('star_rating');
         $avgRating = $avgRating ? round($avgRating, 1) : null;
 
-        return view('patient.home', compact('heroImage', 'clinicInfo', 'specialistsCount', 'avgRating'));
+        $yearsOfExcellence = ($clinicInfo && $clinicInfo->founded_year)
+            ? now()->year - $clinicInfo->founded_year
+            : null;
+
+        $happyPatientsCount = DB::table('sentiment_results')
+            ->where('sentiment_label', 'Positive')
+            ->count();
+
+        return view('patient.home', compact(
+            'heroImage', 'clinicInfo', 'specialistsCount', 'avgRating',
+            'yearsOfExcellence', 'happyPatientsCount'
+        ));
     }
 
     public function about()

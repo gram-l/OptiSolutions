@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const attachmentPreviewRemove = document.getElementById('attachmentPreviewRemove');
   const csrfToken  = document.querySelector('meta[name="csrf-token"]').content;
   const botmanUrl  = '{{ route("botman.handle") }}';
+  const attachmentUrl = '{{ route("chatbot.attachment") }}';
 
   const APPT_CARD_PREFIX = 'APPT_CARD::';
   const INFO_CARD_PREFIX = 'INFO_CARD::';
@@ -201,10 +202,12 @@ document.addEventListener('DOMContentLoaded', () => {
         lastActivity: now,
         history: [],
         shownReplyIds: [],
+        shownResolvedIds: [],
       };
     }
 
     if (!saved.shownReplyIds) saved.shownReplyIds = [];
+    if (!saved.shownResolvedIds) saved.shownResolvedIds = [];
 
     return saved;
   }
@@ -246,15 +249,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
   attachmentPreviewRemove.addEventListener('click', clearAttachmentPreview);
 
-  function acknowledgeAttachment() {
-    return new Promise((resolve) => {
-      showTyping();
-      setTimeout(() => {
-        hideTyping();
-        addBubble('Thank you for the attachment! Our staff will review it and get back to you shortly.', 'bot');
-        resolve();
-      }, 600);
-    });
+  async function uploadAttachment(file, caption) {
+    // Same guard as sendMessage(): the input/send/attach controls stay
+    // disabled for the whole upload window so the patient can't fire
+    // off more messages while we're still waiting on this one (avoids
+    // spamming the bot/admin/staff). No typing dots here — this reply
+    // is generated immediately, it isn't a human composing a message.
+    setSendingState(true);
+    try {
+      const formData = new FormData();
+      formData.append('attachment', file);
+      formData.append('userId', session.clientId);
+      if (caption) formData.append('caption', caption);
+
+      const res = await fetch(attachmentUrl, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        addErrorBubble(data.error || 'Something went wrong uploading the attachment. Please try again.');
+        return;
+      }
+
+      addBubble("Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.", 'bot');
+    } catch (e) {
+      console.error('Failed to upload attachment:', e);
+      addErrorBubble('Something went wrong uploading the attachment. Please try again.');
+    } finally {
+      setSendingState(false);
+    }
   }
 
   async function handleSend() {
@@ -268,11 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
       clearAttachmentPreview();
       input.value = '';
 
-      if (text) {
-        await sendMessage(text, text, { skipUserBubble: true });
-      } else {
-        await acknowledgeAttachment();
-      }
+      await uploadAttachment(attachment.file, text || null);
       return;
     }
 
@@ -339,6 +365,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return bubble;
   }
+
+  // Error bubble: same as addBubble() but with an inline "Refresh"
+  // action so the patient has an easy way to recover from a sudden
+  // error (dropped connection, server hiccup, failed upload) instead
+  // of being stuck. Not persisted to history — it's a transient
+  // notice, re-showing a stale "please refresh" bubble on reload
+  // would be confusing.
+  function addErrorBubble(text) {
+    const bubble = addBubble(text, 'bot', false);
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'msg-translate-btn';
+    refreshBtn.innerHTML = '<i class="fa-solid fa-arrow-rotate-right"></i> Refresh';
+    refreshBtn.style.marginTop = '6px';
+    refreshBtn.addEventListener('click', () => window.location.reload());
+
+    bubble.parentElement.appendChild(refreshBtn);
+    scrollToBottom();
+    return bubble;
+  }
+
+  // Auto-refresh once connectivity is back. If the patient's connection
+  // actually drops mid-chat, there's no reliable way to resume the
+  // in-flight request, so the simplest, least-confusing recovery is to
+  // reload the page as soon as the browser reports we're back online —
+  // the chat history itself is preserved via localStorage (session.history).
+  let wasOffline = false;
+  window.addEventListener('offline', () => {
+    wasOffline = true;
+    addErrorBubble("You've lost your internet connection. I'll refresh automatically once you're back online.");
+    setSendingState(true);
+  });
+  window.addEventListener('online', () => {
+    if (wasOffline) {
+      window.location.reload();
+    }
+  });
 
   // Star rating helpers
   function isRatingButtons(buttons) {
@@ -716,15 +780,28 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
   }
 
-  // Typing indicator
+  // Typing indicator — reserved for a real Admin/Staff person actively
+  // composing a reply (see staffTyping in pollForReplies()). Guarded
+  // against duplicates since it's now called on every 3s poll tick
+  // while staffTyping stays true, not just once per request.
   function showTyping() {
+    if (document.getElementById('typingIndicator')) return;
+
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
     messageWrap.id = 'typingIndicator';
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
-    bubble.textContent = '...';
+
+    const dotsWrap = document.createElement('div');
+    dotsWrap.className = 'typing-dots';
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dotsWrap.appendChild(dot);
+    }
+    bubble.appendChild(dotsWrap);
 
     messageWrap.appendChild(bubble);
     messagesEl.appendChild(messageWrap);
@@ -746,7 +823,10 @@ document.addEventListener('DOMContentLoaded', () => {
       addBubble(displayText ?? text, 'user');
     }
     input.value = '';
-    showTyping();
+    // No typing dots here — the bot computes and returns its reply in
+    // this same request/response cycle, there's no one "typing" it.
+    // The "..." indicator is reserved for a real Admin/Staff person
+    // composing a reply (see pollForReplies()/staffTyping below).
 
     try {
       const res = await fetch(botmanUrl, {
@@ -764,13 +844,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await res.json();
-      hideTyping();
 
       if (!res.ok) {
         if (res.status === 429) {
-          addBubble("You're sending messages a bit too quickly. Please wait a moment and try again.", 'bot');
+          addErrorBubble("You're sending messages a bit too quickly. Please wait a moment and try again.");
         } else {
-          addBubble('Something went wrong reaching the chatbot. Please try again.', 'bot');
+          addErrorBubble('Something went wrong reaching the chatbot. Please try again.');
         }
         return;
       }
@@ -817,9 +896,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
     } catch (err) {
-      hideTyping();
       console.error('Chat error:', err);
-      addBubble('Unable to connect. Please check your internet connection and try again.', 'bot');
+      addErrorBubble('Unable to connect. Please check your internet connection and try again.');
     } finally {
       setSendingState(false);
     }
@@ -852,46 +930,106 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  const FALLBACK_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
+  // Both variants of the "sent to Admin/Staff" placeholder — the plain
+  // text-message one and the attachment-upload one — need to disappear
+  // once a real Admin/Staff reply comes in, not just the first one.
+  const FALLBACK_TEXTS = new Set([
+    "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
+    "Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
+  ]);
   let shownReplyIds = new Set(session.shownReplyIds || []);
+  let shownResolvedIds = new Set(session.shownResolvedIds || []);
 
   function removeFallbackBubbles() {
     document.querySelectorAll('.chat-message.bot .chat-bubble').forEach(bubble => {
-      if (bubble.textContent === FALLBACK_TEXT) {
+      if (FALLBACK_TEXTS.has(bubble.textContent)) {
         bubble.closest('.chat-message').remove();
       }
     });
     session.history = session.history.filter(
-      item => !(item.kind === 'bubble' && item.text === FALLBACK_TEXT)
+      item => !(item.kind === 'bubble' && FALLBACK_TEXTS.has(item.text))
     );
     persistSession();
   }
 
+  // The same 4-option main menu shown on a fresh session (see
+  // restoreConversation) — reused here so it can be brought back once
+  // Admin/Staff marks the patient's inquiry resolved.
+  function showMainMenu() {
+    addButtons([
+      { text: 'Schedule Visit', value: 'schedule visit' },
+      { text: 'General Information', value: 'general information' },
+      { text: 'Submit Review/Rating', value: 'submit review/rating' },
+      { text: 'Submit Complaint', value: 'submit complaint' },
+    ]);
+  }
+
+  // Guards against overlapping polling requests — e.g. opening the
+  // panel (which calls pollForReplies immediately) right as the
+  // 5-second interval also fires would otherwise let two fetches race
+  // and both try to render the same "new" reply.
+  let isPolling = false;
+
   async function pollForReplies() {
+    if (isPolling) return;
+    isPolling = true;
     try {
       const res = await fetch(`/api/chat/${session.clientId}/updates`);
       if (!res.ok) return;
       const data = await res.json();
       const updates = data.updates || [];
+      const resolvedIds = data.resolvedInquiryIds || [];
 
       const newOnes = updates.filter(u => !shownReplyIds.has(u.replyId));
-      if (newOnes.length === 0) return;
+      const newlyResolved = resolvedIds.filter(id => !shownResolvedIds.has(id));
 
-      removeFallbackBubbles();
+      // The only legitimate source of the "..." indicator: a real
+      // Admin/Staff person is actively composing a reply to this chat
+      // right now (see TypingStatusService on the backend). Once their
+      // reply actually lands (newOnes.length > 0, below) we drop it
+      // immediately rather than waiting on the flag to expire.
+      if (data.staffTyping && newOnes.length === 0) {
+        showTyping();
+      } else {
+        hideTyping();
+      }
 
-      newOnes.forEach(u => {
-        addBubble(u.message, 'bot');
-        shownReplyIds.add(u.replyId);
-      });
+      if (newOnes.length === 0 && newlyResolved.length === 0) return;
 
-      session.shownReplyIds = Array.from(shownReplyIds);
+      if (newOnes.length > 0) {
+        removeFallbackBubbles();
+
+        newOnes.forEach(u => {
+          addBubble(u.message, 'bot');
+          shownReplyIds.add(u.replyId);
+        });
+
+        session.shownReplyIds = Array.from(shownReplyIds);
+      }
+
+      // Once Admin/Staff has resolved the inquiry — whether that came
+      // with one last reply or a plain "Resolve" click — hand the
+      // patient back to the main menu automatically instead of leaving
+      // them stuck with nothing to tap.
+      if (newlyResolved.length > 0) {
+        newlyResolved.forEach(id => shownResolvedIds.add(id));
+        session.shownResolvedIds = Array.from(shownResolvedIds);
+
+        addBubble("Your inquiry has been resolved. Is there anything else I can help you with?", 'bot');
+        showMainMenu();
+      }
+
       persistSession();
     } catch (err) {
       console.error('Poll error:', err);
+    } finally {
+      isPolling = false;
     }
   }
 
-  setInterval(pollForReplies, 5000);
+  // 3s (was 5s) so the real "Admin/Staff is typing…" indicator feels
+  // live rather than lagging noticeably behind their actual keystrokes.
+  setInterval(pollForReplies, 3000);
 
   // Global trigger: open chat + jump straight to Submit Feedback
   window.openChatbotAndSubmitFeedback = function () {

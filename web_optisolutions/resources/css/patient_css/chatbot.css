@@ -256,6 +256,39 @@ body {
 }
 
 /* ============================================
+   TYPING INDICATOR (animated bouncing dots)
+   ============================================ */
+.typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.typing-dots .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gray-400, #9ca3af);
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+
+.typing-dots .dot:nth-child(1) { animation-delay: 0s; }
+.typing-dots .dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots .dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* ============================================
    QUICK REPLIES (pinned above the input, Messenger-style)
    Populated by addButtons()/renderQuickReplies() in
    chatbot-widget.blade.php. Sits between the scrolling message
@@ -954,6 +987,9 @@ body {
   .post-appt-btn { padding: 10px 16px; font-size: 14px; min-width: 130px; }
   .menu-btn { padding: 8px 14px; font-size: 14px; min-width: 100px; }
   .quick-reply-btn { padding: 8px 14px; font-size: 13px; }
+  /* 16px prevents iOS Safari from auto-zooming the page when the
+     patient taps into the chat field; anything smaller triggers it. */
+  .chat-input { font-size: 16px; }
 }
 
 @media (max-width: 480px) {

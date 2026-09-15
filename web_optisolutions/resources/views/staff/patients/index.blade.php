@@ -67,7 +67,7 @@
     </div>
 
     @if($patients->count() > 0)
-        <table class="data-table" id="patientsTable">
+        <table class="data-table table-cards" id="patientsTable">
             <thead>
                 <tr>
                     <th>Patient ID</th>
@@ -83,11 +83,11 @@
                     $dept = $p->latestVisit->doctor->specialty ?? 'N/A';
                 @endphp
                 <tr data-department="{{ strtolower($dept) }}">
-                    <td>{{ $p->patient_id }}</td>
-                    <td>{{ $p->full_name }}</td>
-                    <td>{{ $dept }}</td>
-                    <td>{{ $p->latestVisit->doctor->doctor_name ?? 'N/A' }}</td>
-                    <td style="display: flex; gap: 0.5rem;">
+                    <td data-label="Patient ID">{{ $p->patient_id }}</td>
+                    <td data-label="Patient Name">{{ $p->full_name }}</td>
+                    <td data-label="Department">{{ $dept }}</td>
+                    <td data-label="Assigned Doctor">{{ $p->latestVisit->doctor->doctor_name ?? 'N/A' }}</td>
+                    <td data-label="" class="table-cards-actions" style="display: flex; gap: 0.5rem;">
                         <button type="button" class="btn-sm btn-primary" onclick="openViewPatientModal('{{ $p->patient_id }}')">View</button>
                         <button type="button" class="btn-sm btn-warning" onclick="openEditPatientModal('{{ $p->patient_id }}')">Edit</button>
                     </td>

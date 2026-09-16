@@ -39,4 +39,4 @@ COPY docker/nginx.conf /etc/nginx/sites-available/default
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 80
-CMD sh -c "nginx -t; /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"
+CMD sh -c "sed -i \"s/PORT_PLACEHOLDER/\${PORT:-80}/g\" /etc/nginx/sites-available/default && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"

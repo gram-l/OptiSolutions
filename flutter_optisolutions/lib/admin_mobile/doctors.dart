@@ -153,7 +153,7 @@ Future<void> _openAddSessionDialog(
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
-              value: day,
+              initialValue: day,
               decoration: const InputDecoration(labelText: 'Day'),
               items: _weekdays
                   .map((d) => DropdownMenuItem(value: d, child: Text(d)))

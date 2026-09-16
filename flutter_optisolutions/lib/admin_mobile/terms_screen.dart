@@ -234,7 +234,7 @@ class _TermsScreenState extends State<TermsScreen> {
                           ),
                           Switch(
                             value: _hasConfirmedRead,
-                            activeColor: AppColors.primary,
+                            activeThumbColor: AppColors.primary,
                             onChanged: _toggleEnabled
                                 ? (val) => setState(() => _hasConfirmedRead = val)
                                 : null,
@@ -860,7 +860,7 @@ class _TermsDialogState extends State<_TermsDialog> {
                             ),
                             Switch(
                               value: _hasConfirmedRead,
-                              activeColor: AppColors.primary,
+                              activeThumbColor: AppColors.primary,
                               onChanged: _toggleEnabled
                                   ? (val) => setState(() => _hasConfirmedRead = val)
                                   : null,

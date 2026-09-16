@@ -1106,8 +1106,7 @@ class _SheetField extends StatelessWidget {
     required this.icon,
     this.controller,
     this.keyboardType = TextInputType.text,
-    this.maxLines = 1,
-  });
+  }) : maxLines = 1;
 
   @override
   Widget build(BuildContext context) {

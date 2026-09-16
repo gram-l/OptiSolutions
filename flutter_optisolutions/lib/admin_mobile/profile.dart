@@ -7,7 +7,6 @@ import 'side_panel.dart';
 import '../main.dart' show appMenuItems;
 import '../auth/auth_service.dart';
 import 'models/user_model.dart';
-import '../config/api_config.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

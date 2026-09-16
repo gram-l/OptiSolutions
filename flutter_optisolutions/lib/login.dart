@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_optisolutions/auth/auth_service.dart';
 import 'package:flutter_optisolutions/auth/forgot_password_service.dart';
-import 'package:flutter_optisolutions/auth/google_auth.dart';
 import 'package:flutter_optisolutions/staff_mobile/models/profile_data.dart'; //newc
-import 'package:flutter_optisolutions/admin_mobile/terms_screen.dart'; // adjust path if needed
+// adjust path if needed
 
 // ─────────────────────────────────────────────────────────────
 //  SHARED CONSTANTS

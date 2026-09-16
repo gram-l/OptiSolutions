@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('site_settings', function (Blueprint $table) {
-            $table->unsignedBigInteger('id');
+            $table->id();
             $table->string('key');
             $table->string('value')->nullable();
             $table->timestamps();

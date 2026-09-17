@@ -87,12 +87,12 @@
                 <button type="submit">Log In →</button>
             </form>
 
-            <div class="divider"><span>or</span></div>
+            <!--<div class="divider"><span>or</span></div>
 
             <div id="g_id_onload"
                  data-client_id="1041975122502-tjr2cth2cnetpo53o75l4r6gu99tr63g.apps.googleusercontent.com"
                  data-callback="handleGoogleLogin">
-            </div>
+            </div> -->
             <div class="g_id_signin" data-type="standard" data-width="100%"></div>
 
         </div>

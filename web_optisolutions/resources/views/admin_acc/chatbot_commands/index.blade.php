@@ -128,22 +128,22 @@
                     @error('reply_text') <span class="form-error">{{ $message }}</span> @enderror
                 </div>
 
-                <div class="form-check">
+                <!-- <div class="form-check">
                     <input type="checkbox" name="show_in_menu" value="1" id="show_in_menu" {{ old('show_in_menu') ? 'checked' : '' }}>
                     <label for="show_in_menu">Show as a button on the main menu</label>
-                </div>
+                </div> -->
 
                 <div class="form-check">
                     <input type="checkbox" name="is_active" value="1" id="is_active" {{ old('is_active', true) ? 'checked' : '' }}>
                     <label for="is_active">Active</label>
                 </div>
 
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label for="sort_order">Sort order</label>
                     <input type="number" id="sort_order" name="sort_order" min="0" value="{{ old('sort_order', 0) }}">
                     <small class="form-hint">Lower numbers appear first.</small>
                     @error('sort_order') <span class="form-error">{{ $message }}</span> @enderror
-                </div>
+                </div> -->
 
                 <div class="modal-buttons">
                     <button type="button" class="btn-cancel" onclick="closeCommandModal()">Cancel</button>
@@ -188,9 +188,15 @@
                 document.getElementById('label').value = command.label;
                 document.getElementById('trigger_value').value = command.trigger_value;
                 document.getElementById('reply_text').value = command.reply_text;
-                document.getElementById('show_in_menu').checked = !!command.show_in_menu;
+
+                // Guarded — safe even while these fields are commented out in the HTML
+                const showInMenuEl = document.getElementById('show_in_menu');
+                if (showInMenuEl) showInMenuEl.checked = !!command.show_in_menu;
+
+                const sortOrderEl = document.getElementById('sort_order');
+                if (sortOrderEl) sortOrderEl.value = command.sort_order;
+
                 document.getElementById('is_active').checked = !!command.is_active;
-                document.getElementById('sort_order').value = command.sort_order;
                 document.getElementById('commandMethod').value = 'PUT';
                 document.getElementById('commandSubmitBtn').textContent = 'Update';
                 commandForm.action = commandUpdateUrlTemplate.replace('CMD_ID', command.command_id);

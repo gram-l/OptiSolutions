@@ -47,12 +47,12 @@
   <div class="container">
     <div class="stats-modern-grid" id="statsGrid">
       <div class="stat-modern-item">
-        <span class="stat-modern-number">15+</span>
+        <span class="stat-modern-number">{{ $yearsOfExcellence }}+</span>
         <span class="stat-modern-label">Years of Excellence</span>
         <span class="stat-modern-desc">Serving the community since 2011</span>
       </div>
       <div class="stat-modern-item">
-        <span class="stat-modern-number">50k+</span>
+        <span class="stat-modern-number">{{ $patientsCount >= 1000 ? round($patientsCount / 1000) . 'k+' : $patientsCount . '+' }}</span>
         <span class="stat-modern-label">Happy Patients</span>
         <span class="stat-modern-desc">Trusted by families across Batangas</span>
       </div>
@@ -72,7 +72,7 @@
           @for ($i = 1; $i <= 5; $i++)
             <i class="fas fa-star {{ $i <= $statRatingValue ? 'star-filled' : 'star-empty' }}"></i>
           @endfor
-          <span class="stat-rating-count">from 800+ reviews</span>
+          <span class="stat-rating-count">from {{ $feedbackCount }} reviews</span>
         </span>
       </div>
     </div>

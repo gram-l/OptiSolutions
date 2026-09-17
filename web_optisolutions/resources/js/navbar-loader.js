@@ -15,12 +15,13 @@
           <a href="/services" class="nav-link" data-page="services">Services</a>
           <a href="/doctors" class="nav-link" data-page="doctors">Doctors</a>
           <a href="/contact" class="nav-link" data-page="contact">Contact</a>
-
-          <button class="nav-cta" onclick="window.location.href='/auth/login'">
+<!--
+         <button class="nav-cta" onclick="window.location.href='/auth/login'">
             Login as Admin/Staff
-          </button>
-        </div>
-
+          </button> 
+        
+-->
+</div>
       </div>
 
       <div class="navbar-accent">

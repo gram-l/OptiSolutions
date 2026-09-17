@@ -28,7 +28,6 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = [
     'optisolutions-ml.onrender.com',
-    '.onrender.com',
     'localhost',
     '127.0.0.1',
 ]

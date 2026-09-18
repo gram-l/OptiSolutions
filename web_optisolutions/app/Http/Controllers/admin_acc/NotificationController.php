@@ -64,6 +64,19 @@ class NotificationController extends Controller
             ->limit(50)
             ->get();
 
+        $typeUrls = [
+            'chat_inquiry' => '/admin_acc/chatbot_logs',
+            'appointment'  => '/admin_acc/appointments',
+            'feedback'     => '/admin_acc/feedback',
+            'complaint'    => '/admin_acc/feedback',
+        ];
+
+        $notifications = $notifications->map(function ($notification) use ($typeUrls) {
+            $notification->icon = $this->iconForType($notification->type);
+            $notification->url = $typeUrls[$notification->type] ?? null;
+            return $notification;
+        });
+
         $unreadCount = DB::table('app_notifications')->where('is_read', 0)->count();
 
         return response()->json([

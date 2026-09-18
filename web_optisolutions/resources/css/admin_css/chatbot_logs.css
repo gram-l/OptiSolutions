@@ -551,6 +551,37 @@
             cursor: not-allowed;
         }
 
+        /* --- Unresolve button — outline style so it doesn't compete
+           visually with Resolve's solid fill; only one of the two is
+           ever visible at a time anyway. --- */
+        .unresolve-btn-modern {
+            display: none;
+            align-items: center;
+            gap: 0.4rem;
+            border: 1.5px solid var(--primary-main);
+            border-radius: 25px;
+            padding: 0.5rem 1.2rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary-main);
+            background: var(--white);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .unresolve-btn-modern:hover:not(:disabled) {
+            background: var(--light-gray);
+        }
+
+        .unresolve-btn-modern:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .unresolve-btn-modern:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
         /* --- Custom confirm modal (replaces window.confirm) --- */
         .modal-overlay {
             position: fixed;

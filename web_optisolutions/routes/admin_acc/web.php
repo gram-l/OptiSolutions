@@ -45,6 +45,7 @@ Route::get('/admin_acc/appointments', function () {
 });
 
 Route::get('/admin_acc/appointments/day', [VisitController::class, 'dayJson']);
+Route::get('/admin_acc/appointments/visit-dates', [VisitController::class, 'visitDates']);
 Route::put('/admin_acc/appointments/{id}', [VisitController::class, 'update']);
 Route::delete('/admin_acc/appointments/{id}', [VisitController::class, 'destroy']);
 
@@ -138,6 +139,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin_acc/chatbot_logs', [ChatbotInquiryController::class, 'index'])->name('admin_acc.chatbot_logs');
     Route::post('/admin_acc/chatbot_logs/{id}/reply', [ChatbotInquiryController::class, 'reply'])->name('admin_acc.chatbot_logs.reply');
     Route::post('/admin_acc/chatbot_logs/{id}/resolve', [ChatbotInquiryController::class, 'resolve'])->name('admin_acc.chatbot_logs.resolve');
+    Route::post('/admin_acc/chatbot_logs/{id}/unresolve', [ChatbotInquiryController::class, 'unresolve'])->name('admin_acc.chatbot_logs.unresolve');
     Route::post('/admin_acc/chatbot_logs/{id}/typing', [ChatbotInquiryController::class, 'typing'])->name('admin_acc.chatbot_logs.typing');
 
     //settings routes
@@ -169,5 +171,6 @@ Route::get('/admin_acc/patients/{id}/visits', [PatientListController::class, 'ap
 // notification routes
 
 Route::get('/admin_acc/notifications', [NotificationController::class, 'index']);
+Route::get('/admin_acc/notifications/api', [NotificationController::class, 'apiIndex']);
 Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
 Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);

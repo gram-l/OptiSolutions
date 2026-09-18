@@ -70,6 +70,24 @@ public function apiIndex(Request $request)
         ]);
     }
 
+    // GET /admin_acc/appointments/visit-dates — every distinct date that
+    // has at least one scheduled visit, sorted ascending. Used by the
+    // day-nav arrows in appointments.blade.php so "next/previous day"
+    // can jump straight to the nearest day that actually has a
+    // scheduled visit instead of stepping one empty day at a time.
+    public function visitDates()
+    {
+        $dates = DB::table('schedule_visit')
+            ->selectRaw('DISTINCT DATE(visit_date) as visit_date')
+            ->orderBy('visit_date')
+            ->pluck('visit_date');
+
+        return response()->json([
+            'success' => true,
+            'dates'   => $dates,
+        ]);
+    }
+
     // PUT /admin_acc/appointments/{id} — reschedule (change visit_date only;
     // there's no appointment-time column to move, just the date) and/or
     // update notes. Either field can be sent on its own — e.g. the notes

@@ -48,13 +48,15 @@ export default defineConfig({
         port: 5173,
         strictPort: true,
         hmr: {
+            
+            host: '192.168.254.147',
             //host: '10.183.111.34',//school
             //host: '192.168.1.9',
             // host: '127.0.0.1',
            // host: '192.168.1.11',
-            host: '192.168.199.12',
+            //host: '192.168.199.12',
            // host: '10.244.36.34', 
-        //  host: '192.168.254.147',
+            
             // lipa bsu 192.168.193.172
         },
         cors: true,

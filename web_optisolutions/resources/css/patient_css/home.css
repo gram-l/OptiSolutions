@@ -323,7 +323,7 @@ body {
   gap: 32px;
 }
 .hero-logo-blur {
-  
+  filter: blur(1.4px);
   opacity: 1;
 }
 .hero-flutter-content {

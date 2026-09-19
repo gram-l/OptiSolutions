@@ -102,7 +102,6 @@ Route::delete('/admin_acc/user_management/{id}',       [UserManagementController
 
 //google login route
 
-
 Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'googleLogin'])
     ->name('auth.google');
 
@@ -160,7 +159,10 @@ Route::middleware('auth')->group(function () {
     Route::put('/admin_acc/profile/session', [ProfileController::class, 'updateSession'])
         ->name('admin.profile.session');
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> bd963dbfcec4a2812c8f6a3cf20002c84903fb53
     });
 
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
@@ -188,7 +190,10 @@ Route::get('/admin_acc/patients/{id}/visits', [PatientListController::class, 'ap
 Route::get('/admin_acc/patients/export', [PatientListController::class, 'export'])
     ->name('admin.patients.export');
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> bd963dbfcec4a2812c8f6a3cf20002c84903fb53
 // notification routes
 
 Route::get('/admin_acc/notifications', [NotificationController::class, 'index']);

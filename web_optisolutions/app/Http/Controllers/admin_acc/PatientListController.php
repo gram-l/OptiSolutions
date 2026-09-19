@@ -160,13 +160,7 @@ class PatientListController extends Controller
     {
         $patients = PatientList::orderBy('patient_lname')->get();
 
-        $latestVisitByPatient = DB::table('schedule_visit')
-            ->leftJoin('doctors', 'doctors.doctor_id', '=', 'schedule_visit.doctor_id')
-            ->select('schedule_visit.patient_id', 'schedule_visit.service_type', 'schedule_visit.visit_date', 'schedule_visit.notes', 'doctors.doctor_name')
-            ->orderByDesc('schedule_visit.visit_date')
-            ->get()
-            ->groupBy('patient_id')
-            ->map(fn ($rows) => $rows->first()); // already ordered desc, so first() = most recent
+        $latestVisitByPatient = $this->latestVisitsByPatient();
 
         $data = $patients->map(function ($patient) use ($latestVisitByPatient) {
             $latest = $latestVisitByPatient->get($patient->patient_id);
@@ -187,5 +181,72 @@ class PatientListController extends Controller
         });
 
         return response()->json(['success' => true, 'patients' => $data]);
+    }
+
+    // GET /admin_acc/patients/export
+    // Streams the same patient + most-recent-visit data used by webList()
+    // as a CSV download, for the Settings > Data & Privacy > Export button.
+    public function export(): StreamedResponse
+    {
+        $fileName = 'patients_export_' . now()->format('Y-m-d_His') . '.csv';
+
+        $headers = [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"$fileName\"",
+        ];
+
+        $columns = [
+            'Patient ID',
+            'First Name',
+            'Last Name',
+            'Birthdate',
+            'Age',
+            'Email',
+            'Contact',
+            'Department (most recent)',
+            'Doctor (most recent)',
+        ];
+
+        $callback = function () use ($columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            $latestVisitByPatient = $this->latestVisitsByPatient();
+
+            PatientList::orderBy('patient_lname')->chunk(200, function ($patients) use ($file, $latestVisitByPatient) {
+                foreach ($patients as $patient) {
+                    $latest = $latestVisitByPatient->get($patient->patient_id);
+
+                    fputcsv($file, [
+                        $patient->patient_id,
+                        $patient->patient_fname,
+                        $patient->patient_lname,
+                        $patient->patient_birthdate,
+                        $patient->patient_birthdate ? \Carbon\Carbon::parse($patient->patient_birthdate)->age : '',
+                        $patient->patient_email,
+                        $patient->patient_contact,
+                        $latest->service_type ?? '',
+                        $latest->doctor_name ?? '',
+                    ]);
+                }
+            });
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    // Shared by webList() and export() — most recent schedule_visit row
+    // per patient, keyed by patient_id.
+    private function latestVisitsByPatient()
+    {
+        return DB::table('schedule_visit')
+            ->leftJoin('doctors', 'doctors.doctor_id', '=', 'schedule_visit.doctor_id')
+            ->select('schedule_visit.patient_id', 'schedule_visit.service_type', 'schedule_visit.visit_date', 'schedule_visit.notes', 'doctors.doctor_name')
+            ->orderByDesc('schedule_visit.visit_date')
+            ->get()
+            ->groupBy('patient_id')
+            ->map(fn ($rows) => $rows->first()); // already ordered desc, so first() = most recent
     }
 }

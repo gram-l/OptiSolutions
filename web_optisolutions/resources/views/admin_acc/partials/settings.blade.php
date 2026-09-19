@@ -703,11 +703,7 @@
     // ----- Dark mode -----
     // Persisted client-side via localStorage (per-browser, like the rest
     // of the "General" settings on this page, which have no backend yet).
-<<<<<<< HEAD
-    // A tiny inline <script> right after the Vite include at the top of this partial
-=======
     // A tiny inline <script> right after the @@vite call at the top of this partial
->>>>>>> bd963dbfcec4a2812c8f6a3cf20002c84903fb53
     // already applied the stored preference before this point, so all we
     // do here is (a) reflect that state in the toggle switch, and
     // (b) update + persist it on change.

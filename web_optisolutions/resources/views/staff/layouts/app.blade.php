@@ -465,7 +465,7 @@
     </div>
 </div>
 
-    // TERMS & CONDITIONS MODAL
+    {{-- TERMS & CONDITIONS MODAL --}}
 <div class="modal-overlay" id="staffTermsModalOverlay" style="z-index: 2100;" onclick="if(event.target === this) closeStaffTermsModal();">
     <div class="modal-box">
         <div class="modal-header">

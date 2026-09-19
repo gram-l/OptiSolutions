@@ -12,6 +12,9 @@ use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationService;
+use App\Models\Notification;
+
 use Closure;
 
 class AppointmentConversation extends Conversation
@@ -987,7 +990,7 @@ class AppointmentConversation extends Conversation
 
             $visitDate = $this->getNextAvailableISODate($this->scheduleDay);
 
-            DB::table('schedule_visit')->insert([
+            $visitId = DB::table('schedule_visit')->insertGetId([
                 'doctor_id'    => $this->doctorId,
                 'patient_id'   => $patientId,
                 'service_type' => $this->service,
@@ -997,15 +1000,15 @@ class AppointmentConversation extends Conversation
             ]);
 
             // Notification failures should not affect the saved appointment.
+            // Uses NotificationService so the row gets the required `type`
+            // ('appointment') plus reference_type/reference_id.
             try {
-                AppNotification::create([
-                    'icon'    => 'calendar_today',
-                    'title'   => 'New Schedule Visit',
-                    'message' => "{$this->fname} {$this->lname} scheduled a visit with {$this->doctor} on "
-                        . \Carbon\Carbon::parse($visitDate)->format('M d, Y') . '.',
-                    'is_read' => false,
-                    'color'   => '4CAF50',
-                ]);
+                NotificationService::newVisit(
+                    trim("{$this->fname} {$this->lname}"),
+                    (string) $this->doctor,
+                    $visitDate,
+                    (int) $visitId
+                );
             } catch (\Throwable $notifyError) {
                 Log::error('Failed to create appointment notification: ' . $notifyError->getMessage(), [
                     'exception' => $notifyError,

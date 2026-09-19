@@ -4,7 +4,7 @@ namespace App\Models\Staff;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ChatbotLog;
-use App\Models\Staff\AppNotification;
+use App\Models\AppNotification;
 use Carbon\Carbon;
 
 class Inquiry extends Model

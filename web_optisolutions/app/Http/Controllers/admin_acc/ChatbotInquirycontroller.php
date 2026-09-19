@@ -197,10 +197,6 @@ class ChatbotInquiryController extends Controller
         'inquiryCode'  => 'INQ-' . str_pad((string) $inquiry->inquiry_id, 3, '0', STR_PAD_LEFT),
         'avatar'       => strtoupper(substr($initials, 0, 2)),
         'patientId'    => $patientLabel,
-        // No more 'General' fallback — an inquiry with no specific type
-        // just omits the department segment in the UI (see patientInfo
-        // rendering in chatbot_logs.blade.php) instead of showing a
-        // meaningless placeholder.
         'department'   => $inquiry->inquiry_type,
         'lastMessage'  => $lastMessage,
         'timestamp'    => $timestamp->toIso8601String(),

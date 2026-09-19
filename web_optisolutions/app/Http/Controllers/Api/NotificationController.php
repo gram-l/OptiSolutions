@@ -5,13 +5,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Staff\AppNotification;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
     /** GET /api/notifications */
     public function index()
     {
-        return AppNotification::orderByDesc('created_at')->get()->map->toApiArray();
+        $visibleTypes = NotificationService::visibleTypesFor(Auth::user()->user_role ?? null);
+
+        return AppNotification::whereIn('type', $visibleTypes)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map->toApiArray();
     }
 
 

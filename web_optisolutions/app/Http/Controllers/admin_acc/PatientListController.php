@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\admin_models\PatientList;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientListController extends Controller
 {

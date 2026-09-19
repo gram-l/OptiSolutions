@@ -369,3 +369,182 @@ body {
 @media (max-width: 768px) {
     .settings-overlay { padding: 0; }
 }
+/* =========================================================
+   DARK MODE — applies site-wide since this file loads on
+   every admin page via the settings partial.
+
+   Strategy: most admin CSS files already paint their
+   backgrounds/borders/text with var(--white), var(--light-gray)
+   and var(--text-dark), so re-pointing those three custom
+   properties under body.dark-mode retints the header, sidebar,
+   cards, tables, and this settings modal automatically. The
+   rules below on top of that handle the handful of places that
+   use hardcoded hex colors or the var(--primary-dark)/muted-gray
+   text colors that would otherwise be unreadable on a dark card.
+   ========================================================= */
+
+body.dark-mode {
+    background: #0f1420;
+    color: #e4e8ee;
+    --white: #1a2130;
+    --light-gray: #2a3346;
+    --text-dark: #e4e8ee;
+    --shadow: rgba(0, 0, 0, 0.4);
+}
+
+/* Headings that use var(--primary-dark) as foreground text on a
+   card (readable navy-on-white, unreadable navy-on-dark) */
+body.dark-mode .header h1,
+body.dark-mode .page-header h2,
+body.dark-mode .sidebar-brand-name,
+body.dark-mode .sidebar-logo-text,
+body.dark-mode .chart-header h3,
+body.dark-mode .activity-header h3,
+body.dark-mode .section-title,
+body.dark-mode .analytics-title,
+body.dark-mode .pattern-header,
+body.dark-mode .settings-modal-topbar-text h2,
+body.dark-mode .settings-pane-header h3,
+body.dark-mode .modal-content h3,
+body.dark-mode .modal-header h3,
+body.dark-mode .form-box h2,
+body.dark-mode .info-modal-title {
+    color: #e4e8ee;
+}
+
+/* Muted secondary text (hardcoded #7f8c8d / #95a5a6 / #97a0ab
+   throughout the admin CSS files) */
+body.dark-mode .page-header p,
+body.dark-mode .stat-label,
+body.dark-mode .card-subtitle,
+body.dark-mode .empty-state,
+body.dark-mode .settings-row-desc,
+body.dark-mode .settings-pane-header p,
+body.dark-mode .settings-nav-group-label,
+body.dark-mode .dropdown-label,
+body.dark-mode .notif-text span,
+body.dark-mode .info-list .label,
+body.dark-mode .profile-role,
+body.dark-mode .doctor-description,
+body.dark-mode .schedule-text,
+body.dark-mode .sentiment-label,
+body.dark-mode .subtitle,
+body.dark-mode .activity-time,
+body.dark-mode .hours-closed-label {
+    color: #97a0ab;
+}
+
+/* Icons drawn with var(--icon-color) — navy, invisible on a
+   dark sidebar/nav item */
+body.dark-mode .nav-icon,
+body.dark-mode .settings-nav-item i,
+body.dark-mode .menu-item i,
+body.dark-mode .icon-btn,
+body.dark-mode .sidebar-toggle {
+    color: #b8c1cf;
+}
+body.dark-mode .nav-item.active .nav-icon,
+body.dark-mode .settings-nav-item.active i,
+body.dark-mode .menu-item:hover i {
+    color: inherit;
+}
+
+/* One deliberate exception: .btn-edit keeps a light blue
+   background regardless of theme, so its text must stay dark
+   or it disappears when var(--text-dark) flips to a light color */
+body.dark-mode .btn-edit {
+    color: #062744;
+}
+
+/* Inputs */
+body.dark-mode .form-group input,
+body.dark-mode .form-group select,
+body.dark-mode .form-group textarea,
+body.dark-mode .search-box,
+body.dark-mode .filter-select,
+body.dark-mode .settings-input {
+    background: #232b3d;
+    color: #e4e8ee;
+    border-color: #2a3346;
+}
+body.dark-mode .form-group input::placeholder,
+body.dark-mode .search-box::placeholder,
+body.dark-mode .settings-input::placeholder {
+    color: #7f8c93;
+}
+body.dark-mode .form-group input:disabled {
+    background: #1a2130;
+    color: #6b7484;
+}
+body.dark-mode select option {
+    background: #232b3d;
+    color: #e4e8ee;
+}
+
+/* Table row hover (hardcoded #f8f9fa across every *-table class) */
+body.dark-mode .feedback-table tr:hover,
+body.dark-mode .patients-table tr:hover,
+body.dark-mode .appointments-table tr:hover,
+body.dark-mode .users-table tr:hover,
+body.dark-mode .data-table tr:hover {
+    background: #202838;
+}
+
+/* Modals that hardcode "background: white" instead of var(--white) */
+body.dark-mode .modal-content,
+body.dark-mode .modal-box {
+    background: #1a2130;
+    color: #e4e8ee;
+}
+body.dark-mode .modal-buttons .btn-cancel {
+    background: #2a3346;
+    color: #e4e8ee;
+}
+
+/* Any remaining inline style="background:#fff" (e.g. the Terms &
+   Conditions modal box in this partial) */
+body.dark-mode div[style*="background:#fff"],
+body.dark-mode div[style*="background: #fff"],
+body.dark-mode div[style*="background:#ffffff"] {
+    background: #1a2130 !important;
+}
+
+/* Dropdown / avatar menu (header.css) */
+body.dark-mode .dropdown,
+body.dark-mode .profile-header,
+body.dark-mode .dropdown-footer {
+    background: #1a2130;
+    border-color: #2a3346;
+}
+body.dark-mode .menu-item,
+body.dark-mode .profile-name {
+    color: #e4e8ee;
+}
+body.dark-mode .menu-item:hover {
+    background: #232b3d;
+}
+body.dark-mode .notif-item {
+    border-color: #2a3346;
+}
+body.dark-mode .notif-item:hover {
+    background: #232b3d;
+}
+body.dark-mode .notif-text p {
+    color: #e4e8ee;
+}
+
+/* Scrollable nav rail background stays but text/border need a tweak */
+body.dark-mode .settings-nav {
+    background: #161d29;
+    border-color: #2a3346;
+}
+body.dark-mode .settings-nav-item:hover {
+    background: #232b3d;
+}
+body.dark-mode .settings-nav-item.active {
+    background: rgba(108, 178, 245, 0.15);
+    color: #6cb2f5;
+}
+body.dark-mode .settings-nav-item.active i {
+    color: #6cb2f5;
+}

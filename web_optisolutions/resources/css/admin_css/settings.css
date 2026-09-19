@@ -369,6 +369,7 @@ body {
 @media (max-width: 768px) {
     .settings-overlay { padding: 0; }
 }
+
 /* =========================================================
    DARK MODE — applies site-wide since this file loads on
    every admin page via the settings partial.

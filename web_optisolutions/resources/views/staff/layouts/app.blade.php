@@ -749,9 +749,8 @@
         const notifPrefDefaults = { appointments: true, inquiries: true, patients: true, email: false };
 
         const notifPrefKeyByType = {
-            schedule_visit: 'appointments',
-            inquiry: 'inquiries',
-            patient: 'patients',
+            appointment: 'appointments',
+            chat_inquiry: 'inquiries',
         };
 
         function loadNotifPrefs() {
@@ -801,15 +800,15 @@
 
 
         const notifRoutes = {
-            inquiry: "{{ route('staff.inquiries.show', ':id') }}",
-            schedule_visit: "{{ route('staff.appointments') }}",
+            chat_inquiry: "{{ route('staff.inquiries.show', ':id') }}",
+            appointment: "{{ route('staff.appointments') }}",
         };
 
 
         const notifTypeLabels = {
-            inquiry: 'Chat inquiry',
-            schedule_visit: 'Appointment',
-            patient: 'Patient',
+            chat_inquiry: 'Chat inquiry',
+            appointment: 'Appointment',
+            system: 'System',
         };
 
         let rawNotifications = [];  
@@ -817,8 +816,13 @@
         let notifFilter = 'all';
 
 
+        // Translates the real notification type (from the backend/API,
+        // shared with the Admin side and the Flutter app) into this
+        // page's own tab category names.
         function notifCategory(type) {
-            return ['inquiry', 'schedule_visit'].includes(type) ? type : 'system';
+            if (type === 'chat_inquiry') return 'inquiry';
+            if (type === 'appointment') return 'schedule_visit';
+            return 'system';
         }
 
         function setNotifFilter(filter) {

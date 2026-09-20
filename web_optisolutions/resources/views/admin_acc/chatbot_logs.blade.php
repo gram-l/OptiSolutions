@@ -271,7 +271,7 @@
             // type (department comes through as null/empty from the
             // backend instead of a placeholder like "General").
             const infoParts = [chat.inquiryCode, `ID: ${chat.patientId}`];
-            if (chat.department) infoParts.push(chat.department);
+            if (chat.department) 
             document.getElementById("patientInfo").innerHTML = infoParts.map(escapeHtml).join(' • ');
             const statusBadge = document.getElementById("statusBadge");
             statusBadge.className = `status-badge status-${chat.status}`;

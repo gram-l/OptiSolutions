@@ -9,10 +9,6 @@
     </script>
 
     <div class="sidebar-brand-row">
-        <div class="sidebar-brand">
-            <span class="sidebar-brand-mark"><i class="bi bi-hospital"></i></span>
-            <span class="sidebar-brand-name">Polyclinic</span>
-        </div>
         <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Collapse sidebar">
             <i class="bi bi-chevron-double-left"></i>
         </button>
@@ -66,6 +62,12 @@
              onclick="window.location.href='/admin_acc/system_settings'">
             <div class="nav-icon"><i class="fa-solid fa-cog"></i></div>
             <span>System Settings</span>
+        </div>
+        <div class="nav-item {{ request()->is('admin_acc/chatbot-commands*') ? 'active' : '' }}"
+             title="Chatbot Commands" data-label="Chatbot Commands"
+             onclick="window.location.href='/admin_acc/chatbot-commands'">
+            <div class="nav-icon"><i class="fa-solid fa-terminal"></i></div>
+            <span>Chatbot Commands</span>
         </div>
     </nav>
 </aside>

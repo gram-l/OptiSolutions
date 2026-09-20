@@ -4,7 +4,6 @@ namespace App\Models\Staff;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ChatbotLog;
-use App\Models\Staff\AppNotification;
 use Carbon\Carbon;
 
 class Inquiry extends Model
@@ -36,17 +35,11 @@ class Inquiry extends Model
         });
 
         static::created(function (Inquiry $inquiry) {
-            AppNotification::create([
-                'user_id' => null,
-                'type' => 'inquiry',
-                'title' => 'New Inquiry',
-                'message' => $inquiry->inquiry_type
-                    ? "A new {$inquiry->inquiry_type} inquiry has been submitted."
-                    : 'A new inquiry has been submitted.',
-                'reference_type' => 'inquiry',
-                'reference_id' => $inquiry->inquiry_id,
-                'is_read' => false,
-            ]);
+            $name = $inquiry->patient_id
+                ? "Patient #{$inquiry->patient_id}"
+                : ($inquiry->guest_name ?: 'A guest');
+
+            \App\Services\NotificationService::newInquiry($name, $inquiry->inquiry_id);
         });
     }
 

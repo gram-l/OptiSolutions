@@ -39,10 +39,11 @@ class AppNotification extends Model
     private function iconForType(): string
     {
         return match ($this->type) {
-            'inquiry' => 'question_answer',
-            'schedule visit' => 'calendar_today',
-            'doctor' => 'medical_services',
-            'patient' => 'person',
+            'chat_inquiry' => 'question_answer',
+            'appointment' => 'calendar_today',
+            'feedback' => 'star',
+            'complaint' => 'report_problem',
+            'system' => 'warning',
             default => 'notifications',
         };
     }
@@ -50,10 +51,11 @@ class AppNotification extends Model
     private function colorForType(): string
     {
         return match ($this->type) {
-            'inquiry' => '#1976D2',
-            'schedule visit' => '#388E3C',
-            'doctor' => '#8E24AA',
-            'patient' => '#F57C00',
+            'chat_inquiry' => '#1976D2',
+            'appointment' => '#388E3C',
+            'feedback' => '#F9A825',
+            'complaint' => '#D32F2F',
+            'system' => '#F57C00',
             default => '#607D8B',
         };
     }

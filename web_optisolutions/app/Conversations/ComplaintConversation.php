@@ -104,6 +104,14 @@ class ComplaintConversation extends Conversation
             ]);
 
         $this->ask($question, function (Answer $answer) {
+            // This menu is shown AFTER a complaint finishes (or fails). Tapping the
+            // same button again should start a brand-new one. Without this,
+            // handleGlobalCommand() sees "already in this conversation" and just
+            // re-shows this menu, so the button appears to do nothing.
+            if (in_array($this->normalizeCommand($answer), ['complaint', 'submit complaint'], true)) {
+                return $this->askComplaint();
+            }
+
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, fn() => $this->backToMainMenu());
             }

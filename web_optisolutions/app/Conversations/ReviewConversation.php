@@ -166,6 +166,14 @@ class ReviewConversation extends Conversation
             ]);
 
         $this->ask($question, function (Answer $answer) {
+            // This menu is shown AFTER a review finishes (or fails). Tapping the
+            // same button again should start a brand-new one. Without this,
+            // handleGlobalCommand() sees "already in this conversation" and just
+            // re-shows this menu, so the button appears to do nothing.
+            if (in_array($this->normalizeCommand($answer), ['review', 'submit review/rating'], true)) {
+                return $this->askRating();
+            }
+
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, fn() => $this->backToMainMenu());
             }

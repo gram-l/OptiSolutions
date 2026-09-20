@@ -65,10 +65,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/admin_acc/user_management', [UserManagementController::class, 'index']);
 
-    Route::get('/admin_acc/sidebar1', function () {
-        return view('admin_acc.sidebar1');
-    });
-
     //user management routes
     Route::post('/admin_acc/user_management',              [UserManagementController::class, 'store']);
     Route::put('/admin_acc/user_management/{id}',          [UserManagementController::class, 'update']);

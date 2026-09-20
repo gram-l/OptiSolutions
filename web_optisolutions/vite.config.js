@@ -16,6 +16,7 @@ export default defineConfig({
                 'resources/css/admin_css/profile.css',
                 'resources/css/admin_css/settings.css',
                 'resources/css/admin_css/chatbot_logs.css',
+                'resources/css/admin_css/chatbot_commands.css',
                 'resources/css/admin_css/doctors.css',
                 'resources/css/admin_css/patients.css',
                 'resources/css/admin_css/feedback.css',

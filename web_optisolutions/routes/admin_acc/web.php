@@ -14,6 +14,7 @@ use App\Http\Controllers\admin_acc\SystemSettingsController;
 use App\Http\Controllers\admin_acc\ServiceController;
 use App\Http\Controllers\admin_acc\FeedbackController;
 use App\Http\Controllers\admin_acc\ChatbotInquiryController;
+use App\Http\Controllers\ChatbotCommandController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\admin_acc\VisitController;
 use App\Http\Controllers\admin_acc\PatientListController;
@@ -45,6 +46,7 @@ Route::get('/admin_acc/appointments', function () {
 });
 
 Route::get('/admin_acc/appointments/day', [VisitController::class, 'dayJson']);
+Route::get('/admin_acc/appointments/visit-dates', [VisitController::class, 'visitDates']);
 Route::put('/admin_acc/appointments/{id}', [VisitController::class, 'update']);
 Route::delete('/admin_acc/appointments/{id}', [VisitController::class, 'destroy']);
 
@@ -61,10 +63,6 @@ Route::get('/admin_acc/patients', function () {
 
 Route::get('/admin_acc/user_management', [UserManagementController::class, 'index']);
 
-
-Route::get('/admin_acc/sidebar1', function () {
-    return view('admin_acc.sidebar1');
-});
 
 //sample email route
 use Illuminate\Support\Facades\Mail;
@@ -136,7 +134,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin_acc/chatbot_logs', [ChatbotInquiryController::class, 'index'])->name('admin_acc.chatbot_logs');
     Route::post('/admin_acc/chatbot_logs/{id}/reply', [ChatbotInquiryController::class, 'reply'])->name('admin_acc.chatbot_logs.reply');
     Route::post('/admin_acc/chatbot_logs/{id}/resolve', [ChatbotInquiryController::class, 'resolve'])->name('admin_acc.chatbot_logs.resolve');
+    Route::post('/admin_acc/chatbot_logs/{id}/unresolve', [ChatbotInquiryController::class, 'unresolve'])->name('admin_acc.chatbot_logs.unresolve');
     Route::post('/admin_acc/chatbot_logs/{id}/typing', [ChatbotInquiryController::class, 'typing'])->name('admin_acc.chatbot_logs.typing');
+
+    // Chatbot Commands — admin-manageable quick-reply commands the bot
+    // reads from the database (see ChatbotCommandController). Route names
+    // match what the controller's redirects/view already expect
+    // (admin_acc.chatbot_commands.index/store/update/destroy/...).
+    Route::resource('admin_acc/chatbot-commands', ChatbotCommandController::class)
+        ->parameters(['chatbot-commands' => 'chatbot_command'])
+        ->names('admin_acc.chatbot_commands');
 
     //settings routes
      Route::get('/admin_acc/settings', function () {
@@ -182,5 +189,6 @@ Route::get('/admin_acc/patients/export', [PatientListController::class, 'export'
 // notification routes
 
 Route::get('/admin_acc/notifications', [NotificationController::class, 'index']);
+Route::get('/admin_acc/notifications/api', [NotificationController::class, 'apiIndex']);
 Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
 Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);

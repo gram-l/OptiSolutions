@@ -32,7 +32,7 @@
       </div>
     </div>
     <div class="hero-flutter-image">
-      <img src="/images/polyclinic_logo.png" alt="PolyClinic Logo" class="hero-flutter-img hero-logo-blur" id="heroLogoImg">
+      <img src="/images/polyclinic_logo1.png" alt="PolyClinic Logo" class="hero-flutter-img hero-logo-blur" id="heroLogoImg">
       <!-- The stats card flies in here and stacks vertically beside the logo -->
       <div class="hero-stats-dock" id="heroStatsDock" aria-live="polite"></div>
     </div>

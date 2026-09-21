@@ -68,7 +68,7 @@
                 <a class="menu-item" href="#" onclick="openSettingsModal(); return false;">
                     <i class="bi bi-gear"></i> Settings
                 </a>
-                <button class="menu-item danger" onclick="window.location.href='/auth/login'">
+                <button class="menu-item danger" onclick="openLogoutModal(); return false;">
                     <i class="bi bi-box-arrow-right"></i> Logout
                 </button>
             </div>
@@ -77,6 +77,7 @@
     </div>
     @include('admin_acc.partials.profile')
     @include('admin_acc.partials.settings')
+    @include('admin_acc.partials.logout')
 </header>
 
 {{-- Empty container the notifications panel gets injected into on demand --}}

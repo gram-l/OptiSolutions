@@ -166,7 +166,7 @@ function showDoctorDetails(id) {
         <div class="section-label"><i class="fas fa-user-md"></i> Professional Profile</div>
         <div class="info-grid">
           <div class="info-item"><div class="info-item-label">Experience</div><div class="info-item-value">${doc.yearsExp}+ years</div></div>
-          <div class="info-item"><div class="info-item-label">License</div><div class="info-item-value">${doc.license}</div></div>
+          
           <div class="info-item"><div class="info-item-label">Medical Degree</div><div class="info-item-value">${doc.education}</div></div>
           <div class="info-item"><div class="info-item-label">Fellowship</div><div class="info-item-value">${doc.fellowship}</div></div>
         </div>

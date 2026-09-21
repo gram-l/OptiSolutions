@@ -21,7 +21,7 @@ class AppointmentsScreen extends StatefulWidget {
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   String _searchQuery = '';
-  String _selectedDept = 'All dept';
+  final String _selectedDept = 'All dept';
 
   DateTime _selectedDate = DateTime.now();
   List<Map<String, dynamic>> _visits = [];

@@ -450,9 +450,8 @@ class _StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.trend,
-    this.trendUp,
     this.showStar = false,
-  });
+  }) : trendUp = null;
 
   @override
   Widget build(BuildContext context) {
@@ -1045,8 +1044,7 @@ class _ActionButton extends StatelessWidget {
     required this.label,
     required this.bgColor,
     required this.textColor,
-    this.onTap,
-  });
+  }) : onTap = null;
 
   @override
   Widget build(BuildContext context) {

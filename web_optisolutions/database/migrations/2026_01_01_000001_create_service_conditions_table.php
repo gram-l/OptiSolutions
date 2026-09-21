@@ -11,11 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('site_settings', function (Blueprint $table) {
-            $table->id();
-            $table->string('key')->unique();
-            $table->string('value')->nullable();
-            $table->timestamps();
+        Schema::create('service_conditions', function (Blueprint $table) {
+            $table->integer('id', true);
+            $table->integer('service_id')->index('fk_service_conditions_service');
+            $table->string('condition_name');
         });
     }
 
@@ -24,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('site_settings');
+        Schema::dropIfExists('service_conditions');
     }
 };

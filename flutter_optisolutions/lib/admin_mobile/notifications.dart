@@ -223,7 +223,7 @@ Future<void> _handleTap(AppNotification notif) async {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: _filters.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 8),
+                            separatorBuilder: (_, _) => const SizedBox(width: 8),
                             itemBuilder: (context, i) {
                               final f = _filters[i];
                               final selected = _filter == f;
@@ -275,7 +275,7 @@ Future<void> _handleTap(AppNotification notif) async {
                                     child: ListView.separated(
                                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                                       itemCount: _filtered.length,
-                                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                                       itemBuilder: (context, i) {
                                         final notif = _filtered[i];
                                         return _NotifCard(
@@ -322,7 +322,7 @@ class _TopBar extends StatelessWidget {
               width: 32,
               height: 32,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(8)),

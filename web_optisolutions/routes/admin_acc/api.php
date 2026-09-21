@@ -39,7 +39,7 @@ Route::put('/doctors/{id}', [DoctorController::class, 'update']);
 Route::patch('/doctors/{id}/toggle', [DoctorController::class, 'toggleStatus']);
 Route::delete('/doctors/{id}', [DoctorController::class, 'destroy']);
 
-Route::get('/dashboard-data', [Admindashboardcontroller::class, 'data']);
+Route::get('/dashboard-data', [AdminDashboardController::class, 'data']);
 
 //mobile profile
 Route::middleware('auth:sanctum')->get('/me', [ApiProfileController::class, 'show']);

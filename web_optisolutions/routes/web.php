@@ -152,3 +152,13 @@ Route::get('/admin-css/{file}', function ($file) {
     return response(file_get_contents($path), 200)
         ->header('Content-Type', 'text/css');
 })->where('file', '.*\.css');
+
+
+Route::get('/debug-cert', function () {
+    $path = env('MYSQL_ATTR_SSL_CA');
+    return response()->json([
+        'env_value' => $path,
+        'exists' => $path ? file_exists($path) : null,
+        'readable' => $path ? is_readable($path) : null,
+    ]);
+});

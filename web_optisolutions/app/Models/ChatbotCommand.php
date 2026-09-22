@@ -11,23 +11,18 @@ class ChatbotCommand extends Model
 
     protected $fillable = [
         'label',
-        'trigger_value',
         'reply_text',
-        'show_in_menu',
         'is_active',
-        'sort_order',
     ];
 
     protected $casts = [
-        'show_in_menu' => 'boolean',
-        'is_active'    => 'boolean',
-        'sort_order'   => 'integer',
+        'is_active' => 'boolean',
     ];
 
     /**
      * Reserved trigger values that are already handled by hardcoded
      * BotManController flows / Conversation classes. Admins can't
-     * create or rename a command into one of these, or the dynamic
+     * create or rename a trigger into one of these, or the dynamic
      * hears() registration would collide with the real flow.
      */
     public const RESERVED_TRIGGERS = [
@@ -42,18 +37,26 @@ class ChatbotCommand extends Model
         "no, i'm all set",
     ];
 
+    public function triggers()
+    {
+        return $this->hasMany(ChatbotCommandTrigger::class, 'command_id', 'command_id');
+    }
+
     public static function normalizeTrigger(string $value): string
     {
         return mb_strtolower(trim($value));
     }
 
+    /**
+     * Comma-joined trigger list, handy for table display / debugging.
+     */
+    public function getTriggerListAttribute(): string
+    {
+        return $this->triggers->pluck('trigger_value')->implode(', ');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
-    }
-
-    public function scopeInMenu($query)
-    {
-        return $query->where('is_active', true)->where('show_in_menu', true);
     }
 }

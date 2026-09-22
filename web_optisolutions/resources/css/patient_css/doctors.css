@@ -51,14 +51,6 @@ body {
 }
 
 /* ============================================
-   NAVBAR
-   (Styling and mobile behavior now live entirely in
-   resources/js/navbar-loader.js, which injects the nav markup
-   and its own <style> tag on every page. Keeping it in one place
-   avoids the nav rules here silently fighting the shared script.)
-   ============================================ */
-
-/* ============================================
    SHARED SECTION STYLES
    ============================================ */
 .section {
@@ -283,6 +275,11 @@ body {
   transition: all 0.3s;
   text-align: center;
   cursor: pointer;
+  /* keeps every card the same shape even while photos load / fail */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
 }
 
 .doctor-card:hover {
@@ -291,17 +288,66 @@ body {
   box-shadow: var(--shadow-lg);
 }
 
-.doctor-avatar {
+/* ============================================
+   AVATAR / PHOTO CONTAINERS
+   Fixed circle that clips whatever is inside it —
+   an <img>, an <i> icon, or plain emoji text.
+   Covers both naming schemes (doctor-avatar /
+   doctor-card-photo) so it works no matter which
+   class the JS is currently emitting.
+   ============================================ */
+.doctor-avatar,
+.doctor-card-photo {
   width: 100px;
   height: 100px;
+  flex-shrink: 0;
   background: linear-gradient(145deg, var(--primary-light), #F0F9FF);
   border-radius: 50%;
   margin: 0 auto 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 40px;
+  color: var(--gray-500);  /* was var(--primary) */
+  overflow: hidden;
+}
+
+.modal-avatar,
+.modal-doctor-photo {
+  width: 110px;
+  height: 110px;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 48px;
-  color: var(--primary);
+  margin: 0 auto 16px;
+  overflow: hidden;
+}
+
+/* Any image dropped inside an avatar/photo wrapper fills the
+   circle and crops to it instead of stretching the container */
+.doctor-avatar img,
+.doctor-card-photo img,
+.modal-avatar img,
+.modal-doctor-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Icon/emoji fallback shown when there's no photo, or the photo 404s */
+.doctor-photo-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: inherit;
+  color: inherit;
 }
 
 .doctor-card h3 {
@@ -459,18 +505,6 @@ body {
   padding: 40px 32px;
   text-align: center;
   border-radius: 40px 40px 0 0;
-}
-
-.modal-avatar {
-  width: 110px;
-  height: 110px;
-  background: rgba(255,255,255,0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 56px;
-  margin: 0 auto 16px;
 }
 
 .modal-header h2 {

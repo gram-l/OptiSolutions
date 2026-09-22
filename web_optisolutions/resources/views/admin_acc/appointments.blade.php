@@ -34,6 +34,8 @@
             color: #062744;
         }
         .day-nav-btn:hover { background: #f0f4f9; }
+        .day-nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .day-nav-btn:disabled:hover { background: #fff; }
         .day-picker {
             border: 1px solid #d7dce3;
             border-radius: 8px;
@@ -48,11 +50,6 @@
             font-size: 0.8rem;
             cursor: pointer;
             color: #062744;
-        }
-        .current-day-label {
-            font-weight: 600;
-            color: #062744;
-            margin-left: 0.25rem;
         }
 
         /* ── Day table (no more collapsible per-date groups; it's one day) ── */
@@ -210,16 +207,6 @@
                 <select class="filter-select" id="serviceFilter">
                     <option value="all">All Services</option>
                 </select>
-                <div class="download-dropdown" id="downloadDropdown">
-                    <button type="button" class="download-btn" id="downloadBtn">
-                        <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
-                    </button>
-                    <div class="download-menu">
-                        <button type="button" onclick="exportPDF()"><i class="fa-regular fa-file-pdf"></i> PDF</button>
-                        <button type="button" onclick="exportCSV()"><i class="fa-regular fa-file-lines"></i> CSV</button>
-                        <button type="button" onclick="exportExcel()"><i class="fa-regular fa-file-excel"></i> Excel</button>
-                    </div>
-                </div>
             </div>
             <div class="day-nav">
                 <button class="day-nav-btn" id="prevDayBtn" title="Previous day">
@@ -230,7 +217,16 @@
                     <i class="fa-solid fa-chevron-right"></i>
                 </button>
                 <button class="today-btn" id="todayBtn">Today</button>
-                <span class="current-day-label" id="currentDayLabel"></span>
+                <div class="download-dropdown" id="downloadDropdown">
+                    <button type="button" class="download-btn" id="downloadBtn">
+                        <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
+                    </button>
+                    <div class="download-menu">
+                        <button type="button" onclick="exportPDF()"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                        <button type="button" onclick="exportCSV()"><i class="fa-regular fa-file-lines"></i> CSV</button>
+                        <button type="button" onclick="exportExcel()"><i class="fa-regular fa-file-excel"></i> Excel</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -272,31 +268,80 @@
         const VISIT_BASE = '/admin_acc/appointments';
 
         let visitsData = [];
-        let visitDates = []; // sorted list of 'YYYY-MM-DD' strings that have >=1 scheduled visit
-        let currentDate = toLocalISODate(new Date()); // YYYY-MM-DD, using LOCAL date fields
-        let pendingRescheduleId = null;
-        let pendingEditNotesId = null;
 
-        // Formats a Date object as a local YYYY-MM-DD string using its
-        // local year/month/day fields. Previously this used
-        // `date.toISOString().slice(0, 10)`, but toISOString() always
-        // converts to UTC first — for any timezone ahead of UTC (e.g.
-        // Asia/Manila, UTC+8) that silently rolls the date back by one
-        // day right around local midnight, which is what made the
-        // "next day" arrow look broken (a step forward could land back
-        // on the same day, or even a day earlier, depending on the time
-        // of day it was clicked).
-        function toLocalISODate(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
+        // Formats a Date object as a local YYYY-MM-DD string. Deliberately
+        // avoids toISOString() here — that converts to UTC first, which in
+        // a UTC+8 timezone silently cancelled out the "next day" shift
+        // (and skipped a day on "previous"), since local midnight is
+        // already the previous day in UTC.
+        function toLocalDateStr(d) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
+        }
+
+        function todayStr() {
+            return toLocalDateStr(new Date());
         }
 
         function shiftDate(dateStr, days) {
             const d = new Date(dateStr + 'T00:00:00');
             d.setDate(d.getDate() + days);
-            return toLocalISODate(d);
+            return toLocalDateStr(d);
+        }
+
+        let currentDate = todayStr();
+        let pendingRescheduleId = null;
+        let pendingEditNotesId = null;
+
+        // How many days to search in one direction before giving up (covers
+        // roughly a year either way — enough for any real gap in the
+        // schedule without hammering the server indefinitely).
+        const MAX_DAY_SEARCH = 365;
+
+        async function hasVisitsForDate(dateStr) {
+            try {
+                const res = await fetch(`${DAY_URL}?date=${dateStr}`, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+                return !!(data.success && Array.isArray(data.visits) && data.visits.length > 0);
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // Moves the day-nav in `direction` (-1 or 1), skipping over any day
+        // that has no scheduled visits, and loads the first day it finds
+        // that does.
+        async function goToDayWithVisits(direction) {
+            const prevBtn = document.getElementById('prevDayBtn');
+            const nextBtn = document.getElementById('nextDayBtn');
+            const container = document.getElementById('appointmentsContainer');
+
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            container.innerHTML = '<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">Searching...</div>';
+
+            let candidate = currentDate;
+            let found = null;
+
+            for (let i = 0; i < MAX_DAY_SEARCH; i++) {
+                candidate = shiftDate(candidate, direction);
+                if (await hasVisitsForDate(candidate)) {
+                    found = candidate;
+                    break;
+                }
+            }
+
+            prevBtn.disabled = false;
+            nextBtn.disabled = false;
+
+            if (found) {
+                currentDate = found;
+                loadDay();
+            } else {
+                container.innerHTML = `<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">No ${direction > 0 ? 'upcoming' : 'earlier'} days with scheduled visits found.</div>`;
+            }
         }
 
         function formatDayLabel(dateStr) {
@@ -311,33 +356,8 @@
             return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
         }
 
-        async function loadVisitDates() {
-            try {
-                const res = await fetch(`${VISIT_BASE}/visit-dates`, { headers: { 'Accept': 'application/json' } });
-                const data = await res.json();
-                if (data.success) visitDates = data.dates;
-            } catch (e) {
-                visitDates = []; // arrows just fall back to plain day-by-day stepping
-            }
-        }
-
-        // Finds the nearest date in `visitDates` strictly after (direction=1)
-        // or strictly before (direction=-1) `fromDate`, so the day-nav
-        // arrows can jump straight to the next/previous day that actually
-        // has a scheduled visit instead of stepping one empty day at a time.
-        function findNearestVisitDate(fromDate, direction) {
-            if (direction > 0) {
-                return visitDates.find(d => d > fromDate) || null;
-            }
-            for (let i = visitDates.length - 1; i >= 0; i--) {
-                if (visitDates[i] < fromDate) return visitDates[i];
-            }
-            return null;
-        }
-
         async function loadDay() {
             document.getElementById('dayPicker').value = currentDate;
-            document.getElementById('currentDayLabel').innerText = formatDayLabel(currentDate);
 
             const container = document.getElementById('appointmentsContainer');
             container.innerHTML = '<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">Loading...</div>';
@@ -391,20 +411,21 @@
             const container = document.getElementById('appointmentsContainer');
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div style="text-align: center; padding: 3rem; background: white; border-radius: 20px;">No appointments found for this day.</div>';
+                container.innerHTML = '<div style="text-align: center; padding: 3rem; background: white; border-radius: 20px;">No scheduled visit found for this day.</div>';
                 return;
             }
 
             container.innerHTML = `
                 <div class="day-panel">
                     <table class="appointments-table">
-                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Notes</th><th> </th></tr></thead>
+                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th> </th></tr></thead>
                         <tbody>
                             ${filtered.map(v => `
                                 <tr>
                                     <td><strong>${escapeHtml(v.patient_name || 'Unknown patient')}</strong></td>
                                     <td>${escapeHtml(v.doctor_name || '—')}</td>
                                     <td>${escapeHtml(v.service_type || '—')}</td>
+                                    <td><small style="color:#7f8c8d">${formatBookedAt(v.scheduled_at)}</small></td>
                                     <td>${escapeHtml((v.notes || '').length > 40 ? v.notes.substring(0, 40) + '...' : (v.notes || '—'))}</td>
                                     <td class="action-buttons">
                                         <button class="btn-sm btn-edit" onclick="openEditNotesModal(${v.visit_id})"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
@@ -462,7 +483,6 @@
                 }
 
                 closeModal();
-                await loadVisitDates(); // the reschedule may add/remove a day from the set that has visits
                 await loadDay(); // the visit may have moved off the currently viewed day
             } catch (e) {
                 errEl.textContent = 'Could not reach the server. Please try again.';
@@ -487,7 +507,6 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    await loadVisitDates(); // removing the last visit on a day takes that day out of the set
                     await loadDay();
                 } else {
                     alert(data.message || 'Could not remove this appointment.');
@@ -641,21 +660,9 @@
         });
 
         document.getElementById('serviceFilter').addEventListener('change', () => renderDay());
-        document.getElementById('prevDayBtn').addEventListener('click', () => {
-            if (visitDates.length === 0) { currentDate = shiftDate(currentDate, -1); loadDay(); return; }
-            const target = findNearestVisitDate(currentDate, -1);
-            if (!target) { alert('No earlier scheduled visits found.'); return; }
-            currentDate = target;
-            loadDay();
-        });
-        document.getElementById('nextDayBtn').addEventListener('click', () => {
-            if (visitDates.length === 0) { currentDate = shiftDate(currentDate, 1); loadDay(); return; }
-            const target = findNearestVisitDate(currentDate, 1);
-            if (!target) { alert('No more upcoming scheduled visits found.'); return; }
-            currentDate = target;
-            loadDay();
-        });
-        document.getElementById('todayBtn').addEventListener('click', () => { currentDate = toLocalISODate(new Date()); loadDay(); });
+        document.getElementById('prevDayBtn').addEventListener('click', () => goToDayWithVisits(-1));
+        document.getElementById('nextDayBtn').addEventListener('click', () => goToDayWithVisits(1));
+        document.getElementById('todayBtn').addEventListener('click', () => { currentDate = todayStr(); loadDay(); });
         document.getElementById('dayPicker').addEventListener('change', (e) => {
             if (e.target.value) { currentDate = e.target.value; loadDay(); }
         });
@@ -667,7 +674,6 @@
             if (event.target === editNotesModal) closeEditNotesModal();
         }
 
-        loadVisitDates();
         loadDay();
     </script>
 </body>

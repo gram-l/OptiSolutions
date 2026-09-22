@@ -531,7 +531,7 @@
             font-size: 0.85rem;
             font-weight: 600;
             color: var(--white);
-            background: linear-gradient(135deg, var(--primary-main), var(--primary-dark));
+            background: var(--primary-main);
             box-shadow: 0 2px 8px rgba(14, 98, 170, 0.3);
             cursor: pointer;
             transition: all 0.3s ease;

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use App\Models\ChatbotCommand;
+use App\Models\ChatbotCommandTrigger;
 
 // Builds chatbot replies and detects the intent of user messages.
 class ClinicInfoService
@@ -467,11 +469,42 @@ class ClinicInfoService
         return null;
     }
 
+    // Looks up an admin-managed quick-reply command whose trigger matches
+    // the full normalized text (e.g. "pharmacy", "clinic hours"). These are
+    // exact-phrase matches, not the fuzzy keyword checks below — an admin
+    // can add/edit these from the Chatbot Commands panel with no deploy.
+    //(mika)
+    public static function matchCustomCommand(string $text): ?ChatbotCommand
+    {
+        $normalized = ChatbotCommand::normalizeTrigger($text);
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        $trigger = ChatbotCommandTrigger::where('trigger_value', $normalized)
+            ->whereHas('command', fn ($q) => $q->active())
+            ->with('command')
+            ->first();
+
+        return $trigger?->command;
+    }
+
+    
+
     // Determines which information category the given text is asking about.
     
     public static function detectInfoIntent(string $text): ?string
     {
         $lower = mb_strtolower($text);
+
+        // Exact admin-defined trigger match takes priority over the fuzzy
+        // keyword checks below — it's a specific phrase an admin chose on
+        // purpose, not a loose str_contains() guess.
+        //(mika)
+        if (self::matchCustomCommand($text) !== null) {
+            return 'custom_command';
+        }    $lower = mb_strtolower($text);
 
         $hasHowWord = false;
         foreach (self::$howQuestionWords as $kw) {
@@ -581,7 +614,10 @@ class ClinicInfoService
     public static function answerForText(string $text): ?string
     {
         $intent = self::detectInfoIntent($text);
-
+        //mika: check for custom command first, then specialty definition, then doctor specialty, then doctors for specialty, then service for condition, then the rest
+        if ($intent === 'custom_command') {
+            return self::matchCustomCommand($text)?->reply_text;
+        }
         if ($intent === 'specialty_definition') {
             $specialty = self::detectSpecialty($text, false);
             return self::specialtyDefinitionReply($specialty ?? '');

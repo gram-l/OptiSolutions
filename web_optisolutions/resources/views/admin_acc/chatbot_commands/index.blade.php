@@ -26,6 +26,52 @@
         are available to everything after it.
     --}}
     @vite(['resources/css/admin_css/patients.css', 'resources/css/admin_css/chatbot_commands.css', 'resources/css/admin_css/user_management.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
+
+    {{--
+        Trigger tag-input styling — not yet in chatbot_commands.css, so
+        it's inline here for now. Move these rules into that file whenever
+        convenient; nothing else on the page depends on them staying inline.
+    --}}
+    <style>
+        .trigger-tag-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            align-items: center;
+            border: 1px solid var(--shadow, #ccc);
+            border-radius: 6px;
+            padding: 0.5rem;
+            min-height: 2.6rem;
+        }
+        .trigger-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--primary-main, #2c7be5);
+            color: #fff;
+            border-radius: 999px;
+            padding: 0.15rem 0.3rem 0.15rem 0.7rem;
+            font-size: 0.8rem;
+            line-height: 1.6;
+        }
+        .trigger-tag button {
+            background: transparent;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9rem;
+            line-height: 1;
+            padding: 0 0.3rem;
+        }
+        #triggerInput {
+            flex: 1;
+            min-width: 140px;
+            border: none;
+            outline: none;
+            font-size: 0.85rem;
+            padding: 0.2rem;
+        }
+    </style>
 </head>
 <body>
     @include('admin_acc.header')
@@ -55,11 +101,11 @@
                     <thead>
                         <tr>
                             <th>Label</th>
-                            <th>Trigger</th>
+                            <th>Triggers</th>
                             <th>Reply</th>
-                            <th>In Menu?</th>
+                            
                             <th>Status</th>
-                            <th>Order</th>
+                            
                             <th> </th>
                         </tr>
                     </thead>
@@ -67,15 +113,19 @@
                         @forelse ($commands as $command)
                             <tr>
                                 <td>{{ $command->label }}</td>
-                                <td><code>{{ $command->trigger_value }}</code></td>
+                                <td>
+                                    @foreach ($command->triggers as $trigger)
+                                        <code>{{ $trigger->trigger_value }}</code>@if (!$loop->last), @endif
+                                    @endforeach
+                                </td>
                                 <td>{{ \Illuminate\Support\Str::limit($command->reply_text, 60) }}</td>
-                                <td>{{ $command->show_in_menu ? 'Yes' : 'No' }}</td>
+                               
                                 <td>
                                     <span class="status-badge {{ $command->is_active ? 'status-active' : 'status-inactive' }}">
                                         {{ $command->is_active ? 'Active' : 'Inactive' }}
                                     </span>
                                 </td>
-                                <td>{{ $command->sort_order }}</td>
+                               
                                 <td>
                                     <div class="action-buttons">
                                         <button type="button" class="btn-icon btn-edit"
@@ -113,13 +163,17 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="trigger_value">Trigger word/phrase</label>
-                    <input type="text" id="trigger_value" name="trigger_value" value="{{ old('trigger_value') }}" maxlength="100" required>
+                    <label for="triggerInput">Trigger words/phrases</label>
+                    <div class="trigger-tag-box" id="triggerTagBox">
+                        <input type="text" id="triggerInput" placeholder="Type a trigger, press Enter">
+                    </div>
                     <small class="form-hint">
-                        What the bot matches on (button clicks send this value exactly; it's also
-                        matched against typed messages). Stored lowercase automatically.
+                        Add one or more words/phrases the bot matches on (a menu button click sends
+                        its exact value; typed messages are matched against ALL of a command's
+                        triggers). Press Enter or "," after each one. Stored lowercase automatically.
                     </small>
-                    @error('trigger_value') <span class="form-error">{{ $message }}</span> @enderror
+                    @error('trigger_values') <span class="form-error">{{ $message }}</span> @enderror
+                    <div id="triggerHiddenInputs"></div>
                 </div>
 
                 <div class="form-group">
@@ -129,21 +183,10 @@
                 </div>
 
                 <div class="form-check">
-                    <input type="checkbox" name="show_in_menu" value="1" id="show_in_menu" {{ old('show_in_menu') ? 'checked' : '' }}>
-                    <label for="show_in_menu">Show as a button on the main menu</label>
-                </div>
-
-                <div class="form-check">
                     <input type="checkbox" name="is_active" value="1" id="is_active" {{ old('is_active', true) ? 'checked' : '' }}>
                     <label for="is_active">Active</label>
                 </div>
 
-                <div class="form-group">
-                    <label for="sort_order">Sort order</label>
-                    <input type="number" id="sort_order" name="sort_order" min="0" value="{{ old('sort_order', 0) }}">
-                    <small class="form-hint">Lower numbers appear first.</small>
-                    @error('sort_order') <span class="form-error">{{ $message }}</span> @enderror
-                </div>
 
                 <div class="modal-buttons">
                     <button type="button" class="btn-cancel" onclick="closeCommandModal()">Cancel</button>
@@ -180,17 +223,70 @@
         const commandUpdateUrlTemplate = "{{ route('admin_acc.chatbot_commands.update', ['chatbot_command' => 'CMD_ID']) }}";
         const commandStoreUrl = "{{ route('admin_acc.chatbot_commands.store') }}";
 
+        // --- Trigger tag input -------------------------------------------------
+        const triggerTagBox = document.getElementById('triggerTagBox');
+        const triggerInput = document.getElementById('triggerInput');
+        const triggerHiddenInputs = document.getElementById('triggerHiddenInputs');
+        let triggerValues = [];
+
+        function renderTriggerTags() {
+            triggerTagBox.querySelectorAll('.trigger-tag').forEach(el => el.remove());
+            triggerHiddenInputs.innerHTML = '';
+
+            triggerValues.forEach((value, index) => {
+                const tag = document.createElement('span');
+                tag.className = 'trigger-tag';
+                tag.innerHTML = `${value} <button type="button" data-index="${index}" aria-label="Remove">&times;</button>`;
+                triggerTagBox.insertBefore(tag, triggerInput);
+
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'trigger_values[]';
+                hidden.value = value;
+                triggerHiddenInputs.appendChild(hidden);
+            });
+        }
+
+        function addTriggerValue(raw) {
+            const value = raw.trim().toLowerCase().replace(/,+$/, '');
+            triggerInput.value = '';
+            if (!value || triggerValues.includes(value)) return;
+            triggerValues.push(value);
+            renderTriggerTags();
+        }
+
+        triggerInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                addTriggerValue(triggerInput.value);
+            } else if (e.key === 'Backspace' && !triggerInput.value && triggerValues.length) {
+                triggerValues.pop();
+                renderTriggerTags();
+            }
+        });
+
+        triggerInput.addEventListener('blur', () => addTriggerValue(triggerInput.value));
+
+        triggerTagBox.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-index]');
+            if (!btn) return;
+            triggerValues.splice(parseInt(btn.dataset.index, 10), 1);
+            renderTriggerTags();
+        });
+        // -------------------------------------------------------------------
+
         function openCommandModal(command = null) {
             commandForm.reset();
+            triggerValues = [];
 
             if (command) {
                 document.getElementById('commandModalTitle').textContent = 'Edit Command';
                 document.getElementById('label').value = command.label;
-                document.getElementById('trigger_value').value = command.trigger_value;
+                triggerValues = (command.triggers || []).map(t => t.trigger_value);
                 document.getElementById('reply_text').value = command.reply_text;
-                document.getElementById('show_in_menu').checked = !!command.show_in_menu;
+                
                 document.getElementById('is_active').checked = !!command.is_active;
-                document.getElementById('sort_order').value = command.sort_order;
+
                 document.getElementById('commandMethod').value = 'PUT';
                 document.getElementById('commandSubmitBtn').textContent = 'Update';
                 commandForm.action = commandUpdateUrlTemplate.replace('CMD_ID', command.command_id);
@@ -202,6 +298,7 @@
                 commandForm.action = commandStoreUrl;
             }
 
+            renderTriggerTags();
             commandModal.style.display = 'flex';
         }
 
@@ -243,6 +340,8 @@
                 @else
                     commandForm.action = commandStoreUrl;
                 @endif
+                triggerValues = @json(old('trigger_values', []));
+                renderTriggerTags();
                 commandModal.style.display = 'flex';
             });
         @endif

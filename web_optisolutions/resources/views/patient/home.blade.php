@@ -8,7 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
-  @vite(['resources/css/patient_css/home.css', 'resources/js/script.js', 'resources/js/navbar-loader.js', 'resources/js/privacy-notice.js'])
+  @vite(['resources/css/patient_css/home.css', 'resources/css/patient_css/about.css', 'resources/css/patient_css/contact.css', 'resources/js/script.js', 'resources/js/navbar-loader.js', 'resources/js/privacy-notice.js'])
 
   <style>
     .reviews-banner-footer { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
@@ -78,6 +78,82 @@
   </div>
 </section>
 
+<!-- ========== ABOUT - MODERN ========== -->
+<section class="section about-section" id="about">
+  <div class="container">
+    <div class="about-header">
+      <span class="about-tag">About PolyClinic</span>
+      <h2 class="about-title">Compassionate Care for Every Filipino Family</h2>
+      <p class="about-subtitle">We are a multi-specialty clinic dedicated to providing accessible, high-quality healthcare to the Lipa community and beyond.</p>
+    </div>
+
+    <div class="about-grid-modern">
+      <div class="about-text">
+        <p><strong>{{ $clinicInfo->clinic_name ?? 'PolyClinic' }}</strong> is a multi-specialty clinic located at <strong>{{ $clinicInfo->address ?? 'TM Kalaw St., Lipa City' }}</strong>. We are committed to providing comprehensive and compassionate healthcare to the Lipa community and surrounding areas.</p>
+        <p>{{ $clinicInfo->about_us ?? '' }}</p>
+
+        <div class="trust-badges">
+          <div class="trust-badge">
+            <i class="fas fa-shield-halved"></i>
+            <span>DOH Accredited</span>
+          </div>
+          <div class="trust-badge">
+            <i class="fas fa-user-doctor"></i>
+            <span>Licensed Specialists</span>
+          </div>
+          <div class="trust-badge">
+            <i class="fas fa-lock"></i>
+            <span>Data Privacy Compliant</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="about-image-modern">
+        <div class="image-placeholder">
+          <i class="fas fa-hospital-user"></i>
+          <div class="image-badge">Accredited by DOH</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mv-modern">
+      <div class="mv-top-grid">
+        <div class="mv-card-modern">
+          <div class="mv-icon-modern"><i class="fas fa-bullseye"></i></div>
+          <div class="mv-content-modern">
+            <h3>Our Mission</h3>
+            <p>{{ $clinicInfo->mission ?? '' }}</p>
+          </div>
+        </div>
+
+        <div class="mv-card-modern">
+          <div class="mv-icon-modern"><i class="fas fa-eye"></i></div>
+          <div class="mv-content-modern">
+            <h3>Our Vision</h3>
+            <p>{{ $clinicInfo->vision ?? '' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mv-card-modern values-card">
+        <div class="mv-icon-modern"><i class="fas fa-hand-holding-heart"></i></div>
+        <div class="mv-content-modern">
+          <h3>Our Core Values</h3>
+          <div class="values-grid">
+            @forelse (($clinicInfo->core_values ?? []) as $value)
+              <div class="value-item">
+                <strong>{{ $value }}</strong>
+              </div>
+            @empty
+              <p class="values-empty">Core values have not been set yet.</p>
+            @endforelse
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ========== SERVICES - MODERN ========== -->
 <section class="services-modern-section" id="services">
   <div class="container">
@@ -129,8 +205,14 @@
 <section class="doctors-modern-section" id="doctors">
   <div class="container">
     <div class="doctors-modern-header">
+      <span class="doctors-modern-tag">Medical Team</span>
       <h2 class="doctors-modern-title">Meet Our Medical Experts</h2>
       <p class="doctors-modern-subtitle">Our board-certified physicians bring years of specialized experience and compassionate care to help you achieve optimal health.</p>
+    </div>
+
+    <div class="doctor-search-wrap">
+      <i class="fas fa-search doctor-search-icon"></i>
+      <input type="text" id="doctorsSearchHome" class="doctor-search-input" placeholder="Search doctors by name or specialty...">
     </div>
 
     <div class="filter-tabs" id="filterTabsHome">
@@ -145,6 +227,75 @@
     </div>
 
     <div class="doctors-grid-modern" id="doctorsGridHome"></div>
+  </div>
+</section>
+
+<!-- ========== LIVE FEEDBACK & REVIEWS ========== -->
+<section class="reviews-live-section" id="reviews">
+  <div class="container">
+    <div class="reviews-live-header">
+      <div class="reviews-live-heading">
+        <span class="reviews-live-tag">Patient Voices</span>
+        <h2 class="reviews-live-title">Live Feedback &amp; Reviews</h2>
+        <p class="reviews-live-subtitle">Real-time experiences shared by our patients. We value every feedback to continually elevate our healthcare quality.</p>
+      </div>
+      <div class="reviews-live-actions">
+        <div class="reviews-live-score">
+          <div class="reviews-live-score-top">
+            <span class="reviews-live-score-value">{{ number_format($avgRating ?? 4.9, 1) }} / 5.0</span>
+            <span class="reviews-live-score-stars">
+              @php
+                $liveRatingValue = round($avgRating ?? 4.9);
+                $liveRatingValue = max(0, min(5, $liveRatingValue));
+              @endphp
+              @for ($i = 1; $i <= 5; $i++)
+                <i class="fas fa-star {{ $i <= $liveRatingValue ? 'star-filled' : 'star-empty' }}"></i>
+              @endfor
+            </span>
+          </div>
+          <span class="reviews-live-score-label">Average Rating</span>
+        </div>
+        <a href="#" onclick="openChatForReview(); return false;" class="btn-submit-feedback">
+          <i class="fas fa-pen"></i> Submit Feedback
+        </a>
+      </div>
+    </div>
+
+    <div class="reviews-live-divider"></div>
+
+    <div class="reviews-live-grid">
+      @forelse ($recentFeedback ?? [] as $review)
+        @php
+          $reviewerName = trim(($review->patient_fname ?? '') . ' ' . ($review->patient_lname ?? ''));
+          $reviewerName = $reviewerName !== '' ? $reviewerName : 'Anonymous Patient';
+          $reviewerInitial = strtoupper(substr($reviewerName, 0, 1));
+          $reviewStars = max(0, min(5, (int) $review->star_rating));
+        @endphp
+        <div class="review-live-card">
+          <div class="review-live-top">
+            <div class="review-live-who">
+              <span class="review-live-avatar">{{ $reviewerInitial }}</span>
+              <div>
+                <span class="review-live-name">{{ $reviewerName }}</span>
+                <span class="review-live-sub">Verified Patient</span>
+              </div>
+            </div>
+            <span class="review-live-time">{{ \Carbon\Carbon::parse($review->submitted_at)->diffForHumans() }}</span>
+          </div>
+          <p class="review-live-text">&quot;{{ $review->feedback_text }}&quot;</p>
+          <div class="review-live-bottom">
+            <span class="review-live-stars">
+              @for ($i = 1; $i <= 5; $i++)
+                <i class="fas fa-star {{ $i <= $reviewStars ? 'star-filled' : 'star-empty' }}"></i>
+              @endfor
+            </span>
+            <span class="review-live-verified"><i class="fas fa-circle-check"></i> Verified Patient</span>
+          </div>
+        </div>
+      @empty
+        <p class="reviews-live-empty">No positive reviews yet — be the first to share your experience!</p>
+      @endforelse
+    </div>
   </div>
 </section>
 
@@ -172,7 +323,7 @@
             </div>
           </div>
         </div>
-        <a href="{{ route('contact') }}" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
+        <a href="#contact" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
       </div>
       <div class="cta-banner-map">
         <iframe src="https://www.google.com/maps?q=PolyClinic+Lipa,+41+TM+Kalaw+St,+Lipa+City,+4217+Batangas&output=embed" allowfullscreen loading="lazy"></iframe>

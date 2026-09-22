@@ -28,6 +28,7 @@ async function loadDoctorsData() {
       name: doc.doctor_name,
       spec: doc.specialty,
       icon: genderIcon(doc.gender),
+      photo: doc.profile_image ? `/storage/${doc.profile_image}` : null,
       yearsExp: doc.years_experience,
       education: doc.education,
       license: doc.license,
@@ -44,7 +45,8 @@ async function loadDoctorsData() {
     renderDoctors('all', 'doctorsGrid');
     renderDoctors('all', 'doctorsGridHome');
     setupFilterTabs('filterTabs', 'doctorsGrid');
-    setupFilterTabs('filterTabsHome', 'doctorsGridHome');
+    setupFilterTabs('filterTabsHome', 'doctorsGridHome', 'doctorsSearchHome');
+    setupDoctorSearch('doctorsSearchHome', 'filterTabsHome', 'doctorsGridHome');
   } catch (err) {
     console.error('Failed to load doctors:', err);
   }
@@ -122,23 +124,37 @@ function renderClinicInfo() {
 }
 
 // ============ RENDER DOCTORS ============
-function renderDoctors(filter = 'all', containerId = 'doctorsGrid') {
+function renderDoctors(filter = 'all', containerId = 'doctorsGrid', searchTerm = '') {
   const grid = document.getElementById(containerId);
   if (!grid) return;
-  const filtered = filter === 'all' ? doctorsData : doctorsData.filter(doc => doc.spec === filter);
+  let filtered = filter === 'all' ? doctorsData : doctorsData.filter(doc => doc.spec === filter);
+
+  const term = searchTerm.trim().toLowerCase();
+  if (term) {
+    filtered = filtered.filter(doc =>
+      doc.name.toLowerCase().includes(term) ||
+      doc.spec.toLowerCase().includes(term)
+    );
+  }
+
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="no-doctors">No doctors found for this specialty.</div>`;
+    grid.innerHTML = `<div class="no-doctors">No doctors found${term ? ` matching "${searchTerm}"` : ' for this specialty'}.</div>`;
     return;
   }
   grid.innerHTML = filtered.map(doc => `
     <div class="doctor-card" onclick="showDoctorDetails(${doc.id})">
+      <div class="doctor-avatar">
+        ${doc.photo
+          ? `<img src="${doc.photo}" alt="${doc.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-user-doctor\\'></i>';">`
+          : `<i class="fas fa-user-doctor"></i>`}
+      </div>
       <h3>${doc.name}</h3>
       <span class="doctor-spec">${doc.spec}</span>
       <p>${doc.yearsExp} years of experience</p>
     </div>`).join('');
 }
 
-function setupFilterTabs(containerId = 'filterTabs', gridId = 'doctorsGrid') {
+function setupFilterTabs(containerId = 'filterTabs', gridId = 'doctorsGrid', searchInputId = null) {
   const tabsContainer = document.getElementById(containerId);
   if (!tabsContainer) return;
   const tabs = tabsContainer.querySelectorAll('.filter-tab');
@@ -146,8 +162,21 @@ function setupFilterTabs(containerId = 'filterTabs', gridId = 'doctorsGrid') {
     tab.addEventListener('click', function() {
       tabs.forEach(t => t.classList.remove('active'));
       this.classList.add('active');
-      renderDoctors(this.dataset.filter, gridId);
+      const searchInput = searchInputId ? document.getElementById(searchInputId) : null;
+      renderDoctors(this.dataset.filter, gridId, searchInput ? searchInput.value : '');
     });
+  });
+}
+
+// ============ DOCTOR SEARCH BAR (HOME) ============
+function setupDoctorSearch(searchInputId, tabsContainerId, gridId) {
+  const input = document.getElementById(searchInputId);
+  if (!input) return;
+  input.addEventListener('input', () => {
+    const tabsContainer = document.getElementById(tabsContainerId);
+    const activeTab = tabsContainer ? tabsContainer.querySelector('.filter-tab.active') : null;
+    const filter = activeTab ? activeTab.dataset.filter : 'all';
+    renderDoctors(filter, gridId, input.value);
   });
 }
 

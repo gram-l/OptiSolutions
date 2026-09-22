@@ -240,6 +240,7 @@
         width: 100vw;
         max-width: 100vw;
         margin-left: calc(-50vw + 50%);
+        margin-top: 16px;
         height: 49px;
         overflow: hidden;
         line-height: 0;

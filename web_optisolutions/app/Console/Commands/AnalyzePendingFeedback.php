@@ -7,6 +7,7 @@ run everytime there is a new feedback entry in the db*/
 namespace App\Console\Commands;
 
 use App\Models\admin_models\Feedback;
+use App\Services\RatingSentimentFallback;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
@@ -30,7 +31,7 @@ class AnalyzePendingFeedback extends Command
             $this->line("Analyzing feedback_id {$feedback->feedback_id}...");
 
             try {
-                $response = Http::post('http://127.0.0.1:8001/api/predict/', [
+                $response = Http::timeout(5)->post('http://127.0.0.1:8001/api/predict/', [
                     'feedback_text' => $feedback->feedback_text,
                 ]);
 
@@ -45,13 +46,33 @@ class AnalyzePendingFeedback extends Command
 
                     $this->info("  → {$result['sentiment_label']} ({$result['confidence_score']})");
                 } else {
-                    $this->error("  Django returned status {$response->status()}");
+                    $this->error("  Django returned status {$response->status()} — falling back to rating-based label.");
+                    $this->fallback($feedback);
                 }
             } catch (\Exception $e) {
-                $this->error("  Failed: {$e->getMessage()}");
+                $this->error("  Failed: {$e->getMessage()} — falling back to rating-based label.");
+                $this->fallback($feedback);
             }
         }
 
         $this->info('Done.');
+    }
+
+    /**
+     * Used only when the ML service can't be reached at all. Approximates
+     * a label from the star rating so feedback doesn't stay stuck as
+     * "pending" indefinitely while that service is down.
+     */
+    private function fallback(Feedback $feedback): void
+    {
+        $label = RatingSentimentFallback::labelFor($feedback->star_rating);
+
+        $feedback->sentimentResult()->create([
+            'sentiment_label' => $label,
+            'confidence_score' => null,
+            'analyzed_at' => now(),
+        ]);
+
+        $this->info("  → {$label} (rating-based fallback)");
     }
 }

@@ -107,12 +107,20 @@ class BotManController extends Controller
 
             $botman->hears('review', function ($bot) {
                 Log::info('MATCHED: review');
-                $bot->startConversation(new ReviewConversation(null, null));
+                $stored = $bot->userStorage()->find() ?: [];
+                $bot->startConversation(new ReviewConversation(
+                    $stored['patient_id'] ?? null,
+                    $stored['patient_name'] ?? null
+                ));
             });
 
             $botman->hears('submit review/rating', function ($bot) {
                 Log::info('MATCHED: submit review/rating');
-                $bot->startConversation(new ReviewConversation(null, null));
+                $stored = $bot->userStorage()->find() ?: [];
+                $bot->startConversation(new ReviewConversation(
+                    $stored['patient_id'] ?? null,
+                    $stored['patient_name'] ?? null
+                ));
             });
 
             $botman->hears('menu', function ($bot) {

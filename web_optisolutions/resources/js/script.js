@@ -171,9 +171,10 @@ function showDoctorDetails(id) {
   const doc = doctorsData.find(d => d.id === id);
   if (!doc) return;
   const scheduleHtml = doc.schedule.map(s => `<li><span>${s.day}</span><span>${s.time}</span></li>`).join('');
+  // photo/icon block added here (mika)
   document.getElementById('modalContent').innerHTML = `
     <div class="modal-header">
-    <div class="modal-doctor-photo"> // added this line to display the doctor photo (mika)
+    <div class="modal-doctor-photo"> 
       ${doc.photo
         ? `<img src="${doc.photo}" alt="${doc.name}" onerror="handleDoctorPhotoError(this,'${doc.gender}')">`
         : `<div class="doctor-photo-fallback">${doc.icon}</div>`}
@@ -187,8 +188,8 @@ function showDoctorDetails(id) {
         <div class="info-grid">
           <div class="info-item"><div class="info-item-label">Experience</div><div class="info-item-value">${doc.yearsExp}+ years</div></div>
           
-          <div class="info-item"><div class="info-item-label">Medical Degree</div><div class="info-item-value">${doc.education}</div></div>
-          <div class="info-item"><div class="info-item-label">Fellowship</div><div class="info-item-value">${doc.fellowship}</div></div>
+          <div class="info-item"><div class="info-item-label">Medical Degree</div><div class="info-item-value">${orNA(doc.education)}</div></div>
+          <div class="info-item"><div class="info-item-label">Fellowship</div><div class="info-item-value">${orNA(doc.fellowship)}</div></div>
         </div>
       </div>
       <div class="doctor-info-section">

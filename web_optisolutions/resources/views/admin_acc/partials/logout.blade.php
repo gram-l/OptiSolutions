@@ -19,6 +19,13 @@
     </div>
 </div>
 
+{{-- Real logout request — submitted (not fetch'd) so the browser fully
+     navigates to the redirect target instead of just reading it as a
+     response body. Route name matches LoginController@logout in web.php. --}}
+<form id="logoutForm" action="{{ route('logout') }}" method="POST" style="display:none;">
+    @csrf
+</form>
+
 <style>
     .logout-modal-overlay {
         position: fixed;
@@ -115,8 +122,9 @@
     });
 
     document.getElementById('logoutConfirmBtn').addEventListener('click', () => {
-        // TODO: swap for a POST to /logout (with CSRF) if a real logout
-        // route exists, then redirect — same note as before.
-        window.location.href = '/auth/login';
+        // Real POST /logout via form submit so the browser fully navigates
+        // to the redirect target (a fetch() would just follow the redirect
+        // internally and hand back HTML without actually leaving the page).
+        document.getElementById('logoutForm').submit();
     });
 </script>

@@ -174,40 +174,7 @@
                 </div>
             </div>
 
-            <!-- Recent Activity -->
-            <div class="activity-section">
-                <div class="activity-header">
-                    <h3>Recent Activity</h3>
-                </div>
-                <div class="activity-item">
-                    <div class="activity-icon activity-icon-orange"><i class="fas fa-comment"></i></div>
-                    <div class="activity-details">
-                        <div class="activity-title">New inquiry from Maria Santos</div>
-                        <div class="activity-time">2 minutes ago • Ophthalmology consultation</div>
-                    </div>
-                </div>
-                <div class="activity-item">
-                    <div class="activity-icon activity-icon-blue"><i class="fas fa-calendar"></i></div>
-                    <div class="activity-details">
-                        <div class="activity-title">Appointment scheduled with Dr. Cruz</div>
-                        <div class="activity-time">15 minutes ago • May 23, 2026 at 10:00 AM</div>
-                    </div>
-                </div>
-                <div class="activity-item">
-                    <div class="activity-icon activity-icon-green"><i class="fas fa-star"></i></div>
-                    <div class="activity-details">
-                        <div class="activity-title">New 5-star feedback received</div>
-                        <div class="activity-time">1 hour ago • ENT Department</div>
-                    </div>
-                </div>
-                <div class="activity-item">
-                    <div class="activity-icon activity-icon-yellow"><i class="fas fa-user-plus"></i></div>
-                    <div class="activity-details">
-                        <div class="activity-title">New patient registration</div>
-                        <div class="activity-time">2 hours ago • Pediatrics</div>
-                    </div>
-                </div>
-            </div>
+            
 
         </main>
     </div>

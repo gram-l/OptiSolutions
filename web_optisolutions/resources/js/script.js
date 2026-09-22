@@ -5,7 +5,14 @@ let servicesData = {};   // keyed by service_key, mirrors old `serviceDetails`
 let clinicInfo = null;
 
 function genderIcon(gender) {
-  return gender === 'female' ? '👩‍⚕️' : '👨‍⚕️';
+  return gender === 'female'
+    ? '<i class="fas fa-user-nurse"></i>'
+    : '<i class="fas fa-user-doctor"></i>';
+} //changed to icons (mika)
+
+function doctorPhotoUrl(doc) {
+  if (!doc.profile_image) return null;
+  return /^https?:\/\//.test(doc.profile_image) ? doc.profile_image : `/storage/${doc.profile_image}`;
 }
 
 function formatTime(t) {
@@ -28,6 +35,8 @@ async function loadDoctorsData() {
       name: doc.doctor_name,
       spec: doc.specialty,
       icon: genderIcon(doc.gender),
+      gender: doc.gender, // added this line to pass gender to handleDoctorPhotoError
+      photo: doctorPhotoUrl(doc), //added this line to display the doctor photo 
       yearsExp: doc.years_experience,
       education: doc.education,
       license: doc.license,
@@ -130,12 +139,18 @@ function renderDoctors(filter = 'all', containerId = 'doctorsGrid') {
     grid.innerHTML = `<div class="no-doctors">No doctors found for this specialty.</div>`;
     return;
   }
-  grid.innerHTML = filtered.map(doc => `
-    <div class="doctor-card" onclick="showDoctorDetails(${doc.id})">
-      <h3>${doc.name}</h3>
-      <span class="doctor-spec">${doc.spec}</span>
-      <p>${doc.yearsExp} years of experience</p>
-    </div>`).join('');
+grid.innerHTML = filtered.map(doc => `
+  <div class="doctor-card" onclick="showDoctorDetails(${doc.id})">
+    <div class="doctor-card-photo">
+      ${doc.photo 
+      
+  ? `<img src="${doc.photo}" alt="${doc.name}" loading="lazy" onerror="handleDoctorPhotoError(this,'${doc.gender}')">`
+  : `<div class="doctor-photo-fallback">${doc.icon}</div>`}
+    </div>
+    <h3>${doc.name}</h3>
+    <span class="doctor-spec">${doc.spec}</span>
+    <p>${doc.yearsExp} years of experience</p>
+  </div>`).join('');
 }
 
 function setupFilterTabs(containerId = 'filterTabs', gridId = 'doctorsGrid') {
@@ -156,19 +171,25 @@ function showDoctorDetails(id) {
   const doc = doctorsData.find(d => d.id === id);
   if (!doc) return;
   const scheduleHtml = doc.schedule.map(s => `<li><span>${s.day}</span><span>${s.time}</span></li>`).join('');
+  // photo/icon block added here (mika)
   document.getElementById('modalContent').innerHTML = `
     <div class="modal-header">
-      <h2>${doc.name}</h2>
-      <div class="modal-spec">${doc.spec}</div>
+    <div class="modal-doctor-photo"> 
+      ${doc.photo
+        ? `<img src="${doc.photo}" alt="${doc.name}" onerror="handleDoctorPhotoError(this,'${doc.gender}')">`
+        : `<div class="doctor-photo-fallback">${doc.icon}</div>`}
     </div>
+    <h2>${doc.name}</h2>
+    <div class="modal-spec">${doc.spec}</div>
+  </div>
     <div class="modal-body">
       <div class="doctor-info-section">
         <div class="section-label"><i class="fas fa-user-md"></i> Professional Profile</div>
         <div class="info-grid">
           <div class="info-item"><div class="info-item-label">Experience</div><div class="info-item-value">${doc.yearsExp}+ years</div></div>
           
-          <div class="info-item"><div class="info-item-label">Medical Degree</div><div class="info-item-value">${doc.education}</div></div>
-          <div class="info-item"><div class="info-item-label">Fellowship</div><div class="info-item-value">${doc.fellowship}</div></div>
+          <div class="info-item"><div class="info-item-label">Medical Degree</div><div class="info-item-value">${orNA(doc.education)}</div></div>
+          <div class="info-item"><div class="info-item-label">Fellowship</div><div class="info-item-value">${orNA(doc.fellowship)}</div></div>
         </div>
       </div>
       <div class="doctor-info-section">
@@ -242,6 +263,16 @@ document.addEventListener('keydown', function(event) {
   if (event.key === 'Escape') closeServiceModal();
 });
 
+// New global helper — called from onerror instead of building HTML inline
+function handleDoctorPhotoError(imgEl, gender) {
+  const fallback = document.createElement('div');
+  fallback.className = 'doctor-photo-fallback';
+  fallback.innerHTML = genderIcon(gender);
+  imgEl.replaceWith(fallback);
+}
+function orNA(v) {
+  return v && v !== 'null' ? v : 'Not specified';
+}
 // ============ GLOBAL FUNCTIONS ============
 window.showDoctorDetails    = showDoctorDetails;
 window.closeDoctorModal     = closeDoctorModal;
@@ -249,6 +280,7 @@ window.openServiceModal     = openServiceModal;
 window.closeServiceModal    = closeServiceModal;
 window.loadServicesData     = loadServicesData;
 window.loadDoctorsData      = loadDoctorsData;
+window.handleDoctorPhotoError = handleDoctorPhotoError;
 
 // ============ AUTO-LOAD ON PAGE READY (THE FIX) ============
 // Without this, loadDoctorsData()/loadServicesData()/loadClinicInfo() are defined

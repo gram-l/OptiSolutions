@@ -323,7 +323,7 @@ body {
   gap: 32px;
 }
 .hero-logo-blur {
-  filter: blur(1.4px);
+  
   opacity: 1;
 }
 .hero-flutter-content {
@@ -1166,7 +1166,7 @@ body {
   .hero-flutter-content { flex: none; width: 100%; padding-bottom: 0; }
   .hero-flutter-title { font-size: 28px; }
   .hero-flutter-desc { font-size: 16px; }
-  .hero-flutter-image { flex: none; width: 100%; justify-content: center; gap: 18px; flex-wrap: wrap; margin-top: 24px; }
+  .hero-flutter-image { flex: none; width: 200%; height: auto; justify-content: center; gap: 18px; flex-wrap: wrap; margin-top: 24px; }
   .hero-flutter-img { object-position: center; height: auto; max-width: 220px; align-self: center; }
   .hero-stats-dock { flex: 1 1 100%; width: 100%; max-width: 360px; margin: 0 auto; }
   .services-modern-section, .doctors-modern-section { padding: 48px 20px; }

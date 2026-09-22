@@ -45,6 +45,23 @@
             <h2>Access Account</h2>
             <p class="subtitle">Log in with your institutional account</p>
 
+        {{-- Forced-logout notice (role mismatch / session collision) --}}
+        @if (session('unauthorized'))
+            <div class="error-message show">
+                {{ session('unauthorized') }}
+            </div>
+        @endif
+
+        {{-- Error message --}}
+        @if ($errors->any())
+            <div class="error-message show">
+                {{ $errors->first('email') }}
+            </div>
+        @endif
+
+
+
+
             {{-- Error message --}}
             @if ($errors->any())
                 <div class="error-message show">

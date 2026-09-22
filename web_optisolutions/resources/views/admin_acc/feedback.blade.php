@@ -80,22 +80,45 @@
         .download-menu button:hover { background: var(--light-gray); }
         .download-menu button i { width: 16px; color: var(--primary-main); }
 
-        /* ── See More / See Less ── */
-        .see-more-wrap {
-            text-align: center;
+        /* ── Pagination ── */
+        .pagination-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.75rem;
             padding: 0.9rem;
             border-top: 1px solid var(--light-gray);
         }
-        .see-more-btn {
-            background: none;
-            border: none;
-            color: var(--primary-main);
-            font-weight: 600;
-            font-size: 0.85rem;
+        .pagination-wrap .page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 0.5rem;
+            border: 1px solid #d7dce3;
+            border-radius: 6px;
+            background: var(--white);
+            color: var(--text-dark);
+            font-size: 0.82rem;
             font-family: inherit;
+            font-weight: 600;
             cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
-        .see-more-btn:hover { text-decoration: underline; }
+        .pagination-wrap .page-btn:hover:not(:disabled) {
+            background: var(--primary-main);
+            border-color: var(--primary-main);
+            color: var(--white);
+        }
+        .pagination-wrap .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .pagination-wrap .page-info {
+            font-size: 0.82rem;
+            color: #7f8c8d;
+        }
 
         /* ── Section header (title + per-table download button) ── */
         .section-title {
@@ -190,8 +213,10 @@
                     </thead>
                     <tbody id="feedbackTableBody"></tbody>
                 </table>
-                <div class="see-more-wrap" id="feedbackSeeMoreWrap">
-                    <button type="button" class="see-more-btn" id="feedbackSeeMoreBtn" onclick="toggleSeeMore('feedback')">See More</button>
+                <div class="pagination-wrap" id="feedbackPaginationWrap">
+                    <button type="button" class="page-btn" id="feedbackPrevBtn" onclick="changePage('feedback', -1)"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span class="page-info" id="feedbackPageInfo"></span>
+                    <button type="button" class="page-btn" id="feedbackNextBtn" onclick="changePage('feedback', 1)"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
             </div>
 
@@ -220,27 +245,42 @@
                     </thead>
                     <tbody id="complaintTableBody"></tbody>
                 </table>
-                <div class="see-more-wrap" id="complaintSeeMoreWrap">
-                    <button type="button" class="see-more-btn" id="complaintSeeMoreBtn" onclick="toggleSeeMore('complaint')">See More</button>
+                <div class="pagination-wrap" id="complaintPaginationWrap">
+                    <button type="button" class="page-btn" id="complaintPrevBtn" onclick="changePage('complaint', -1)"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span class="page-info" id="complaintPageInfo"></span>
+                    <button type="button" class="page-btn" id="complaintNextBtn" onclick="changePage('complaint', 1)"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const feedbackData = @json($feedbackData);
-        const complaintData = @json($complaintData);
+        // Sorts an array of records newest-first by the given date field.
+        // Handles "YYYY-MM-DD HH:mm:ss" style strings (from Laravel) and missing/invalid dates.
+        function sortByDateDesc(arr, field) {
+            return (arr || []).slice().sort((a, b) => {
+                const parse = (v) => {
+                    if (!v) return 0;
+                    const d = new Date(String(v).replace(' ', 'T'));
+                    return isNaN(d) ? 0 : d.getTime();
+                };
+                return parse(b[field]) - parse(a[field]);
+            });
+        }
 
-        const ROWS_BEFORE_SEE_MORE = 4;
-        let feedbackShowAll = false;
-        let complaintShowAll = false;
+        const feedbackData = sortByDateDesc(@json($feedbackData), 'date');
+        const complaintData = sortByDateDesc(@json($complaintData), 'created_at');
 
-        function toggleSeeMore(section) {
+        const ROWS_PER_PAGE = 10;
+        let feedbackCurrentPage = 1;
+        let complaintCurrentPage = 1;
+
+        function changePage(section, delta) {
             if (section === 'feedback') {
-                feedbackShowAll = !feedbackShowAll;
+                feedbackCurrentPage += delta;
                 renderFeedbackTable(getFilteredData());
             } else {
-                complaintShowAll = !complaintShowAll;
+                complaintCurrentPage += delta;
                 renderComplaintTable(complaintData);
             }
         }
@@ -303,61 +343,71 @@
 
         function renderFeedbackTable(filteredData) {
             const tbody = document.getElementById('feedbackTableBody');
-            const seeMoreWrap = document.getElementById('feedbackSeeMoreWrap');
-            const seeMoreBtn = document.getElementById('feedbackSeeMoreBtn');
+            const paginationWrap = document.getElementById('feedbackPaginationWrap');
+            const pageInfo = document.getElementById('feedbackPageInfo');
+            const prevBtn = document.getElementById('feedbackPrevBtn');
+            const nextBtn = document.getElementById('feedbackNextBtn');
 
             if (filteredData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No feedback entries found</td></tr>';
-                seeMoreWrap.style.display = 'none';
+                paginationWrap.style.display = 'none';
                 return;
             }
 
-            const rowsToShow = feedbackShowAll ? filteredData : filteredData.slice(0, ROWS_BEFORE_SEE_MORE);
+            const totalPages = Math.max(1, Math.ceil(filteredData.length / ROWS_PER_PAGE));
+            if (feedbackCurrentPage > totalPages) feedbackCurrentPage = totalPages;
+            if (feedbackCurrentPage < 1) feedbackCurrentPage = 1;
+
+            const startIdx = (feedbackCurrentPage - 1) * ROWS_PER_PAGE;
+            const rowsToShow = filteredData.slice(startIdx, startIdx + ROWS_PER_PAGE);
 
             tbody.innerHTML = rowsToShow.map(f => `
                 <tr>
-                    <td data-label="Rating" class="rating-stars">${renderStars(f.rating)}</td>
-                    <td data-label="Comment" class="feedback-comment">${escapeHtml(f.comment)}</td>
-                    <td data-label="Sentiment">${sentimentTag(f.sentiment)}</td>
-                    <td data-label="Date">${formatDate(f.date)}</td>
+                    <td class="rating-stars">${renderStars(f.rating)}</td>
+                    <td class="feedback-comment">${escapeHtml(f.comment)}</td>
+                    <td>${sentimentTag(f.sentiment)}</td>
+                    <td>${formatDate(f.date)}</td>
                 </tr>
             `).join('');
 
-            if (filteredData.length > ROWS_BEFORE_SEE_MORE) {
-                seeMoreWrap.style.display = 'block';
-                seeMoreBtn.textContent = feedbackShowAll ? 'See Less' : 'See More';
-            } else {
-                seeMoreWrap.style.display = 'none';
-            }
+            paginationWrap.style.display = totalPages > 1 ? 'flex' : 'none';
+            pageInfo.textContent = `Page ${feedbackCurrentPage} of ${totalPages}`;
+            prevBtn.disabled = feedbackCurrentPage <= 1;
+            nextBtn.disabled = feedbackCurrentPage >= totalPages;
         }
 
         function renderComplaintTable(data) {
             const tbody = document.getElementById('complaintTableBody');
-            const seeMoreWrap = document.getElementById('complaintSeeMoreWrap');
-            const seeMoreBtn = document.getElementById('complaintSeeMoreBtn');
+            const paginationWrap = document.getElementById('complaintPaginationWrap');
+            const pageInfo = document.getElementById('complaintPageInfo');
+            const prevBtn = document.getElementById('complaintPrevBtn');
+            const nextBtn = document.getElementById('complaintNextBtn');
 
             if (!data || data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No complaints found</td></tr>';
-                seeMoreWrap.style.display = 'none';
+                paginationWrap.style.display = 'none';
                 return;
             }
 
-            const rowsToShow = complaintShowAll ? data : data.slice(0, ROWS_BEFORE_SEE_MORE);
+            const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
+            if (complaintCurrentPage > totalPages) complaintCurrentPage = totalPages;
+            if (complaintCurrentPage < 1) complaintCurrentPage = 1;
+
+            const startIdx = (complaintCurrentPage - 1) * ROWS_PER_PAGE;
+            const rowsToShow = data.slice(startIdx, startIdx + ROWS_PER_PAGE);
 
             tbody.innerHTML = rowsToShow.map(c => `
                 <tr>
-                    <td data-label="Complaint" class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
-                    <td data-label="Category">${escapeHtml(c.category)}</td>
-                    <td data-label="Date">${formatDate(c.created_at)}</td>
+                    <td class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
+                    <td>${escapeHtml(c.category)}</td>
+                    <td>${formatDate(c.created_at)}</td>
                 </tr>
             `).join('');
 
-            if (data.length > ROWS_BEFORE_SEE_MORE) {
-                seeMoreWrap.style.display = 'block';
-                seeMoreBtn.textContent = complaintShowAll ? 'See Less' : 'See More';
-            } else {
-                seeMoreWrap.style.display = 'none';
-            }
+            paginationWrap.style.display = totalPages > 1 ? 'flex' : 'none';
+            pageInfo.textContent = `Page ${complaintCurrentPage} of ${totalPages}`;
+            prevBtn.disabled = complaintCurrentPage <= 1;
+            nextBtn.disabled = complaintCurrentPage >= totalPages;
         }
 
         function sentimentTag(sentiment) {
@@ -415,6 +465,7 @@
 
         function refreshAll() {
             const filtered = getFilteredData();
+            feedbackCurrentPage = 1;
             renderAnalytics(filtered);
             renderFeedbackTable(filtered);
             renderComplaintTable(complaintData);

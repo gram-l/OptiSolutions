@@ -25,29 +25,9 @@
             <div class="dropdown" id="notifDropdown">
                 <div class="dropdown-label">Notifications</div>
 
-                <div class="notif-item">
-                    <div class="notif-icon-circle"><i class="bi bi-chat-dots"></i></div>
-                    <div class="notif-text">
-                        <p>New chatbot inquiry from <strong>CHAT-006</strong></p>
-                        <span>2 minutes ago</span>
-                    </div>
-                    <div class="notif-unread-dot"></div>
-                </div>
-
-                <div class="notif-item">
-                    <div class="notif-icon-circle"><i class="bi bi-calendar-check"></i></div>
-                    <div class="notif-text">
-                        <p>Appointment confirmed — <strong>P-12345</strong> on June 15</p>
-                        <span>1 hour ago</span>
-                    </div>
-                    <div class="notif-unread-dot"></div>
-                </div>
-
-                <div class="notif-item">
-                    <div class="notif-icon-circle"><i class="bi bi-person-plus"></i></div>
-                    <div class="notif-text">
-                        <p>New patient record added by Staff</p>
-                        <span>Yesterday</span>
+                <div id="notifDropdownList">
+                    <div class="notif-item notif-item-loading">
+                        <div class="notif-text"><p>Loading notifications…</p></div>
                     </div>
                 </div>
 
@@ -88,7 +68,7 @@
                 <a class="menu-item" href="#" onclick="openSettingsModal(); return false;">
                     <i class="bi bi-gear"></i> Settings
                 </a>
-                <button class="menu-item danger" onclick="window.location.href='/auth/login'">
+                <button class="menu-item danger" onclick="openLogoutModal(); return false;">
                     <i class="bi bi-box-arrow-right"></i> Logout
                 </button>
             </div>
@@ -97,6 +77,7 @@
     </div>
     @include('admin_acc.partials.profile')
     @include('admin_acc.partials.settings')
+    @include('admin_acc.partials.logout')
 </header>
 
 {{-- Empty container the notifications panel gets injected into on demand --}}
@@ -125,12 +106,90 @@
         document.getElementById('avatarDropdown').classList.remove('open');
     });
 
-    // ── Notification badge ─────────────────────────────────────────
-    // Count items that have an unread dot and show/hide the red badge
-    const unreadCount = document.querySelectorAll('#notifDropdown .notif-unread-dot').length;
-    if (unreadCount > 0) {
-        document.getElementById('notifDot').classList.add('visible');
+    // ── Notification bell dropdown — real data ──────────────────────
+    // Previously this dropdown was three hardcoded <div class="notif-item">
+    // blocks with fake text (a made-up "CHAT-006", a fixed "June 15"
+    // date, etc.) that never changed and never linked anywhere, while
+    // the red badge's "unread" count was just however many of those
+    // fake items happened to have a dot on them. It now pulls the
+    // actual rows from the same `app_notifications` table the full
+    // panel (partials/notifications_panel.blade.php) already reads.
+    const NOTIF_TYPE_ICONS = {
+        chat_inquiry: 'bi-chat-dots',
+        appointment: 'bi-calendar-check',
+        feedback: 'bi-star',
+        complaint: 'bi-exclamation-circle',
+        system: 'bi-exclamation-triangle',
+    };
+
+    function timeAgo(dateStr) {
+        const seconds = Math.floor((Date.now() - new Date(dateStr.replace(' ', 'T'))) / 1000);
+        if (seconds < 60) return 'Just now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+        const days = Math.floor(hours / 24);
+        if (days === 1) return 'Yesterday';
+        if (days < 7) return `${days} days ago`;
+        return new Date(dateStr.replace(' ', 'T')).toLocaleDateString();
     }
+
+    function escapeHtmlNotif(text) {
+        const div = document.createElement('div');
+        div.textContent = text ?? '';
+        return div.innerHTML;
+    }
+
+    function loadNotifDropdown() {
+        fetch('/admin_acc/notifications/api', { headers: { 'Accept': 'application/json' } })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) return;
+
+                document.getElementById('notifDot').classList.toggle('visible', data.unread_count > 0);
+
+                const list = document.getElementById('notifDropdownList');
+                const items = data.notifications.slice(0, 5);
+
+                if (items.length === 0) {
+                    list.innerHTML = `<div class="notif-item"><div class="notif-text"><p>No notifications yet.</p></div></div>`;
+                    return;
+                }
+
+                list.innerHTML = items.map(n => `
+                    <div class="notif-item" data-id="${n.notification_id}" data-url="${n.url ?? ''}" style="cursor:${n.url ? 'pointer' : 'default'};">
+                        <div class="notif-icon-circle"><i class="bi ${NOTIF_TYPE_ICONS[n.type] || 'bi-bell'}"></i></div>
+                        <div class="notif-text">
+                            <p>${escapeHtmlNotif(n.title || n.message)}</p>
+                            <span>${timeAgo(n.created_at)}</span>
+                        </div>
+                        ${n.is_read ? '' : '<div class="notif-unread-dot"></div>'}
+                    </div>
+                `).join('');
+
+                list.querySelectorAll('.notif-item[data-url]').forEach(item => {
+                    const url = item.dataset.url;
+                    if (!url) return;
+                    item.addEventListener('click', () => {
+                        fetch(`/admin_acc/notifications/${item.dataset.id}/read`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                            },
+                        }).catch(() => {});
+                        window.location.href = url;
+                    });
+                });
+            })
+            .catch(() => {});
+    }
+
+    loadNotifDropdown();
+    // Refresh every time the bell is opened, so it doesn't go stale
+    // while the admin sits on the page.
+    document.getElementById('notifBtn').addEventListener('click', loadNotifDropdown);
 
     // ── Full notifications side panel ───────────────────────────────
     function openNotifPanel() {
@@ -228,7 +287,7 @@
             fetch('/admin_acc/notifications/mark-all-read', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken }
-            }).catch(() => {});
+            }).then(() => loadNotifDropdown()).catch(() => {});
         });
     }
 
@@ -242,6 +301,6 @@
         fetch(`/admin_acc/notifications/${id}/read`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken }
-        }).catch(() => {});
+        }).then(() => loadNotifDropdown()).catch(() => {});
     }
 </script>

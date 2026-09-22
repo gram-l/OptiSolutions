@@ -101,23 +101,6 @@ class ChatbotInquiryController extends Controller
     }
 
     /**
-     * Undo an accidental/premature "Resolve" — puts the inquiry back to
-     * "In Progress" (not "Pending", since it's already been looked at)
-     * so it reappears in the actionable list with the reply box back.
-     */
-    public function unresolve($id)
-    {
-        $inquiry = Inquiry::findOrFail($id);
-        $inquiry->resolved_status = 'In Progress';
-        $inquiry->save();
-
-        return response()->json([
-            'message' => 'Inquiry marked as unresolved.',
-            'status'  => $inquiry->resolved_status,
-        ]);
-    }
-
-    /**
      * Ayusin ang isang Inquiry papunta sa shape na inaasahan ng JS sa
      * chatbot_logs.blade.php (dating `chatLogs` mock array).
      */
@@ -197,7 +180,7 @@ class ChatbotInquiryController extends Controller
         'inquiryCode'  => 'INQ-' . str_pad((string) $inquiry->inquiry_id, 3, '0', STR_PAD_LEFT),
         'avatar'       => strtoupper(substr($initials, 0, 2)),
         'patientId'    => $patientLabel,
-        'department'   => $inquiry->inquiry_type,
+        'department'   => $inquiry->inquiry_type ?? 'General',
         'lastMessage'  => $lastMessage,
         'timestamp'    => $timestamp->toIso8601String(),
         'unread'       => $inquiry->resolved_status === 'Pending',

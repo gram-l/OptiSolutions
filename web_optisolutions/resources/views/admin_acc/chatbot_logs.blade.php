@@ -74,6 +74,9 @@
                             <button class="resolve-btn-modern" id="resolveBtn">
                                 <i class="bi bi-check-circle"></i> Resolve
                             </button>
+                            <button class="unresolve-btn-modern" id="unresolveBtn">
+                                <i class="bi bi-arrow-counterclockwise"></i> Unresolve
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -136,7 +139,7 @@
             const chatListEl = document.getElementById("chatList");
             const filteredLogs = chatLogs.filter(log =>
                 log.name.toLowerCase().includes(filterText.toLowerCase()) ||
-                log.department.toLowerCase().includes(filterText.toLowerCase()) ||
+                (log.department || '').toLowerCase().includes(filterText.toLowerCase()) ||
                 log.lastMessage.toLowerCase().includes(filterText.toLowerCase())
             );
 
@@ -228,6 +231,7 @@
             const isResolved = chat.rawStatus === 'Resolved';
             document.getElementById("replyArea").style.display = isResolved ? "none" : "flex";
             document.getElementById("resolveBtn").style.display = isResolved ? "none" : "inline-flex";
+            document.getElementById("unresolveBtn").style.display = isResolved ? "inline-flex" : "none";
         }
 
         // Open a specific chat
@@ -263,7 +267,12 @@
             // the patient ID and department, since chat.name shows the
             // actual person's name instead of the INQ code.
             document.getElementById("patientName").innerText = chat.name;
-            document.getElementById("patientInfo").innerHTML = `${chat.inquiryCode} • ID: ${chat.patientId} • ${chat.department}`;
+            // No department segment when the inquiry has no specific
+            // type (department comes through as null/empty from the
+            // backend instead of a placeholder like "General").
+            const infoParts = [chat.inquiryCode, `ID: ${chat.patientId}`];
+            if (chat.department) 
+            document.getElementById("patientInfo").innerHTML = infoParts.map(escapeHtml).join(' • ');
             const statusBadge = document.getElementById("statusBadge");
             statusBadge.className = `status-badge status-${chat.status}`;
             statusBadge.innerText = chat.status === "active" ? "In Progress" : chat.status === "pending" ? "Pending" : "Resolved";
@@ -278,7 +287,7 @@
             messagesArea.innerHTML = messages.map(msg => `
                 <div class="message">
                     <div class="message-avatar ${msg.sender === 'patient' ? 'patient' : ''}">
-                        ${msg.sender === 'patient' ? '👤' : '🧑‍💼'}
+                        <i class="bi ${msg.sender === 'patient' ? 'bi-person-fill' : 'bi-headset'}"></i>
                     </div>
                     <div class="message-content ${msg.sender === 'bot' ? 'bot' : ''}">
                         <div class="message-sender ${msg.sender === 'patient' ? 'patient' : ''}">
@@ -460,6 +469,45 @@
             }
         }
 
+        // Undo a resolve — puts the inquiry back into the actionable
+        // (In Progress) list and brings the reply box back.
+        async function unresolveInquiry() {
+            if (currentChatId === null) return;
+            const chat = chatLogs.find(c => c.id === currentChatId);
+            if (!chat) return;
+
+            const confirmed = await showConfirm('Mark this inquiry as unresolved?');
+            if (!confirmed) return;
+
+            const unresolveBtn = document.getElementById("unresolveBtn");
+            unresolveBtn.disabled = true;
+            const originalText = unresolveBtn.innerHTML;
+            unresolveBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Updating...`;
+
+            try {
+                const res = await fetch(`/admin_acc/chatbot_logs/${currentChatId}/unresolve`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': CSRF,
+                        'Accept': 'application/json',
+                    },
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to unresolve.');
+
+                chat.rawStatus = data.status;
+                chat.status = data.status === 'Pending' ? 'pending' : (data.status === 'Resolved' ? 'resolved' : 'active');
+                openChat(currentChatId);
+                renderChatList(document.getElementById("searchInput").value);
+                showToast('Inquiry marked as unresolved.', 'success');
+            } catch (e) {
+                showToast(e.message || 'Failed to unresolve inquiry.');
+            } finally {
+                unresolveBtn.disabled = false;
+                unresolveBtn.innerHTML = originalText;
+            }
+        }
+
         async function handleLogout() {
             const confirmed = await showConfirm('Are you sure you want to logout?');
             if (confirmed) {
@@ -531,8 +579,9 @@
             typingIdleTimer = setTimeout(stopTypingHeartbeat, 4000);
         });
 
-        // Resolve button click
+        // Resolve / Unresolve button clicks
         document.getElementById("resolveBtn").addEventListener("click", resolveInquiry);
+        document.getElementById("unresolveBtn").addEventListener("click", unresolveInquiry);
 
         // Back button (mobile only) — return to the conversation list
         // without losing the currently loaded conversation.

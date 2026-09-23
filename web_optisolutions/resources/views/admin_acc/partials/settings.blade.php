@@ -628,9 +628,13 @@
         alert('Working hours saved.');
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', openLogoutModal);
-
-    
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        if (confirm('Are you sure you want to logout?')) {
+            // TODO: replace with real logout — POST to /logout then
+            // redirect, same as the rest of the admin panel should do.
+            window.location.href = '/logout';
+        }
+    });
 
     // Populate System Info with whatever's easily available client-side.
     document.getElementById('lastLoginValue').innerText = new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });

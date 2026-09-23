@@ -110,7 +110,10 @@
         @include('admin_acc.sidebar')
         <main style="flex: 1; min-width: 0;">
             <div class="page-header">
-            <h2><i class="bi bi-gear"></i> System Settings</h2>
+            <h2>
+                <span><i class="bi bi-gear"></i></span>
+                System Settings
+            </h2>
             <p>Manage clinic hours, about page, contact info, and services</p>
         </div>
 

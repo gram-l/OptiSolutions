@@ -21,8 +21,11 @@
 
         <main class="main-content">
             <div class="welcome-banner">
-                <h2>Welcome, {{ Auth::user()->name }}!</h2>
-                <p>Here's what's happening with your clinic today.</p>
+                <div class="welcome-banner-text">
+                    <h2>Welcome, {{ Auth::user()->name }}!</h2>
+                    <p>Here's what's happening with your clinic today.</p>
+                </div>
+                <div class="welcome-banner-icon"><i class="bi bi-heart-pulse"></i></div>
             </div>
 
             @php
@@ -30,6 +33,7 @@
                 $hasServiceData = isset($serviceDistribution) && $serviceDistribution->count() > 0;
                 $serviceLabels = $hasServiceData ? $serviceDistribution->pluck('service_type') : collect(['No data']);
                 $serviceTotals = $hasServiceData ? $serviceDistribution->pluck('total') : collect([1]);
+                $serviceColors = ['#0E62AA', '#3969A8', '#5C8BC0', '#79A8CB', '#9DBCD4', '#00897B', '#43A047', '#FB8C00'];
 
                 // ---- Weekly Patient Visits defaults ----
                 $defaultWeekLabels = ['W-5', 'W-4', 'W-3', 'W-2', 'W-1', 'This wk'];
@@ -40,9 +44,9 @@
                 // ---- Patient Feedback defaults ----
                 $sentimentTotal = ($positivePercent ?? 0) + ($neutralPercent ?? 0) + ($negativePercent ?? 0);
                 $sentimentRows = [
-                    ['label' => 'Positive', 'value' => $sentimentTotal > 0 ? ($positivePercent ?? 0) : 0, 'color' => '#0E62AA'],
-                    ['label' => 'Neutral',  'value' => $sentimentTotal > 0 ? ($neutralPercent ?? 0)  : 0, 'color' => '#9DBCD4'],
-                    ['label' => 'Negative', 'value' => $sentimentTotal > 0 ? ($negativePercent ?? 0) : 0, 'color' => '#062744'],
+                    ['label' => 'Positive', 'value' => $sentimentTotal > 0 ? ($positivePercent ?? 0) : 0, 'color' => '#0E62AA', 'emoji' => '😊', 'avatarClass' => 'sentiment-avatar-positive'],
+                    ['label' => 'Neutral',  'value' => $sentimentTotal > 0 ? ($neutralPercent ?? 0)  : 0, 'color' => '#9DBCD4', 'emoji' => '😐', 'avatarClass' => 'sentiment-avatar-neutral'],
+                    ['label' => 'Negative', 'value' => $sentimentTotal > 0 ? ($negativePercent ?? 0) : 0, 'color' => '#062744', 'emoji' => '😟', 'avatarClass' => 'sentiment-avatar-negative'],
                 ];
 
                 // ---- Inquiry Volume defaults ----
@@ -53,23 +57,47 @@
             <!-- Analytics Cards -->
             <div class="analytics-grid">
                 <div class="analytics-card">
-                    <div class="card-title">Total Inquiries</div>
+                    <div class="card-top-row">
+                        <div class="card-icon-title">
+                            <div class="card-icon-badge"><i class="bi bi-file-earmark-text"></i></div>
+                            <div class="card-title">Total Inquiries</div>
+                        </div>
+                        <i class="bi bi-chevron-right card-chevron"></i>
+                    </div>
                     <div class="card-value" id="stat-total-inquiries">{{ $totalInquiries ?? 0 }}</div>
-                    <div class="card-subtitle">Live count</div>
+                    <div class="card-subtitle"><span class="dot"></span> Live count</div>
                 </div>
                 <div class="analytics-card">
-                    <div class="card-title">Today's Appointments</div>
+                    <div class="card-top-row">
+                        <div class="card-icon-title">
+                            <div class="card-icon-badge"><i class="bi bi-calendar-check"></i></div>
+                            <div class="card-title">Today's Appointments</div>
+                        </div>
+                        <i class="bi bi-chevron-right card-chevron"></i>
+                    </div>
                     <div class="card-value" id="stat-todays-appointments">{{ $todaysAppointments ?? 0 }}</div>
-                    <div class="card-subtitle"><span id="stat-pending-approval">{{ $pendingApproval ?? 0 }}</span> pending approval</div>
+                    <div class="card-subtitle"><span class="dot"></span> <span id="stat-pending-approval">{{ $pendingApproval ?? 0 }}</span> pending approval</div>
                 </div>
                 <div class="analytics-card">
-                    <div class="card-title">Active Patients</div>
+                    <div class="card-top-row">
+                        <div class="card-icon-title">
+                            <div class="card-icon-badge"><i class="bi bi-person"></i></div>
+                            <div class="card-title">Active Patients</div>
+                        </div>
+                        <i class="bi bi-chevron-right card-chevron"></i>
+                    </div>
                     <div class="card-value" id="stat-active-patients">{{ $activePatients ?? 0 }}</div>
-                    <div class="card-subtitle"><span id="stat-new-patients">{{ $newPatientsThisMonth ?? 0 }}</span> new this month</div>
+                    <div class="card-subtitle"><span class="dot"></span> <span id="stat-new-patients">{{ $newPatientsThisMonth ?? 0 }}</span> new this month</div>
                 </div>
                 <div class="analytics-card">
-                    <div class="card-title">Patient Satisfaction</div>
-                    <div class="card-value" id="stat-avg-rating">{{ $avgRating ?? 0 }}</div>
+                    <div class="card-top-row">
+                        <div class="card-icon-title">
+                            <div class="card-icon-badge"><i class="bi bi-star-fill"></i></div>
+                            <div class="card-title">Patient Satisfaction</div>
+                        </div>
+                        <i class="bi bi-chevron-right card-chevron"></i>
+                    </div>
+                    <div class="card-value" id="stat-avg-rating">{{ $avgRating ?? 0 }} / 5</div>
                     <div class="card-subtitle">⭐ Average rating</div>
                 </div>
             </div>
@@ -92,37 +120,49 @@
             </style>
 
             <div class="charts-grid">
-                <!-- 1) SERVICE DISTRIBUTION (doughnut) -->
+                <!-- 1) SERVICE DISTRIBUTION (doughnut + side legend) -->
                 <div class="chart-card">
                     <div class="chart-header">
-                        <h3>Service Distribution</h3>
+                        <div class="chart-header-title">
+                            <div class="chart-icon-badge"><i class="bi bi-pie-chart"></i></div>
+                            <h3>Service Distribution</h3>
+                        </div>
                     </div>
-                    <p style="color: #7f8c8d; font-size: 0.9rem;">Distribution of patient visits by service</p>
-                    <div style="max-width: 340px; margin: 1rem auto 1.5rem;">
-                        <canvas id="serviceDistributionChart" height="260"></canvas>
-                    </div>
-                    <div id="serviceDistributionList">
-                        @if($hasServiceData)
-                            @foreach($serviceDistribution as $service)
-                                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--light-gray);">
-                                    <span>{{ $service->service_type }}</span>
-                                    <span>{{ $service->total }} visits</span>
-                                </div>
-                            @endforeach
-                        @else
-                            <p style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem;">No service data available yet.</p>
-                        @endif
+                    <p class="chart-subtitle">Distribution of patient visits by service</p>
+                    <div class="donut-layout">
+                        <div class="donut-chart-wrap">
+                            <canvas id="serviceDistributionChart"></canvas>
+                        </div>
+                        <div class="donut-legend" id="serviceDistributionList">
+                            @if($hasServiceData)
+                                @foreach($serviceDistribution as $i => $service)
+                                    <div class="donut-legend-row">
+                                        <span class="donut-legend-label">
+                                            <span class="donut-legend-dot" style="background: {{ $serviceColors[$i % count($serviceColors)] }};"></span>
+                                            {{ $service->service_type }}
+                                        </span>
+                                        <span class="donut-legend-value">{{ $service->total }} visits</span>
+                                    </div>
+                                @endforeach
+                            @else
+                                <p style="color: #7f8c8d; font-size: 0.85rem;">No service data available yet.</p>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
                 <!-- 2) WEEKLY PATIENT VISITS (line) -->
                 <div class="chart-card">
                     <div class="chart-header">
-                        <h3>Weekly Patient Visits</h3>
+                        <div class="chart-header-title">
+                            <div class="chart-icon-badge"><i class="bi bi-graph-up"></i></div>
+                            <h3>Patient Visits Trend</h3>
+                        </div>
+                        <button class="filter-btn">Last 6 Weeks <i class="bi bi-chevron-down"></i></button>
                     </div>
-                    <p style="color: #7f8c8d; font-size: 0.9rem;">Visits over the last several weeks</p>
-                    <div style="margin-top: 1rem;">
-                        <canvas id="weeklyVisitsChart" height="240"></canvas>
+                    <p class="chart-subtitle">Visits over the past 6 weeks</p>
+                    <div>
+                        <canvas id="weeklyVisitsChart" height="220"></canvas>
                     </div>
                     <p id="weeklyVisitsEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasWeeklyData ? 'display:none;' : '' }}">
                         No visit data available yet.
@@ -132,11 +172,15 @@
                 <!-- 3) INQUIRY VOLUME (bar) -->
                 <div class="chart-card">
                     <div class="chart-header">
-                        <h3>Inquiry Volume (Last 7 Days)</h3>
-                        <button class="filter-btn">This Week ▼</button>
+                        <div class="chart-header-title">
+                            <div class="chart-icon-badge"><i class="bi bi-bar-chart"></i></div>
+                            <h3>Inquiry Volume (Last 7 Days)</h3>
+                        </div>
+                        <button class="filter-btn">This Week <i class="bi bi-chevron-down"></i></button>
                     </div>
-                    <div style="margin-top: 1rem;">
-                        <canvas id="inquiryVolumeChart" height="240"></canvas>
+                    <p class="chart-subtitle" style="visibility:hidden;">&nbsp;</p>
+                    <div>
+                        <canvas id="inquiryVolumeChart" height="220"></canvas>
                     </div>
                     <p id="inquiryVolumeEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasInquiryData ? 'display:none;' : '' }}">
                         No inquiry data available yet.
@@ -146,20 +190,21 @@
                 <!-- 4) PATIENT FEEDBACK OVERVIEW (custom bars) -->
                 <div class="chart-card">
                     <div class="chart-header">
-                        <h3>Patient Feedback Overview</h3>
+                        <div class="chart-header-title">
+                            <div class="chart-icon-badge"><i class="bi bi-emoji-smile"></i></div>
+                            <h3>Patient Feedback Overview</h3>
+                        </div>
                     </div>
-                    <div id="sentimentBars" class="sentiment-bars" style="margin-top: 1.25rem;">
+                    <div id="sentimentBars" class="sentiment-bars" style="margin-top: 1.1rem;">
                         @foreach($sentimentRows as $row)
-                            <div class="sentiment-row" data-label="{{ $row['label'] }}" data-color="{{ $row['color'] }}" style="margin-bottom: 16px;">
-                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
-                                    <span style="font-weight: 600;">
-                                        @if($row['label'] === 'Positive') 😊 @elseif($row['label'] === 'Neutral') 😐 @else 😟 @endif
-                                        {{ $row['label'] }}
-                                    </span>
-                                    <span class="sentiment-value" style="font-weight: 700; color: {{ $row['color'] }};">{{ $row['value'] }}%</span>
-                                </div>
-                                <div class="bar-container">
-                                    <div class="sentiment-fill bar-fill" style="background: {{ $row['color'] }}; width: {{ $row['value'] }}%;"></div>
+                            <div class="sentiment-row" data-label="{{ $row['label'] }}" data-color="{{ $row['color'] }}">
+                                <div class="sentiment-row-inner">
+                                    <div class="sentiment-avatar {{ $row['avatarClass'] }}">{{ $row['emoji'] }}</div>
+                                    <span class="sentiment-label">{{ $row['label'] }}</span>
+                                    <div class="bar-container">
+                                        <div class="sentiment-fill bar-fill" style="background: {{ $row['color'] }}; width: {{ $row['value'] }}%;"></div>
+                                    </div>
+                                    <span class="sentiment-value" style="color: {{ $row['color'] }};">{{ $row['value'] }}%</span>
                                 </div>
                             </div>
                         @endforeach
@@ -167,9 +212,12 @@
                     <p id="sentimentEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $sentimentTotal > 0 ? 'display:none;' : '' }}">
                         No feedback data available yet.
                     </p>
-                    <div style="margin-top: 2rem; padding: 1rem; background: var(--light-gray); border-radius: 10px;">
-                        <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Top Complaint:</div>
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">Long waiting times at reception</div>
+                    <div class="top-complaint-box">
+                        <div class="top-complaint-icon"><i class="bi bi-chat-square-text"></i></div>
+                        <div>
+                            <div class="top-complaint-label">Top Complaint:</div>
+                            <div class="top-complaint-text">Long waiting times at reception</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -278,13 +326,17 @@
                 serviceChart.update();
 
                 const listEl = document.getElementById('serviceDistributionList');
+                const legendColors = ['#0E62AA', '#3969A8', '#5C8BC0', '#79A8CB', '#9DBCD4', '#00897B', '#43A047', '#FB8C00'];
                 listEl.innerHTML = hasServices
-                    ? services.map(s => `
-                        <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid var(--light-gray);">
-                            <span>${s.service_type}</span>
-                            <span>${s.total} visits</span>
+                    ? services.map((s, i) => `
+                        <div class="donut-legend-row">
+                            <span class="donut-legend-label">
+                                <span class="donut-legend-dot" style="background:${legendColors[i % legendColors.length]};"></span>
+                                ${s.service_type}
+                            </span>
+                            <span class="donut-legend-value">${s.total} visits</span>
                         </div>`).join('')
-                    : '<p style="color:#7f8c8d; margin-top:10px; font-size:0.85rem;">No service data available yet.</p>';
+                    : '<p style="color:#7f8c8d; font-size:0.85rem;">No service data available yet.</p>';
 
                 const weekly = Array.isArray(data.weeklyVisits) ? data.weeklyVisits : [];
                 const hasWeekly = weekly.length > 0;

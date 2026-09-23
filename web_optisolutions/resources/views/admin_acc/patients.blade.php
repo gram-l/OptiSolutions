@@ -181,6 +181,54 @@
         </div>
     </div>
 
+    {{-- ===== Hidden Patient Record Template (used only for PNG/PDF download) =====
+         Same design as the Staff "View Patient" download — a branded header,
+         a PERSONAL DETAILS pill, a two-column detail grid, a VISIT HISTORY
+         pill, and a table — instead of screenshotting the plain on-screen
+         modal like this page did before. --}}
+    <div id="patientPdfTemplate" style="position: absolute; left: -99999px; top: 0; width: 720px; background: #ffffff; font-family: 'Poppins', sans-serif;">
+        <div style="background: linear-gradient(135deg, #b06ab3, #b06ab3); padding: 1.5rem 2rem; border-radius: 14px 14px 0 0;">
+            <div style="color:#ffffff; font-size: 1.6rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;">Patient Record</div>
+        </div>
+
+        <div style="border: 1px solid #e6d6f2; border-top: none; border-radius: 0 0 14px 14px; padding: 1.75rem 2rem 2rem; background: #ffffff;">
+
+            <div style="background: linear-gradient(90deg, #b06ab3, #b06ab3); color: #ffffff; text-align: center; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; letter-spacing: 1px; font-size: 0.85rem; margin-bottom: 1.25rem;">
+                PERSONAL DETAILS
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem 2rem; font-size: 0.92rem; color: #2d2d2d; margin-bottom: 1.75rem;">
+                <div><strong>Patient ID:</strong> <span id="pdfPatientId"></span></div>
+                <div><strong>Full Name:</strong> <span id="pdfPatientName"></span></div>
+                <div><strong>Birthdate:</strong> <span id="pdfPatientBirthdate"></span></div>
+                <div><strong>Contact No.:</strong> <span id="pdfPatientContact"></span></div>
+                <div><strong>Email:</strong> <span id="pdfPatientEmail"></span></div>
+                <div><strong>Department:</strong> <span id="pdfPatientDept"></span></div>
+                <div><strong>Assigned Doctor:</strong> <span id="pdfPatientDoctor"></span></div>
+            </div>
+
+            <div style="background: linear-gradient(90deg, #b06ab3, #b06ab3); color: #ffffff; text-align: center; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; letter-spacing: 1px; font-size: 0.85rem; margin-bottom: 1rem;">
+                VISIT HISTORY
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #b06ab3;">
+                        <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3; white-space: nowrap;">DATE</th>
+                        <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3; white-space: nowrap;">SERVICE</th>
+                        <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3; white-space: nowrap;">DOCTOR</th>
+                        <th style="text-align: left; padding: 0.5rem 0.6rem; color: #b06ab3;">NOTES / DIAGNOSIS</th>
+                    </tr>
+                </thead>
+                <tbody id="pdfVisitTableBody"></tbody>
+            </table>
+
+            <div style="margin-top: 1.75rem; font-size: 0.72rem; color: #999; text-align: right;">
+                Generated on <span id="pdfGeneratedDate"></span> &middot; PolyClinic Admin Records
+            </div>
+        </div>
+    </div>
+
     <style>
         .field-error { color: #c0392b; font-size: 0.75rem; margin-top: 0.25rem; }
         .visit-history-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.82rem; }
@@ -464,11 +512,14 @@
         }
 
         // View patient details (+ visit history)
+        let currentViewPatientVisits = [];
+
         async function viewPatient(id) {
             const patient = patientsData.find(p => p.id === id);
             if (!patient) return;
 
             currentViewPatientId = id;
+            currentViewPatientVisits = [];
 
             const detailsHtml = `
                 <div class="form-group"><strong>Patient ID:</strong> ${patient.id}</div>
@@ -489,6 +540,7 @@
                     document.getElementById('viewVisitHistory').innerHTML = '<p style="font-size:0.85rem;color:#7f8c8d;">No visit history yet.</p>';
                     return;
                 }
+                currentViewPatientVisits = data.visits;
                 document.getElementById('viewVisitHistory').innerHTML = `
                     <strong style="font-size:0.85rem;">Visit History</strong>
                     <table class="visit-history-table">
@@ -610,21 +662,59 @@
             document.getElementById('viewDownloadDropdown').classList.toggle('open');
         }
 
+        function buildPatientPdfTemplate(id) {
+            const patient = patientsData.find(p => p.id === id);
+            if (!patient) return null;
+
+            document.getElementById('pdfPatientId').textContent = patient.id;
+            document.getElementById('pdfPatientName').textContent = patient.name || '—';
+            document.getElementById('pdfPatientBirthdate').textContent = patient.birthdate || '—';
+            document.getElementById('pdfPatientContact').textContent = patient.phone || '—';
+            document.getElementById('pdfPatientEmail').textContent = patient.email || '—';
+            document.getElementById('pdfPatientDept').textContent = patient.department || '—';
+            document.getElementById('pdfPatientDoctor').textContent = patient.doctor || '—';
+            document.getElementById('pdfGeneratedDate').textContent = new Date().toLocaleString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+            });
+
+            const tbody = document.getElementById('pdfVisitTableBody');
+            if (currentViewPatientVisits.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="padding:0.75rem 0.6rem; text-align:center; color:#999;">No visit records.</td></tr>';
+            } else {
+                tbody.innerHTML = currentViewPatientVisits.map(function (v) {
+                    return '<tr style="border-bottom:1px solid #eee;">' +
+                        '<td style="padding:0.55rem 0.6rem; vertical-align:top; white-space:nowrap;">' + escapeHtml(v.visit_date || '—') + '</td>' +
+                        '<td style="padding:0.55rem 0.6rem; vertical-align:top; white-space:nowrap;">' + escapeHtml(v.service_type || '—') + '</td>' +
+                        '<td style="padding:0.55rem 0.6rem; vertical-align:top; white-space:nowrap;">' + escapeHtml(v.doctor_name || '—') + '</td>' +
+                        '<td style="padding:0.55rem 0.6rem; vertical-align:top;">' + escapeHtml(v.notes || '—') + '</td>' +
+                        '</tr>';
+                }).join('');
+            }
+
+            return document.getElementById('patientPdfTemplate');
+        }
+
         async function exportViewAsImage() {
             toggleViewDownloadMenu();
-            const el = document.getElementById('viewCaptureArea');
+            const el = buildPatientPdfTemplate(currentViewPatientId);
+            if (!el) return;
             const canvas = await html2canvas(el, { backgroundColor: '#ffffff', scale: 2 });
             canvas.toBlob(blob => downloadBlob(blob, `patient-${currentViewPatientId ?? 'details'}.png`));
         }
 
         async function exportViewAsPDF() {
             toggleViewDownloadMenu();
-            const el = document.getElementById('viewCaptureArea');
+            const el = buildPatientPdfTemplate(currentViewPatientId);
+            if (!el) return;
             const canvas = await html2canvas(el, { backgroundColor: '#ffffff', scale: 2 });
             const imgData = canvas.toDataURL('image/png');
             const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'pt', [canvas.width / 2, canvas.height / 2]);
-            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+            const pdf = new jsPDF('p', 'pt', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const margin = 30;
+            const imgWidth = pageWidth - margin * 2;
+            const imgHeight = canvas.height * (imgWidth / canvas.width);
+            pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
             pdf.save(`patient-${currentViewPatientId ?? 'details'}.pdf`);
         }
 

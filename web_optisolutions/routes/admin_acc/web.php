@@ -163,4 +163,17 @@ Route::middleware(['auth', 'admin'])->group(function () {
         ->names('admin_acc.chatbot_commands')
         ->except(['show']);
 
+        
+    Route::put('/admin_acc/profile/password', [ProfileController::class, 'updatePassword'])
+        ->name('admin.profile.password');
+
+    Route::put('/admin_acc/profile/session', [ProfileController::class, 'updateSession'])
+        ->name('admin.profile.session');
+
+
+Route::get('/admin_acc/patients/export', [PatientListController::class, 'export'])
+    ->name('admin.patients.export');
+
+Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+
 });

@@ -163,9 +163,6 @@
 
             <!-- MAIN CONTENT -->
             <main class="main-content">
-                @if(session('success'))
-                    <div class="popup-toast">{{ session('success') }}</div>
-                @endif
                 @yield('content')
             </main>
         </div>

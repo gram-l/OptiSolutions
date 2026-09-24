@@ -1,6 +1,31 @@
 @extends('staff.layouts.app')
 
 @section('content')
+@php
+    $dayOrderForCompact = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+    if (!function_exists('formatScheduleTime')) {
+        function formatScheduleTime(\Carbon\Carbon $c): string {
+            return $c->format('i') === '00' ? $c->format('h') : $c->format('h:i');
+        }
+    }
+
+    if (!function_exists('formatScheduleCompact')) {
+        function formatScheduleCompact(string $day, $start, $end): string {
+            $dayAbbrev = substr($day, 0, 3);
+            $start = \Carbon\Carbon::parse($start);
+            $end = \Carbon\Carbon::parse($end);
+            $startPeriod = $start->format('A');
+            $endPeriod = $end->format('A');
+
+            if ($startPeriod === $endPeriod) {
+                return "{$dayAbbrev} " . formatScheduleTime($start) . '–' . formatScheduleTime($end) . " {$endPeriod}";
+            }
+
+            return "{$dayAbbrev} " . formatScheduleTime($start) . " {$startPeriod}–" . formatScheduleTime($end) . " {$endPeriod}";
+        }
+    }
+@endphp
 <div class="container">
     <div class="page-title-group" style="margin-bottom: 1rem;">
         <h3 style="margin: 0;">
@@ -79,29 +104,59 @@
             </thead>
             <tbody>
                 @foreach($doctors as $doc)
+                @php
+                    $sortedSchedules = $doc->schedules->sortBy(function ($s) use ($dayOrderForCompact) {
+                        return array_search($s->day, $dayOrderForCompact);
+                    })->values();
+                    $scheduleCount = $sortedSchedules->count();
+                    $visibleSchedules = $sortedSchedules->take(2);
+                    $remainingCount = $scheduleCount - $visibleSchedules->count();
+                @endphp
                 <tr data-specialty="{{ strtolower($doc->specialty) }}">
-                    <td data-label="Name">{{ $doc->doctor_name }}</td>
+                    <td data-label="Name">
+                        <div class="doctor-name-cell">
+                            <div class="doctor-avatar">
+                                @if($doc->profile_image)
+                                    <img src="{{ asset('storage/' . $doc->profile_image) }}" alt="{{ $doc->doctor_name }}">
+                                @else
+                                    <i class="bi bi-person-fill"></i>
+                                @endif
+                            </div>
+                            <span>{{ $doc->doctor_name }}</span>
+                        </div>
+                    </td>
                     <td data-label="Specialty">{{ $doc->specialty }}</td>
                     <td data-label="Schedule">
-                        @forelse($doc->schedules as $sched)
-                            {{ $sched->day }} {{ \Carbon\Carbon::parse($sched->start_time)->format('h:i A') }}–{{ \Carbon\Carbon::parse($sched->end_time)->format('h:i A') }}<br>
-                        @empty
-                            N/A
-                        @endforelse
+                        @if($scheduleCount > 0)
+                            <div class="schedule-compact">
+                                @foreach($visibleSchedules as $sched)
+                                    <span>{{ formatScheduleCompact($sched->day, $sched->start_time, $sched->end_time) }}</span>
+                                @endforeach
+                                @if($remainingCount > 0)
+                                    <div class="schedule-hidden-rows" id="scheduleMore-{{ $doc->doctor_id }}">
+                                        @foreach($sortedSchedules->slice(2) as $sched)
+                                            <span>{{ formatScheduleCompact($sched->day, $sched->start_time, $sched->end_time) }}</span>
+                                        @endforeach
+                                    </div>
+                                    <button type="button" class="schedule-more-toggle" onclick="toggleScheduleMore({{ $doc->doctor_id }}, this)">+ {{ $remainingCount }} more</button>
+                                @endif
+                            </div>
+                        @else
+                            No schedule yet
+                        @endif
                     </td>
                     <td data-label="Status">
-                        <span class="status-badge {{ $doc->available ? 'status-confirmed' : 'status-pending' }}">
-                            {{ $doc->available ? 'Available' : 'Unavailable' }}
+                        <span class="status-badge {{ $doc->available ? 'status-available' : 'status-unavailable' }}">
+                            <span class="status-dot"></span>{{ $doc->available ? 'Available' : 'Unavailable' }}
                         </span>
                     </td>
                     <td data-label="" class="table-cards-actions">
                         @if($doc->available)
                             {{-- Available pa yung doctor, pwede i-edit — pop-up modal na lang, walang page navigation --}}
-                            <button type="button" class="btn-sm btn-secondary" onclick="openEditModal({{ $doc->doctor_id }})">Edit</button>
+                            <button type="button" class="btn-sm btn-edit-doctor" onclick="openEditModal({{ $doc->doctor_id }})">Edit</button>
                         @else
                             {{-- Naka-set na 'Unavailable' ng admin (inactive), hindi na dapat ma-edit ni staff --}}
-                            <button type="button" class="btn-sm btn-secondary" disabled
-                                style="opacity: 0.5; cursor: not-allowed;"
+                            <button type="button" class="btn-sm btn-edit-doctor" disabled
                                 title="Hindi maaaring i-edit — naka-set as Unavailable ng admin.">
                                 Edit
                             </button>
@@ -141,6 +196,27 @@
     </div>
 </div>
 
+{{-- Toast — shows the "Doctor schedule updated successfully!" flash from
+     DoctorController@update, styled to match the admin's toast --}}
+@if(session('success'))
+    <div class="toast toast-success" id="successToast">
+        <span>{{ session('success') }}</span>
+    </div>
+@endif
+
+{{-- "Save changes?" confirmation, shown before the edit form actually submits --}}
+<div class="confirm-modal-overlay" id="confirmSaveOverlay">
+    <div class="confirm-modal-box">
+        <div class="confirm-modal-icon"><i class="bi bi-question-lg"></i></div>
+        <h3>Save changes?</h3>
+        <p id="confirmSaveMessage">This will update the doctor's schedule.</p>
+        <div class="confirm-modal-buttons">
+            <button type="button" class="confirm-modal-btn-cancel" onclick="cancelSaveSchedule()">Cancel</button>
+            <button type="button" class="confirm-modal-btn-confirm" onclick="confirmSaveSchedule()">Confirm</button>
+        </div>
+    </div>
+</div>
+
 @php
     $dayOrder = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     $doctorScheduleMap = [];
@@ -169,6 +245,30 @@
 <script>
     const doctorScheduleMap = @json($doctorScheduleMap);
     const dayOrder = @json($dayOrder);
+
+    // --- Toast (auto-show + auto-hide) ---
+    document.addEventListener('DOMContentLoaded', function () {
+        const toast = document.getElementById('successToast');
+        if (toast) {
+            requestAnimationFrame(function () {
+                toast.classList.add('show');
+            });
+            setTimeout(function () {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    });
+
+    function toggleScheduleMore(doctorId, btn) {
+        const hiddenRows = document.getElementById('scheduleMore-' + doctorId);
+        if (!hiddenRows) return;
+        const isShown = hiddenRows.classList.toggle('show');
+        btn.textContent = isShown ? 'Show less' : btn.dataset.moreLabel;
+    }
+
+    document.querySelectorAll('.schedule-more-toggle').forEach(function (btn) {
+        btn.dataset.moreLabel = btn.textContent;
+    });
 
     function toggleExportMenu() {
         document.getElementById('exportMenu').classList.toggle('show');
@@ -323,7 +423,21 @@
         }
     }
 
-    document.getElementById('editScheduleForm').addEventListener('submit', function () {
+    // --- "Save changes?" confirmation before the schedule form submits ---
+    document.getElementById('editScheduleForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const titleText = document.getElementById('editModalTitle').textContent || '';
+        const doctorName = titleText.replace('Edit Schedule - ', '');
+        document.getElementById('confirmSaveMessage').textContent =
+            doctorName ? `This will update ${doctorName}'s schedule.` : `This will update the doctor's schedule.`;
+        document.getElementById('confirmSaveOverlay').classList.add('show');
+    });
+
+    function cancelSaveSchedule() {
+        document.getElementById('confirmSaveOverlay').classList.remove('show');
+    }
+
+    function confirmSaveSchedule() {
         document.querySelectorAll('.day-check').forEach(function (cb) {
             if (!cb.checked) {
                 const panel = document.getElementById('sessions-' + cb.dataset.day);
@@ -332,6 +446,8 @@
                 });
             }
         });
-    });
+        document.getElementById('confirmSaveOverlay').classList.remove('show');
+        document.getElementById('editScheduleForm').submit();
+    }
 </script>
 @endsection

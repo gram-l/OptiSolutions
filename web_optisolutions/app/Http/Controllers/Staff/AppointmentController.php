@@ -11,19 +11,43 @@ class AppointmentController extends Controller
 {
     public function index()
     {
+        // NOTE: assumes schedule_visit has a `notes` and `patient_id` column.
+        // If your actual column names differ, adjust the select() below.
         $appointments = DB::table('schedule_visit')
             ->leftJoin('doctors', 'schedule_visit.doctor_id', '=', 'doctors.doctor_id')
+            ->leftJoin('patients', 'schedule_visit.patient_id', '=', 'patients.patient_id')
             ->select(
                 'schedule_visit.visit_id',
                 'schedule_visit.doctor_id',
                 'doctors.doctor_name as doctor_name',
                 'schedule_visit.visit_date',
                 'schedule_visit.service_type',
-                'doctors.specialty as service'
+                'doctors.specialty as service',
+                'schedule_visit.notes',
+                DB::raw("TRIM(CONCAT(patients.patient_fname, ' ', patients.patient_lname)) as patient_name")
             )
+            ->orderBy('schedule_visit.visit_date')
             ->get();
 
         return view('staff.appointments.index', compact('appointments'));
+    }
+
+    /**
+     * Update just the notes field for a single visit — used by the
+     * Scheduled Visits table's Edit button (staff can only edit notes,
+     * not reschedule/remove).
+     */
+    public function updateNotes(Request $request, $id)
+    {
+        $request->validate([
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        DB::table('schedule_visit')
+            ->where('visit_id', $id)
+            ->update(['notes' => $request->input('notes')]);
+
+        return response()->json(['success' => true]);
     }
 
     /**

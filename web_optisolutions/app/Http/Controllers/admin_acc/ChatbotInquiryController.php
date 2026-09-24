@@ -118,6 +118,32 @@ class ChatbotInquiryController extends Controller
     }
 
     /**
+     * Bulk-delete inquiries selected via the "select for deletion" pencil
+     * icon in chatbot_logs.blade.php. Irreversible — deletes the inquiry's
+     * replies first (no DB-level cascade to rely on), then the inquiry
+     * itself, matching the confirm modal's "cannot be retrieved" warning.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids'   => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $inquiries = Inquiry::whereIn('inquiry_id', $request->ids)->get();
+
+        foreach ($inquiries as $inquiry) {
+            $inquiry->replies()->delete();
+            $inquiry->delete();
+        }
+
+        return response()->json([
+            'message' => 'Conversation(s) deleted.',
+            'deleted' => $inquiries->pluck('inquiry_id'),
+        ]);
+    }
+
+    /**
      * Ayusin ang isang Inquiry papunta sa shape na inaasahan ng JS sa
      * chatbot_logs.blade.php (dating `chatLogs` mock array).
      */

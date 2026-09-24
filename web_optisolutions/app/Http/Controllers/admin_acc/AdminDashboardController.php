@@ -125,6 +125,45 @@ class AdminDashboardController extends Controller
                 }
             });
 
+        // ---- 5) Sentiment Trend (weekly, last 6 weeks) ----
+        // Same week-bucket pattern as Weekly Patient Visits above, but
+        // tracking the Positive/Neutral/Negative % split per week instead
+        // of a single count — lets the dashboard show whether sentiment is
+        // improving or declining over time instead of just a single
+        // current snapshot.
+        $sentimentWeekCount = 6;
+        $sentimentTrendLabels = [];
+        $sentimentTrendPositive = array_fill(0, $sentimentWeekCount, 0);
+        $sentimentTrendNeutral  = array_fill(0, $sentimentWeekCount, 0);
+        $sentimentTrendNegative = array_fill(0, $sentimentWeekCount, 0);
+
+        for ($i = $sentimentWeekCount - 1; $i >= 0; $i--) {
+            $weekStart = $startOfThisWeek->copy()->subWeeks($i);
+            $weekEnd = $weekStart->copy()->endOfWeek();
+            $index = $sentimentWeekCount - 1 - $i;
+
+            $weekCounts = DB::table('feedback')
+                ->join('sentiment_results', 'sentiment_results.feedback_id', '=', 'feedback.feedback_id')
+                ->whereBetween('feedback.submitted_at', [$weekStart, $weekEnd])
+                ->select('sentiment_results.sentiment_label', DB::raw('COUNT(*) as total'))
+                ->groupBy('sentiment_results.sentiment_label')
+                ->pluck('total', 'sentiment_label');
+
+            $weekTotal = $weekCounts->sum();
+            $sentimentTrendPositive[$index] = $weekTotal > 0 ? round(($weekCounts['Positive'] ?? 0) / $weekTotal * 100) : 0;
+            $sentimentTrendNeutral[$index]  = $weekTotal > 0 ? round(($weekCounts['Neutral'] ?? 0) / $weekTotal * 100) : 0;
+            $sentimentTrendNegative[$index] = $weekTotal > 0 ? round(($weekCounts['Negative'] ?? 0) / $weekTotal * 100) : 0;
+
+            $sentimentTrendLabels[] = $i === 0 ? 'This wk' : 'W-' . $i;
+        }
+
+        // ---- 6) Chat Inquiries: Resolved vs Unresolved ----
+        // Mirrors the two-bucket "In Progress" / "Resolved" model used on
+        // the Chatbot Logs page — anything not literally 'Resolved' counts
+        // as unresolved/in-progress here too, so the two pages always agree.
+        $resolvedInquiries   = DB::table('inquiries')->where('resolved_status', 'Resolved')->count();
+        $unresolvedInquiries = $totalInquiries - $resolvedInquiries;
+
         return [
             'totalInquiries'       => $totalInquiries,
             'todaysAppointments'   => $todaysAppointments,
@@ -142,6 +181,14 @@ class AdminDashboardController extends Controller
             'negativePercent'      => $negativePercent,
 
             'inquiryVolumeByDay'   => $inquiryVolumeByDay,
+
+            'sentimentTrendLabels'   => $sentimentTrendLabels,
+            'sentimentTrendPositive' => $sentimentTrendPositive,
+            'sentimentTrendNeutral'  => $sentimentTrendNeutral,
+            'sentimentTrendNegative' => $sentimentTrendNegative,
+
+            'resolvedInquiries'   => $resolvedInquiries,
+            'unresolvedInquiries' => $unresolvedInquiries,
         ];
     }
 }

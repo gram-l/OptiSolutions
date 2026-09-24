@@ -123,11 +123,11 @@
         font-size: 1.2rem;
         line-height: 1;
         cursor: pointer;
-        color: var(--primary-dark);
+        color: var(--primary-main);
         transition: color 0.2s ease;
     }
     .profile-modal-close:hover {
-        color: var(--primary-main);
+        color: var(--primary-dark);
     }
 
     /* Avatar, camera badge, role pill */
@@ -222,13 +222,16 @@
         padding: 10px 0;
         border-bottom: 1px solid var(--light-gray);
     }
+    /* Icon chip — same treatment as the dashboard's .card-icon-badge:
+       blue icon on a light-blue tint */
     .profile-modal-field > i {
         flex-shrink: 0;
-        background: var(--light-gray);
-        color: var(--primary-dark);
+        background: rgba(14, 98, 170, 0.1);
+        color: var(--primary-main);
         width: 34px;
         height: 34px;
-        border-radius: 8px;
+        border-radius: 10px;
+        font-size: 1rem;
         display: flex;
         align-items: center;
         justify-content: center;

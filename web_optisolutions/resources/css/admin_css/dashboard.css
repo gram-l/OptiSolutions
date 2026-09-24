@@ -186,6 +186,10 @@
             border-radius: 14px;
             box-shadow: 0 4px 15px var(--shadow);
             transition: all 0.3s ease;
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
         }
 
         .analytics-card:hover {

@@ -72,7 +72,7 @@
                         <div style="display:flex; align-items:center; gap:0.5rem;">
                             <span class="status-badge status-active" id="statusBadge">Active</span>
                             <button class="resolve-btn-modern" id="resolveBtn">
-                                <i class="bi bi-check-circle"></i> Resolve
+                                <i class="bi bi-check-circle"></i>Mark as Resolve
                             </button>
                             <button class="unresolve-btn-modern" id="unresolveBtn">
                                 <i class="bi bi-arrow-counterclockwise"></i> Unresolve
@@ -95,9 +95,13 @@
         </div>
     </div>
 
-    <!-- Custom confirm modal (replaces window.confirm) -->
+    <!-- Custom confirm modal (replaces window.confirm) — icon + title +
+         description layout, matching the Deactivate-doctor confirm modal
+         on the Manage Doctors page. -->
     <div class="modal-overlay" id="confirmModalOverlay" style="display:none;">
         <div class="modal-box">
+            <div class="modal-icon"><i class="bi bi-question-circle"></i></div>
+            <h3 id="confirmModalTitle">Confirm Action</h3>
             <p id="confirmModalMessage"></p>
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="confirmModalCancel">Cancel</button>
@@ -126,12 +130,13 @@
         // instead of arbitrary red/orange/green.
         function getStatusMeta(chat) {
             if (chat.rawStatus === 'Resolved') {
-                return { color: '#7f8c8d', showDot: false, label: 'Resolved' };
+                return { color: 'var(--resolved-green)', showDot: false, label: 'Resolved' };
             }
-            if (chat.rawStatus === 'Pending') {
-                return { color: 'var(--primary-dark)', showDot: true, label: 'Pending' };
-            }
-            return { color: 'var(--primary-main)', showDot: true, label: chat.rawStatus || 'In Progress' };
+            // 'Pending' and 'Active' are both just "not resolved yet" from
+            // the admin's point of view, so both now render identically as
+            // "In Progress" using the shared --pending amber instead of the
+            // old two-tone active(blue)/pending(navy) split.
+            return { color: 'var(--pending)', showDot: true, label: 'In Progress' };
         }
 
         // Render chat list
@@ -274,8 +279,11 @@
             if (chat.department) 
             document.getElementById("patientInfo").innerHTML = infoParts.map(escapeHtml).join(' • ');
             const statusBadge = document.getElementById("statusBadge");
-            statusBadge.className = `status-badge status-${chat.status}`;
-            statusBadge.innerText = chat.status === "active" ? "In Progress" : chat.status === "pending" ? "Pending" : "Resolved";
+            // 'active' and 'pending' both display as the same "In Progress"
+            // badge now — only "resolved" gets its own look.
+            const displayStatus = chat.status === "resolved" ? "resolved" : "active";
+            statusBadge.className = `status-badge status-${displayStatus}`;
+            statusBadge.innerText = displayStatus === "resolved" ? "Resolved" : "In Progress";
 
             // Render messages
             renderMessages(chat.conversation);
@@ -331,14 +339,26 @@
 
         // Custom confirm modal — replaces window.confirm().
         // Resolves to true/false depending on which button was clicked.
-        function showConfirm(message) {
+        // variant: '' (default blue), 'resolve' (green), 'unresolve' (orange)
+        function showConfirm(message, variant = '') {
             return new Promise((resolve) => {
                 const overlay = document.getElementById('confirmModalOverlay');
                 document.getElementById('confirmModalMessage').textContent = message;
                 overlay.style.display = 'flex';
 
+                const iconEl = overlay.querySelector('.modal-icon');
                 const cancelBtn = document.getElementById('confirmModalCancel');
                 const confirmBtn = document.getElementById('confirmModalConfirm');
+
+                iconEl.classList.remove('modal-icon-resolve', 'modal-icon-unresolve');
+                confirmBtn.classList.remove('modal-btn-confirm-resolve', 'modal-btn-confirm-unresolve');
+                if (variant === 'resolve') {
+                    iconEl.classList.add('modal-icon-resolve');
+                    confirmBtn.classList.add('modal-btn-confirm-resolve');
+                } else if (variant === 'unresolve') {
+                    iconEl.classList.add('modal-icon-unresolve');
+                    confirmBtn.classList.add('modal-btn-confirm-unresolve');
+                }
 
                 function cleanup(result) {
                     overlay.style.display = 'none';
@@ -416,8 +436,9 @@
                 // Keep the header badge and reply/resolve buttons in sync
                 // with the (possibly changed) status returned by the server.
                 const statusBadge = document.getElementById("statusBadge");
-                statusBadge.className = `status-badge status-${chat.status}`;
-                statusBadge.innerText = chat.status === "active" ? "In Progress" : chat.status === "pending" ? "Pending" : "Resolved";
+                const displayStatus = chat.status === "resolved" ? "resolved" : "active";
+                statusBadge.className = `status-badge status-${displayStatus}`;
+                statusBadge.innerText = displayStatus === "resolved" ? "Resolved" : "In Progress";
                 updateActionVisibility(chat);
 
                 const originalText = sendBtn.innerText;
@@ -436,7 +457,7 @@
             const chat = chatLogs.find(c => c.id === currentChatId);
             if (!chat) return;
 
-            const confirmed = await showConfirm('Mark this inquiry as resolved?');
+            const confirmed = await showConfirm('Mark this inquiry as resolved?', 'resolve');
             if (!confirmed) return;
 
             const resolveBtn = document.getElementById("resolveBtn");
@@ -476,7 +497,7 @@
             const chat = chatLogs.find(c => c.id === currentChatId);
             if (!chat) return;
 
-            const confirmed = await showConfirm('Mark this inquiry as unresolved?');
+            const confirmed = await showConfirm('Mark this inquiry as unresolved?', 'unresolve');
             if (!confirmed) return;
 
             const unresolveBtn = document.getElementById("unresolveBtn");

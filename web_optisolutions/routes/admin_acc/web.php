@@ -167,4 +167,18 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
     Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 
+
+    //settings
+
+    Route::put('/admin_acc/profile/password', [ProfileController::class, 'updatePassword'])
+        ->name('admin.profile.password');
+
+    Route::put('/admin_acc/profile/session', [ProfileController::class, 'updateSession'])
+        ->name('admin.profile.session');
+
+
+    Route::get('/admin_acc/patients/export', [PatientListController::class, 'export'])
+        ->name('admin.patients.export');
+
+    Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 });

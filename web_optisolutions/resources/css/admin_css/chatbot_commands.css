@@ -30,9 +30,31 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     align-items: flex-start;
 }
 
-.page-header { margin-bottom: 2rem; }
-.page-header h2 { font-size: 2rem; color: var(--primary-dark); display: flex; align-items: center; gap: 0.5rem; }
-.page-header p { color: #7f8c8d; margin-top: 0.5rem; }
+/* Page header — matches Scheduled Visits. Selectors are prefixed with
+   .container so they win over any .page-header rules in patients.css /
+   user_management.css regardless of load order (this file loads between
+   the two). */
+.container .page-header { margin-bottom: 2rem; padding-left: 0.35rem; }
+.container .page-header h2 {
+    font-size: 1.75rem;
+    color: var(--primary-dark);
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+.container .page-header h2 span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: rgba(14, 98, 170, 0.1);
+    color: var(--primary-main);
+    font-size: 1.05rem;
+}
+.container .page-header p { color: #7f8c8d; margin-top: 0.4rem; padding-left: 0.35rem; }
 
 /* Top bar with the "+ Add Command" button, same shape as patients' filter-bar */
 .toolbar {
@@ -163,4 +185,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     .container { padding: 0 1rem; flex-direction: column; }
     .toolbar { flex-direction: column; align-items: stretch; }
     .form-card { padding: 1.2rem; }
+    .container .page-header { padding-left: 0.15rem; }
+    .container .page-header h2 { font-size: 1.4rem; gap: 0.55rem; }
+    .container .page-header h2 span { width: 1.9rem; height: 1.9rem; font-size: 0.9rem; border-radius: 8px; }
+    .container .page-header p { font-size: 0.85rem; padding-left: 0.15rem; }
 }

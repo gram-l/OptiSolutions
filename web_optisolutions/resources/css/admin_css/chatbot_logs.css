@@ -14,6 +14,9 @@
             --light-gray: #ECF0F1;
             --text-dark: #333333;
             --shadow: rgba(0, 0, 0, 0.1);
+            --pending: #f39c12;
+            --completed: #27ae60;
+            --resolved-green: #27ae60;
         }
 
         body {
@@ -111,19 +114,34 @@
 
         .page-header {
             margin-bottom: 2rem;
+            padding-left: 0.35rem;
         }
 
         .page-header h2 {
-            font-size: 2rem;
+            font-size: 1.75rem;
             color: var(--primary-dark);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.65rem;
+        }
+
+        .page-header h2 span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.15rem;
+            height: 2.15rem;
+            flex-shrink: 0;
+            border-radius: 10px;
+            background: rgba(14, 98, 170, 0.1);
+            color: var(--primary-main);
+            font-size: 1.05rem;
         }
 
         .page-header p {
             color: #7f8c8d;
-            margin-top: 0.5rem;
+            margin-top: 0.4rem;
+            padding-left: 0.35rem;
         }
 
         .inquiries-container {
@@ -344,16 +362,17 @@
         }
 
         .status-badge {
-            padding: 0.3rem 1rem;
+            padding: 0.25rem 0.85rem;
             border-radius: 20px;
-            font-size: 0.8rem;
+            font-size: 0.72rem;
             font-weight: 600;
         }
 
-        .status-active { background: #0E62AA; color: white; }
-        .status-resolved { background: #9DBCD4; color: #062744; }
-        .status-pending { background: #062744; color: white; }
+        .status-active { background: #fdf2e3; color: var(--pending); }   /* "In Progress" — flat tinted label, not a button */
+        .status-resolved { background: #e8f8f0; color: var(--resolved-green); }
+        .status-pending { background: #fdf2e3; color: var(--pending); }
 
+        
         .messages-area {
             flex: 1;
             padding: 1.5rem;
@@ -520,26 +539,27 @@
             border-color: var(--primary-main);
         }
 
-        /* --- Modern Resolve button, on-brand with the rest of the buttons --- */
+        /* --- Resolve button, pastel pill with extra weight as the primary action --- */
         .resolve-btn-modern {
             display: none;
             align-items: center;
             gap: 0.4rem;
-            border: none;
-            border-radius: 25px;
-            padding: 0.5rem 1.2rem;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--white);
-            background: var(--primary-main);
-            box-shadow: 0 2px 8px rgba(14, 98, 170, 0.3);
+            border: 1.5px solid #a8e2c4;
+            border-radius: 20px;
+            padding: 0.55rem 1.35rem;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--resolved-green);
+            background: #d3f1e2;
+            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.2);
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .resolve-btn-modern:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 14px rgba(14, 98, 170, 0.4);
+            background: #c0ebd6;
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+            transform: translateY(-1px);
         }
 
         .resolve-btn-modern:active:not(:disabled) {
@@ -551,26 +571,27 @@
             cursor: not-allowed;
         }
 
-        /* --- Unresolve button — outline style so it doesn't compete
-           visually with Resolve's solid fill; only one of the two is
-           ever visible at a time anyway. --- */
+        /* --- Unresolve button — same weight as Resolve, amber instead of green --- */
         .unresolve-btn-modern {
             display: none;
             align-items: center;
             gap: 0.4rem;
-            border: 1.5px solid var(--primary-main);
-            border-radius: 25px;
-            padding: 0.5rem 1.2rem;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--primary-main);
-            background: var(--white);
+            border: 1.5px solid #f8d49a;
+            border-radius: 20px;
+            padding: 0.55rem 1.35rem;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--pending);
+            background: #fbe6c9;
+            box-shadow: 0 2px 8px rgba(243, 156, 18, 0.2);
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .unresolve-btn-modern:hover:not(:disabled) {
-            background: var(--light-gray);
+            background: #f9dbab;
+            box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+            transform: translateY(-1px);
         }
 
         .unresolve-btn-modern:active:not(:disabled) {
@@ -605,26 +626,56 @@
             width: min(90vw, 360px);
             box-shadow: 0 10px 40px var(--shadow);
             animation: modalPopIn 0.15s ease;
+            text-align: center;
+        }
+
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(14, 98, 170, 0.1);
+            color: var(--primary-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin: 0 auto 0.85rem;
+        }
+
+        .modal-icon-resolve {
+            background: var(--resolved-green);
+            color: var(--white);
+        }
+
+        .modal-icon-unresolve {
+            background: var(--pending);
+            color: var(--white);
         }
 
         @keyframes modalPopIn {
             from { transform: translateY(8px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+        .modal-box h3 {
+            margin: 0 0 0.4rem;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+        }
 
         .modal-box p {
             margin: 0 0 1.25rem 0;
-            color: var(--text-dark);
-            font-size: 0.95rem;
+            color: #7f8c8d;
+            font-size: 0.9rem;
         }
 
         .modal-actions {
             display: flex;
-            justify-content: flex-end;
-            gap: 0.6rem;
+            justify-content: center;
+            gap: 0.75rem;
         }
 
         .modal-btn {
+            flex: 1;
             border: none;
             border-radius: 20px;
             padding: 0.5rem 1.1rem;
@@ -646,14 +697,24 @@
             color: var(--white);
         }
 
-        /* --- Toast (replaces window.alert), top-right --- */
+        .modal-btn-confirm-resolve {
+            background: var(--resolved-green);
+        }
+
+        .modal-btn-confirm-unresolve {
+            background: var(--pending);
+        }
+
+        /* --- Toast center --- */
         .toast-container {
             position: fixed;
-            top: 1.25rem;
-            right: 1.25rem;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             z-index: 1100;
             display: flex;
             flex-direction: column;
+            align-items: center;
             gap: 0.6rem;
         }
 
@@ -723,5 +784,22 @@
             .sidebar {
                 width: 100%;
                 position: static;
+            }
+            .page-header {
+                padding-left: 0.15rem;
+            }
+            .page-header h2 {
+                font-size: 1.4rem;
+                gap: 0.55rem;
+            }
+            .page-header h2 span {
+                width: 1.9rem;
+                height: 1.9rem;
+                font-size: 0.9rem;
+                border-radius: 8px;
+            }
+            .page-header p {
+                font-size: 0.85rem;
+                padding-left: 0.15rem;
             }
         }

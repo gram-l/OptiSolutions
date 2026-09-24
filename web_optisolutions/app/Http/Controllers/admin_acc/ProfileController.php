@@ -4,7 +4,7 @@ namespace App\Http\Controllers\admin_acc;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-Use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 

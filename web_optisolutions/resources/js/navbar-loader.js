@@ -49,11 +49,26 @@
       /* ============ GLOBAL RESET (so the accent strip is always full-bleed,
          even on pages that don't already reset body margin) ============ */
 
+      /* IMPORTANT: overflow-x: hidden goes on <html> ONLY, never on <body>.
+         Setting overflow-x (without overflow-y) on an element forces the
+         browser to compute that element's overflow-y as "auto" too. On
+         <html> this is harmless — the root element's overflow is applied
+         to the viewport itself instead of creating a real inner scroll box.
+         But on <body>, that forced overflow-y:auto turns <body> into its
+         own scroll container. The sticky .navbar (a child of body) then
+         sticks relative to THAT container instead of the real viewport —
+         and since body never actually scrolls on its own, the navbar just
+         scrolls away like a normal element. This was the exact cause of
+         the navbar "disappearing" on scroll. Do not add overflow-x back
+         onto body. */
+      html {
+        overflow-x: hidden;
+      }
+
       html, body {
         margin: 0;
         padding: 0;
         width: 100%;
-        overflow-x: hidden;
       }
 
       /* ============ NAVBAR SHELL ============ */
@@ -392,6 +407,53 @@
     window.addEventListener('resize', () => {
       if (window.innerWidth > 768) closeMenu();
     });
+  }
+
+  /* ============ SCROLLSPY: keep the active tab in sync while scrolling ============
+     On one-page layouts (like /home) built from stacked <section id="..."> blocks
+     that match the nav's data-page values (home, about, services, doctors), the
+     highlighted tab should follow whichever section is currently under the sticky
+     navbar as the user scrolls — not stay stuck on whichever page first loaded.
+     On pages that don't have multiple matching sections, this simply does nothing
+     and the normal per-page "active" class set above is left alone. */
+
+  const spyLinks = Array.from(document.querySelectorAll('.navbar .nav-link[data-page]'));
+  const spySections = spyLinks
+    .map(link => document.getElementById(link.dataset.page))
+    .filter(Boolean);
+
+  if (spySections.length > 1) {
+    const setActiveLink = (page) => {
+      spyLinks.forEach(link => {
+        link.classList.toggle('active', link.dataset.page === page);
+      });
+    };
+
+    const onScrollSpy = () => {
+      const navbarEl = document.querySelector('.navbar');
+      const offset = (navbarEl ? navbarEl.offsetHeight : 0) + 10;
+
+      let current = spySections[0].id;
+      spySections.forEach(section => {
+        if (section.getBoundingClientRect().top - offset <= 0) {
+          current = section.id;
+        }
+      });
+      setActiveLink(current);
+    };
+
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          onScrollSpy();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    }, { passive: true });
+
+    onScrollSpy();
   }
 
 })();

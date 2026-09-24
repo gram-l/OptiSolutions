@@ -29,10 +29,13 @@
           <span class="hero-learn-more-title">Leave your Feedback here!</span>
           <span class="hero-learn-more-sub">We're glad to hear your experience with us.</span>
         </a>
+        <a href="#doctors" class="hero-find-specialist-btn">
+          <i class="fas fa-user-doctor"></i> Find Your Specialist
+        </a>
       </div>
     </div>
     <div class="hero-flutter-image">
-      <img src="/images/polyclinic_logo1.png" alt="PolyClinic Logo" class="hero-flutter-img hero-logo-blur" id="heroLogoImg">
+      <img src="/images/polyclinic_logo.png" alt="PolyClinic Logo" class="hero-flutter-img hero-logo-blur" id="heroLogoImg">
       <!-- The stats card flies in here and stacks vertically beside the logo -->
       <div class="hero-stats-dock" id="heroStatsDock" aria-live="polite"></div>
     </div>
@@ -109,9 +112,19 @@
       </div>
 
       <div class="about-image-modern">
-        <div class="image-placeholder">
-          <i class="fas fa-hospital-user"></i>
-          <div class="image-badge">Accredited by DOH</div>
+        <div class="about-feature-card">
+          <div class="feature-icon-badge"><i class="fas fa-notes-medical"></i></div>
+          <h3>Modern Outpatient Care</h3>
+          <p>Equipped with clean consultation rooms, comfortable waiting areas, and digital patient record management to give you a seamless healthcare experience.</p>
+          <ul class="feature-checklist">
+            <li><i class="fas fa-check"></i> Clean &amp; Sanitized Facilities</li>
+            <li><i class="fas fa-check"></i> Minimal Waiting Times</li>
+            <li><i class="fas fa-check"></i> Friendly &amp; Courteous Staff</li>
+          </ul>
+          <div class="feature-card-footer">
+            <span>Department of Health Accredited</span>
+            <span class="doh-approved-pill">DOH Approved</span>
+          </div>
         </div>
       </div>
     </div>
@@ -126,7 +139,7 @@
           </div>
         </div>
 
-        <div class="mv-card-modern">
+        <div class="mv-card-modern vision-card">
           <div class="mv-icon-modern"><i class="fas fa-eye"></i></div>
           <div class="mv-content-modern">
             <h3>Our Vision</h3>
@@ -163,39 +176,44 @@
     </div>
     <div class="service-grid-modern">
       <div class="service-card-modern" onclick="openServiceModal('pediatrics')">
-        <div class="service-card-icon"><i class="fas fa-child"></i></div>
+        <div class="service-card-icon icon-blue"><i class="fas fa-child"></i></div>
         <h3>Pediatrics</h3>
-        <p>Comprehensive care for children from newborn to adolescent.</p>
+        <p>Comprehensive care for children from newborn to adolescence, including vaccinations and growth monitoring.</p>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('obgyne')">
-        <div class="service-card-icon"><i class="fas fa-person-dress"></i></div>
-        <h3>OB-Gyne</h3>
-        <p>Women's health, prenatal care, and reproductive health services.</p>
+        <div class="service-card-icon icon-teal"><i class="fas fa-person-dress"></i></div>
+        <h3>OB-Gynecology</h3>
+        <p>Women's health, prenatal care, routine checkups, and reproductive health consultation.</p>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('surgery')">
-        <div class="service-card-icon"><i class="fas fa-kit-medical"></i></div>
-        <h3>Surgery</h3>
-        <p>General surgical procedures and consultations.</p>
+        <div class="service-card-icon icon-indigo"><i class="fas fa-kit-medical"></i></div>
+        <h3>General Surgery</h3>
+        <p>General surgical consultations, minor outpatient procedures, and post-operative follow-up evaluations.</p>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('pulmonology')">
-        <div class="service-card-icon"><i class="fas fa-lungs"></i></div>
+        <div class="service-card-icon icon-cyan"><i class="fas fa-lungs"></i></div>
         <h3>IM-Pulmonology</h3>
-        <p>Respiratory and pulmonary care for lung health.</p>
+        <p>Respiratory and pulmonary care for lung health, asthma, chronic cough, and bronchial conditions.</p>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('ophthalmology')">
-        <div class="service-card-icon"><i class="fas fa-eye"></i></div>
+        <div class="service-card-icon icon-green"><i class="fas fa-eye"></i></div>
         <h3>Ophthalmology / ENT</h3>
-        <p>Eye care, ear, nose, and throat consultations.</p>
+        <p>Eye care, vision assessments, ear, nose, and throat consultations and treatment plans.</p>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('cardiology')">
-        <div class="service-card-icon"><i class="fas fa-heartbeat"></i></div>
+        <div class="service-card-icon icon-pink"><i class="fas fa-heartbeat"></i></div>
         <h3>IM-Cardiology</h3>
-        <p>Heart health and cardiovascular care.</p>
+        <p>Comprehensive cardiovascular care, heart consultations, hypertension, and preventive checkups.</p>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('adultmedicine')">
-        <div class="service-card-icon"><i class="fas fa-user-doctor"></i></div>
+        <div class="service-card-icon icon-orange"><i class="fas fa-user-doctor"></i></div>
         <h3>General / Adult Medicine</h3>
-        <p>Comprehensive medical care for adults.</p>
+        <p>Comprehensive primary care for adults, wellness checks, disease management, and consultations.</p>
+      </div>
+      <div class="service-card-modern" onclick="openServiceModal('oncology')">
+        <div class="service-card-icon icon-violet"><i class="fas fa-ribbon"></i></div>
+        <h3>Medical Oncology</h3>
+        <p>Specialized evaluation and management for oncological and blood disorder consultations.</p>
       </div>
     </div>
   </div>
@@ -232,6 +250,12 @@
 
 <!-- ========== LIVE FEEDBACK & REVIEWS ========== -->
 <section class="reviews-live-section" id="reviews">
+  <button type="button" class="reviews-live-arrow reviews-live-arrow-prev" id="reviewsPrevBtn" onclick="scrollReviews(-1)" aria-label="Previous reviews">
+    <i class="fas fa-chevron-left"></i>
+  </button>
+  <button type="button" class="reviews-live-arrow reviews-live-arrow-next" id="reviewsNextBtn" onclick="scrollReviews(1)" aria-label="Next reviews">
+    <i class="fas fa-chevron-right"></i>
+  </button>
   <div class="container">
     <div class="reviews-live-header">
       <div class="reviews-live-heading">
@@ -263,12 +287,34 @@
 
     <div class="reviews-live-divider"></div>
 
-    <div class="reviews-live-grid">
+    <div class="reviews-live-grid" id="reviewsLiveGrid">
       @forelse ($recentFeedback ?? [] as $review)
         @php
-          $reviewerName = trim(($review->patient_fname ?? '') . ' ' . ($review->patient_lname ?? ''));
-          $reviewerName = $reviewerName !== '' ? $reviewerName : 'Anonymous Patient';
-          $reviewerInitial = strtoupper(substr($reviewerName, 0, 1));
+          $reviewerFname = trim($review->patient_fname ?? '');
+          $reviewerLname = trim($review->patient_lname ?? '');
+          $reviewerInitial = $reviewerFname !== '' ? strtoupper(substr($reviewerFname, 0, 1)) : 'A';
+
+          // Pseudonymize the first name for display: keep the first letter and the
+          // second-to-last letter visible, mask every other letter (e.g. "Naomi" -> "N**m*").
+          $maskedFname = '';
+          if ($reviewerFname !== '') {
+              $nameChars = mb_str_split($reviewerFname);
+              $nameLen = count($nameChars);
+              if ($nameLen === 1) {
+                  $maskedFname = '*';
+              } else {
+                  $revealIndexes = [0, max(0, $nameLen - 2)];
+                  foreach ($nameChars as $i => $ch) {
+                      $maskedFname .= in_array($i, $revealIndexes, true) ? $ch : '*';
+                  }
+              }
+          }
+
+          if ($maskedFname !== '') {
+              $reviewerName = $maskedFname . ($reviewerLname !== '' ? ' ' . strtoupper(substr($reviewerLname, 0, 1)) . '.' : '');
+          } else {
+              $reviewerName = 'Anonymous Patient';
+          }
           $reviewStars = max(0, min(5, (int) $review->star_rating));
         @endphp
         <div class="review-live-card">
@@ -289,7 +335,6 @@
                 <i class="fas fa-star {{ $i <= $reviewStars ? 'star-filled' : 'star-empty' }}"></i>
               @endfor
             </span>
-            <span class="review-live-verified"><i class="fas fa-circle-check"></i> Verified Patient</span>
           </div>
         </div>
       @empty
@@ -300,7 +345,7 @@
 </section>
 
 <!-- ========== CTA BANNER - MODERN ========== -->
-<section class="cta-banner">
+<section class="cta-banner" id="contact">
   <div class="container">
     <div class="cta-banner-inner">
       <div class="cta-banner-content">
@@ -335,7 +380,6 @@
 <!-- ========== SERVICE MODAL ========== -->
 <div id="serviceModal" class="service-modal">
   <div class="service-modal-content">
-    <button class="service-modal-close" onclick="closeServiceModal()"><i class="fas fa-times"></i></button>
     <div id="serviceModalBody"></div>
   </div>
 </div>
@@ -440,6 +484,49 @@
     }
 
     setTimeout(dockStats, 2200);
+  });
+
+  /* ==========================================================
+     PATIENT VOICES — horizontal scroll arrows
+     ========================================================== */
+  function scrollReviews(direction) {
+    const grid = document.getElementById('reviewsLiveGrid');
+    if (!grid) return;
+    const card = grid.querySelector('.review-live-card');
+    const step = card ? card.offsetWidth + 24 : 340; // card width + gap
+    grid.scrollBy({ left: direction * step, behavior: 'smooth' });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const grid = document.getElementById('reviewsLiveGrid');
+    const prevBtn = document.getElementById('reviewsPrevBtn');
+    const nextBtn = document.getElementById('reviewsNextBtn');
+    const section = document.getElementById('reviews');
+    if (!grid || !prevBtn || !nextBtn || !section) return;
+
+    function updateReviewArrows() {
+      const maxScroll = grid.scrollWidth - grid.clientWidth - 2;
+      prevBtn.disabled = grid.scrollLeft <= 0;
+      nextBtn.disabled = grid.scrollLeft >= maxScroll;
+    }
+
+    function positionReviewArrows() {
+      const sectionRect = section.getBoundingClientRect();
+      const gridRect = grid.getBoundingClientRect();
+      const centerY = (gridRect.top - sectionRect.top) + (gridRect.height / 2);
+      prevBtn.style.top = centerY + 'px';
+      nextBtn.style.top = centerY + 'px';
+    }
+
+    grid.addEventListener('scroll', updateReviewArrows);
+    window.addEventListener('resize', function () {
+      updateReviewArrows();
+      positionReviewArrows();
+    });
+    updateReviewArrows();
+    positionReviewArrows();
+    // Recalculate after images/fonts settle layout.
+    setTimeout(positionReviewArrows, 400);
   });
 </script>
 

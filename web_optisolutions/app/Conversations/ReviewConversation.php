@@ -12,6 +12,7 @@ use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
 use App\Conversations\Concerns\HandlesRateLimit;
 use App\Services\SentimentAnalysisService;
+use App\Services\RatingSentimentFallback;
 use App\Services\NotificationService;
 use App\Models\Notification;
 
@@ -135,13 +136,16 @@ class ReviewConversation extends Conversation
             if (!empty($text)) {
                 $result = app(SentimentAnalysisService::class)->analyze($text);
 
-                if ($result) {
-                    $feedback->sentimentResult()->create([
-                        'sentiment_label'  => $result['sentiment_label'],
-                        'confidence_score' => $result['confidence_score'],
-                        'analyzed_at'      => now(),
-                    ]);
-                }
+                // ML service down/unreachable? Fall back to a rating-based
+                // label instead of leaving this feedback unclassified.
+                $label = $result['sentiment_label'] ?? RatingSentimentFallback::labelFor($this->rating);
+                $confidence = $result['confidence_score'] ?? null;
+
+                $feedback->sentimentResult()->create([
+                    'sentiment_label'  => $label,
+                    'confidence_score' => $confidence,
+                    'analyzed_at'      => now(),
+                ]);
             }
 
             $this->say("Thank you for your feedback!\n\nYou rated us {$this->rating}/5. We appreciate you taking the time to help us improve.");

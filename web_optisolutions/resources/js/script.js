@@ -53,7 +53,8 @@ async function loadDoctorsData() {
     renderDoctors('all', 'doctorsGrid');
     renderDoctors('all', 'doctorsGridHome');
     setupFilterTabs('filterTabs', 'doctorsGrid');
-    setupFilterTabs('filterTabsHome', 'doctorsGridHome');
+    setupFilterTabs('filterTabsHome', 'doctorsGridHome', 'doctorsSearchHome');
+    setupDoctorSearch('doctorsSearchHome', 'filterTabsHome', 'doctorsGridHome');
   } catch (err) {
     console.error('Failed to load doctors:', err);
   }
@@ -131,12 +132,21 @@ function renderClinicInfo() {
 }
 
 // ============ RENDER DOCTORS ============
-function renderDoctors(filter = 'all', containerId = 'doctorsGrid') {
+function renderDoctors(filter = 'all', containerId = 'doctorsGrid', searchTerm = '') {
   const grid = document.getElementById(containerId);
   if (!grid) return;
-  const filtered = filter === 'all' ? doctorsData : doctorsData.filter(doc => doc.spec === filter);
+  let filtered = filter === 'all' ? doctorsData : doctorsData.filter(doc => doc.spec === filter);
+
+  const term = searchTerm.trim().toLowerCase();
+  if (term) {
+    filtered = filtered.filter(doc =>
+      doc.name.toLowerCase().includes(term) ||
+      doc.spec.toLowerCase().includes(term)
+    );
+  }
+
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="no-doctors">No doctors found for this specialty.</div>`;
+    grid.innerHTML = `<div class="no-doctors">No doctors found${term ? ` matching "${searchTerm}"` : ' for this specialty'}.</div>`;
     return;
   }
 grid.innerHTML = filtered.map(doc => `
@@ -153,7 +163,7 @@ grid.innerHTML = filtered.map(doc => `
   </div>`).join('');
 }
 
-function setupFilterTabs(containerId = 'filterTabs', gridId = 'doctorsGrid') {
+function setupFilterTabs(containerId = 'filterTabs', gridId = 'doctorsGrid', searchInputId = null) {
   const tabsContainer = document.getElementById(containerId);
   if (!tabsContainer) return;
   const tabs = tabsContainer.querySelectorAll('.filter-tab');
@@ -161,8 +171,21 @@ function setupFilterTabs(containerId = 'filterTabs', gridId = 'doctorsGrid') {
     tab.addEventListener('click', function() {
       tabs.forEach(t => t.classList.remove('active'));
       this.classList.add('active');
-      renderDoctors(this.dataset.filter, gridId);
+      const searchInput = searchInputId ? document.getElementById(searchInputId) : null;
+      renderDoctors(this.dataset.filter, gridId, searchInput ? searchInput.value : '');
     });
+  });
+}
+
+// ============ DOCTOR SEARCH BAR (HOME) ============
+function setupDoctorSearch(searchInputId, tabsContainerId, gridId) {
+  const input = document.getElementById(searchInputId);
+  if (!input) return;
+  input.addEventListener('input', () => {
+    const tabsContainer = document.getElementById(tabsContainerId);
+    const activeTab = tabsContainer ? tabsContainer.querySelector('.filter-tab.active') : null;
+    const filter = activeTab ? activeTab.dataset.filter : 'all';
+    renderDoctors(filter, gridId, input.value);
   });
 }
 
@@ -211,39 +234,82 @@ function closeDoctorModal() {
   document.body.style.overflow = '';
 }
 
-// ============ SERVICE MODAL ============
+// Decorative department labels shown as a tag in the service modal header.
+// Purely presentational — not stored in the database.
+const serviceDepartmentLabels = {
+  pediatrics: 'Department of Pediatric Care',
+  obgyne: "Department of Women's Health",
+  surgery: 'Department of Surgery',
+  pulmonology: 'Department of Pulmonology',
+  ophthalmology: 'Department of Eye & ENT Care',
+  cardiology: 'Department of Cardiology',
+  adultmedicine: 'Department of Adult Medicine',
+  oncology: 'Department of Oncology'
+};
+
 function openServiceModal(serviceKey) {
   const service = servicesData[serviceKey];
   if (!service) return;
+
+  const deptLabel = serviceDepartmentLabels[serviceKey] || `Department of ${service.title}`;
+  const phone = (clinicInfo && clinicInfo.contact_no) ? clinicInfo.contact_no : '0985 475 5511';
+
   document.getElementById('serviceModalBody').innerHTML = `
     <div class="service-modal-header">
-      <div class="service-modal-icon"><i class="fas ${service.icon}"></i></div>
+      <button class="service-modal-close" onclick="closeServiceModal()"><i class="fas fa-times"></i></button>
+      <div class="service-modal-header-top">
+        <div class="service-modal-icon"><i class="fas ${service.icon}"></i></div>
+        <div class="service-modal-tags">
+          <span class="service-modal-tag dept">${deptLabel}</span>
+          <span class="service-modal-tag accredited">DOH Accredited</span>
+        </div>
+      </div>
       <h2>${service.title}</h2>
     </div>
     <div class="service-modal-body">
-      <div class="service-modal-description">
-        <h4><i class="fas fa-info-circle"></i> About This Service</h4>
-        <p>${service.description}</p>
-      </div>
-      <div class="service-modal-section">
-        <h4><i class="fas fa-list-check"></i> Common Conditions & Services</h4>
-        <ul class="service-modal-list">
-          ${service.conditions.map(c => `<li><i class="fas fa-check-circle"></i> ${c}</li>`).join('')}
-        </ul>
-      </div>
-      <div class="service-modal-section">
-        <h4><i class="fas fa-user-md"></i> Our Specialists</h4>
-        <div class="service-modal-doctors">
-          ${service.doctors.map(d => `<span class="service-modal-doctor-tag"><i class="fas fa-stethoscope"></i> ${d}</span>`).join('')}
+      <div class="service-modal-grid">
+        <div class="service-modal-col">
+          <div class="service-modal-box">
+            <div class="service-modal-box-label"><i class="fas fa-circle-info"></i> Clinical Scope &amp; Overview</div>
+            <p class="service-modal-desc">${service.description}</p>
+          </div>
+          <div class="service-modal-box">
+            <div class="service-modal-box-label"><i class="fas fa-list-check"></i> Common Conditions &amp; Procedures</div>
+            <ul class="service-modal-list">
+              ${service.conditions.map(c => `<li>${c}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+        <div class="service-modal-col">
+          <div class="service-modal-box dark">
+            <div class="service-modal-box-label"><i class="fas fa-clock"></i> Schedule &amp; Location</div>
+            <div class="service-modal-schedule-row">
+              <div class="sub-label"><i class="fas fa-map-marker-alt"></i> Consultation Room</div>
+              <div class="sub-value">${service.room}, PolyClinic Lipa</div>
+            </div>
+            <div class="service-modal-schedule-row">
+              <div class="sub-label"><i class="fas fa-calendar-week"></i> Clinic Schedule</div>
+              <div class="sub-value">${service.schedule}</div>
+            </div>
+          </div>
+          <div class="service-modal-box">
+            <div class="service-modal-box-label"><i class="fas fa-user-doctor"></i> Attending Specialists</div>
+            <div class="service-modal-doctors">
+              ${service.doctors.map(d => `
+                <div class="service-modal-doctor-tag">
+                  <div class="service-modal-doctor-avatar"><i class="fas fa-user-doctor"></i></div>
+                  <div class="service-modal-doctor-info">
+                    <span class="service-modal-doctor-name">${d}</span>
+                    <span class="service-modal-doctor-role">${service.title} Specialist</span>
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>
         </div>
       </div>
-      <div class="service-modal-section">
-        <h4><i class="fas fa-clock"></i> Clinic Schedule</h4>
-        <div class="service-modal-info-grid">
-          <div class="service-modal-info-item"><span class="label">Location</span><span class="value">${service.room}, PolyClinic Lipa</span></div>
-          <div class="service-modal-info-item"><span class="label">Schedule</span><span class="value">${service.schedule}</span></div>
-        </div>
-      </div>
+    </div>
+    <div class="service-modal-footer">
+      <div class="service-modal-phone"><i class="fas fa-phone-alt"></i> Clinic Inquiries: ${phone}</div>
     </div>`;
   document.getElementById('serviceModal').classList.add('active');
   document.body.style.overflow = 'hidden';

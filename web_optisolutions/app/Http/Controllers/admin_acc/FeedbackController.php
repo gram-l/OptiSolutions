@@ -7,6 +7,7 @@ use App\Models\admin_models\Feedback;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\admin_models\Complaint;
+use App\Services\RatingSentimentFallback;
 
 class FeedbackController extends Controller
 {
@@ -57,13 +58,17 @@ public function store(Request $request, SentimentAnalysisService $sentimentServi
     // Only classify if there's actual comment text
     if (trim($feedback->feedback_text ?? '') !== '') {
         $result = $sentimentService->analyze($feedback->feedback_text);
-        if ($result) {
-            $feedback->sentimentResult()->create([
-                'sentiment_label' => $result['sentiment_label'],
-                'confidence_score' => $result['confidence_score'],
-                'analyzed_at' => now(),
-            ]);
-        }
+
+        // ML service down/unreachable? Fall back to a rating-based
+        // label instead of leaving this feedback unclassified.
+        $label = $result['sentiment_label'] ?? RatingSentimentFallback::labelFor($feedback->star_rating);
+        $confidence = $result['confidence_score'] ?? null;
+
+        $feedback->sentimentResult()->create([
+            'sentiment_label' => $label,
+            'confidence_score' => $confidence,
+            'analyzed_at' => now(),
+        ]);
     }
 
     return redirect()->back()->with('success', 'Feedback submitted.');

@@ -181,4 +181,8 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
         ->name('admin.patients.export');
 
     Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+
+    //chatbot logs bulk delete route
+    Route::delete('/admin_acc/chatbot_logs/bulk-delete', [ChatbotInquiryController::class, 'bulkDestroy'])
+    ->name('admin_acc.chatbot_logs.bulk_destroy');
 });

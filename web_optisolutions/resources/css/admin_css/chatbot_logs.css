@@ -192,6 +192,93 @@
             z-index: 10;
         }
 
+        .chat-list-header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .chat-list-header-top h3 {
+            margin-bottom: 0;
+        }
+
+        .select-mode-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: var(--light-gray);
+            color: var(--primary-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .select-mode-btn:hover {
+            background: #dfe4e8;
+        }
+
+        .select-mode-btn.active {
+            background: #e74c3c;
+            color: var(--white);
+        }
+
+        .selection-actions-bar {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            margin-top: 0.7rem;
+        }
+
+        .selection-actions-bar.visible {
+            display: flex;
+        }
+
+        .selection-count {
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            font-weight: 600;
+        }
+
+        .selection-cancel-btn {
+            background: none;
+            border: none;
+            color: #7f8c8d;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .selection-delete-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: #e74c3c;
+            color: var(--white);
+            border: none;
+            border-radius: 20px;
+            padding: 0.45rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s ease;
+        }
+
+        .selection-delete-btn:hover:not(:disabled) {
+            opacity: 0.85;
+        }
+
+        .selection-delete-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .chat-list-header h3 {
             font-size: 1.2rem;
             color: var(--primary-dark);
@@ -220,11 +307,12 @@
         .chat-item {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            padding: 1rem 1.5rem;
+            gap: 0.75rem;
+            padding: 0.7rem 0.6rem;
+            border-radius: 12px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            border-bottom: 1px solid var(--light-gray);
+            transition: background 0.15s ease;
+            margin-bottom: 0.2rem;
         }
 
         .chat-item:hover {
@@ -233,7 +321,18 @@
 
         .chat-item.active {
             background: rgba(14, 98, 170, 0.1);
-            border-left: 3px solid var(--primary-main);
+        }
+
+        .chat-item.selected {
+            background: rgba(231, 76, 60, 0.08);
+        }
+
+        .chat-item-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-main);
+            flex-shrink: 0;
+            cursor: pointer;
         }
 
         .chat-avatar {
@@ -652,6 +751,11 @@
             color: var(--white);
         }
 
+        .modal-icon-delete {
+            background: #e74c3c;
+            color: var(--white);
+        }
+
         @keyframes modalPopIn {
             from { transform: translateY(8px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
@@ -703,6 +807,10 @@
 
         .modal-btn-confirm-unresolve {
             background: var(--pending);
+        }
+
+        .modal-btn-confirm-delete {
+            background: #e74c3c;
         }
 
         /* --- Toast center --- */

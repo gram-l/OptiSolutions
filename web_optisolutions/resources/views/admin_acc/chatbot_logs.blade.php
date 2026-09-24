@@ -43,8 +43,22 @@
             <!-- Chat List Sidebar -->
             <div class="chat-list">
                 <div class="chat-list-header">
-                    <h3>Recent Conversations</h3>
+                    <div class="chat-list-header-top">
+                        <h3>Recent Conversations</h3>
+                        <button type="button" class="select-mode-btn" id="selectModeBtn" title="Select conversations to delete" aria-label="Select conversations to delete">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </div>
                     <input type="text" class="search-box" placeholder="Search patient or inquiry..." id="searchInput">
+                    <div class="selection-actions-bar" id="selectionActionsBar">
+                        <span class="selection-count" id="selectionCount">0 selected</span>
+                        <div style="display:flex; gap:0.5rem;">
+                            <button type="button" class="selection-cancel-btn" id="selectionCancelBtn">Cancel</button>
+                            <button type="button" class="selection-delete-btn" id="selectionDeleteBtn" disabled>
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <ul class="chat-items" id="chatList">
                     <!-- Chat items will be dynamically populated -->
@@ -121,6 +135,12 @@
 
         let currentChatId = null;
 
+        // Selection mode — toggled by the pencil icon next to the search
+        // box. While active, clicking a chat item toggles it into
+        // selectedIds instead of opening the conversation.
+        let selectMode = false;
+        let selectedIds = new Set();
+
         // How many chat items are shown before a "See more" control appears.
         const PAGE_SIZE = 6;
         let visibleCount = PAGE_SIZE;
@@ -165,7 +185,8 @@
                 const meta = getStatusMeta(chat);
 
                 return `
-                <li class="chat-item ${currentChatId === chat.id ? 'active' : ''} ${!isResolved ? 'unresolved' : ''}" data-id="${chat.id}">
+                <li class="chat-item ${currentChatId === chat.id ? 'active' : ''} ${!isResolved ? 'unresolved' : ''} ${selectMode && selectedIds.has(chat.id) ? 'selected' : ''}" data-id="${chat.id}">
+                    ${selectMode ? `<input type="checkbox" class="chat-item-checkbox" ${selectedIds.has(chat.id) ? 'checked' : ''} tabindex="-1">` : ''}
                     <div class="chat-avatar">
                         ${chat.avatar}
                         ${chat.unread ? '<span class="avatar-unread-dot" title="Unread"></span>' : ''}
@@ -200,6 +221,10 @@
             document.querySelectorAll('.chat-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const id = parseInt(item.dataset.id);
+                    if (selectMode) {
+                        toggleSelection(id);
+                        return;
+                    }
                     openChat(id);
                 });
             });
@@ -339,25 +364,32 @@
 
         // Custom confirm modal — replaces window.confirm().
         // Resolves to true/false depending on which button was clicked.
-        // variant: '' (default blue), 'resolve' (green), 'unresolve' (orange)
-        function showConfirm(message, variant = '') {
+        // variant: '' (default blue), 'resolve' (green), 'unresolve' (orange), 'delete' (red)
+        function showConfirm(message, variant = '', title = 'Confirm Action') {
             return new Promise((resolve) => {
                 const overlay = document.getElementById('confirmModalOverlay');
                 document.getElementById('confirmModalMessage').textContent = message;
+                document.getElementById('confirmModalTitle').textContent = title;
                 overlay.style.display = 'flex';
 
                 const iconEl = overlay.querySelector('.modal-icon');
+                const iconInner = iconEl.querySelector('i');
                 const cancelBtn = document.getElementById('confirmModalCancel');
                 const confirmBtn = document.getElementById('confirmModalConfirm');
 
-                iconEl.classList.remove('modal-icon-resolve', 'modal-icon-unresolve');
-                confirmBtn.classList.remove('modal-btn-confirm-resolve', 'modal-btn-confirm-unresolve');
+                iconEl.classList.remove('modal-icon-resolve', 'modal-icon-unresolve', 'modal-icon-delete');
+                confirmBtn.classList.remove('modal-btn-confirm-resolve', 'modal-btn-confirm-unresolve', 'modal-btn-confirm-delete');
+                iconInner.className = 'bi bi-question-circle';
                 if (variant === 'resolve') {
                     iconEl.classList.add('modal-icon-resolve');
                     confirmBtn.classList.add('modal-btn-confirm-resolve');
                 } else if (variant === 'unresolve') {
                     iconEl.classList.add('modal-icon-unresolve');
                     confirmBtn.classList.add('modal-btn-confirm-unresolve');
+                } else if (variant === 'delete') {
+                    iconEl.classList.add('modal-icon-delete');
+                    confirmBtn.classList.add('modal-btn-confirm-delete');
+                    iconInner.className = 'bi bi-trash';
                 }
 
                 function cleanup(result) {
@@ -598,6 +630,108 @@
             // without sending — otherwise the dots would sit there forever.
             clearTimeout(typingIdleTimer);
             typingIdleTimer = setTimeout(stopTypingHeartbeat, 4000);
+        });
+
+        // --- Select-for-deletion mode -----------------------------------
+        const selectModeBtn = document.getElementById('selectModeBtn');
+        const selectionActionsBar = document.getElementById('selectionActionsBar');
+        const selectionCancelBtn = document.getElementById('selectionCancelBtn');
+        const selectionDeleteBtn = document.getElementById('selectionDeleteBtn');
+        const selectionCountEl = document.getElementById('selectionCount');
+
+        function toggleSelection(id) {
+            if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+            renderChatList(document.getElementById("searchInput").value);
+            updateSelectionBar();
+        }
+
+        function updateSelectionBar() {
+            selectionCountEl.textContent = `${selectedIds.size} selected`;
+            selectionDeleteBtn.disabled = selectedIds.size === 0;
+        }
+
+        function enterSelectMode() {
+            selectMode = true;
+            selectedIds.clear();
+            selectModeBtn.classList.add('active');
+            selectModeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+            selectModeBtn.title = 'Cancel selection';
+            selectionActionsBar.classList.add('visible');
+            updateSelectionBar();
+            renderChatList(document.getElementById("searchInput").value);
+        }
+
+        function exitSelectMode() {
+            selectMode = false;
+            selectedIds.clear();
+            selectModeBtn.classList.remove('active');
+            selectModeBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+            selectModeBtn.title = 'Select conversations to delete';
+            selectionActionsBar.classList.remove('visible');
+            renderChatList(document.getElementById("searchInput").value);
+        }
+
+        selectModeBtn.addEventListener('click', () => {
+            if (selectMode) exitSelectMode(); else enterSelectMode();
+        });
+        selectionCancelBtn.addEventListener('click', exitSelectMode);
+
+        selectionDeleteBtn.addEventListener('click', async () => {
+            if (selectedIds.size === 0) return;
+            const count = selectedIds.size;
+
+            const confirmed = await showConfirm(
+                'Are you sure you want to delete ' +
+                (count === 1 ? 'this conversation' : `these ${count} conversations`) +
+                '? The conversation cannot be retrieved.',
+                'delete',
+                count === 1 ? 'Delete Conversation?' : 'Delete Conversations?'
+            );
+            if (!confirmed) return;
+
+            const idsToDelete = Array.from(selectedIds);
+            selectionDeleteBtn.disabled = true;
+            const originalHtml = selectionDeleteBtn.innerHTML;
+            selectionDeleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Deleting...';
+
+            try {
+                const res = await fetch('/admin_acc/chatbot_logs/bulk-delete', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ ids: idsToDelete }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to delete conversation(s).');
+
+                // Drop the deleted rows locally so the list updates without
+                // a full page reload.
+                idsToDelete.forEach(id => {
+                    const idx = chatLogs.findIndex(c => c.id === id);
+                    if (idx !== -1) chatLogs.splice(idx, 1);
+                });
+
+                // If the conversation currently open got deleted, fall back
+                // to the empty state instead of showing a stale thread.
+                if (currentChatId !== null && idsToDelete.includes(currentChatId)) {
+                    currentChatId = null;
+                    document.getElementById("emptyState").style.display = "flex";
+                    document.getElementById("conversationHeader").style.display = "none";
+                    document.getElementById("messagesArea").innerHTML = "";
+                    document.getElementById("conversationArea").classList.remove("mobile-active");
+                }
+
+                exitSelectMode();
+                showToast(count === 1 ? 'Conversation deleted.' : 'Conversations deleted.', 'success');
+            } catch (e) {
+                showToast(e.message || 'Failed to delete conversation(s).');
+            } finally {
+                selectionDeleteBtn.disabled = selectedIds.size === 0;
+                selectionDeleteBtn.innerHTML = originalHtml;
+            }
         });
 
         // Resolve / Unresolve button clicks

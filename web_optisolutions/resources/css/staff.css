@@ -138,88 +138,63 @@ body {
 }
 
 /* The layout wrapper (sidebar + main content) is a direct child of
-   <body> and was flush against the viewport edges — no gap before the
-   sidebar, none after the content — while the header above it already
-   had a 2rem side inset. This targets only that outer wrapper (higher
-   specificity than the bare ".container" rule above) so per-page
-   ".container" elements nested inside .main-content are unaffected. */
+   <body>. The sidebar now sits flush against the left edge, directly
+   under the header (same as the admin panel), so this wrapper carries
+   no padding/margin of its own — the gutters live on .main-content
+   instead. Higher specificity than the bare ".container" rule above, so
+   per-page ".container" elements nested inside .main-content are
+   unaffected. */
 body > .container {
-    padding: 0 2rem;
+    padding: 0;
+    margin: 0;
 }
 
 .dashboard-layout {
     display: flex;
-    gap: 1rem;
+    gap: 0;
 }
 
+/* Sidebar — matches the admin panel's: full-height rail flush under the
+   header, no rounded corners, toggle button only (no brand row). */
 .sidebar {
-    width: 250px;
+    width: 220px;
     background: var(--white);
-    padding: 1.5rem 1rem;
-    box-shadow: 0 4px 20px var(--shadow);
-    height: fit-content;
+    padding: 0.85rem 0.75rem 1.25rem;
+    box-shadow: 2px 0 8px var(--shadow);
+    height: calc(100vh - 70px);
     position: sticky;
-    top: 90px;
+    top: 70px;
+    align-self: stretch;
     transition: width 0.25s ease, padding 0.25s ease;
-    border-radius: 20px;
-    margin-left: 0;
+    border-radius: 0;
 }
 
 .sidebar-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.sidebar-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    min-width: 0;
-    overflow: hidden;
-}
-
-.sidebar-brand-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    flex-shrink: 0;
-    background: var(--primary-main);
-    color: var(--white);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-}
-
-.sidebar-brand-text {
-    font-weight: 700;
-    color: var(--primary-dark);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    margin-bottom: 0.35rem;
 }
 
 .sidebar-toggle-btn {
     flex-shrink: 0;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border: none;
     border-radius: 8px;
     background: var(--light-gray);
-    color: var(--text-dark);
+    color: var(--icon-color);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    font-size: 0.85rem;
     transition: background 0.2s ease, transform 0.25s ease;
 }
 
 .sidebar-toggle-btn:hover {
-    background: var(--primary-light);
-    color: var(--white);
+    background: #dfe4e8;
 }
 
 .sidebar-toggle-btn i {
@@ -227,16 +202,17 @@ body > .container {
 }
 
 .nav-item {
-    padding: 0.85rem 1rem;
-    margin-bottom: 0.4rem;
-    border-radius: 12px;
+    padding: 0.9rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 10px;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    gap: 0.8rem;
+    gap: 0.7rem;
     color: var(--text-dark);
     font-weight: 500;
+    white-space: nowrap;
     text-decoration: none;
 }
 
@@ -250,8 +226,23 @@ body > .container {
     color: var(--white);
 }
 
+.nav-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--icon-color);
+}
+
+.nav-item.active .nav-icon {
+    color: var(--white);
+}
+
 .main-content {
     flex: 1;
+    padding: 0.75rem 2rem 1.5rem;
 }
 
 .stats-grid {
@@ -382,6 +373,303 @@ body > .container {
 .btn-success:hover { background: var(--primary-dark); }
 
 .btn-warning { background: var(--warning); color: var(--white); }
+
+/* ===== Patients table — pastel pill buttons matching admin's patients.css ===== */
+.btn-view-patient,
+.btn-edit-patient {
+    padding: 0.35rem 0.85rem;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #e8f0fe;
+    color: var(--primary-main);
+    transition: all 0.2s ease;
+}
+
+.btn-view-patient:hover,
+.btn-edit-patient:hover {
+    background: #d5e5fc;
+}
+
+.patient-notes-cell {
+    max-width: 220px;
+    color: #5a6474;
+    font-size: 0.88rem;
+}
+
+body.dark-mode .btn-view-patient,
+body.dark-mode .btn-edit-patient {
+    background: rgba(14, 98, 170, 0.22);
+    color: #6cb2f5;
+}
+
+body.dark-mode .btn-view-patient:hover,
+body.dark-mode .btn-edit-patient:hover {
+    background: rgba(14, 98, 170, 0.32);
+}
+
+body.dark-mode .patient-notes-cell {
+    color: #b7c0cc;
+}
+
+/* ===== Doctors table: avatar, pastel Edit button, compact schedule ===== */
+.doctor-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.doctor-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--light-gray);
+    color: #7f8c8d;
+    font-size: 1.1rem;
+}
+
+.doctor-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.btn-edit-doctor {
+    padding: 0.4rem 1rem;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: #e8f0fe;
+    color: var(--primary-main);
+    box-shadow: none;
+    transition: all 0.2s ease;
+}
+
+.btn-edit-doctor:hover {
+    background: #d5e5fc;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-edit-doctor:disabled {
+    background: var(--light-gray);
+    color: #a3adb8;
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.schedule-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.85rem;
+    color: var(--text-dark);
+}
+
+.schedule-compact-more {
+    color: #7f8c8d;
+    font-size: 0.8rem;
+}
+
+/* ===== Toast — matches admin's style exactly ===== */
+.toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) translateY(10px);
+    background: #062744;
+    color: #fff;
+    padding: 0.85rem 1.5rem;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 2000;
+}
+.toast.show { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+.toast-success { background: #0E62AA; }
+.toast-error   { background: #c0392b; }
+.toast::before { font-family: "Font Awesome 6 Free"; font-weight: 900; }
+.toast-success::before { content: "\f00c"; }
+.toast-error::before   { content: "\f06a"; }
+
+/* ===== Doctor availability badge — dot + color ===== */
+.status-available {
+    background: #e8f8f0;
+    color: #27ae60;
+}
+
+.status-unavailable {
+    background: var(--light-gray);
+    color: #7f8c8d;
+}
+
+.status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-right: 0.35rem;
+}
+
+/* ===== Doctors table column widths ===== */
+#doctorsTable th:nth-child(2),
+#doctorsTable td:nth-child(2) {
+    width: 12%;
+}
+
+#doctorsTable th:nth-child(3),
+#doctorsTable td:nth-child(3) {
+    width: 30%;
+}
+
+/* ===== Clickable "+N more" toggle ===== */
+.schedule-more-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--primary-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    width: fit-content;
+}
+
+.schedule-more-toggle:hover {
+    text-decoration: underline;
+}
+
+.schedule-hidden-rows {
+    display: none;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.schedule-hidden-rows.show {
+    display: flex;
+}
+
+body.dark-mode .status-unavailable { background: #232b3d; color: #8b95a5; }
+body.dark-mode .status-available { background: rgba(39, 174, 96, 0.18); color: #4ad089; }
+
+/* ===== "Save changes?" confirm modal ===== */
+.confirm-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 1rem;
+}
+
+.confirm-modal-overlay.show {
+    display: flex;
+}
+
+.confirm-modal-box {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 1.75rem;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.confirm-modal-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(14, 98, 170, 0.1);
+    color: var(--primary-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    margin: 0 auto 0.85rem;
+}
+
+.confirm-modal-box h3 {
+    color: var(--text-dark);
+    margin-bottom: 0.4rem;
+}
+
+.confirm-modal-box p {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.confirm-modal-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+}
+
+.confirm-modal-buttons button {
+    padding: 0.6rem 1.4rem;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.confirm-modal-btn-cancel {
+    background: var(--light-gray);
+    color: var(--text-dark);
+}
+
+.confirm-modal-btn-confirm {
+    background: var(--primary-main);
+    color: var(--white);
+}
+
+/* Dark mode */
+body.dark-mode .doctor-avatar {
+    background: #232b3d;
+    color: #8b95a5;
+}
+
+body.dark-mode .schedule-compact {
+    color: #e4e8ee;
+}
+
+body.dark-mode .schedule-compact-more {
+    color: #8b95a5;
+}
+
+body.dark-mode .confirm-modal-box {
+    background: #1a2130;
+}
+
+body.dark-mode .confirm-modal-box h3 {
+    color: #e4e8ee;
+}
+
+body.dark-mode .confirm-modal-btn-cancel {
+    background: #232b3d;
+    color: #e4e8ee;
+}
 .btn-warning:hover { background: #d6870a; }
 
 .btn-danger { background: var(--danger); color: var(--white); }
@@ -591,29 +879,15 @@ body.dark-mode .page-subtitle {
 
 /* ===== SIDEBAR COLLAPSED STATE ===== */
 body.sidebar-collapsed .sidebar {
-    width: 88px;
-    padding: 1.5rem 0.75rem;
+    width: 76px;
+    padding: 1.25rem 0.75rem;
     overflow: visible;
 }
 
 body.sidebar-collapsed .sidebar-header {
     flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 0.6rem;
-    margin-bottom: 1.25rem;
-}
-
-body.sidebar-collapsed .sidebar-brand-text {
-    display: none;
-}
-
-body.sidebar-collapsed .sidebar-toggle-btn {
-    position: static;
-    width: 36px;
-    height: 36px;
-    box-shadow: none;
-    border: none;
+    gap: 0.75rem;
 }
 
 body.sidebar-collapsed .sidebar-toggle-btn i {
@@ -621,26 +895,47 @@ body.sidebar-collapsed .sidebar-toggle-btn i {
 }
 
 body.sidebar-collapsed .nav-item {
+    position: relative;
     justify-content: center;
-    align-items: center;
-    padding: 0;
+    padding: 0.85rem 0;
     gap: 0;
-    width: 44px;
-    height: 44px;
-    margin: 0 auto 0.6rem;
-    border-radius: 12px;
 }
 
 body.sidebar-collapsed .nav-item:hover {
     transform: none;
 }
 
-body.sidebar-collapsed .nav-item i {
-    font-size: 1.05rem;
-}
-
 body.sidebar-collapsed .nav-item span {
     display: none;
+}
+
+/* Flyout name tooltip, collapsed mode only (same as admin). Nav items sit
+   inside <a> tags with pointer-events: none, so hover is read off the <a>. */
+body.sidebar-collapsed .nav-item::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--primary-dark);
+    color: var(--white);
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    z-index: 50;
+}
+
+body.sidebar-collapsed .sidebar a:hover .nav-item::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(4px);
 }
 
 @media (max-width: 768px) {
@@ -654,7 +949,7 @@ body.sidebar-collapsed .nav-item span {
         top: 0;
         left: 0;
         height: 100vh;
-        width: 280px;
+        width: 220px;
         max-width: 82vw;
         margin: 0;
         border-radius: 0;
@@ -664,17 +959,34 @@ body.sidebar-collapsed .nav-item span {
         overflow-y: auto;
         overflow-x: hidden;
         display: block;
-        padding: 1.25rem 1rem;
+        padding: 1rem 0.85rem;
     }
     .sidebar.mobile-open {
         transform: translateX(0);
     }
+    /* The drawer always shows full labels, even if the desktop rail was
+       left collapsed (those rules are more specific than .sidebar above). */
+    body.sidebar-collapsed .sidebar {
+        width: 220px;
+        padding: 1rem 0.85rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    body.sidebar-collapsed .sidebar-header { flex-direction: row; }
+    body.sidebar-collapsed .nav-item {
+        justify-content: flex-start;
+        padding: 0.9rem 0.75rem;
+        gap: 0.7rem;
+    }
+    body.sidebar-collapsed .nav-item span { display: inline; }
+    body.sidebar-collapsed .nav-item::after { display: none; }
     .nav-item { white-space: nowrap; }
     /* The desktop icon-rail collapse toggle has no purpose inside the
        mobile drawer, which always shows full labels. */
     .sidebar-toggle-btn { display: none; }
     .container { padding: 0; margin: 0.75rem 0 1.5rem 0; }
-    body > .container { padding: 0 1rem; }
+    body > .container { padding: 0; margin: 0; }
+    .main-content { padding: 0.75rem 1rem 1.5rem; }
     .page-title-group h2,
     .page-title-group h3,
     .page-title-group h4 { font-size: 1.4rem; gap: 0.5rem; }
@@ -1086,7 +1398,7 @@ body.sidebar-collapsed .sidebar a:hover .nav-item {
     font-size: 1rem;
 }
 
-/* NOTIFICATION PANEL */
+/* NOTIFICATION PANEL — matches the admin notifications panel */
 .notif-panel-overlay {
     display: none;
     position: fixed;
@@ -1107,7 +1419,7 @@ body.sidebar-collapsed .sidebar a:hover .nav-item {
     width: 420px;
     max-width: 92vw;
     background: var(--white);
-    box-shadow: -8px 0 30px var(--shadow);
+    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15);
     z-index: 901;
     display: flex;
     flex-direction: column;
@@ -1119,117 +1431,167 @@ body.sidebar-collapsed .sidebar a:hover .nav-item {
     transform: translateX(0);
 }
 
+/* Header: title + close on top, tabs underneath */
 .notif-panel-header {
+    padding: 1.2rem 1.5rem 0.8rem;
+    border-bottom: 1px solid var(--light-gray);
+    flex-shrink: 0;
+}
+
+.notif-panel-header-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1.5rem 1.5rem 1rem;
 }
 
 .notif-panel-header h3 {
     margin: 0;
-    font-size: 1.05rem;
-    letter-spacing: 0.03em;
-    color: var(--text-dark);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--primary-dark);
     text-transform: uppercase;
 }
 
 .notif-panel-close {
     background: none;
     border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 1.1rem;
     color: #7f8c8d;
     cursor: pointer;
-    padding: 0.25rem;
+    transition: background 0.15s ease;
 }
 
+.notif-panel-close:hover {
+    background: var(--light-gray);
+}
+
+/* Tabs */
 .notif-tabs {
     display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    padding: 0 1.5rem;
-    border-bottom: 1px solid var(--light-gray);
+    gap: 1.4rem;
+    margin-top: 0.9rem;
     overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.notif-tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .notif-tab {
     background: none;
     border: none;
-    padding: 0 0 0.75rem;
-    font-size: 0.88rem;
+    padding: 0 0 0.7rem;
+    font-size: 0.85rem;
     font-weight: 500;
     color: #7f8c8d;
     cursor: pointer;
-    white-space: nowrap;
-    border-bottom: 2px solid transparent;
-    display: flex;
+    position: relative;
+    display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
+
+.notif-tab:hover {
+    color: var(--primary-main);
 }
 
 .notif-tab.active {
     color: var(--primary-main);
     font-weight: 600;
-    border-bottom-color: var(--primary-main);
+}
+
+.notif-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--primary-main);
+    border-radius: 2px 2px 0 0;
 }
 
 .notif-tab-count {
-    background: var(--primary-main);
-    color: var(--white);
+    background: var(--light-gray);
+    color: var(--text-dark);
     font-size: 0.68rem;
     font-weight: 700;
-    padding: 0.1rem 0.42rem;
-    border-radius: 10px;
-    min-width: 16px;
-    text-align: center;
+    padding: 1px 6px;
+    border-radius: 999px;
 }
 
+.notif-tab.active .notif-tab-count {
+    background: var(--primary-main);
+    color: var(--white);
+}
+
+/* "Mark all as read" toolbar */
 .notif-panel-actions {
     display: flex;
     justify-content: flex-end;
-    padding: 0.75rem 1.5rem 0;
+    padding: 0.6rem 1.5rem;
+    border-bottom: 1px solid var(--light-gray);
+    flex-shrink: 0;
 }
 
 .notif-panel-actions button {
     background: none;
     border: none;
     color: var(--primary-main);
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
+    padding: 0;
 }
 
+.notif-panel-actions button:hover {
+    text-decoration: underline;
+}
+
+/* List */
 .notif-list {
     flex: 1;
     overflow-y: auto;
-    padding: 0.5rem 0 1rem;
 }
 
 .notif-group-label {
-    padding: 0.9rem 1.5rem 0.4rem;
-    font-size: 0.72rem;
+    padding: 0.9rem 1.5rem 0.3rem;
+    font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    color: #95a5a6;
+    letter-spacing: 0.08em;
+    color: #b2bac2;
     text-transform: uppercase;
 }
 
 .notif-entry {
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.75rem 1.5rem;
+    gap: 0.8rem;
+    padding: 0.85rem 1.5rem;
     cursor: pointer;
-    border-bottom: 1px solid var(--light-gray);
+    border-bottom: 1px solid #f1f3f5;
     transition: background 0.15s ease;
 }
 
 .notif-entry:hover {
-    background: var(--light-gray);
+    background: #f8fafc;
 }
 
-.notif-entry.is-read {
-    opacity: 0.55;
+.notif-entry.is-unread {
+    background: #f4f8fd;
+}
+
+.notif-entry.is-unread:hover {
+    background: #eef4fb;
 }
 
 .notif-entry-icon {
@@ -1243,11 +1605,12 @@ body.sidebar-collapsed .sidebar a:hover .nav-item {
     justify-content: center;
     flex-shrink: 0;
     font-size: 0.95rem;
+    margin-top: 0.1rem;
 }
 
-.notif-entry.is-unread .notif-entry-icon {
-    background: var(--primary-main);
-    color: var(--white);
+.notif-entry-icon.icon-system {
+    background: #fbdad7;
+    color: var(--danger);
 }
 
 .notif-entry-body {
@@ -1255,35 +1618,73 @@ body.sidebar-collapsed .sidebar a:hover .nav-item {
     min-width: 0;
 }
 
+.notif-entry-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
 .notif-entry-title {
+    font-size: 0.85rem;
     font-weight: 600;
-    color: var(--text-dark);
-    font-size: 0.9rem;
+    line-height: 1.3;
+    color: var(--primary-dark);
+}
+
+/* Unread dot before the title */
+.notif-entry.is-unread .notif-entry-title::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary-main);
+    margin-right: 0.4rem;
+    vertical-align: middle;
 }
 
 .notif-entry-meta {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.15rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.2rem;
 }
 
 .notif-entry-time {
-    font-size: 0.75rem;
-    color: #95a5a6;
+    font-size: 0.72rem;
+    color: #9aa4ad;
 }
 
 .notif-entry-badge {
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     font-weight: 600;
-    color: var(--primary-dark);
+    color: #6b7580;
     background: var(--light-gray);
-    padding: 0.1rem 0.5rem;
-    border-radius: 10px;
+    padding: 1px 7px;
+    border-radius: 999px;
+}
+
+.notif-entry-action {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--primary-main);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-top: 0.1rem;
+}
+
+.notif-entry-action:hover {
+    text-decoration: underline;
 }
 
 .notif-entry-message {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
+    line-height: 1.4;
     color: #7f8c8d;
     margin-top: 0.3rem;
 }
@@ -1305,14 +1706,20 @@ body.dark-mode .notif-panel {
 body.dark-mode .notif-panel-header h3 {
     color: #e4e8ee;
 }
-body.dark-mode .notif-tabs {
-    border-color: #2a3346;
+body.dark-mode .notif-panel-close:hover {
+    background: #232b3d;
 }
 body.dark-mode .notif-entry {
     border-color: #2a3346;
 }
 body.dark-mode .notif-entry:hover {
     background: #232b3d;
+}
+body.dark-mode .notif-entry.is-unread {
+    background: rgba(14, 98, 170, 0.12);
+}
+body.dark-mode .notif-entry.is-unread:hover {
+    background: rgba(14, 98, 170, 0.2);
 }
 body.dark-mode .notif-entry-title {
     color: #e4e8ee;
@@ -1358,7 +1765,11 @@ body.dark-mode .notif-entry-badge {
     border: none;
     font-size: 1.2rem;
     cursor: pointer;
-    color: #2c3e50;
+    color: var(--primary-main);
+    transition: color 0.2s ease;
+}
+.profile-modal-close:hover {
+    color: var(--primary-dark);
 }
 .profile-modal-photo-wrap {
     display: flex;
@@ -1376,16 +1787,16 @@ body.dark-mode .notif-entry-badge {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: #eef1f5;
+    background: var(--light-gray);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 2.2rem;
     font-weight: 600;
-    color: #34495e;
+    color: var(--primary-dark);
     overflow: hidden;
-    border: 3px solid #fff;
-    box-shadow: 0 0 0 1px #e0e0e0;
+    border: 3px solid var(--white);
+    box-shadow: 0 0 0 1px var(--light-gray);
 }
 .profile-modal-photo img {
     width: 100%;
@@ -1412,8 +1823,8 @@ body.dark-mode .notif-entry-badge {
     filter: brightness(0.9);
 }
 .profile-modal-badge {
-    background: #eef1f5;
-    color: #34495e;
+    background: var(--light-gray);
+    color: var(--text-dark);
     font-size: 0.8rem;
     padding: 4px 14px;
     border-radius: 20px;
@@ -1421,7 +1832,7 @@ body.dark-mode .notif-entry-badge {
 }
 .profile-modal-section-title {
     font-weight: 600;
-    color: #1a3a6c;
+    color: var(--primary-dark);
     margin: 18px 0 10px;
 }
 .profile-modal-field {
@@ -1429,26 +1840,31 @@ body.dark-mode .notif-entry-badge {
     align-items: center;
     gap: 12px;
     padding: 10px 0;
-    border-bottom: 1px solid #eef1f5;
+    border-bottom: 1px solid var(--light-gray);
 }
 .profile-modal-field:last-child { border-bottom: none; }
+/* Icon chip — blue icon on a light-blue tint, same as the admin profile
+   modal and the dashboard's .card-icon-badge */
 .profile-modal-field i {
-    background: #eef1f5;
-    color: #34495e;
+    flex-shrink: 0;
+    background: rgba(14, 98, 170, 0.1);
+    color: var(--primary-main);
     width: 34px;
     height: 34px;
-    border-radius: 8px;
+    border-radius: 10px;
+    font-size: 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 .profile-modal-field-label {
     font-size: 0.75rem;
-    color: #95a5a6;
+    color: #7f8c8d;
+    margin-bottom: 2px;
 }
 .profile-modal-field-value {
     font-size: 0.95rem;
-    color: #2c3e50;
+    color: var(--text-dark);
 }
 
 /* SETTINGS MODAL */
@@ -1679,10 +2095,6 @@ body.dark-mode .sidebar a .nav-item.active {
     color: #fff;
 }
 
-body.dark-mode .sidebar-brand-text {
-    color: #e4e8ee;
-}
-
 body.dark-mode .sidebar-toggle-btn {
     background: #232b3d;
     color: #b8c1cf;
@@ -1695,6 +2107,14 @@ body.dark-mode .sidebar-toggle-btn:hover {
 
 body.dark-mode.sidebar-collapsed .sidebar-toggle-btn {
     background: #232b3d;
+}
+
+body.dark-mode .sidebar {
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .nav-icon {
+    color: inherit;
 }
 
 body.dark-mode .stat-label,
@@ -1788,6 +2208,10 @@ body.dark-mode .profile-modal-badge {
 body.dark-mode .profile-modal-close,
 body.dark-mode .profile-modal-section-title {
     color: #e4e8ee;
+}
+body.dark-mode .profile-modal-field i {
+    background: #163a5c;
+    color: #6cb2f5;
 }
 
 body.dark-mode .status-pending { background: #3d3115; }

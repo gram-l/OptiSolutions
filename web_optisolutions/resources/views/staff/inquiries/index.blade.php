@@ -5,10 +5,10 @@
 
 <div class="container">
     <div class="page-title-group" style="margin-bottom: 1rem;">
-        <h3 style="margin: 0;">
-            <i class="bi bi-chat-square-text"></i> Chatbot Inquiries
+        <h3 style="margin: 0; font-size: 1.75rem; color: var(--primary-dark); display: flex; align-items: center;">
+            <span class="inq-header-icon"><i class="bi bi-chat-square-text"></i></span> Chatbot Inquiries
         </h3>
-        <p class="page-subtitle">View and respond to chatbot inquiries</p>
+        <p class="page-subtitle">Review and respond to patient conversations from the AI chatbot</p>
     </div>
 
     <div class="inquiries-split inquiries-split--list-only">

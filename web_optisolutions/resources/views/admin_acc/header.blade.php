@@ -141,6 +141,32 @@
         return div.innerHTML;
     }
 
+    // ── Side panel tab counts ─────────────────────────────────────
+    // Maps each tab's <span class="tab-count"> id to the notif type(s) it covers.
+    const NOTIF_TAB_COUNT_MAP = {
+        'count-chat_inquiry': ['chat_inquiry'],
+        'count-appointment':  ['appointment'],
+        'count-feedback':     ['feedback', 'complaint'],
+        'count-system':       ['system'],
+    };
+
+    function updateCountsPanel() {
+        const unreadRows = document.querySelectorAll('#notifPanelContainer .notif-row.unread');
+
+        const countAllEl = document.getElementById('count-all');
+        if (countAllEl) countAllEl.textContent = unreadRows.length;
+
+        Object.entries(NOTIF_TAB_COUNT_MAP).forEach(([elId, types]) => {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            let count = 0;
+            unreadRows.forEach(row => {
+                if (types.includes(row.dataset.category)) count++;
+            });
+            el.textContent = count;
+        });
+    }
+
     function loadNotifDropdown() {
         fetch('/admin_acc/notifications/api', { headers: { 'Accept': 'application/json' } })
             .then(res => res.json())
@@ -254,7 +280,7 @@
 
         const countAllEl = document.getElementById('count-all');
         if (countAllEl) {
-            countAllEl.textContent = document.querySelectorAll('#notifPanelContainer .notif-row').length;
+            updateCountsPanel();
         }
 
         // ── Click a row → mark it read, then navigate ────────────────
@@ -267,11 +293,17 @@
             if (!url) return; // no destination for this type (e.g. system)
 
             row.addEventListener('click', () => {
-                if (row.querySelector('.notif-action-link')) {
+                const markReadBtn = row.querySelector('.notif-action-link');
+                if (markReadBtn) {
+                    row.classList.remove('unread');
+                    row.classList.add('read');
+                    markReadBtn.remove();
+                    updateCountsPanel();
+
                     fetch(`/admin_acc/notifications/${row.dataset.id}/read`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken }
-                    }).catch(() => {});
+                    }).then(() => loadNotifDropdown()).catch(() => {});
                 }
                 window.location.href = url;
             });
@@ -283,6 +315,7 @@
                 row.classList.add('read');
                 row.querySelector('.notif-action-link')?.remove();
             });
+            updateCountsPanel();
 
             fetch('/admin_acc/notifications/mark-all-read', {
                 method: 'POST',
@@ -296,6 +329,7 @@
         row.classList.remove('unread');
         row.classList.add('read');
         btn.remove();
+        updateCountsPanel();
 
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
         fetch(`/admin_acc/notifications/${id}/read`, {

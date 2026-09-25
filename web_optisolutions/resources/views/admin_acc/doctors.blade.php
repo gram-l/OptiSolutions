@@ -111,6 +111,63 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+
+        /* ── Confirmation modal ── */
+        .confirm-modal-content {
+            max-width: 380px;
+            text-align: center;
+            padding: 2rem 1.75rem 1.75rem;
+        }
+        .confirm-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 1rem;
+        }
+        .confirm-modal-content h3 { margin-bottom: 0.5rem; }
+        .confirm-modal-content p { color: #6b7280; font-size: 0.9rem; line-height: 1.5; }
+        .confirm-modal-content .modal-buttons { justify-content: center; margin-top: 1.5rem; }
+        .btn-confirm {
+            padding: 0.7rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #fff;
+            background: #0E62AA;
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) translateY(10px);
+            background: #062744;
+            color: #fff;
+            padding: 0.85rem 1.5rem;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            z-index: 2000;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+        .toast-success { background: #0E62AA; }
+        .toast-error   { background: #c0392b; }
+        .toast::before { font-family: "Font Awesome 6 Free"; font-weight: 900; }
+        .toast-success::before { content: "\f00c"; }
+        .toast-error::before   { content: "\f06a"; }
     </style>
 </head>
 <body>
@@ -236,6 +293,22 @@
         </div>
     </div>
 
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal confirm-modal">
+        <div class="modal-content confirm-modal-content">
+            <div class="confirm-icon" id="confirmIcon"><i class="fa-solid fa-circle-question"></i></div>
+            <h3 id="confirmTitle">Are you sure?</h3>
+            <p id="confirmMessage"></p>
+            <div class="modal-buttons">
+                <button type="button" class="btn-cancel" id="confirmCancelBtn">Cancel</button>
+                <button type="button" class="btn-confirm" id="confirmOkBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast"></div>
+
     <script>
     const LIST_URL = '/admin_acc/doctors/list';
     const API_BASE = '/admin_acc/doctors';
@@ -247,6 +320,54 @@
     let sessions = []; // [{day, start_time, end_time}] for the open modal
     let selectedPhotoFile = null;
     let existingPhotoUrl = null;
+
+    // ── Confirmation modal ──────────────────────────────────────
+    function showConfirm({ title = 'Are you sure?', message, variant = 'primary', confirmText = 'Confirm' }) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('confirmModal');
+            const icon = document.getElementById('confirmIcon');
+            const okBtn = document.getElementById('confirmOkBtn');
+            const cancelBtn = document.getElementById('confirmCancelBtn');
+
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            okBtn.textContent = confirmText;
+
+            const variants = {
+                danger:  { icon: 'fa-trash',           color: '#e74c3c' },
+                warning: { icon: 'fa-lock',             color: '#f39c12' },
+                primary: { icon: 'fa-circle-question',  color: '#0E62AA' },
+            };
+            const v = variants[variant] || variants.primary;
+            icon.innerHTML = `<i class="fa-solid ${v.icon}"></i>`;
+            icon.style.color = v.color;
+            icon.style.background = v.color + '1A';
+            okBtn.style.background = v.color;
+
+            modal.style.display = 'flex';
+
+            function cleanup(result) {
+                modal.style.display = 'none';
+                okBtn.removeEventListener('click', onOk);
+                cancelBtn.removeEventListener('click', onCancel);
+                resolve(result);
+            }
+            function onOk() { cleanup(true); }
+            function onCancel() { cleanup(false); }
+            okBtn.addEventListener('click', onOk);
+            cancelBtn.addEventListener('click', onCancel);
+        });
+    }
+
+    // ── Toast ────────────────────────────────────────────────────
+    let toastTimer = null;
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast toast-${type} show`;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
 
     // ── Data loading ──────────────────────────────────────────
     async function loadDoctors() {
@@ -325,8 +446,7 @@
                             <span><i class="fa-solid fa-clock"></i></span> Schedule
                         </div>
                         <div class="schedule-text">${escapeHtml(doc.schedule)}</div>
-                        ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;">📞 ${escapeHtml(doc.phone)}</div>` : ''}
-                    </div>
+${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="fa-solid fa-phone"></i> ${escapeHtml(doc.phone)}</div>` : ''}                    </div>
                     <div class="card-actions">
                         <button class="btn-icon btn-edit" onclick="openEditModal(${doc.id})">
                             <i class="fa-solid fa-edit"></i> Edit
@@ -602,14 +722,15 @@
             }
 
             if (!data.success) {
-                alert(data.message || 'Something went wrong.');
+                showToast(data.message || 'Something went wrong.', 'error');
                 return;
             }
 
             closeModal();
+            showToast(isEdit ? 'Doctor updated successfully!' : 'Doctor added successfully!', 'success');
             await loadDoctors();
         } catch (e) {
-            alert('Could not reach the server. Please try again.');
+            showToast('Could not reach the server. Please try again.', 'error');
         } finally {
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save Doctor';
@@ -631,6 +752,20 @@
 
     // ── Toggle / remove ────────────────────────────────────────
     async function toggleActiveStatus(id) {
+        const doctor = doctorsData.find(d => d.id === id);
+        if (!doctor) return;
+
+        const willActivate = !doctor.active;
+        const confirmed = await showConfirm({
+            title: willActivate ? 'Activate doctor?' : 'Deactivate doctor?',
+            message: willActivate
+                ? `Are you sure you want to activate ${doctor.name}? They will become visible to patients again.`
+                : `Are you sure you want to deactivate ${doctor.name}? They will no longer be shown to patients.`,
+            variant: willActivate ? 'primary' : 'warning',
+            confirmText: willActivate ? 'Activate' : 'Deactivate',
+        });
+        if (!confirmed) return;
+
         try {
             const res = await fetch(`${API_BASE}/${id}/toggle`, {
                 method: 'PATCH',
@@ -638,12 +773,13 @@
             });
             const data = await res.json();
             if (data.success) {
+                showToast(willActivate ? 'Doctor activated successfully!' : 'Doctor deactivated successfully!', 'success');
                 await loadDoctors();
             } else {
-                alert(data.message || 'Could not update status.');
+                showToast(data.message || 'Could not update status.', 'error');
             }
         } catch (e) {
-            alert('Could not reach the server. Please try again.');
+            showToast('Could not reach the server. Please try again.', 'error');
         }
     }
 
@@ -651,9 +787,13 @@
         const doctor = doctorsData.find(d => d.id === id);
         if (!doctor) return;
 
-        if (!confirm(`Are you sure you want to permanently remove ${doctor.name} from the system? This action cannot be undone.`)) {
-            return;
-        }
+        const confirmed = await showConfirm({
+            title: 'Remove doctor?',
+            message: `Are you sure you want to permanently remove ${doctor.name} from the system? This action cannot be undone.`,
+            variant: 'danger',
+            confirmText: 'Remove',
+        });
+        if (!confirmed) return;
 
         try {
             const res = await fetch(`${API_BASE}/${id}`, {
@@ -662,12 +802,13 @@
             });
             const data = await res.json();
             if (data.success) {
+                showToast('Doctor removed successfully!', 'success');
                 await loadDoctors();
             } else {
-                alert(data.message || 'Could not remove doctor.');
+                showToast(data.message || 'Could not remove doctor.', 'error');
             }
         } catch (e) {
-            alert('Could not reach the server. Please try again.');
+            showToast('Could not reach the server. Please try again.', 'error');
         }
     }
 

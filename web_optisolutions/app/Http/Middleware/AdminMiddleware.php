@@ -28,7 +28,6 @@ class AdminMiddleware
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        dd(session()->all());
 
         return redirect('/auth/login')
             ->with('unauthorized', 'Unauthorized access — you have been logged out.');

@@ -20,6 +20,9 @@ use App\Http\Controllers\admin_acc\VisitController;
 use App\Http\Controllers\admin_acc\PatientListController;
 use App\Http\Controllers\admin_acc\NotificationController;
 use App\Http\Controllers\admin_acc\FeebackController;
+use App\Http\Middleware\PreventBackHistory;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\AppointmentConfirmation;
 
 Route::get('/sample', function () {
     return view('sample');
@@ -31,20 +34,9 @@ Route::post('/auth/login', [LoginController::class, 'login'])->name('login');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 //sample email route
-use Illuminate\Support\Facades\Mail;
-use App\Mail\AppointmentConfirmation;
 
-Route::get('/test-email', function () {
-    Mail::to('mikaelaloyola1020@gmail.com')->send(
-        new AppointmentConfirmation(
-            'John Doe',
-            'July 20, 2026',
-            'Dr. Lara'
-        )
-    );
 
-    return 'Email Sent!';
-});
+
 
 //forgot password route
 //step 1 – Email entry
@@ -68,8 +60,8 @@ Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::cl
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
 
 // ── Everything below this line is admin-only ──────────────────────────
-Route::middleware(['auth', 'admin'])->group(function () {
 
+Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function () {
     Route::get('/admin_acc/dashboard', function () {
         return view('admin_acc.dashboard');
     });
@@ -175,4 +167,22 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 
+
+    //settings
+
+    Route::put('/admin_acc/profile/password', [ProfileController::class, 'updatePassword'])
+        ->name('admin.profile.password');
+
+    Route::put('/admin_acc/profile/session', [ProfileController::class, 'updateSession'])
+        ->name('admin.profile.session');
+
+
+    Route::get('/admin_acc/patients/export', [PatientListController::class, 'export'])
+        ->name('admin.patients.export');
+
+    Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+
+    //chatbot logs bulk delete route
+    Route::delete('/admin_acc/chatbot_logs/bulk-delete', [ChatbotInquiryController::class, 'bulkDestroy'])
+    ->name('admin_acc.chatbot_logs.bulk_destroy');
 });

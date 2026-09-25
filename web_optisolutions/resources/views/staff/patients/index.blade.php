@@ -72,8 +72,10 @@
                 <tr>
                     <th>Patient ID</th>
                     <th>Patient Name</th>
-                    <th>Department</th>
+                    <th>Age</th>
+                    <th>Specialty</th>
                     <th>Assigned Doctor</th>
+                    <th>Notes</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -81,15 +83,19 @@
                 @foreach($patients as $p)
                 @php
                     $dept = $p->latestVisit->doctor->specialty ?? 'N/A';
+                    $age = $p->patient_birthdate ? \Carbon\Carbon::parse($p->patient_birthdate)->age : 'N/A';
+                    $latestNotes = $p->latestVisit->notes ?? '—';
                 @endphp
                 <tr data-department="{{ strtolower($dept) }}">
                     <td data-label="Patient ID">{{ $p->patient_id }}</td>
                     <td data-label="Patient Name">{{ $p->full_name }}</td>
-                    <td data-label="Department">{{ $dept }}</td>
+                    <td data-label="Age">{{ $age }}</td>
+                    <td data-label="Specialty">{{ $dept }}</td>
                     <td data-label="Assigned Doctor">{{ $p->latestVisit->doctor->doctor_name ?? 'N/A' }}</td>
+                    <td data-label="Notes" class="patient-notes-cell">{{ $latestNotes }}</td>
                     <td data-label="" class="table-cards-actions" style="display: flex; gap: 0.5rem;">
-                        <button type="button" class="btn-sm btn-primary" onclick="openViewPatientModal('{{ $p->patient_id }}')">View</button>
-                        <button type="button" class="btn-sm btn-warning" onclick="openEditPatientModal('{{ $p->patient_id }}')">Edit</button>
+                        <button type="button" class="btn-sm btn-view-patient" onclick="openViewPatientModal('{{ $p->patient_id }}')">View</button>
+                        <button type="button" class="btn-sm btn-edit-patient" onclick="openEditPatientModal('{{ $p->patient_id }}')">Edit</button>
                     </td>
                 </tr>
                 @endforeach

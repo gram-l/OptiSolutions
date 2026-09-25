@@ -82,19 +82,21 @@
     <div class="notif-panel-overlay" id="notifPanelOverlay" onclick="if(event.target === this) closeNotifPanel();">
         <div class="notif-panel" id="notifPanel">
             <div class="notif-panel-header">
-                <h3>Notifications</h3>
-                <button class="notif-panel-close" onclick="closeNotifPanel();" aria-label="Close">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
+                <div class="notif-panel-header-top">
+                    <h3>Notifications</h3>
+                    <button class="notif-panel-close" onclick="closeNotifPanel();" aria-label="Close">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
 
-            <div class="notif-tabs" id="notifTabs">
-                <button class="notif-tab active" data-filter="all" onclick="setNotifFilter('all')">
-                    All <span class="notif-tab-count" id="notifCountAll" style="display:none;"></span>
-                </button>
-                <button class="notif-tab" data-filter="inquiry" onclick="setNotifFilter('inquiry')">Chatbot</button>
-                <button class="notif-tab" data-filter="schedule_visit" onclick="setNotifFilter('schedule_visit')">Appointments</button>
-                <button class="notif-tab" data-filter="system" onclick="setNotifFilter('system')">System</button>
+                <div class="notif-tabs" id="notifTabs">
+                    <button class="notif-tab active" data-filter="all" onclick="setNotifFilter('all')">
+                        All <span class="notif-tab-count" id="notifCountAll" style="display:none;"></span>
+                    </button>
+                    <button class="notif-tab" data-filter="inquiry" onclick="setNotifFilter('inquiry')">Chatbot</button>
+                    <button class="notif-tab" data-filter="schedule_visit" onclick="setNotifFilter('schedule_visit')">Scheduled Visit</button>
+                    <button class="notif-tab" data-filter="system" onclick="setNotifFilter('system')">System</button>
+                </div>
             </div>
 
             <div class="notif-panel-actions">
@@ -113,12 +115,6 @@
             <!-- SIDEBAR -->
             <aside class="sidebar">
                 <div class="sidebar-header">
-                    <div class="sidebar-brand">
-                        <div class="sidebar-brand-icon">
-                            <i class="fa-solid fa-hospital"></i>
-                        </div>
-                        <span class="sidebar-brand-text">Polyclinic</span>
-                    </div>
                     <button
                         type="button"
                         id="sidebarToggleBtn"
@@ -132,28 +128,33 @@
                 </div>
 
                 <a href="{{ route('staff.dashboard') }}" style="text-decoration: none; color: inherit; display: block;">
-                    <div class="nav-item {{ request()->routeIs('staff.dashboard*') ? 'active' : '' }}">
-                        <i class="bi bi-bar-chart-fill"></i> <span>Dashboard</span>
+                    <div class="nav-item {{ request()->routeIs('staff.dashboard*') ? 'active' : '' }}" title="Dashboard" data-label="Dashboard">
+                        <div class="nav-icon"><i class="bi bi-bar-chart-line"></i></div>
+                        <span>Dashboard</span>
                     </div>
                 </a>
                 <a href="{{ route('staff.appointments') }}" style="text-decoration: none; color: inherit; display: block;">
-                    <div class="nav-item {{ request()->routeIs('staff.appointments*') ? 'active' : '' }}">
-                        <i class="bi bi-journal-medical"></i> <span>Scheduled Visits</span>
+                    <div class="nav-item {{ request()->routeIs('staff.appointments*') ? 'active' : '' }}" title="Scheduled Visits" data-label="Scheduled Visits">
+                        <div class="nav-icon"><i class="fa-solid fa-book-medical"></i></div>
+                        <span>Scheduled Visits</span>
                     </div>
                 </a>
                 <a href="{{ route('staff.inquiries') }}" style="text-decoration: none; color: inherit; display: block;">
-                    <div class="nav-item {{ request()->routeIs('staff.inquiries*') ? 'active' : '' }}">
-                        <i class="bi bi-chat-dots"></i> <span>Chatbot Inquiries</span>
+                    <div class="nav-item {{ request()->routeIs('staff.inquiries*') ? 'active' : '' }}" title="Chatbot Inquiries" data-label="Chatbot Inquiries">
+                        <div class="nav-icon"><i class="fa-regular fa-comment-dots"></i></div>
+                        <span>Chatbot Inquiries</span>
                     </div>
                 </a>
                 <a href="{{ route('staff.doctors') }}" style="text-decoration: none; color: inherit; display: block;">
-                    <div class="nav-item {{ request()->routeIs('staff.doctors*') ? 'active' : '' }}">
-                        <i class="fa-solid fa-user-doctor"></i> <span>Manage Doctors</span>
+                    <div class="nav-item {{ request()->routeIs('staff.doctors*') ? 'active' : '' }}" title="Manage Doctors" data-label="Manage Doctors">
+                        <div class="nav-icon"><i class="fa-solid fa-user-doctor"></i></div>
+                        <span>Manage Doctors</span>
                     </div>
                 </a>
                 <a href="{{ route('staff.patients') }}" style="text-decoration: none; color: inherit; display: block;">
-                    <div class="nav-item {{ request()->routeIs('staff.patients*') ? 'active' : '' }}">
-                        <i class="bi bi-hospital"></i> <span>Patient Records</span>
+                    <div class="nav-item {{ request()->routeIs('staff.patients*') ? 'active' : '' }}" title="Patient Records" data-label="Patient Records">
+                        <div class="nav-icon"><i class="fa-regular fa-hospital"></i></div>
+                        <span>Patient Records</span>
                     </div>
                 </a>
             </aside>
@@ -162,9 +163,6 @@
 
             <!-- MAIN CONTENT -->
             <main class="main-content">
-                @if(session('success'))
-                    <div class="popup-toast">{{ session('success') }}</div>
-                @endif
                 @yield('content')
             </main>
         </div>
@@ -811,6 +809,12 @@
             system: 'System',
         };
 
+        // Icon shown in each row's circle (UI only)
+        const notifTypeIcons = {
+            chat_inquiry: 'bi-chat-dots',
+            appointment: 'bi-calendar-check',
+        };
+
         let rawNotifications = [];  
         let allNotifications = []; 
         let notifFilter = 'all';
@@ -856,14 +860,28 @@
 
         function renderNotifEntry(n) {
             const label = notifTypeLabels[n.type] || 'System';
+            const isSystem = notifCategory(n.type) === 'system';
+            const icon = notifTypeIcons[n.type] || 'bi-exclamation-circle';
+            const refTag = (n.reference_type && n.reference_id)
+                ? `<span class="notif-entry-badge">${String(n.reference_type).toUpperCase()}-${n.reference_id}</span>`
+                : '';
+            const markReadBtn = n.is_read
+                ? ''
+                : `<button type="button" class="notif-entry-action" onclick="event.stopPropagation(); markNotifRead(${n.notification_id})">Mark read</button>`;
             return `
                 <div class="notif-entry ${n.is_read ? 'is-read' : 'is-unread'}" onclick="handleNotifClick(${n.notification_id}, '${n.type}', ${n.reference_id})">
-                    <div class="notif-entry-icon"><i class="bi bi-bell"></i></div>
+                    <div class="notif-entry-icon${isSystem ? ' icon-system' : ''}"><i class="bi ${icon}"></i></div>
                     <div class="notif-entry-body">
-                        <div class="notif-entry-title">${n.title}</div>
-                        <div class="notif-entry-meta">
-                            <span class="notif-entry-time">${timeAgo(n.created_at)}</span>
-                            <span class="notif-entry-badge">${label}</span>
+                        <div class="notif-entry-top">
+                            <div>
+                                <div class="notif-entry-title">${n.title}</div>
+                                <div class="notif-entry-meta">
+                                    <span class="notif-entry-time">${timeAgo(n.created_at)}</span>
+                                    <span class="notif-entry-badge">${label}</span>
+                                    ${refTag}
+                                </div>
+                            </div>
+                            ${markReadBtn}
                         </div>
                         <div class="notif-entry-message">${n.message}</div>
                     </div>
@@ -942,6 +960,16 @@
                 if (!template) return;
                 window.location.href = template.replace(':id', referenceId);
             });
+        }
+
+        function markNotifRead(notificationId) {
+            fetch(`/staff/notifications/${notificationId}/read`, {
+                method: 'PUT',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Content-Type': 'application/json',
+                }
+            }).then(() => loadNotifications());
         }
 
         function markAllNotifsRead() {

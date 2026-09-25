@@ -193,23 +193,26 @@ function setupDoctorSearch(searchInputId, tabsContainerId, gridId) {
 function showDoctorDetails(id) {
   const doc = doctorsData.find(d => d.id === id);
   if (!doc) return;
-  const scheduleRowsHtml = doc.schedule.map(s => `
-              <div class="doctor-modal-schedule-row">
-                <div class="sub-label"><i class="fas fa-calendar-day"></i> ${s.day}</div>
-                <div class="sub-value">${s.time}</div>
-              </div>`).join('');
-  const phone = (clinicInfo && clinicInfo.contact_no) ? clinicInfo.contact_no : '0985 475 5511';
-
+  const scheduleHtml = doc.schedule.map(s => `<li><span>${s.day}</span><span>${s.time}</span></li>`).join('');
+  // photo/icon block added here (mika)
   document.getElementById('modalContent').innerHTML = `
     <div class="modal-header">
-      <div class="doctor-modal-header-top">
-        <div class="modal-doctor-photo">
-          ${doc.photo
-            ? `<img src="${doc.photo}" alt="${doc.name}" onerror="handleDoctorPhotoError(this,'${doc.gender}')">`
-            : `<div class="doctor-photo-fallback">${doc.icon}</div>`}
-        </div>
-        <div class="doctor-modal-tags">
-          <span class="doctor-modal-tag">${doc.spec}</span>
+    <div class="modal-doctor-photo"> 
+      ${doc.photo
+        ? `<img src="${doc.photo}" alt="${doc.name}" onerror="handleDoctorPhotoError(this,'${doc.gender}')">`
+        : `<div class="doctor-photo-fallback">${doc.icon}</div>`}
+    </div>
+    <h2>${doc.name}</h2>
+    <div class="modal-spec">${doc.spec}</div>
+  </div>
+    <div class="modal-body">
+      <div class="doctor-info-section">
+        <div class="section-label"><i class="fas fa-user-md"></i> Professional Profile</div>
+        <div class="info-grid">
+          <div class="info-item"><div class="info-item-label">Experience</div><div class="info-item-value">${doc.yearsExp}+ years</div></div>
+          
+          <div class="info-item"><div class="info-item-label">Medical Degree</div><div class="info-item-value">${orNA(doc.education)}</div></div>
+          <div class="info-item"><div class="info-item-label">Fellowship</div><div class="info-item-value">${orNA(doc.fellowship)}</div></div>
         </div>
       </div>
       <h2>${doc.name}</h2>

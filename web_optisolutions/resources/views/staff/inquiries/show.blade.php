@@ -5,10 +5,10 @@
 
 <div class="container">
     <div class="page-title-group" style="margin-bottom: 1rem;">
-        <h3 style="margin: 0;">
-            <i class="bi bi-chat-square-text"></i> Chatbot Inquiries
+        <h3 style="margin: 0; font-size: 1.75rem; color: var(--primary-dark); display: flex; align-items: center;">
+            <span class="inq-header-icon"><i class="bi bi-chat-square-text"></i></span> Chatbot Inquiries
         </h3>
-        <p class="page-subtitle">View and respond to chatbot inquiries</p>
+        <p class="page-subtitle">Review and respond to patient conversations from the AI chatbot</p>
     </div>
 
     <div class="inquiries-split inquiries-split--detail-open">
@@ -26,23 +26,27 @@
                     <a href="{{ route('staff.inquiries') }}" class="conv-back-link">
                         <i class="bi bi-arrow-left"></i> Back to conversations
                     </a>
-                    <h3 style="color: var(--text-dark); margin: 0;">CHAT-{{ str_pad($inquiry->inquiry_id, 3, '0', STR_PAD_LEFT) }}</h3>
+                    @php
+                        $displayName = $inquiry->patient_id ? ('Patient #' . $inquiry->patient_id) : ($inquiry->guest_name ?: 'Guest');
+                        $patientLabel = $inquiry->patient_id ? 'P-' . $inquiry->patient_id : 'Guest';
+                    @endphp
+                    <h3 style="color: var(--text-dark); margin: 0;">{{ $displayName }}</h3>
                     <small style="color: #7f8c8d;">
-                        ID: {{ $inquiry->patient_id ?? 'N/A' }}
+                        INQ-{{ str_pad($inquiry->inquiry_id, 3, '0', STR_PAD_LEFT) }} &bull; ID: {{ $patientLabel }}
                         @if($inquiry->inquiry_type)
                             &bull; {{ $inquiry->inquiry_type }}
                         @endif
                     </small>
                 </div>
                 <div style="display:flex; align-items:center; gap:0.75rem;">
-                    <span class="status-badge {{ $inquiry->resolved_status === 'Pending' ? 'status-pending' : ($inquiry->resolved_status === 'Resolved' ? 'status-confirmed' : 'status-pending') }}">
-                        {{ $inquiry->resolved_status }}
+                    <span class="inq-status-badge {{ $inquiry->resolved_status === 'Resolved' ? 'inq-status-resolved' : 'inq-status-pending' }}">
+                        {{ $inquiry->resolved_status === 'Resolved' ? 'Resolved' : 'In Progress' }}
                     </span>
                     @if($inquiry->resolved_status !== 'Resolved')
                     <form action="{{ route('staff.inquiries.resolve', $inquiry->inquiry_id) }}" method="POST" style="display:inline;">
                         @csrf
                         @method('PUT')
-                        <button type="submit" class="btn-sm btn-success">Resolve</button>
+                        <button type="submit" class="inq-resolve-btn"><i class="bi bi-check2-circle"></i> Mark as Resolve</button>
                     </form>
                     @endif
                 </div>
@@ -70,13 +74,14 @@
                 @endphp
 
                 @unless($logDuplicatedByFirstReply)
-                <div style="display: flex; justify-content: flex-start; margin-bottom: 1rem;">
-                    <div style="background: var(--light-gray); padding: 0.8rem 1.5rem; border-radius: 18px; max-width: 80%;">
-                        <strong style="color: var(--text-dark);">Patient</strong>
-                        <p style="margin: 0.2rem 0 0 0; color: var(--text-dark); font-size: 1rem;">
+                <div class="inq-message">
+                    <div class="inq-message-avatar patient"><i class="bi bi-person"></i></div>
+                    <div class="inq-message-content">
+                        <div class="inq-message-sender">Patient</div>
+                        <p class="inq-message-text">
                             {{ $inquiry->log->user_message ?? 'No message found.' }}
                         </p>
-                        <small style="color: #7f8c8d; font-size: 0.7rem;">
+                        <small class="inq-message-time">
                             {{ $inquiry->log && $inquiry->log->chat_time ? \Carbon\Carbon::parse($inquiry->log->chat_time)->format('h:i A') : 'N/A' }}
                         </small>
                     </div>
@@ -86,9 +91,12 @@
                 <!-- Full thread: every patient message/attachment and every Staff/Admin reply, in order -->
                 @foreach($inquiry->replies as $reply)
                     @php $isStaffMsg = $reply->is_staff; @endphp
-                    <div style="display: flex; justify-content: {{ $isStaffMsg ? 'flex-end' : 'flex-start' }}; margin-bottom: 1rem;">
-                        <div style="background: {{ $isStaffMsg ? 'var(--primary-main)' : 'var(--light-gray)' }}; padding: 0.8rem 1.5rem; border-radius: 18px; max-width: 80%;">
-                            <strong style="color: {{ $isStaffMsg ? 'white' : 'var(--text-dark)' }};">{{ $reply->sender }}</strong>
+                    <div class="inq-message {{ $isStaffMsg ? 'staff-row' : '' }}">
+                        <div class="inq-message-avatar {{ $isStaffMsg ? '' : 'patient' }}">
+                            <i class="bi {{ $isStaffMsg ? 'bi-headset' : 'bi-person' }}"></i>
+                        </div>
+                        <div class="inq-message-content {{ $isStaffMsg ? 'staff' : '' }}">
+                            <div class="inq-message-sender {{ $isStaffMsg ? 'staff' : '' }}">{{ $reply->sender }}</div>
 
                             @if($reply->attachment_path)
                                 @php
@@ -102,8 +110,8 @@
                                         </a>
                                     </div>
                                 @else
-                                    <div style="margin-top: 0.4rem;">
-                                        <a href="{{ $reply->attachment_url }}" target="_blank" rel="noopener" style="color: {{ $isStaffMsg ? 'white' : 'var(--primary-main)' }}; text-decoration: underline;">
+                                    <div class="inq-message-attachment">
+                                        <a href="{{ $reply->attachment_url }}" target="_blank" rel="noopener" style="color: {{ $isStaffMsg ? 'var(--primary-main)' : 'var(--primary-dark)' }};">
                                             <i class="bi bi-paperclip"></i> {{ $reply->attachment_name ?? 'Attachment' }}
                                         </a>
                                     </div>
@@ -111,10 +119,10 @@
                             @endif
 
                             @if($reply->message && $reply->message !== '(Sent an attachment)')
-                                <p style="margin: 0.2rem 0 0 0; color: {{ $isStaffMsg ? 'white' : 'var(--text-dark)' }}; font-size: 1rem;">{{ $reply->message }}</p>
+                                <p class="inq-message-text">{{ $reply->message }}</p>
                             @endif
 
-                            <small style="color: {{ $isStaffMsg ? 'rgba(255,255,255,0.7)' : '#7f8c8d' }}; font-size: 0.7rem;">
+                            <small class="inq-message-time">
                                 {{ $reply->created_at ? $reply->created_at->format('h:i A') : 'N/A' }}
                             </small>
                         </div>
@@ -132,8 +140,8 @@
                 <form method="POST" action="{{ route('staff.inquiries.reply', $inquiry->inquiry_id) }}" id="staffReplyForm">
                     @csrf
                     <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" name="message" id="staffReplyInput" placeholder="Type your response..." value="{{ $inquiry->inquiry_reply }}" style="flex: 1; padding: 0.8rem 1rem; border: 1px solid var(--light-gray); border-radius: 25px; outline: none; font-family: 'Poppins', sans-serif; font-size: 1rem;" required>
-                        <button type="submit" class="btn-sm btn-primary" style="padding: 0.8rem 2rem; border-radius: 25px; font-size: 1rem;">Send Reply</button>
+                        <input type="text" name="message" id="staffReplyInput" class="inq-reply-input" placeholder="Type your response..." value="{{ $inquiry->inquiry_reply }}" required>
+                        <button type="submit" class="inq-send-btn">Send Reply</button>
                     </div>
                 </form>
             </div>

@@ -137,6 +137,25 @@
         }
         .mark-all-link:hover { text-decoration: underline; }
 
+        /* ── See more ─────────────────────────────────────────────── */
+        .notif-see-more-wrap {
+            display: flex;
+            justify-content: center;
+            padding: 1rem 1.5rem 1.4rem;
+        }
+        .see-more-btn {
+            background: none;
+            border: 1px solid var(--light-gray);
+            color: var(--primary-main);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.5rem 1.4rem;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .see-more-btn:hover { background: var(--light-gray); }
+
         /* ── Scrollable list ──────────────────────────────────────── */
         .notif-list-scroll {
             flex: 1;
@@ -263,10 +282,18 @@
                     <button class="notif-tab active" data-filter="all">
                         All <span class="tab-count" id="count-all">0</span>
                     </button>
-                    <button class="notif-tab" data-filter="chat_inquiry">Chatbot</button>
-                    <button class="notif-tab" data-filter="appointment">Scheduled Visit</button>
-                    <button class="notif-tab" data-filter="feedback,complaint">Feedback</button>
-                    <button class="notif-tab" data-filter="system">System</button>
+                    <button class="notif-tab" data-filter="chat_inquiry">
+                        Chatbot <span class="tab-count" id="count-chat_inquiry">0</span>
+                    </button>
+                    <button class="notif-tab" data-filter="appointment">
+                        Scheduled Visit <span class="tab-count" id="count-appointment">0</span>
+                    </button>
+                    <button class="notif-tab" data-filter="feedback,complaint">
+                        Feedback <span class="tab-count" id="count-feedback">0</span>
+                    </button>
+                    <button class="notif-tab" data-filter="system">
+                        System <span class="tab-count" id="count-system">0</span>
+                    </button>
                 </div>
             </div>
 
@@ -333,6 +360,10 @@
                     </div>
                 @endforelse
 
+                <div class="notif-see-more-wrap" id="notifSeeMoreWrap" style="display: none;">
+                    <button class="see-more-btn" id="notifSeeMoreBtn">See more</button>
+                </div>
+
             </div>
         </div>
     </div>
@@ -352,34 +383,90 @@
             if (e.key === 'Escape') closePanel();
         });
 
-        // ── Tab filtering ──────────────────────────────────────────
+        // ── Tab filtering + "See more" pagination ────────────────────
         const filterTabs = document.querySelectorAll('.notif-tab');
         const allRows = document.querySelectorAll('.notif-row');
         const allGroups = document.querySelectorAll('.notif-group');
+        const seeMoreWrap = document.getElementById('notifSeeMoreWrap');
+        const seeMoreBtn = document.getElementById('notifSeeMoreBtn');
+
+        const PAGE_SIZE = 7;
+        let currentFilter = 'all';
+        let visibleLimit = PAGE_SIZE;
+
+        function renderList() {
+            let shown = 0;
+            let totalMatching = 0;
+
+            allGroups.forEach(group => {
+                const rowsInGroup = group.querySelectorAll('.notif-row');
+                let visibleInGroup = 0;
+
+                rowsInGroup.forEach(row => {
+                    const matches = currentFilter === 'all' || currentFilter.split(',').includes(row.dataset.category);
+                    if (!matches) {
+                        row.style.display = 'none';
+                        return;
+                    }
+                    totalMatching++;
+                    if (shown < visibleLimit) {
+                        row.style.display = '';
+                        shown++;
+                        visibleInGroup++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                group.style.display = visibleInGroup > 0 ? '' : 'none';
+            });
+
+            seeMoreWrap.style.display = totalMatching > visibleLimit ? 'flex' : 'none';
+        }
 
         filterTabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 filterTabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                const filter = tab.dataset.filter;
-
-                allGroups.forEach(group => {
-                    const rowsInGroup = group.querySelectorAll('.notif-row');
-                    let visibleCount = 0;
-
-                    rowsInGroup.forEach(row => {
-                        const matches = filter === 'all' || filter.split(',').includes(row.dataset.category);
-                        row.style.display = matches ? '' : 'none';
-                        if (matches) visibleCount++;
-                    });
-
-                    group.style.display = visibleCount > 0 ? '' : 'none';
-                });
+                currentFilter = tab.dataset.filter;
+                visibleLimit = PAGE_SIZE;
+                renderList();
             });
         });
 
+        seeMoreBtn.addEventListener('click', () => {
+            visibleLimit += PAGE_SIZE;
+            renderList();
+        });
+
+        renderList();
+
         // ── Counts ──────────────────────────────────────────────────
-        document.getElementById('count-all').textContent = allRows.length;
+        // Maps each tab's <span class="tab-count"> id to the notif type(s) it covers.
+        const TAB_COUNT_MAP = {
+            'count-chat_inquiry': ['chat_inquiry'],
+            'count-appointment':  ['appointment'],
+            'count-feedback':     ['feedback', 'complaint'],
+            'count-system':       ['system'],
+        };
+
+        function updateCounts() {
+            const unreadRows = document.querySelectorAll('.notif-row.unread');
+
+            document.getElementById('count-all').textContent = unreadRows.length;
+
+            Object.entries(TAB_COUNT_MAP).forEach(([elId, types]) => {
+                const el = document.getElementById(elId);
+                if (!el) return;
+                let count = 0;
+                unreadRows.forEach(row => {
+                    if (types.includes(row.dataset.category)) count++;
+                });
+                el.textContent = count;
+            });
+        }
+
+        updateCounts();
 
         // ── Click a row → mark it read, then navigate ────────────────
         allRows.forEach(row => {
@@ -389,6 +476,11 @@
             row.addEventListener('click', () => {
                 const markReadBtn = row.querySelector('.notif-action-link');
                 if (markReadBtn) {
+                    row.classList.remove('unread');
+                    row.classList.add('read');
+                    markReadBtn.remove();
+                    updateCounts();
+
                     fetch(`/admin_acc/notifications/${row.dataset.id}/read`, {
                         method: 'POST',
                         headers: {
@@ -407,6 +499,7 @@
             row.classList.remove('unread');
             row.classList.add('read');
             btn.remove();
+            updateCounts();
 
             fetch(`/admin_acc/notifications/${id}/read`, {
                 method: 'POST',
@@ -424,6 +517,7 @@
                 row.classList.add('read');
                 row.querySelector('.notif-action-link')?.remove();
             });
+            updateCounts();
 
             fetch('/admin_acc/notifications/mark-all-read', {
                 method: 'POST',

@@ -14,10 +14,18 @@
                 <button class="notif-tab active" data-filter="all">
                     All <span class="tab-count" id="count-all">0</span>
                 </button>
-                <button class="notif-tab" data-filter="chat_inquiry">Chatbot</button>
-                <button class="notif-tab" data-filter="appointment">Scheduled Visit</button>
-                <button class="notif-tab" data-filter="feedback,complaint">Feedback</button>
-                <button class="notif-tab" data-filter="system">System</button>
+                <button class="notif-tab" data-filter="chat_inquiry">
+                    Chatbot <span class="tab-count" id="count-chat_inquiry">0</span>
+                </button>
+                <button class="notif-tab" data-filter="appointment">
+                    Scheduled Visit <span class="tab-count" id="count-appointment">0</span>
+                </button>
+                <button class="notif-tab" data-filter="feedback,complaint">
+                    Feedback <span class="tab-count" id="count-feedback">0</span>
+                </button>
+                <button class="notif-tab" data-filter="system">
+                    System <span class="tab-count" id="count-system">0</span>
+                </button>
             </div>
         </div>
 

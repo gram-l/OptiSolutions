@@ -538,6 +538,18 @@ body {
   letter-spacing: 0.5px;
 }
 
+/* Mission / Vision cards: icon stacked above the heading, left-aligned */
+.mv-top-grid .mv-card-modern {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 32px 30px;
+}
+
+.mv-top-grid .mv-card-modern:hover {
+  transform: translateY(-4px);
+}
+
 .mv-icon-modern {
   width: 56px;
   height: 56px;

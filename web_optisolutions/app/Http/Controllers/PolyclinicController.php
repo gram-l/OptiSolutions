@@ -26,9 +26,25 @@ class PolyclinicController extends Controller
             ->where('sentiment_label', 'Positive')
             ->count();
 
+        $recentFeedback = DB::table('feedback')
+            ->join('sentiment_results', 'sentiment_results.feedback_id', '=', 'feedback.feedback_id')
+            ->leftJoin('patients', 'patients.patient_id', '=', 'feedback.patient_id')
+            ->where('sentiment_results.sentiment_label', 'Positive')
+            ->whereNotNull('feedback.feedback_text')
+            ->where('feedback.feedback_text', '!=', '')
+            ->orderByDesc('feedback.submitted_at')
+            ->limit(12)
+            ->get([
+                'feedback.feedback_text',
+                'feedback.star_rating',
+                'feedback.submitted_at',
+                'patients.patient_fname',
+                'patients.patient_lname',
+            ]);
+
         return view('patient.home', compact(
             'heroImage', 'clinicInfo', 'specialistsCount', 'avgRating',
-            'yearsOfExcellence', 'happyPatientsCount'
+            'yearsOfExcellence', 'happyPatientsCount', 'recentFeedback'
         ));
     }
 

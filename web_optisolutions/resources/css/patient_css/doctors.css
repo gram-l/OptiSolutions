@@ -466,23 +466,26 @@ body {
 
 .modal-content {
   background: var(--white);
-  border-radius: 40px;
-  max-width: 650px;
-  width: 90%;
-  max-height: 85vh;
+  border-radius: 24px;
+  max-width: 760px;
+  width: 92%;
+  max-height: 88vh;
   overflow-y: auto;
   position: relative;
   animation: modalSlideIn 0.3s ease;
   box-shadow: 0 32px 64px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-close {
   position: absolute;
   top: 20px;
   right: 20px;
-  width: 40px;
-  height: 40px;
-  background: var(--gray-100);
+  width: 36px;
+  height: 36px;
+  background: rgba(255,255,255,0.15);
+  color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -490,27 +493,65 @@ body {
   cursor: pointer;
   border: none;
   z-index: 10;
-  font-size: 18px;
+  font-size: 15px;
   transition: all 0.2s;
 }
 
 .modal-close:hover {
-  background: var(--gray-200);
+  background: rgba(255,255,255,0.3);
   transform: scale(1.05);
 }
 
+/* -------- Doctor modal header: same layout language as the
+   service modal header (icon + tag row, title below), just
+   recolored to the brand blue used on the hero. -------- */
 .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   color: white;
-  padding: 40px 32px;
-  text-align: center;
-  border-radius: 40px 40px 0 0;
+  padding: 28px 60px 24px 32px;
+  border-radius: 24px 24px 0 0;
+}
+
+.doctor-modal-header-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.doctor-modal-header-top .modal-doctor-photo,
+.doctor-modal-header-top .modal-avatar {
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  font-size: 20px;
+  margin: 0;
+}
+
+.doctor-modal-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.doctor-modal-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 6px 13px;
+  border-radius: 40px;
+  white-space: nowrap;
+  background: rgba(255,255,255,0.18);
+  color: white;
 }
 
 .modal-header h2 {
-  font-size: 32px;
-  margin-bottom: 8px;
-  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+  text-align: left;
 }
 
 .modal-spec {
@@ -522,7 +563,7 @@ body {
 }
 
 .modal-body {
-  padding: 32px;
+  padding: 28px 32px 0;
 }
 
 .doctor-info-section {
@@ -597,9 +638,10 @@ body {
 }
 
 .bio-text {
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 14.5px;
+  line-height: 1.7;
   color: var(--gray-600);
+  margin: 0;
 }
 
 .modal-book-btn {
@@ -619,6 +661,86 @@ body {
 .modal-book-btn:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
+}
+
+/* -------- Doctor modal body: same two-column, boxed-card
+   structure as the service modal, colors aligned to the hero
+   blue (--primary / --primary-dark) instead of the dark navy
+   used on the services grid. -------- */
+.doctor-modal-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+  align-items: start;
+  padding-bottom: 28px;
+}
+.doctor-modal-col { display: flex; flex-direction: column; gap: 20px; }
+.doctor-modal-box {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 16px;
+  padding: 20px 22px;
+}
+.doctor-modal-box.dark {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  border: none;
+  color: white;
+}
+.doctor-modal-box-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  margin-bottom: 14px;
+}
+.doctor-modal-box-label i { color: var(--primary); font-size: 13px; }
+.doctor-modal-box.dark .doctor-modal-box-label { color: rgba(255,255,255,0.7); }
+.doctor-modal-box.dark .doctor-modal-box-label i { color: rgba(255,255,255,0.9); }
+.doctor-modal-schedule-row { margin-bottom: 14px; }
+.doctor-modal-schedule-row:last-child { margin-bottom: 0; }
+.doctor-modal-schedule-row .sub-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.65);
+  margin-bottom: 6px;
+}
+.doctor-modal-schedule-row .sub-value { font-size: 15px; font-weight: 700; color: white; }
+.doctor-modal-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 32px;
+  border-top: 1px solid var(--gray-200);
+  background: var(--gray-50);
+  border-radius: 0 0 24px 24px;
+}
+.doctor-modal-phone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--gray-700);
+  font-weight: 600;
+}
+.doctor-modal-phone i { color: var(--primary); }
+@media (max-width: 700px) {
+  .doctor-modal-grid { grid-template-columns: 1fr; }
+  .modal-header { padding: 24px 52px 20px 20px; }
+  .modal-body { padding: 22px 20px 0; }
+  .doctor-modal-footer { padding: 16px 20px; }
 }
 
 /* ============================================

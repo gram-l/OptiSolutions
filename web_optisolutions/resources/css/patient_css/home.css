@@ -325,7 +325,7 @@ body {
   gap: 32px;
 }
 .hero-logo-blur {
-  filter: blur(1.4px);
+  filter: none;
   opacity: 1;
 }
 .hero-flutter-content {
@@ -361,38 +361,37 @@ body {
   margin-top: 4px;
 }
 .hero-learn-more-wrap {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
   justify-content: center;
-  align-items: flex-start;
-  gap: 6px;
+  gap: 10px;
   padding: 16px 20px;
   border: 2px solid var(--primary-dark);
-  border-radius: 14px;
+  border-radius: 50px;
   flex: 1 1 0;
   min-width: 0;
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.2s ease, transform 0.15s ease;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  transition: background 0.2s ease, transform 0.15s ease, color 0.2s ease;
+}
+.hero-learn-more-wrap i {
+  color: #e0475a;
+  font-size: 15px;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
 }
 .hero-learn-more-wrap:hover {
   background: var(--primary-dark);
+  color: #ffffff;
   transform: translateY(-2px);
 }
-.hero-learn-more-wrap:hover .hero-learn-more-title,
-.hero-learn-more-wrap:hover .hero-learn-more-sub {
+.hero-learn-more-wrap:hover i {
   color: #ffffff;
-}
-.hero-learn-more-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--primary-dark);
-  transition: color 0.2s ease;
-}
-.hero-learn-more-sub {
-  font-size: 12px;
-  color: var(--gray-500);
-  transition: color 0.2s ease;
 }
 .hero-find-specialist-btn {
   display: inline-flex;
@@ -420,6 +419,97 @@ body {
   background: var(--primary);
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(14, 58, 94, 0.35);
+}
+.hero-live-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 1px solid #E7ECF1;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(15, 103, 179, 0.07);
+  max-width: 560px;
+}
+.hero-live-feedback-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hero-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 0 rgba(44, 158, 122, 0.55);
+  animation: heroLivePulse 1.8s infinite;
+}
+@keyframes heroLivePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(44, 158, 122, 0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(44, 158, 122, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(44, 158, 122, 0); }
+}
+.hero-live-feedback-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--primary-dark);
+}
+.hero-live-feedback-tag {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+.hero-live-feedback-body {
+  position: relative;
+  min-height: 22px;
+}
+.hero-live-review {
+  display: none;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.hero-live-review.is-active {
+  display: flex;
+  animation: heroLiveFadeIn 0.5s ease;
+}
+@keyframes heroLiveFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-live-review-name {
+  font-weight: 700;
+  color: var(--primary-dark);
+  flex-shrink: 0;
+}
+.hero-live-review-quote {
+  color: var(--gray-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.hero-live-review-rating {
+  margin-left: auto;
+  font-weight: 700;
+  color: #F5A623;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.hero-live-review-rating i {
+  margin-right: 2px;
+}
+@media (max-width: 640px) {
+  .hero-live-feedback { max-width: 100%; }
+  .hero-live-review-quote { white-space: normal; }
 }
 .hero-flutter-image {
   flex: 6;
@@ -817,20 +907,23 @@ body {
 .doctor-modal.active { opacity: 1; visibility: visible; }
 .modal-content {
   background: var(--white);
-  border-radius: 40px;
-  max-width: 650px;
-  width: 90%;
-  max-height: 85vh;
+  border-radius: 24px;
+  max-width: 760px;
+  width: 92%;
+  max-height: 88vh;
   overflow-y: auto;
   position: relative;
   animation: modalSlideIn 0.3s ease;
   box-shadow: 0 32px 64px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
 }
 .modal-close {
   position: absolute;
   top: 20px; right: 20px;
-  width: 40px; height: 40px;
-  background: var(--gray-100);
+  width: 36px; height: 36px;
+  background: rgba(255,255,255,0.15);
+  color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -838,28 +931,56 @@ body {
   cursor: pointer;
   border: none;
   z-index: 10;
-  font-size: 18px;
+  font-size: 15px;
   transition: all 0.2s;
 }
-.modal-close:hover { background: var(--gray-200); transform: scale(1.05); }
+.modal-close:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+/* -------- Doctor modal header: same layout language as the
+   service modal header (icon + tag row, title below), just
+   recolored to the brand blue used on the hero. -------- */
 .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   color: white;
-  padding: 40px 32px;
-  text-align: center;
-  border-radius: 40px 40px 0 0;
+  padding: 28px 60px 24px 32px;
+  border-radius: 24px 24px 0 0;
 }
-.modal-avatar {
-  width: 110px; height: 110px;
-  background: rgba(255,255,255,0.2);
-  border-radius: 50%;
+.doctor-modal-header-top {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 64px;
-  margin: 0 auto 16px;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
-.modal-header h2 { font-size: 32px; margin-bottom: 8px; font-weight: 700; }
+.doctor-modal-header-top .modal-doctor-photo,
+.doctor-modal-header-top .modal-avatar {
+  width: 50px; height: 50px;
+  min-width: 50px;
+  font-size: 20px;
+  margin: 0;
+}
+.doctor-modal-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.doctor-modal-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 6px 13px;
+  border-radius: 40px;
+  white-space: nowrap;
+  background: rgba(255,255,255,0.18);
+  color: white;
+}
+.modal-header h2 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+  text-align: left;
+}
 .modal-spec {
   font-size: 16px;
   background: rgba(255,255,255,0.2);
@@ -867,7 +988,7 @@ body {
   padding: 6px 20px;
   border-radius: 40px;
 }
-.modal-body { padding: 32px; }
+.modal-body { padding: 28px 32px 0; }
 .doctor-info-section {
   margin-bottom: 28px;
   border-bottom: 1px solid var(--gray-200);
@@ -902,7 +1023,7 @@ body {
 }
 .schedule-list-modal li:last-child { border-bottom: none; }
 .schedule-list-modal li span:first-child { font-weight: 600; color: var(--gray-700); }
-.bio-text { font-size: 15px; line-height: 1.6; color: var(--gray-600); }
+.bio-text { font-size: 14.5px; line-height: 1.7; color: var(--gray-600); margin: 0; }
 .modal-book-btn {
   width: 100%;
   background: var(--primary);
@@ -917,6 +1038,85 @@ body {
   transition: all 0.2s;
 }
 .modal-book-btn:hover { background: var(--primary-dark); transform: translateY(-2px); }
+/* -------- Doctor modal body: same two-column, boxed-card
+   structure as the service modal, colors aligned to the hero
+   blue (--primary / --primary-dark) instead of the dark navy
+   used on the services grid. -------- */
+.doctor-modal-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+  align-items: start;
+  padding-bottom: 28px;
+}
+.doctor-modal-col { display: flex; flex-direction: column; gap: 20px; }
+.doctor-modal-box {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 16px;
+  padding: 20px 22px;
+}
+.doctor-modal-box.dark {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  border: none;
+  color: white;
+}
+.doctor-modal-box-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  margin-bottom: 14px;
+}
+.doctor-modal-box-label i { color: var(--primary); font-size: 13px; }
+.doctor-modal-box.dark .doctor-modal-box-label { color: rgba(255,255,255,0.7); }
+.doctor-modal-box.dark .doctor-modal-box-label i { color: rgba(255,255,255,0.9); }
+.doctor-modal-schedule-row { margin-bottom: 14px; }
+.doctor-modal-schedule-row:last-child { margin-bottom: 0; }
+.doctor-modal-schedule-row .sub-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.65);
+  margin-bottom: 6px;
+}
+.doctor-modal-schedule-row .sub-value { font-size: 15px; font-weight: 700; color: white; }
+.doctor-modal-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 32px;
+  border-top: 1px solid var(--gray-200);
+  background: var(--gray-50);
+  border-radius: 0 0 24px 24px;
+}
+.doctor-modal-phone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--gray-700);
+  font-weight: 600;
+}
+.doctor-modal-phone i { color: var(--primary); }
+@media (max-width: 700px) {
+  .doctor-modal-grid { grid-template-columns: 1fr; }
+  .modal-header { padding: 24px 52px 20px 20px; }
+  .modal-body { padding: 22px 20px 0; }
+  .doctor-modal-footer { padding: 16px 20px; }
+}
 /* ============================================
    SERVICE MODAL
    ============================================ */

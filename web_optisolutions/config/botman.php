@@ -2,9 +2,9 @@
 
 return [
 
-    'conversation_cache_time' => 40,
+    'conversation_cache_time' => 180,
 
-    'user_cache_time' => 30,
+    'user_cache_time' => 120,
 
     'curl_options' => [],
 

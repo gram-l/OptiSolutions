@@ -214,6 +214,7 @@
 <section class="services-modern-section" id="services">
   <div class="container">
     <div class="services-modern-header">
+      <span class="services-modern-tag">Services</span>
       <h2 class="services-modern-title">Comprehensive Medical Care<br>For You & Your Family</h2>
       <p class="services-modern-subtitle">We offer a wide range of specialized healthcare services delivered with compassion and expertise.</p>
     </div>

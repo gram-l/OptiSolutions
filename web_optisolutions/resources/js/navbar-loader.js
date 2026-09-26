@@ -16,11 +16,11 @@
         </button>
 
         <div class="navbar-nav" id="navbarMenu">
-          <a href="/home" class="nav-link" data-page="home">Home</a>
-          <a href="/about" class="nav-link" data-page="about">About Us</a>
-          <a href="/services" class="nav-link" data-page="services">Services</a>
-          <a href="/doctors" class="nav-link" data-page="doctors">Doctors</a>
-          <a href="/contact" class="nav-link" data-page="contact">Contact</a>
+          <a href="#home" class="nav-link" data-page="home">Home</a>
+          <a href="#about" class="nav-link" data-page="about">About Us</a>
+          <a href="#services" class="nav-link" data-page="services">Services</a>
+          <a href="#doctors" class="nav-link" data-page="doctors">Doctors</a>
+          <a href="#contact" class="nav-link" data-page="contact">Contact</a>
 
           <!-- <button class="nav-cta" onclick="window.location.href='/auth/login'">
             Login as Admin/Staff
@@ -44,6 +44,19 @@
         --nav-primary-tint: #EFF7FF;
         --nav-text: #2C3E50;
         --nav-border: #E4E9F0;
+        --navbar-height: 90px; /* fallback; overwritten in JS with the real, current height */
+      }
+
+      /* One-page layout: nav links jump to an in-page section (#about, #services,
+         etc.) instead of loading a separate route. Because the navbar is sticky
+         and sits on top of the page, jumping straight to a section's top edge
+         would tuck the first bit of that section underneath the navbar. This
+         reserves that much space above every section with an id, so the browser's
+         native anchor jump (and our own scroll-behavior: smooth) lands just below
+         the navbar instead of behind it. --navbar-height is kept in sync with the
+         navbar's real, current (responsive) height by the script below. */
+      section[id] {
+        scroll-margin-top: calc(var(--navbar-height) + 14px);
       }
 
       /* ============ GLOBAL RESET (so the accent strip is always full-bleed,
@@ -358,6 +371,22 @@
 
   document.head.insertAdjacentHTML('beforeend', navbarStyles);
   document.body.insertAdjacentHTML('afterbegin', navbarHTML);
+
+  /* ============ KEEP --navbar-height IN SYNC ============
+     The navbar's real height changes across breakpoints (see the responsive
+     rules below), so we measure it after render and whenever the viewport
+     is resized/rotated, rather than hard-coding a single number. This is
+     what makes the scroll-margin-top rule above land accurately at every
+     screen size. */
+  const syncNavbarHeightVar = () => {
+    const navbarEl = document.querySelector('.navbar');
+    if (navbarEl) {
+      document.documentElement.style.setProperty('--navbar-height', `${navbarEl.offsetHeight}px`);
+    }
+  };
+  syncNavbarHeightVar();
+  window.addEventListener('resize', syncNavbarHeightVar);
+  window.addEventListener('load', syncNavbarHeightVar);
 
   const currentPage = window.location.pathname.replace('/', '') || 'home';
 

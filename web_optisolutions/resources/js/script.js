@@ -460,7 +460,14 @@ function unlockBodyScroll() {
     document.body.style.right = '';
     document.body.style.width = '';
     document.body.style.overflow = '';
-    window.scrollTo(0, _scrollLockY);
+    // Force an instant jump back, not an animated one. Several pages set
+    // `html { scroll-behavior: smooth }` for their own in-page anchor links,
+    // but that same CSS rule also hijacks *any* programmatic scroll —
+    // including this restore — turning what should be an invisible snap
+    // back to where the user was into a visible "dramatic" scroll down/up
+    // the page after closing a modal. Passing behavior: 'auto' explicitly
+    // overrides the CSS smooth-scroll setting for this one call only.
+    window.scrollTo({ top: _scrollLockY, left: 0, behavior: 'auto' });
   }
 }
 

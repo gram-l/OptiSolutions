@@ -51,6 +51,12 @@ body {
   margin: 0 auto;
   padding: 0 32px;
 }
+@media (max-width: 768px) {
+  .container { padding: 0 20px; }
+}
+@media (max-width: 480px) {
+  .container { padding: 0 16px; }
+}
 /* ============================================
    NAVBAR
    (Styling and mobile behavior now live entirely in
@@ -316,6 +322,12 @@ body {
   padding: 24px 40px 0;
   overflow: hidden;
 }
+@media (max-width: 768px) {
+  .hero-flutter { padding: 20px 20px 0; }
+}
+@media (max-width: 480px) {
+  .hero-flutter { padding: 16px 16px 0; }
+}
 .hero-flutter-inner {
   max-width: 1280px;
   margin: 0 auto;
@@ -549,9 +561,19 @@ body {
   opacity: 1;
   visibility: visible;
 }
-/* hero-flutter-actions now sizes fluidly at every width via flex:1 1 0 +
-   min-width:0 on both children (see base rules above), so no per-breakpoint
-   override is needed here to keep them side by side. */
+/* hero-flutter-actions sizes fluidly at wider widths via flex:1 1 0 +
+   min-width:0 on both children (see base rules above). Below ~480px there
+   isn't room for two pill buttons side by side without clipping the
+   nowrap "Leave Patient Feedback" label, so they stack full-width instead. */
+@media (max-width: 480px) {
+  .hero-flutter-actions { flex-wrap: wrap; }
+  .hero-learn-more-wrap,
+  .hero-find-specialist-btn {
+    flex: 1 1 100%;
+    width: 100%;
+    white-space: normal;
+  }
+}
 /* ============================================
    STATS - MODERN
    ============================================ */
@@ -1745,7 +1767,7 @@ body {
   align-items: center;
   background: var(--white);
   border-radius: 24px;
-  padding: 40px 44px;
+  padding: 64px 68px;
   border: 1px solid var(--gray-200);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.04);
 }
@@ -1836,7 +1858,7 @@ body {
    ============================================ */
 @media (max-width: 992px) {
   .stats-modern-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-  .cta-banner-inner { grid-template-columns: 1fr; text-align: center; padding: 32px 28px; }
+  .cta-banner-inner { grid-template-columns: 1fr; text-align: center; padding: 44px 36px; }
   .cta-banner-info { justify-content: center; }
   .cta-info-item { text-align: left; }
   .btn-cta-banner { margin: 0 auto; }
@@ -1855,7 +1877,7 @@ body {
   .services-modern-title, .doctors-modern-title { font-size: 30px; }
   .service-card-modern { padding: 32px 22px; }
   .cta-banner { padding: 32px 20px; }
-  .cta-banner-inner { padding: 32px 24px; border-radius: 20px; }
+  .cta-banner-inner { padding: 36px 28px; border-radius: 20px; }
   .cta-banner-title { font-size: 28px; }
   .filter-tabs { gap: 8px; }
   .filter-tab { font-size: 12px; padding: 6px 14px; }

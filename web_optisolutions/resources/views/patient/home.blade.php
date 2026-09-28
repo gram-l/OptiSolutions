@@ -14,6 +14,78 @@
     .reviews-banner-footer { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
     .reviews-banner-footer:hover { transform: scale(1.02); box-shadow: 0 12px 32px rgba(0,0,0,0.2); }
     .reviews-banner-footer:active { transform: scale(0.98); }
+
+    /* Doctor card photos - inline so it works without rebuilding Vite assets */
+    .doctor-card {
+      padding: 0 0 24px !important;
+      overflow: hidden !important;
+    }
+    .doctor-card .doctor-card-photo {
+      width: 100% !important;
+      height: 270px !important;
+      margin: 0 0 16px !important;
+      border-radius: 0 !important;
+      border: none !important;
+      overflow: hidden !important;
+      background: linear-gradient(145deg, var(--primary-light, #E0F2FE), #F0F9FF);
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    }
+    .doctor-card .doctor-card-photo img {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      object-fit: cover !important;
+      object-position: center top !important;
+      display: block;
+    }
+    .doctor-card .doctor-card-photo .doctor-photo-fallback {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 64px;
+      color: var(--primary, #0284C7);
+    }
+    .doctor-card h3,
+    .doctor-card .doctor-spec,
+    .doctor-card p { margin-left: 16px; margin-right: 16px; }
+
+    /* Mission / Vision / Core Values: same card layout (icon left, text right), stacked */
+    .mv-modern { display: flex; flex-direction: column; gap: 24px; }
+    .mv-modern .mv-top-grid {
+      display: flex !important;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .mv-modern .mv-card-modern,
+    .mv-modern .mv-top-grid .mv-card-modern {
+      flex-direction: row !important;
+      align-items: center !important;
+      gap: 20px !important;
+      padding: 28px 32px !important;
+      width: 100%;
+      height: auto !important;
+      background: var(--white, #fff);
+      border: 1px solid var(--gray-200, #E5E7EB);
+      border-radius: 20px;
+    }
+    .mv-modern .mv-top-grid .mv-card-modern:hover { transform: translateX(6px); }
+    .mv-modern .mv-icon-modern {
+      width: 56px; height: 56px; min-width: 56px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+    }
+    .mv-modern .mv-content-modern { flex: 1; min-width: 0; }
+    .mv-modern .mv-content-modern h3 { margin: 0 0 6px; }
+    .mv-modern .values-empty { color: var(--gray-500, #6B7280); font-size: 15px; margin: 0; }
+    @media (max-width: 600px) {
+      .mv-modern .mv-card-modern,
+      .mv-modern .mv-top-grid .mv-card-modern { padding: 22px 20px !important; gap: 16px !important; }
+    }
   </style>
 </head>
 <body>
@@ -178,7 +250,11 @@
           <div class="mv-icon-modern"><i class="fas fa-bullseye"></i></div>
           <div class="mv-content-modern">
             <h3>Our Mission</h3>
-            <p>{{ $clinicInfo->mission ?? '' }}</p>
+            @if (!empty($clinicInfo->mission))
+              <p>{{ $clinicInfo->mission }}</p>
+            @else
+              <p class="values-empty">Mission has not been set yet.</p>
+            @endif
           </div>
         </div>
 
@@ -186,7 +262,11 @@
           <div class="mv-icon-modern"><i class="fas fa-eye"></i></div>
           <div class="mv-content-modern">
             <h3>Our Vision</h3>
-            <p>{{ $clinicInfo->vision ?? '' }}</p>
+            @if (!empty($clinicInfo->vision))
+              <p>{{ $clinicInfo->vision }}</p>
+            @else
+              <p class="values-empty">Vision has not been set yet.</p>
+            @endif
           </div>
         </div>
       </div>

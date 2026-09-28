@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>PolyClinic | Home</title>
+  <title>PolyClinic</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
@@ -26,12 +26,55 @@
       <p class="hero-flutter-desc">Experience compassionate, accessible healthcare with our team of board-certified specialists. We're here for every Filipino family.</p>
       <div class="hero-flutter-actions">
         <a href="#" onclick="openChatForReview(); return false;" class="hero-learn-more-wrap">
-          <span class="hero-learn-more-title">Leave your Feedback here!</span>
-          <span class="hero-learn-more-sub">We're glad to hear your experience with us.</span>
+          <i class="fas fa-heart"></i> Leave Patient Feedback
         </a>
         <a href="#doctors" class="hero-find-specialist-btn">
           <i class="fas fa-user-doctor"></i> Find Your Specialist
         </a>
+      </div>
+
+      <!-- ========== LIVE PATIENT FEEDBACK — mini widget ========== -->
+      <div class="hero-live-feedback" id="heroLiveFeedback" aria-live="polite">
+        <div class="hero-live-feedback-head">
+          <span class="hero-live-dot"></span>
+          <span class="hero-live-feedback-label">Live Patient Feedback</span>
+          <span class="hero-live-feedback-tag">Real-Time Updates</span>
+        </div>
+        <div class="hero-live-feedback-body" id="heroLiveFeedbackBody">
+          @forelse (($recentFeedback ?? [])->take(8) as $i => $review)
+            @php
+              $lfFname = trim($review->patient_fname ?? '');
+              $lfLname = trim($review->patient_lname ?? '');
+              $lfMasked = '';
+              if ($lfFname !== '') {
+                  $lfChars = mb_str_split($lfFname);
+                  $lfLen = count($lfChars);
+                  if ($lfLen === 1) {
+                      $lfMasked = '*';
+                  } else {
+                      $lfReveal = [0, max(0, $lfLen - 2)];
+                      foreach ($lfChars as $lfIdx => $lfCh) {
+                          $lfMasked .= in_array($lfIdx, $lfReveal, true) ? $lfCh : '*';
+                      }
+                  }
+              }
+              $lfName = $lfMasked !== ''
+                  ? $lfMasked . ($lfLname !== '' ? ' ' . strtoupper(substr($lfLname, 0, 1)) . '.' : '')
+                  : 'Anonymous Patient';
+            @endphp
+            <div class="hero-live-review{{ $i === 0 ? ' is-active' : '' }}" data-slide="{{ $i }}">
+              <span class="hero-live-review-name">{{ $lfName }}:</span>
+              <span class="hero-live-review-quote">&quot;{{ \Illuminate\Support\Str::limit($review->feedback_text, 70) }}&quot;</span>
+              <span class="hero-live-review-rating"><i class="fas fa-star"></i> {{ number_format($review->star_rating, 1) }}</span>
+            </div>
+          @empty
+            <div class="hero-live-review is-active" data-slide="0">
+              <span class="hero-live-review-name">Kenneth R.:</span>
+              <span class="hero-live-review-quote">&quot;Very accommodating staff and clean consultation area.&quot;</span>
+              <span class="hero-live-review-rating"><i class="fas fa-star"></i> 5.0</span>
+            </div>
+          @endforelse
+        </div>
       </div>
     </div>
     <div class="hero-flutter-image">
@@ -171,6 +214,7 @@
 <section class="services-modern-section" id="services">
   <div class="container">
     <div class="services-modern-header">
+      <span class="services-modern-tag">Services</span>
       <h2 class="services-modern-title">Comprehensive Medical Care<br>For You & Your Family</h2>
       <p class="services-modern-subtitle">We offer a wide range of specialized healthcare services delivered with compassion and expertise.</p>
     </div>
@@ -239,6 +283,8 @@
       <button class="filter-tab" data-filter="OB-Gyne">OB-Gyne</button>
       <button class="filter-tab" data-filter="Surgery">Surgery</button>
       <button class="filter-tab" data-filter="IM-Pulmonology">Pulmonology</button>
+      <button class="filter-tab" data-filter="Ophthalmology">Ophthalmology</button>
+      <button class="filter-tab" data-filter="IM-Cardiology">Cardiology</button>
       <button class="filter-tab" data-filter="General / Adult Medicine">Adult Medicine</button>
       <button class="filter-tab" data-filter="Internal Medicine">Internal Medicine</button>
       <button class="filter-tab" data-filter="Medical Oncology">Medical Oncology</button>
@@ -384,11 +430,18 @@
   </div>
 </div>
 
+<!-- ========== DOCTOR MODAL ========== -->
+<div id="doctorModal" class="doctor-modal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeDoctorModal()"><i class="fas fa-times"></i></button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
 @include('patient.partials.footer')
 
 @include('patient.partials.chatbot-widget')
 
-@vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
 
 <script>
   /* ==========================================================
@@ -527,6 +580,32 @@
     positionReviewArrows();
     // Recalculate after images/fonts settle layout.
     setTimeout(positionReviewArrows, 400);
+  });
+
+  /* ==========================================================
+     HERO — LIVE PATIENT FEEDBACK mini widget: auto-rotate
+     ========================================================== */
+  document.addEventListener('DOMContentLoaded', function () {
+    const body = document.getElementById('heroLiveFeedbackBody');
+    if (!body) return;
+    const slides = body.querySelectorAll('.hero-live-review');
+    if (slides.length <= 1) return;
+
+    let current = 0;
+    let timer = setInterval(advance, 4000);
+
+    function advance() {
+      slides[current].classList.remove('is-active');
+      current = (current + 1) % slides.length;
+      slides[current].classList.add('is-active');
+    }
+
+    // Pause the rotation while the user is reading/hovering, resume after.
+    const widget = document.getElementById('heroLiveFeedback');
+    if (widget) {
+      widget.addEventListener('mouseenter', () => clearInterval(timer));
+      widget.addEventListener('mouseleave', () => { timer = setInterval(advance, 4000); });
+    }
   });
 </script>
 

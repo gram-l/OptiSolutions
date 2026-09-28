@@ -103,11 +103,16 @@ Route::get('/auth/reset-password',  [ForgotPasswordController::class, 'showReset
 Route::post('/auth/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.reset.update');
 
 // Polyclinic Routes
+// About, Services, Doctors and Contact all now live as sections on the single
+// Home page (#about, #services, #doctors, #contact) instead of separate pages,
+// so the nav bar can highlight whichever section is on screen as you scroll.
+// These old URLs are kept as redirects only so existing bookmarks/links to
+// them still land in the right place instead of 404ing.
 Route::get('/home',     [PolyclinicController::class, 'home'])->name('home');
-Route::get('/about',    [PolyclinicController::class, 'about'])->name('about');
-Route::get('/services', [PolyclinicController::class, 'services'])->name('services');
-Route::get('/doctors',  [PolyclinicController::class, 'doctors'])->name('doctors');
-Route::get('/contact',  [PolyclinicController::class, 'contact'])->name('contact');
+Route::redirect('/about',    '/#about')->name('about');
+Route::redirect('/services', '/#services')->name('services');
+Route::redirect('/doctors',  '/#doctors')->name('doctors');
+Route::redirect('/contact',  '/#contact')->name('contact');
 Route::get('/chatbot',  [PolyclinicController::class, 'chatbot'])->name('chatbot');
 
 // General Privacy Notice page (linked from the privacy consent modal)

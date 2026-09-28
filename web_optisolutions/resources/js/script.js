@@ -190,48 +190,167 @@ function setupDoctorSearch(searchInputId, tabsContainerId, gridId) {
 }
 
 // ============ DOCTOR MODAL ============
+
+// Maps a doctor's specialty string (as used by the filter tabs) to the
+// matching service_key in servicesData, so the modal can reuse the real
+// "conditions" list already maintained for that department as the doctor's
+// "Clinical Focus Areas" — no separate per-doctor tagging needed.
+const doctorSpecialtyToServiceKey = {
+  'Pediatrics': 'pediatrics',
+  'OB-Gyne': 'obgyne',
+  'Surgery': 'surgery',
+  'IM-Pulmonology': 'pulmonology',
+  'Ophthalmology': 'ophthalmology',
+  'IM-Cardiology': 'cardiology',
+  'General / Adult Medicine': 'adultmedicine',
+  'Medical Oncology': 'oncology'
+};
+
+function getClinicalFocusAreas(spec) {
+  const key = doctorSpecialtyToServiceKey[spec];
+  if (key && servicesData[key] && Array.isArray(servicesData[key].conditions)) {
+    return servicesData[key].conditions.slice(0, 6);
+  }
+  return [];
+}
+
 function showDoctorDetails(id) {
   const doc = doctorsData.find(d => d.id === id);
   if (!doc) return;
-  const scheduleHtml = doc.schedule.map(s => `<li><span>${s.day}</span><span>${s.time}</span></li>`).join('');
-  // photo/icon block added here (mika)
+
+  const phone = (clinicInfo && clinicInfo.contact_no) ? clinicInfo.contact_no : '0985 475 5511';
+  const spec = doc.spec || 'General Practice';
+  const focusAreas = getClinicalFocusAreas(doc.spec);
+  const firstSchedule = doc.schedule[0];
+
+  const subtitle = doc.fellowship
+    ? `Fellow, ${doc.fellowship}`
+    : (doc.education || spec);
+
+  const scheduleRows = doc.schedule.length
+    ? doc.schedule.map(s => `
+        <div class="schedule-row-card">
+          <span class="schedule-day-badge">${s.day.slice(0, 3).toUpperCase()}</span>
+          <div class="schedule-row-info">
+            <strong>${s.day} Schedule</strong>
+            <span>Outpatient Consultation</span>
+          </div>
+          <span class="schedule-row-time">${s.time}</span>
+        </div>`).join('')
+    : `<p class="bio-text">No fixed clinic schedule listed yet — please call to confirm availability.</p>`;
+
   document.getElementById('modalContent').innerHTML = `
     <div class="modal-header">
-    <div class="modal-doctor-photo"> 
-      ${doc.photo
-        ? `<img src="${doc.photo}" alt="${doc.name}" onerror="handleDoctorPhotoError(this,'${doc.gender}')">`
-        : `<div class="doctor-photo-fallback">${doc.icon}</div>`}
+      <div class="doctor-modal-tags">
+        <span class="doctor-modal-tag">${spec.toUpperCase()}</span>
+        ${doc.license ? `<span class="doctor-modal-tag certified"><i class="fas fa-check-circle"></i> Board Certified</span>` : ''}
+      </div>
+      <h2>${doc.name}</h2>
     </div>
-    <h2>${doc.name}</h2>
-    <div class="modal-spec">${doc.spec}</div>
-  </div>
-    <div class="modal-body">
-      <div class="doctor-info-section">
-        <div class="section-label"><i class="fas fa-user-md"></i> Professional Profile</div>
-        <div class="info-grid">
-          <div class="info-item"><div class="info-item-label">Experience</div><div class="info-item-value">${doc.yearsExp}+ years</div></div>
-          
-          <div class="info-item"><div class="info-item-label">Medical Degree</div><div class="info-item-value">${orNA(doc.education)}</div></div>
-          <div class="info-item"><div class="info-item-label">Fellowship</div><div class="info-item-value">${orNA(doc.fellowship)}</div></div>
+
+    <div class="doctor-modal-summary-card">
+      <div class="doctor-modal-summary-photo">
+        ${doc.photo
+          ? `<img src="${doc.photo}" alt="${doc.name}" onerror="handleDoctorPhotoError(this,'${doc.gender}')">`
+          : `<div class="doctor-photo-fallback">${doc.icon}</div>`}
+        ${doc.license ? `<span class="doctor-modal-verified-badge"><i class="fas fa-check"></i></span>` : ''}
+      </div>
+      <div class="doctor-modal-summary-info">
+        <h3>${doc.name}</h3>
+        <p>${subtitle}</p>
+      </div>
+      <div class="doctor-modal-summary-stats">
+        <div class="summary-stat"><span class="summary-stat-value">${doc.yearsExp ? doc.yearsExp + '+ Yrs' : '—'}</span><span class="summary-stat-label">Experience</span></div>
+        <div class="summary-stat"><span class="summary-stat-value">${doc.fellowship || '—'}</span><span class="summary-stat-label">Fellowship</span></div>
+        <div class="summary-stat"><span class="summary-stat-value">${doc.license || '—'}</span><span class="summary-stat-label">License No.</span></div>
+      </div>
+    </div>
+
+    <div class="doctor-modal-tabbar" id="doctorModalTabbar">
+      <button class="doctor-modal-tab active" data-tab="overview"><i class="fas fa-user"></i> Overview &amp; Biography</button>
+      <button class="doctor-modal-tab" data-tab="schedule"><i class="fas fa-calendar-check"></i> Schedule &amp; Clinic</button>
+      <button class="doctor-modal-tab" data-tab="credentials"><i class="fas fa-graduation-cap"></i> Credentials &amp; Affiliations</button>
+    </div>
+
+    <div class="doctor-modal-scrollarea">
+    <div class="doctor-modal-tabpanels">
+      <div class="doctor-modal-tabpanel active" data-panel="overview">
+        <p class="bio-text">${orNA(doc.bio)}</p>
+        <div class="doctor-modal-grid">
+          <div class="doctor-modal-box">
+            <div class="doctor-modal-box-label"><i class="fas fa-hospital"></i> Primary Consultation</div>
+            <div class="info-item-value" style="margin-bottom:6px;">PolyClinic Lipa</div>
+            <div class="sub-value-light"><i class="fas fa-door-open"></i> ${doc.clinic ? 'Room ' + doc.clinic : 'Room TBA'}</div>
+            ${firstSchedule ? `<div class="sub-value-light"><i class="fas fa-clock"></i> ${firstSchedule.day}: ${firstSchedule.time}</div>` : ''}
+          </div>
+          <div class="doctor-modal-box">
+            <div class="doctor-modal-box-label"><i class="fas fa-stethoscope"></i> Clinical Focus Areas</div>
+            <div class="focus-tags">
+              ${focusAreas.length
+                ? focusAreas.map(c => `<span class="focus-tag">${c}</span>`).join('')
+                : `<span class="focus-tag">${spec}</span>`}
+            </div>
+          </div>
         </div>
       </div>
-      <div class="doctor-info-section">
-        <div class="section-label"><i class="fas fa-calendar-week"></i> Clinic Schedule</div>
-        <ul class="schedule-list-modal">${scheduleHtml}</ul>
-        <div class="info-item" style="margin-top:12px;"><div class="info-item-label">Location</div><div class="info-item-value">${doc.clinic}, PolyClinic Lipa</div></div>
+
+      <div class="doctor-modal-tabpanel" data-panel="schedule">
+        <div class="doctor-modal-box schedule-box">
+          <div class="schedule-box-header">
+            <div>
+              <h4>Clinic Availability</h4>
+              <p>Direct consultation schedule for PolyClinic Lipa</p>
+            </div>
+            <span class="room-pill">${doc.clinic ? 'Room ' + doc.clinic : 'Room TBA'}</span>
+          </div>
+          ${scheduleRows}
+          <div class="schedule-note"><i class="fas fa-circle-info"></i> For urgent concerns, please contact the main clinic desk.</div>
+        </div>
       </div>
-      <div class="doctor-info-section">
-        <div class="section-label"><i class="fas fa-heartbeat"></i> Biography</div>
-        <div class="bio-text">${doc.bio}</div>
+
+      <div class="doctor-modal-tabpanel" data-panel="credentials">
+        <div class="doctor-modal-grid">
+          <div class="doctor-modal-box credential-box">
+            <div class="credential-icon"><i class="fas fa-graduation-cap"></i></div>
+            <h4>Medical Education</h4>
+            <p class="credential-highlight">${orNA(doc.education)}</p>
+          </div>
+          <div class="doctor-modal-box credential-box">
+            <div class="credential-icon accent"><i class="fas fa-award"></i></div>
+            <h4>Fellowship &amp; Certification</h4>
+            <p class="credential-highlight">${orNA(doc.fellowship)}</p>
+            ${doc.license ? `<p class="credential-sub">License No. ${doc.license}</p>` : ''}
+          </div>
+        </div>
       </div>
+    </div>
     </div>`;
+
+  setupDoctorModalTabs();
   document.getElementById('doctorModal').classList.add('active');
-  document.body.style.overflow = 'hidden';
+  lockBodyScroll();
+}
+
+function setupDoctorModalTabs() {
+  const tabbar = document.getElementById('doctorModalTabbar');
+  if (!tabbar) return;
+  const tabs = tabbar.querySelectorAll('.doctor-modal-tab');
+  const panels = document.querySelectorAll('#modalContent .doctor-modal-tabpanel');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.dataset.tab;
+      panels.forEach(p => p.classList.toggle('active', p.dataset.panel === target));
+      const scrollArea = document.querySelector('#modalContent .doctor-modal-scrollarea');
+      if (scrollArea) scrollArea.scrollTop = 0;
+    });
+  });
 }
 
 function closeDoctorModal() {
   document.getElementById('doctorModal').classList.remove('active');
-  document.body.style.overflow = '';
+  unlockBodyScroll();
 }
 
 // Decorative department labels shown as a tag in the service modal header.
@@ -307,17 +426,54 @@ function openServiceModal(serviceKey) {
           </div>
         </div>
       </div>
-    </div>
-    <div class="service-modal-footer">
-      <div class="service-modal-phone"><i class="fas fa-phone-alt"></i> Clinic Inquiries: ${phone}</div>
     </div>`;
   document.getElementById('serviceModal').classList.add('active');
-  document.body.style.overflow = 'hidden';
+  lockBodyScroll();
+}
+
+// ============ BODY SCROLL LOCK (modal open) ============
+// Plain `overflow:hidden` on body isn't enough on mobile: the page can still
+// rubber-band / the browser's address bar can collapse while you scroll or
+// switch tabs inside the modal, which resizes the viewport and makes the
+// fixed-position modal look like it "jumped" or got cut off at the top.
+// Locking body to position:fixed at the current scroll offset prevents that.
+let _scrollLockY = 0;
+let _scrollLockCount = 0;
+function lockBodyScroll() {
+  if (_scrollLockCount === 0) {
+    _scrollLockY = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${_scrollLockY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+  }
+  _scrollLockCount++;
+}
+function unlockBodyScroll() {
+  _scrollLockCount = Math.max(0, _scrollLockCount - 1);
+  if (_scrollLockCount === 0) {
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    document.body.style.overflow = '';
+    // Force an instant jump back, not an animated one. Several pages set
+    // `html { scroll-behavior: smooth }` for their own in-page anchor links,
+    // but that same CSS rule also hijacks *any* programmatic scroll —
+    // including this restore — turning what should be an invisible snap
+    // back to where the user was into a visible "dramatic" scroll down/up
+    // the page after closing a modal. Passing behavior: 'auto' explicitly
+    // overrides the CSS smooth-scroll setting for this one call only.
+    window.scrollTo({ top: _scrollLockY, left: 0, behavior: 'auto' });
+  }
 }
 
 function closeServiceModal() {
   document.getElementById('serviceModal').classList.remove('active');
-  document.body.style.overflow = '';
+  unlockBodyScroll();
 }
 
 // ============ CLOSE MODALS ============

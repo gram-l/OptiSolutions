@@ -3,6 +3,26 @@
   const STORAGE_KEY = 'polyclinic_privacy_accepted';
   const COOKIE_KEY = 'polyclinic_cookies_ack';
 
+  // cookieHTML must be declared before the early-return below, since
+  // maybeShowCookieBanner() (called from that early return) reads it.
+  // Being a `const`, it's in the temporal dead zone until this line runs —
+  // declaring it after the early return caused a
+  // "Cannot access 'cookieHTML' before initialization" crash for any
+  // returning patient who had already accepted the privacy notice.
+  const cookieHTML = `
+    <div class="cookie-banner" id="cookieBanner">
+      <p>
+        We use cookies to ensure that we give you the best experience on our
+        website. By continuing to browse our site, you are agreeing to our
+        use of cookies.
+      </p>
+      <div class="cookie-actions">
+        <button class="cookie-got-it-btn" id="cookieGotItBtn">Got it!</button>
+        <a href="/privacy-notice#cookies" class="cookie-read-more">Read more</a>
+      </div>
+    </div>
+  `;
+
   // Don't show the modal again once the patient has already agreed.
   if (localStorage.getItem(STORAGE_KEY) === 'true') {
     maybeShowCookieBanner();
@@ -47,20 +67,6 @@
           I Agree
         </button>
 
-      </div>
-    </div>
-  `;
-
-  const cookieHTML = `
-    <div class="cookie-banner" id="cookieBanner">
-      <p>
-        We use cookies to ensure that we give you the best experience on our
-        website. By continuing to browse our site, you are agreeing to our
-        use of cookies.
-      </p>
-      <div class="cookie-actions">
-        <button class="cookie-got-it-btn" id="cookieGotItBtn">Got it!</button>
-        <a href="/privacy-notice#cookies" class="cookie-read-more">Read more</a>
       </div>
     </div>
   `;

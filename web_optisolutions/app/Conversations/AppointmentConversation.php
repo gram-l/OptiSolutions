@@ -501,8 +501,8 @@ class AppointmentConversation extends Conversation
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),
                 Button::create('General Information')->value('general information'),
-                Button::create('Submit Review/Rating')->value('review'),
-                Button::create('Submit Complaint')->value('complaint'),
+                Button::create('Submit Review/Rating')->value('submit review/rating'),
+                Button::create('Submit Complaint')->value('submit complaint'),
             ]);
 
         $this->askLogged($question, function (Answer $answer) {
@@ -522,11 +522,17 @@ class AppointmentConversation extends Conversation
             } elseif ($choice === 'general information') {
                 $this->sayLogged(ClinicInfoService::infoCardMessage());
                 $this->sendMainMenu(false);
-            } elseif ($choice === 'review') {
+            // Checked against both the old short value ('review'/'complaint')
+            // and the current long value ('submit review/rating'/'submit
+            // complaint') that the button now sends. Every menu's buttons
+            // were standardized to the long form, so matching only the short
+            // form here would silently break these two options and fall
+            // through to "Please choose one of the options above." below.
+            } elseif (in_array($choice, ['review', 'submit review/rating'], true)) {
                 $this->bot->startConversation(
                     new ReviewConversation($patientId, trim("{$this->fname} {$this->lname}"))
                 );
-            } elseif ($choice === 'complaint') {
+            } elseif (in_array($choice, ['complaint', 'submit complaint'], true)) {
                 $this->bot->startConversation(new ComplaintConversation($patientId));
             } else {
                 $this->sayLogged('Please choose one of the options above.');
@@ -1122,8 +1128,8 @@ class AppointmentConversation extends Conversation
             ->addButtons([
                 Button::create('Schedule Visit')->value('post_schedule_visit'),
                 Button::create('General Information')->value('post_general_information'),
-                Button::create('Submit Review/Rating')->value('review'),
-                Button::create('Submit Complaint')->value('complaint'),
+                Button::create('Submit Review/Rating')->value('submit review/rating'),
+                Button::create('Submit Complaint')->value('submit complaint'),
             ]);
 
         $this->askLogged($question, function (Answer $answer) {
@@ -1144,9 +1150,14 @@ class AppointmentConversation extends Conversation
             } elseif ($choice === 'post_general_information') {
                 $this->sayLogged(ClinicInfoService::infoCardMessage());
                 $this->askPostAppointment();
-            } elseif ($choice === 'review') {
+            // In practice isGlobalCommand() above already catches and returns
+            // for both of these before we get here, so these two branches
+            // are a dead-code safety net. Checked against both value forms
+            // anyway (see sendMainMenu() above) in case that ordering ever
+            // changes and this code path becomes reachable.
+            } elseif (in_array($choice, ['review', 'submit review/rating'], true)) {
                 $this->bot->startConversation(new ReviewConversation($patientId, "{$this->fname} {$this->lname}"));
-            } elseif ($choice === 'complaint') {
+            } elseif (in_array($choice, ['complaint', 'submit complaint'], true)) {
                 $this->bot->startConversation(new ComplaintConversation($patientId));
             } else {
                 $this->sayLogged('Please choose one of the options above.');

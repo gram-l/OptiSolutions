@@ -9,22 +9,22 @@
 
       <div class="footer-modern-col">
         <h4>About Us</h4>
-        <a href="{{ route('about') ?? '#' }}">About PolyClinic</a>
-        <a href="{{ route('doctors') }}">Our Doctors</a>
+        <a href="#about">About PolyClinic</a>
+        <a href="#doctors">Our Doctors</a>
       </div>
 
       <div class="footer-modern-col">
         <h4>Services</h4>
-        <a href="{{ route('services') }}#pediatrics">Pediatrics</a>
-        <a href="{{ route('services') }}#obgyne">OB-Gyne</a>
-        <a href="{{ route('services') }}#surgery">Surgery</a>
-        <a href="{{ route('services') }}">All Services</a>
+        <a href="#services">Pediatrics</a>
+        <a href="#services">OB-Gyne</a>
+        <a href="#services">Surgery</a>
+        <a href="#services">All Services</a>
       </div>
 
       <div class="footer-modern-col">
         <h4>Clinic</h4>
-        <a href="{{ route('contact') }}">Visit Us</a>
-        <a href="{{ route('contact') }}">Clinic Hours</a>
+        <a href="#contact">Visit Us</a>
+        <a href="#contact">Clinic Hours</a>
         <a href="#" onclick="openChatForSchedule(); return false;">Schedule Visit</a>
       </div>
 

@@ -35,6 +35,9 @@ class ChatbotCommand extends Model
         'review',
         'complaint',
         "no, i'm all set",
+        'yes, i need help',
+        'anything_else_yes',
+        'anything_else_no',
     ];
 
     public function triggers()

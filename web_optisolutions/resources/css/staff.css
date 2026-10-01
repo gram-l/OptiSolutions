@@ -2988,3 +2988,232 @@ body.dark-mode .dash-page .chart-icon-badge {
     background: #163a5c;
     color: #6cb2f5;
 }
+/* ===== Doctors table: avatar, pastel Edit button, compact schedule ===== */
+.doctor-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.doctor-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--light-gray);
+    color: #7f8c8d;
+    font-size: 1.1rem;
+}
+
+.doctor-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.btn-edit-doctor {
+    padding: 0.4rem 1rem;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: #e8f0fe;
+    color: var(--primary-main);
+    box-shadow: none;
+    transition: all 0.2s ease;
+}
+
+.btn-edit-doctor:hover {
+    background: #d5e5fc;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-edit-doctor:disabled {
+    background: var(--light-gray);
+    color: #a3adb8;
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.schedule-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.85rem;
+    color: var(--text-dark);
+}
+
+.schedule-compact-more {
+    color: #7f8c8d;
+    font-size: 0.8rem;
+}
+
+/* ===== Toast — matches admin's style exactly ===== */
+.toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) translateY(10px);
+    background: #062744;
+    color: #fff;
+    padding: 0.85rem 1.5rem;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 2000;
+}
+.toast.show { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+.toast-success { background: #0E62AA; }
+.toast-error   { background: #c0392b; }
+.toast::before { font-family: "Font Awesome 6 Free"; font-weight: 900; }
+.toast-success::before { content: "\f00c"; }
+.toast-error::before   { content: "\f06a"; }
+
+/* ===== Doctor availability badge — dot + color ===== */
+.status-available {
+    background: #e8f8f0;
+    color: #27ae60;
+}
+
+.status-unavailable {
+    background: var(--light-gray);
+    color: #7f8c8d;
+}
+
+.status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-right: 0.35rem;
+}
+
+/* ===== Doctors table column widths ===== */
+#doctorsTable th:nth-child(2),
+#doctorsTable td:nth-child(2) {
+    width: 12%;
+}
+
+#doctorsTable th:nth-child(3),
+#doctorsTable td:nth-child(3) {
+    width: 30%;
+}
+
+/* ===== Clickable "+N more" toggle ===== */
+.schedule-more-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--primary-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    width: fit-content;
+}
+
+.schedule-more-toggle:hover {
+    text-decoration: underline;
+}
+
+.schedule-hidden-rows {
+    display: none;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.schedule-hidden-rows.show {
+    display: flex;
+}
+
+body.dark-mode .status-unavailable { background: #232b3d; color: #8b95a5; }
+body.dark-mode .status-available { background: rgba(39, 174, 96, 0.18); color: #4ad089; }
+
+/* ===== "Save changes?" confirm modal ===== */
+.confirm-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 1rem;
+}
+
+.confirm-modal-overlay.show {
+    display: flex;
+}
+
+.confirm-modal-box {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 1.75rem;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.confirm-modal-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(14, 98, 170, 0.1);
+    color: var(--primary-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    margin: 0 auto 0.85rem;
+}
+
+.confirm-modal-box h3 {
+    color: var(--text-dark);
+    margin-bottom: 0.4rem;
+}
+
+.confirm-modal-box p {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.confirm-modal-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+}
+
+.confirm-modal-buttons button {
+    padding: 0.6rem 1.4rem;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.confirm-modal-btn-cancel {
+    background: var(--light-gray);
+    color: var(--text-dark);
+}
+
+.confirm-modal-btn-confirm {
+    background: var(--primary-main);
+    color: var(--white);
+}

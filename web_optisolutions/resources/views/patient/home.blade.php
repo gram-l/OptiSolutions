@@ -15,6 +15,12 @@
     .reviews-banner-footer:hover { transform: scale(1.02); box-shadow: 0 12px 32px rgba(0,0,0,0.2); }
     .reviews-banner-footer:active { transform: scale(0.98); }
 
+    /* Doctor grid: cards keep a fixed size (4 per row) and are centered when only 1-2 match */
+    .doctors-grid-modern { display: flex !important; flex-wrap: wrap; justify-content: center; gap: 28px; }
+    .doctors-grid-modern > .doctor-card { flex: 0 1 calc((100% - 84px) / 4); min-width: 240px; max-width: 100%; }
+    .doctors-grid-modern > .no-doctors { flex: 1 1 100%; }
+    @media (max-width: 480px) { .doctors-grid-modern > .doctor-card { flex-basis: 100%; } }
+
     /* Doctor card photos - inline so it works without rebuilding Vite assets */
     .doctor-card {
       padding: 0 0 24px !important;
@@ -494,7 +500,7 @@
             </div>
           </div>
         </div>
-        <a href="#contact" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=PolyClinic+Lipa,+41+TM+Kalaw+St,+Lipa+City,+4217+Batangas" target="_blank" rel="noopener noreferrer" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
       </div>
       <div class="cta-banner-map">
         <iframe src="https://www.google.com/maps?q=PolyClinic+Lipa,+41+TM+Kalaw+St,+Lipa+City,+4217+Batangas&output=embed" allowfullscreen loading="lazy"></iframe>

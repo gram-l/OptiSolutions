@@ -983,8 +983,10 @@ class AppointmentConversation extends Conversation
 
     protected function submitAppointment()
     {
-        $this->sayLogged('Saving your schedule visit...');
-
+        // NOTE: the "Saving your schedule visit..." indicator is shown by the
+        // chat widget only while this request is actually in flight, and
+        // removed as soon as it finishes (see sendMessage() in
+        // chatbot-widget.blade.php). It is intentionally NOT a bot message.
         try {
             $patientId = DB::table('patients')->insertGetId([
                 'patient_fname'     => $this->fname,
@@ -1121,48 +1123,15 @@ class AppointmentConversation extends Conversation
 
     protected function askPostAppointment()
     {
-        $this->sayLogged('Thank you for scheduling your visit with us.');
-
-        $question = Question::create('Is there anything else I can help you with?')
-            ->fallback('Please use the buttons above.')
-            ->addButtons([
-                Button::create('Schedule Visit')->value('post_schedule_visit'),
-                Button::create('General Information')->value('post_general_information'),
-                Button::create('Submit Review/Rating')->value('submit review/rating'),
-                Button::create('Submit Complaint')->value('submit complaint'),
-            ]);
-
-        $this->askLogged($question, function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, 'post');
-            }
-            if ($this->handleOffTopicIfAny($answer, 'post')) {
-                return;
-            }
-
-            $choice = $answer->getValue();
-            $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
-
-            if ($choice === 'post_schedule_visit') {
-                // Restart from the greeting + main menu instead of askName().
-                $this->resetState();
-                $this->sendMainMenu();
-            } elseif ($choice === 'post_general_information') {
-                $this->sayLogged(ClinicInfoService::infoCardMessage());
-                $this->askPostAppointment();
-            // In practice isGlobalCommand() above already catches and returns
-            // for both of these before we get here, so these two branches
-            // are a dead-code safety net. Checked against both value forms
-            // anyway (see sendMainMenu() above) in case that ordering ever
-            // changes and this code path becomes reachable.
-            } elseif (in_array($choice, ['review', 'submit review/rating'], true)) {
-                $this->bot->startConversation(new ReviewConversation($patientId, "{$this->fname} {$this->lname}"));
-            } elseif (in_array($choice, ['complaint', 'submit complaint'], true)) {
-                $this->bot->startConversation(new ComplaintConversation($patientId));
-            } else {
-                $this->sayLogged('Please choose one of the options above.');
-                $this->askPostAppointment();
-            }
-        });
+        // No "Thank you for scheduling your visit" here anymore. First ask if
+        // there's anything else. "No" → thank-you + end. "Yes" → counts as an
+        // inquiry, and the thank-you only appears once staff resolves it.
+        $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
+        $this->bot->startConversation(
+            new AnythingElseConversation(
+                $patientId,
+                trim("{$this->fname} {$this->lname}")
+            )
+        );
     }
 }

@@ -57,9 +57,11 @@ class ComplaintConversation extends Conversation
     {
         if ($this->tooManySubmissions('complaint')) {
             $this->say($this->submissionCooldownMessage());
-            $this->backToMainMenu();
+            $this->askAnythingElse();
             return;
         }
+
+        $saved = false;
 
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
@@ -83,48 +85,30 @@ class ComplaintConversation extends Conversation
         }
 
             $this->say("Complaint Recorded\n\nReference #: {$complaint->complaint_id}\nWe acknowledge receipt of your concern.");
+            $saved = true;
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('submitComplaint failed: ' . $e->getMessage());
             $this->say("We couldn't record your complaint right now. Please try again, or contact us directly.");
         }
 
-        $this->backToMainMenu();
+        if ($saved) {
+            // Complaint recorded: end the conversation and bring the 4 main
+            // options straight back (no "anything else?" question).
+            $this->bot->startConversation(new AnythingElseConversation(
+                $this->patientId,
+                $this->patientName,
+                true,
+                ''
+            ));
+            return;
+        }
+
+        $this->askAnythingElse();
     }
 
-    // Show the main menu and route the chosen action.
-    protected function backToMainMenu()
+    // Ends the flow with the Yes/No "anything else?" prompt.
+    protected function askAnythingElse()
     {
-        $question = Question::create('')
-            ->fallback('Please choose an option from the buttons above.')
-            ->addButtons([
-                Button::create('Schedule Visit')->value('schedule visit'),
-                Button::create('General Information')->value('general information'),
-                Button::create('Submit Review/Rating')->value('submit review/rating'),
-                Button::create('Submit Complaint')->value('submit complaint'),
-            ]);
-
-        $this->ask($question, function (Answer $answer) {
-            // This menu is shown AFTER a complaint finishes (or fails). Tapping the
-            // same button again should start a brand-new one. Without this,
-            // handleGlobalCommand() sees "already in this conversation" and just
-            // re-shows this menu, so the button appears to do nothing.
-            if (in_array($this->normalizeCommand($answer), ['complaint', 'submit complaint'], true)) {
-                return $this->askComplaint();
-            }
-
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, fn() => $this->backToMainMenu());
-            }
-
-            // A genuine free-typed question here (instead of a button
-            // tap) now still reaches staff via InquiryConversation,
-            // rather than just getting "please choose an option" forever.
-            if ($this->handleOffTopicIfAny($answer, fn() => $this->backToMainMenu())) {
-                return;
-            }
-
-            $this->say('Please choose one of the options above.');
-            $this->backToMainMenu();
-        });
+        $this->bot->startConversation(new AnythingElseConversation($this->patientId, $this->patientName));
     }
 }

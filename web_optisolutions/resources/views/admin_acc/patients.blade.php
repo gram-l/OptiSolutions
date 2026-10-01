@@ -95,6 +95,11 @@
                     <!-- Dynamic content -->
                 </tbody>
             </table>
+            <div class="pagination-wrap" id="patientsPaginationWrap" style="display:none;">
+                <button type="button" class="page-btn" id="patientsPrevBtn" onclick="changePatientsPage(-1)" aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></button>
+                <span class="page-info" id="patientsPageInfo"></span>
+                <button type="button" class="page-btn" id="patientsNextBtn" onclick="changePatientsPage(1)" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
         </div>
     </div>
 </div>
@@ -235,6 +240,40 @@
         .visit-history-table th { text-align: left; padding: 0.5rem; color: #95a5a6; font-size: 0.72rem; text-transform: uppercase; border-bottom: 1px solid #f0f4f8; }
         .visit-history-table td { padding: 0.5rem; border-bottom: 1px solid #f0f4f8; }
 
+        /* ── Pagination ── */
+        .pagination-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.9rem;
+            border-top: 1px solid #ECF0F1;
+        }
+        .pagination-wrap .page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 0.5rem;
+            border: 1px solid #d7dce3;
+            border-radius: 6px;
+            background: #fff;
+            color: #2c3e50;
+            font-size: 0.82rem;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+        .pagination-wrap .page-btn:hover:not(:disabled) {
+            background: var(--primary-main, #0E62AA);
+            border-color: var(--primary-main, #0E62AA);
+            color: #fff;
+        }
+        .pagination-wrap .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pagination-wrap .page-info { font-size: 0.82rem; color: #7f8c8d; }
+
         /* ── Download button + dropdown ── */
         .download-dropdown {
             position: relative;
@@ -298,6 +337,8 @@
         let patientsData = [];
         let currentSort = { column: 'name', direction: 'asc' };
         let currentViewPatientId = null;
+        const ROWS_PER_PAGE = 10;
+        let currentPage = 1;
 
         async function loadPatients() {
             const tbody = document.getElementById('patientsTableBody');
@@ -369,11 +410,18 @@
         function renderPatients() {
             const filtered = getFilteredPatients();
             const tbody = document.getElementById('patientsTableBody');
+            const paginationWrap = document.getElementById('patientsPaginationWrap');
+
+            const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+            const startIdx = (currentPage - 1) * ROWS_PER_PAGE;
+            const pageRows = filtered.slice(startIdx, startIdx + ROWS_PER_PAGE);
 
             if (filtered.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No patients found. Click "Add New Patient" to create a record.</td></tr>';
             } else {
-                tbody.innerHTML = filtered.map(patient => `
+                tbody.innerHTML = pageRows.map(patient => `
                     <tr>
                         <td data-label="Patient ID"><code>${patient.id}</code></td>
                         <td data-label="Patient Name" style="font-weight: 500;">${escapeHtml(patient.name)}</td>
@@ -389,7 +437,18 @@
                 `).join('');
             }
 
+            paginationWrap.style.display = totalPages > 1 ? 'flex' : 'none';
+            document.getElementById('patientsPageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('patientsPrevBtn').disabled = currentPage <= 1;
+            document.getElementById('patientsNextBtn').disabled = currentPage >= totalPages;
+
             updateStats(filtered);
+        }
+
+        function changePatientsPage(delta) {
+            currentPage += delta;
+            renderPatients();
+            document.querySelector('.patients-table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function updateStats(filtered) {
@@ -416,6 +475,7 @@
                 }
             });
 
+            currentPage = 1;
             renderPatients();
         }
 
@@ -732,8 +792,8 @@
         // Event listeners
         document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);
         document.getElementById('patientForm').addEventListener('submit', savePatient);
-        document.getElementById('searchInput').addEventListener('input', () => renderPatients());
-        document.getElementById('departmentFilter').addEventListener('change', () => renderPatients());
+        document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderPatients(); });
+        document.getElementById('departmentFilter').addEventListener('change', () => { currentPage = 1; renderPatients(); });
 
         // Close modals on outside click
         window.onclick = function(event) {

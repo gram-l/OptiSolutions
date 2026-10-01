@@ -15,14 +15,21 @@ use App\Services\SentimentAnalysisService;
 use App\Services\RatingSentimentFallback;
 use App\Services\NotificationService;
 use App\Models\Notification;
+use App\Models\Staff\InquiryReply;
 
 class ReviewConversation extends Conversation
 {
     use HandlesGlobalCommands, HandlesOffTopic, HandlesRateLimit;
 
+    // Ratings at or below this get an apology + an offer for staff to
+    // reach out.
+    protected const LOW_RATING_MAX = 3;
+
     protected $patientId;
     protected $patientName;
     protected $rating;
+    protected $feedbackId;
+    protected $contactEmail;
 
     public function __construct($patientId = null, $patientName = null)
     {
@@ -67,8 +74,72 @@ class ReviewConversation extends Conversation
             }
 
             $this->rating = $value;
+
+            // 3 or below: no comment prompt. Apologize, tell the patient
+            // Admin/Staff will email them, and open a follow-up for staff.
+            if ($this->isLowRating()) {
+                $this->say("We're truly sorry that your experience with us wasn't a good one. Thank you for being honest — we take this seriously. Our staff/admin will reach out to you via email.");
+                return $this->startLowRatingFollowUp();
+            }
+
             $this->askFeedbackText();
         });
+    }
+
+    // Uses the email already on file ONLY for a patient who has a schedule
+    // visit history (a real patient record with an email). Anonymous
+    // ratings (no patient, no visit history, or no usable email on file)
+    // are asked for an email once, since staff will be reaching out by email.
+    protected function startLowRatingFollowUp()
+    {
+        $email = null;
+
+        if ($this->patientId) {
+            try {
+                $hasVisitHistory = DB::table('schedule_visit')
+                    ->where('patient_id', $this->patientId)
+                    ->exists();
+
+                if ($hasVisitHistory) {
+                    $email = DB::table('patients')
+                        ->where('patient_id', $this->patientId)
+                        ->value('patient_email');
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Could not load patient email: ' . $e->getMessage());
+            }
+        }
+
+        if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->contactEmail = $email;
+            return $this->submitReview(null);
+        }
+
+        // Anonymous (or nothing usable on file): ask for an email.
+        return $this->askContactEmail();
+    }
+
+    protected function askContactEmail(string $prompt = 'Please type your email address so our staff can reach you:')
+    {
+        $this->ask($prompt, function (Answer $answer) use ($prompt) {
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->askContactEmail($prompt));
+            }
+
+            $email = trim($answer->getText());
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return $this->askContactEmail('That doesn\'t look like a valid email address. Please try again (e.g. name@example.com):');
+            }
+
+            $this->contactEmail = $email;
+            $this->submitReview(null);
+        });
+    }
+
+    protected function isLowRating(): bool
+    {
+        return $this->rating !== null && $this->rating <= self::LOW_RATING_MAX;
     }
 
     // Ask for optional comments and handle skip/yes/text replies.
@@ -107,9 +178,11 @@ class ReviewConversation extends Conversation
     {
         if ($this->tooManySubmissions('review')) {
             $this->say($this->submissionCooldownMessage());
-            $this->backToMainMenu();
+            $this->askAnythingElse();
             return;
         }
+
+        $saved = false;
 
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
@@ -126,12 +199,15 @@ class ReviewConversation extends Conversation
                 'star_rating'   => $this->rating,
                 'submitted_at'  => now(),
             ]);
-//notification
-        try {
-            NotificationService::newFeedback($this->patientName ?: 'A patient', $feedback->feedback_id);
-        } catch (\Throwable $notifyError) {
-            \Illuminate\Support\Facades\Log::error('Failed to create feedback notification: ' . $notifyError->getMessage());
-        }    
+            $this->feedbackId = $feedback->feedback_id;
+            $saved = true;
+
+            // Notification (flags low ratings so admin notices them).
+            try {
+                NotificationService::newFeedback($this->patientName ?: 'A patient', $feedback->feedback_id, $this->rating);
+            } catch (\Throwable $notifyError) {
+                \Illuminate\Support\Facades\Log::error('Failed to create feedback notification: ' . $notifyError->getMessage());
+            }
 
             if (!empty($text)) {
                 $result = app(SentimentAnalysisService::class)->analyze($text);
@@ -148,46 +224,105 @@ class ReviewConversation extends Conversation
                 ]);
             }
 
-            $this->say("Thank you for your feedback!\n\nYou rated us {$this->rating}/5. We appreciate you taking the time to help us improve.");
+            // Low ratings already got the apology message above.
+            if (!$this->isLowRating()) {
+                $this->say("Thank you for your feedback!\n\nYou rated us {$this->rating}/5. We appreciate you taking the time to help us improve.");
+            }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('submitReview failed: ' . $e->getMessage());
             $this->say("⚠️ We couldn't record your review right now. Please try again, or contact us directly.");
         }
 
-        $this->backToMainMenu();
+        // Low rating → open a follow-up for Admin/Staff (they'll email the patient).
+        if ($saved && $this->isLowRating()) {
+            return $this->createStaffFollowUp($text);
+        }
+
+        // Review saved (4-5 stars): end the conversation and bring the 4
+        // main options straight back (no "anything else?" question).
+        if ($saved) {
+            $this->bot->startConversation(new AnythingElseConversation(
+                $this->patientId,
+                $this->patientName,
+                true,
+                ''
+            ));
+            return;
+        }
+
+        $this->askAnythingElse();
     }
 
-    // Show the main menu and route the chosen action.
-    protected function backToMainMenu()
+    // Opens a staff-visible inquiry thread tied to this low rating. Staff
+    // reply from the Inquiries page and the reply shows up in this same
+    // chat (the widget polls /api/chat/{id}/updates).
+    protected function createStaffFollowUp(?string $comment)
     {
-        $question = Question::create('')
-            ->fallback('Please choose an option from the buttons above.')
-            ->addButtons([
-                Button::create('Schedule Visit')->value('schedule visit'),
-                Button::create('General Information')->value('general information'),
-                Button::create('Submit Review/Rating')->value('submit review/rating'),
-                Button::create('Submit Complaint')->value('submit complaint'),
+        $saved = false;
+
+        try {
+            $conversationId = (string) $this->bot->getMessage()->getSender();
+            $name = $this->patientName ?: ($this->patientId ? "Patient #{$this->patientId}" : 'A guest');
+
+            $summary = "Low rating follow-up. The patient rated us {$this->rating}/5."
+                . ($this->contactEmail ? " Please reach out by email: {$this->contactEmail}." : '')
+                . ($comment ? " Comment: \"{$comment}\"" : ' No comment was left.');
+
+            $logId = DB::table('chatbot_logs')->insertGetId([
+                'user_id'         => $this->patientId,
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'user_message'    => $summary,
+                'bot_message'     => '(no reply)', // column is NOT NULL
+                'chat_time'       => now(),
             ]);
 
-        $this->ask($question, function (Answer $answer) {
-            // This menu is shown AFTER a review finishes (or fails). Tapping the
-            // same button again should start a brand-new one. Without this,
-            // handleGlobalCommand() sees "already in this conversation" and just
-            // re-shows this menu, so the button appears to do nothing.
-            if (in_array($this->normalizeCommand($answer), ['review', 'submit review/rating'], true)) {
-                return $this->askRating();
+            $inquiryId = DB::table('inquiries')->insertGetId([
+                'patient_id'      => $this->patientId,
+                'guest_name'      => $this->patientId ? null : ($this->patientName ?: null),
+                'log_id'          => $logId,
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'inquiry_type'    => 'Low Rating Follow-up',
+                'resolved_status' => 'Pending',
+                'created_at'      => now(),
+            ]);
+
+            InquiryReply::create([
+                'inquiry_id' => $inquiryId,
+                'sender'     => 'Patient',
+                'message'    => $summary,
+            ]);
+
+            try {
+                NotificationService::lowRatingFollowUp($name, (int) $this->rating, $inquiryId);
+            } catch (\Throwable $notifyError) {
+                \Illuminate\Support\Facades\Log::error('Failed to create low-rating notification: ' . $notifyError->getMessage());
             }
 
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, fn() => $this->backToMainMenu());
-            }
+            $saved = true;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('createStaffFollowUp failed: ' . $e->getMessage());
+            $this->say("⚠️ We couldn't notify our staff right now. Please try again later, or contact us directly.");
+        }
 
-            if ($this->handleOffTopicIfAny($answer, fn() => $this->backToMainMenu())) {
-                return;
-            }
+        if ($saved) {
+            // Email received and follow-up opened: thank the patient, end
+            // this flow, and bring the 4 main options back (no
+            // "anything else?" question).
+            $this->bot->startConversation(new AnythingElseConversation(
+                $this->patientId,
+                $this->patientName,
+                true,
+                'Thank you for your feedback! Our staff/admin will reach out to you through your email.'
+            ));
+            return;
+        }
 
-            $this->say('Please choose one of the options above.');
-            $this->backToMainMenu();
-        });
+        $this->askAnythingElse();
+    }
+
+    // Ends the flow with the Yes/No "anything else?" prompt.
+    protected function askAnythingElse()
+    {
+        $this->bot->startConversation(new AnythingElseConversation($this->patientId, $this->patientName));
     }
 }

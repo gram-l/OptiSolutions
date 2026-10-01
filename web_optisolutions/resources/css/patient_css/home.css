@@ -790,10 +790,17 @@ body {
   margin: 0;
 }
 .doctors-grid-modern {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* centers 1-2 cards, keeps full rows aligned */
   gap: 28px;
 }
+.doctors-grid-modern > .doctor-card {
+  flex: 0 1 calc((100% - 84px) / 4); /* 4 per row, never stretched */
+  min-width: 240px;
+  max-width: 100%;
+}
+.doctors-grid-modern > .no-doctors { flex: 1 1 100%; }
 /* ============================================
    SEARCH BAR - DOCTORS SECTION
    ============================================ */
@@ -1930,7 +1937,8 @@ body {
   .btn-cta-banner { width: 100%; justify-content: center; }
   .cta-banner-map { min-height: 200px; }
   .cta-banner-map iframe { min-height: 200px; }
-  .service-grid-modern, .doctors-grid-modern { grid-template-columns: 1fr; }
+  .service-grid-modern { grid-template-columns: 1fr; }
+  .doctors-grid-modern > .doctor-card { flex-basis: 100%; }
   .filter-tabs { gap: 6px; padding: 0 5px; }
   .filter-tab { font-size: 11px; padding: 5px 12px; }
 }

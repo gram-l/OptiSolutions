@@ -299,11 +299,11 @@ class ClinicInfoService
     ];
 
     protected static array $acknowledgmentReplies = [
-        "You're welcome! 😊 Is there anything else I can help you with?",
+        "You're welcome!",
         "Glad I could help! Let me know if you need anything else.",
         "No problem at all! Feel free to ask if you have more questions.",
         "You're welcome! Just let me know if you have any other questions.",
-        'Happy to help! 😊 Just type "Menu" anytime to see what I can do.',
+        'Happy to help! Just type "Menu" anytime to see what I can do.',
     ];
 
     // Determines whether the given text is a simple acknowledgment or thank-you message rather than an actual question or concern.
@@ -492,6 +492,63 @@ class ClinicInfoService
 
     
 
+    // Detects requests to reschedule / cancel / edit / change something the
+    // patient already submitted (e.g. "Can I resched my appointment?",
+    // "Pwede ba maedit ang info na nilagay ko?", "paano ba iresched ito?").
+    // The bot can't do these itself, so they must always reach Admin/Staff
+    // -- even when the same sentence also contains an info keyword such
+    // as "schedule", "appointment" or "info".
+    public static function looksLikeChangeRequest(string $text): bool
+    {
+        $lower = mb_strtolower(trim($text));
+
+        if ($lower === '') {
+            return false;
+        }
+
+        // Reschedule variants: resched, re-schedule, reschedule, iresched,
+        // i-reschedule, mag-resched, ilipat ang schedule, etc.
+        if (preg_match('/\b(?:i-?|mag-?|pa-?)?re-?sched\w*/u', $lower)) {
+            return true;
+        }
+
+        // Verbs that mean "change / cancel / undo something I already sent".
+        $changeVerbs = [
+            'cancel', 'i-cancel', 'icancel', 'kanselahin', 'ikansela', 'kansela',
+            'change', 'palitan', 'baguhin', 'ibahin', 'pabago', 'pabago ng',
+            'edit', 'i-edit', 'iedit', 'maedit', 'mai-edit', 'maiedit',
+            'update', 'i-update', 'iupdate', 'maupdate', 'mai-update',
+            'correct', 'itama', 'maitama', 'ayusin', 'maayos',
+            'ilipat', 'mailipat', 'ipagpaliban', 'move', 'postpone',
+            'modify', 'amend',
+        ];
+
+        // Things the patient may want changed.
+        $changeTargets = [
+            'appointment', 'appointments', 'schedule', 'sched', 'visit', 'booking',
+            'reservation', 'petsa', 'oras', 'date', 'time',
+            'info', 'information', 'details', 'detail',
+            'nilagay', 'sinubmit', 'na-submit', 'nasubmit', 'inilagay',
+            'name', 'pangalan', 'phone', 'number', 'email', 'birthday', 'dob',
+        ];
+
+        $hasVerb = false;
+        foreach ($changeVerbs as $kw) {
+            if (str_contains($lower, $kw)) { $hasVerb = true; break; }
+        }
+        if (!$hasVerb) {
+            return false;
+        }
+
+        foreach ($changeTargets as $kw) {
+            if (str_contains($lower, $kw)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // Determines which information category the given text is asking about.
     
     public static function detectInfoIntent(string $text): ?string
@@ -504,7 +561,15 @@ class ClinicInfoService
         //(mika)
         if (self::matchCustomCommand($text) !== null) {
             return 'custom_command';
-        }    $lower = mb_strtolower($text);
+        }
+
+        // Reschedule / cancel / edit requests can't be answered by an info
+        // card -- returning null makes the bot treat it as an inquiry and
+        // forward it to Admin/Staff.
+        if (self::looksLikeChangeRequest($text)) {
+            return null;
+        }
+
 
         $hasHowWord = false;
         foreach (self::$howQuestionWords as $kw) {
@@ -684,6 +749,20 @@ class ClinicInfoService
         return self::INFO_CARD_PREFIX . json_encode($card);
     }
 
+    // Google Maps search link for the clinic (opens Maps app on mobile).
+    // Returns null when there's no address to search for.
+    public static function googleMapsUrl(array $clinic): ?string
+    {
+        $address = trim((string) ($clinic['address'] ?? ''));
+        if ($address === '') {
+            return null;
+        }
+
+        $query = trim(($clinic['clinic_name'] ?? '') . ', ' . $address, ' ,');
+
+        return 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($query);
+    }
+
     // Returns the clinic's general information (name, address, contact details, operating hours, and social links).
     public static function infoCardMessage(): string
     {
@@ -708,6 +787,20 @@ class ClinicInfoService
                 $identityRows[] = ['label' => $label, 'value' => $data[$key], 'type' => 'text'];
             }
         }
+        // Google Maps link so patients can see exactly where the clinic
+        // is and get directions. Built from the clinic name + address
+        // stored in clinic_info, so it stays correct whenever the admin
+        // updates the address — nothing extra to maintain.
+        $mapsUrl = self::googleMapsUrl($data);
+        if ($mapsUrl !== null) {
+            $identityRows[] = [
+                'label' => 'Location',
+                'value' => $mapsUrl,
+                'text'  => 'View on Google Maps',
+                'type'  => 'link',
+            ];
+        }
+
         if (!empty($identityRows)) {
             $sections[] = ['rows' => $identityRows];
         }

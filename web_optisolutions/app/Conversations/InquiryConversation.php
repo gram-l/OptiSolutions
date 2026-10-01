@@ -18,6 +18,11 @@ class InquiryConversation extends Conversation
 {
     use HandlesGlobalCommands, HandlesRateLimit;
 
+    // Must match the text in FALLBACK_TEXTS in chatbot-widget.blade.php --
+    // that is how the widget knows to remove this bubble as soon as
+    // Admin/Staff sends their first reply.
+    public const FORWARDED_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
+
     protected $inquiryType;
     protected $message;
     protected $patientId;
@@ -137,8 +142,6 @@ class InquiryConversation extends Conversation
             return;
         }
 
-        $this->say('Submitting your inquiry...');
-
         // Same conversation_id BotManController uses to log/attach
         // follow-up replies to the correct thread. Without this, a
         // patient's next message would create a duplicate inquiry
@@ -156,11 +159,11 @@ class InquiryConversation extends Conversation
                 'user_id'         => $this->patientId,
                 'conversation_id' => $conversationId !== '' ? $conversationId : null,
                 'user_message'    => $this->message,
-                'bot_message'     => null,
+                'bot_message'     => '(no reply)', // column is NOT NULL
                 'chat_time'       => now(),
             ]);
 
-            DB::table('inquiries')->insert([
+            $inquiryId = DB::table('inquiries')->insertGetId([
                 'patient_id'      => $this->patientId,
                 'guest_name'      => $guestName,
                 'log_id'          => $logId,
@@ -169,12 +172,6 @@ class InquiryConversation extends Conversation
                 'resolved_status' => 'Pending',
                 'created_at'      => now(),
             ]);
-         $inquiryId = DB::table('inquiries')->insertGetId([   // insertGetId, not insert
-            'patient_id'      => $this->patientId,
-            'log_id'          => $logId,
-            'inquiry_type'    => $this->inquiryType,
-            'resolved_status' => 'Pending',
-        ]);
 
         try {
             $name = $this->patientName ?: ($this->patientId ? "Patient #{$this->patientId}" : 'A guest');
@@ -191,7 +188,7 @@ class InquiryConversation extends Conversation
                 'color'   => '2196F3',
             ]);*/
 
-            $this->say("Thank you! Your {$this->inquiryType} inquiry has been sent to our staff. We'll get back to you as soon as possible.");
+            $this->say(self::FORWARDED_TEXT);
         } catch (\Throwable $e) {
             // IMPORTANT: this used to fail silently (no logging), so the
             // ONLY symptom was the generic "couldn't submit" message to

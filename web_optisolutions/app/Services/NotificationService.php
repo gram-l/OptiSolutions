@@ -38,14 +38,40 @@ class NotificationService
     }
 
     // type: 'feedback' — matches the Flutter app's NotifType.feedback
-    public static function newFeedback(string $patientName, int $feedbackId): void
+    // Ratings of 3 or below are flagged so admin can spot them quickly.
+    public static function newFeedback(string $patientName, int $feedbackId, ?int $rating = null): void
     {
+        if ($rating !== null && $rating <= 3) {
+            self::create(
+                'feedback',
+                'Low Rating Received',
+                "{$patientName} rated us {$rating}/5. This may need follow-up.",
+                'feedback',
+                $feedbackId
+            );
+            return;
+        }
+
         self::create(
             'feedback',
             'New Feedback Received',
             "{$patientName} submitted new feedback.",
             'feedback',
             $feedbackId
+        );
+    }
+
+    // type: 'chat_inquiry' so STAFF (not just admin) see it — the patient
+    // gave a low rating and asked for someone to reach out. Opens the
+    // inquiry thread so staff can reply to them in the chat.
+    public static function lowRatingFollowUp(string $patientName, int $rating, int $inquiryId): void
+    {
+        self::create(
+            'chat_inquiry',
+            'Low Rating – Patient Wants a Follow-up',
+            "{$patientName} rated us {$rating}/5 and asked for staff to reach out.",
+            'inquiry',
+            $inquiryId
         );
     }
 

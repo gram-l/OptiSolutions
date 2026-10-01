@@ -8,6 +8,7 @@ use BotMan\BotMan\Cache\LaravelCache;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Conversations\AppointmentConversation;
+use App\Conversations\AnythingElseConversation;
 use App\Conversations\ComplaintConversation;
 use App\Conversations\ReviewConversation;
 use App\Services\ClinicInfoService;
@@ -34,7 +35,8 @@ class BotManController extends Controller
         'review', 'submit review/rating',
         'menu',
         'cancel',
-        "no, i'm all set",
+        "no, i'm all set", "yes, i need help",
+        'anything_else_yes', 'anything_else_no',
 
         // Schedule visit: "continue / start over / cancel" prompt
         'continue schedule visit', 'continue_schedule',
@@ -120,6 +122,33 @@ class BotManController extends Controller
                 $bot->startConversation(new ReviewConversation(
                     $stored['patient_id'] ?? null,
                     $stored['patient_name'] ?? null
+                ));
+            });
+
+            // "Is there anything else you need?" buttons. The widget shows
+            // these itself after Admin/Staff resolves an inquiry, so no
+            // conversation is waiting for them on the server -- handle
+            // them here instead of letting them fall through to the
+            // inquiry fallback (which caused a 500 error).
+            $botman->hears(AnythingElseConversation::NO, function ($bot) {
+                Log::info('MATCHED: anything_else_no');
+                // Thank-you, then the 4 main options again.
+                $stored = $bot->userStorage()->find() ?: [];
+                $bot->startConversation(new AnythingElseConversation(
+                    $stored['patient_id'] ?? null,
+                    $stored['patient_name'] ?? null,
+                    true,
+                    AnythingElseConversation::THANK_YOU_TEXT
+                ));
+            });
+
+            $botman->hears(AnythingElseConversation::YES, function ($bot) {
+                Log::info('MATCHED: anything_else_yes');
+                $stored = $bot->userStorage()->find() ?: [];
+                $bot->startConversation(new AnythingElseConversation(
+                    $stored['patient_id'] ?? null,
+                    $stored['patient_name'] ?? null,
+                    true
                 ));
             });
 

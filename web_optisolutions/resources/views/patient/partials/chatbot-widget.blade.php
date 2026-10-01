@@ -88,6 +88,18 @@ document.addEventListener('DOMContentLoaded', () => {
     quickRepliesEl.querySelectorAll('.quick-reply-btn').forEach(b => {
       b.disabled = sending;
     });
+
+    // A disabled <input> loses focus, so once the request finishes the
+    // patient used to have to click back into the message box before
+    // they could type again. Give focus back automatically so they can
+    // just keep typing and hit Enter.
+    if (!sending) focusInput();
+  }
+
+  function focusInput() {
+    if (!panel.classList.contains('open') || input.disabled) return;
+    // preventScroll: don't let the page jump when focus returns.
+    input.focus({ preventScroll: true });
   }
 
   // PER-MESSAGE TRANSLATION
@@ -312,6 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
     panel.classList.toggle('open');
     if (panel.classList.contains('open')) {
       input.focus();
+      setTimeout(focusInput, 250);
       scrollToBottom();
       pollForReplies();
     }
@@ -626,7 +639,8 @@ document.addEventListener('DOMContentLoaded', () => {
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
         a.className = 'post-appt-link';
-        a.textContent = url;
+        // Long URLs (e.g. Google Maps) read better as a short label.
+        a.textContent = row.text || url;
         p.appendChild(a);
       } else {
         p.appendChild(document.createTextNode(url));
@@ -823,6 +837,18 @@ document.addEventListener('DOMContentLoaded', () => {
       addBubble(displayText ?? text, 'user');
     }
     input.value = '';
+
+    // "Saving your schedule visit..." is shown ONLY while the visit is
+    // actually being saved (right after the patient confirms the suggested
+    // schedule) and removed as soon as the request finishes. Transient:
+    // never persisted to session history.
+    let savingEl = null;
+    if (text === 'confirm_yes') {
+      const b = addBubble('Saving your schedule visit...', 'bot', false);
+      savingEl = b.closest('.chat-message');
+    }
+    const removeSaving = () => { if (savingEl) { savingEl.remove(); savingEl = null; } };
+
     // No typing dots here — the bot computes and returns its reply in
     // this same request/response cycle, there's no one "typing" it.
     // The "..." indicator is reserved for a real Admin/Staff person
@@ -844,6 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await res.json();
+      removeSaving();
 
       if (!res.ok) {
         if (res.status === 429) {
@@ -896,9 +923,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
     } catch (err) {
+      removeSaving();
       console.error('Chat error:', err);
       addErrorBubble('Unable to connect. Please check your internet connection and try again.');
     } finally {
+      removeSaving();
       setSendingState(false);
     }
   }
@@ -911,6 +940,32 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       handleSend();
     }
+  });
+
+  // "Just start typing": if the chat is open and the patient presses a
+  // printable key while focus is somewhere else in the panel (e.g. on
+  // a quick-reply/inline button they just clicked, or the message
+  // list), send that keystroke to the message box instead of making
+  // them click into it first.
+  document.addEventListener('keydown', (e) => {
+    if (!panel.classList.contains('open')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key.length !== 1) return; // ignore Tab, arrows, Enter, etc.
+
+    const active = document.activeElement;
+    const typingElsewhere = active && active !== input &&
+      (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' ||
+       active.tagName === 'SELECT' || active.isContentEditable);
+    if (typingElsewhere) return; // don't hijack other form fields on the page
+
+    if (!input.disabled && active !== input) input.focus({ preventScroll: true });
+  });
+
+  // Clicking a button inside the panel (quick reply, inline option,
+  // translate, etc.) shouldn't leave focus stranded on that button.
+  panel.addEventListener('click', (e) => {
+    if (e.target.closest('a, .msg-translate-btn, .attach-btn, #chatClose')) return;
+    setTimeout(focusInput, 0);
   });
 
   // File attachment (optional)
@@ -982,6 +1037,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const newOnes = updates.filter(u => !shownReplyIds.has(u.replyId));
       const newlyResolved = resolvedIds.filter(id => !shownResolvedIds.has(id));
+      const resolvedTypeById = {};
+      (data.resolvedInquiries || []).forEach(r => { resolvedTypeById[r.id] = r.type; });
 
       // The only legitimate source of the "..." indicator: a real
       // Admin/Staff person is actively composing a reply to this chat
@@ -1015,8 +1072,19 @@ document.addEventListener('DOMContentLoaded', () => {
         newlyResolved.forEach(id => shownResolvedIds.add(id));
         session.shownResolvedIds = Array.from(shownResolvedIds);
 
-        addBubble("Your inquiry has been resolved. Is there anything else I can help you with?", 'bot');
-        showMainMenu();
+        // If this inquiry came from the "anything else?" step right after
+        // scheduling a visit, this is when the scheduling thank-you is
+        // finally shown (held back until the issue is resolved).
+        const fromSchedule = newlyResolved.some(id => resolvedTypeById[id] === 'Schedule Visit Follow-up');
+        // One combined bubble (was two) so the resolved notice and the
+        // "anything else?" prompt read as a single message.
+        addBubble((fromSchedule
+          ? "Thank you for scheduling your visit with us."
+          : "Your inquiry has been resolved.") + " Is there anything else you need?", 'bot');
+        addButtons([
+          { text: "Yes, I need help", value: 'anything_else_yes' },
+          { text: "No, I'm all set",  value: 'anything_else_no' },
+        ]);
       }
 
       persistSession();

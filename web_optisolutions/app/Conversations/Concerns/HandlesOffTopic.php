@@ -121,7 +121,12 @@ trait HandlesOffTopic
         }
 
         if (!$this->looksLikeInquiry($answer)) {
-            return false;
+            // Anything else typed (not a button tap, not a bare 1-5 rating)
+            // is something the bot can't answer, so it goes to staff too.
+            $typed = trim($answer->getText());
+            if ($isButtonTap || $typed === '' || preg_match('/^[1-5]$/', $typed)) {
+                return false;
+            }
         }
 
         $text = trim($answer->getText());
@@ -138,7 +143,8 @@ trait HandlesOffTopic
 
     protected function routeToInquiry(Answer $answer)
     {
-        $this->say("Got it — let me send that to our staff so a real person can take a look.");
+        // No extra chatter here: InquiryConversation sends the single
+        // "forwarded to Admin/Staff" bubble once the inquiry is saved.
         $this->bot->startConversation(new InquiryConversation($answer->getText()));
     }
 }

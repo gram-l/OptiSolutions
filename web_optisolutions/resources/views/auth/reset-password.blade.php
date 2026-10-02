@@ -8,159 +8,78 @@
 <link rel="stylesheet"
 href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 @vite('resources/css/login.css')
-<style>
-.password-wrapper{
-    position: relative;
-}
-
-.password-wrapper input{
-    width: 100%;
-    padding-right: 50px;
-}
-
-.toggle-eye{
-    
-    position: absolute;
-    top: 40%;
-    right: 14px;
-    transform: translateY(-50%);
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    width: 24px;
-    height: 24px;
-
-    padding: 0;
-    margin: 0;
-
-    border: none;
-    background: transparent;
-    outline: none;
-    box-shadow: none;
-
-    color: #8a8fa3;
-    cursor: pointer;
-    font-size: 18px;
-    transition: color .2s ease;
-}
-
-.toggle-eye i{
-    font-size: 18px;
-    line-height: 1;
-}
-
-.toggle-eye:hover{
-    color: #0D3B72;
-    background: transparent;
-}
-
-.toggle-eye:focus,
-.toggle-eye:active{
-    outline: none;
-    box-shadow: none;
-    background: transparent;
-}
-
-.strength-bar{
-    height: 4px;
-    border-radius: 4px;
-    margin: 8px 0 4px;
-    background: #eee;
-}
-
-.strength-bar-fill{
-    height: 100%;
-    border-radius: 4px;
-    transition: .3s;
-    width: 0;
-}
-
-.strength-label{
-    font-size: 11px;
-    color: #8a8fa3;
-}
-.branding .logo {
-    width:70px;
-    height:70px;
-    object-fit:contain;
-    border:none;
-    border-radius:0;
-    background:none;
-    padding:0;
-}
-
-.logo {
-    background: transparent;
-    display: flex;
-}
-</style>
 </head>
 <body>
 
 <div class="login-container">
 
+    <!-- LEFT SIDE: clinic photo -->
     <div class="left-panel">
-        <div class="circle circle-top"></div>
-        <div class="circle circle-left"></div>
-        <div class="branding">
-            <img src="{{ asset('images/polyclinic_logo.png') }}" class="logo" alt="PolyClinic Logo"
-                 onerror="this.onerror=null;this.style.display='none'">
-            <div class="branding-text">
+        <img src="{{ asset('images/Polyclinic.jpg') }}" alt="PolyClinic building">
+        <div class="photo-caption"><strong>Create New Password</strong><span>Choose a strong password to keep your account secure.</span></div>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right-panel">
+
+        <header class="branding">
+            <img src="{{ asset('images/polyclinic_logo.png') }}"
+                 class="logo"
+                 alt="PolyClinic Logo"
+                 onerror="this.onerror=null; this.style.display='none';">
+            <div>
                 <h2>PolyClinic</h2>
                 <p>Inquiry System · Smart Care</p>
             </div>
-        </div>
-        <div class="welcome">
-            <h1>Create New<span> Password</span></h1>
-            <p>Choose a strong password to keep your account secure.</p>
-        </div>
-        <small>© PolyClinic Health — secure portal</small>
-    </div>
+        </header>
 
-    <div class="right-panel">
-        <div class="form-box">
-            <h2>Set New Password</h2>
-            <p class="subtitle">Step 3 of 3 — Almost done!</p>
+        <main class="form-wrap">
+            <div class="form-box">
+                <h1>Set New Password</h1>
+                <p class="subtitle">Step 3 of 3 — Almost done!</p>
 
-            @if ($errors->any())
-                <div class="error-message show">
-                    {{ $errors->first('password') }}
-                </div>
-            @endif
+                @if ($errors->any())
+                    <div class="error-message show" role="alert">
+                        {{ $errors->first('password') }}
+                    </div>
+                @endif
 
-            <form method="POST" action="{{ route('password.reset.update') }}" autocomplete="off">
-                @csrf
+                <form method="POST" action="{{ route('password.reset.update') }}" autocomplete="off">
+                    @csrf
 
-                <label style="font-size:13px;color:#4a5568;font-weight:500;">New Password</label>
-                <div class="password-wrapper">
-                    <input type="password" name="password" id="password"
-                           placeholder="At least 8 characters"
-                           autocomplete="new-password" required>
-                    <button type="button" class="toggle-eye" onclick="togglePw('password', this)">
-    <i class="bi bi-eye"></i>
-</button>
-                </div>
-                <div class="strength-bar"><div class="strength-bar-fill" id="strength-fill"></div></div>
-                <div class="strength-label" id="strength-label"></div>
+                    <div class="field">
+                        <label for="password">New Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" name="password" id="password"
+                                   placeholder="At least 8 characters"
+                                   autocomplete="new-password" required>
+                            <button type="button" class="toggle-eye" aria-label="Show password" onclick="togglePw('password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="strength-bar"><div class="strength-bar-fill" id="strength-fill"></div></div>
+                        <div class="strength-label" id="strength-label"></div>
+                    </div>
 
-                <label style="font-size:13px;color:#4a5568;font-weight:500;margin: top 14px;px;display:block;">
-                    Confirm New Password
-                </label>
-                <div class="password-wrapper">
-                    <input type="password" name="password_confirmation" id="password_confirmation"
-                           placeholder="Repeat your password"
-                           autocomplete="new-password" required>
-                    <button type="button" class="toggle-eye" onclick="togglePw('password_confirmation', this)">
-    <i class="bi bi-eye"></i>
-</button>
-                </div>
-                <div id="match-msg" style="font-size:11px;margin-top:4px;"></div>
+                    <div class="field">
+                        <label for="password_confirmation">Confirm New Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" name="password_confirmation" id="password_confirmation"
+                                   placeholder="Repeat your password"
+                                   autocomplete="new-password" required>
+                            <button type="button" class="toggle-eye" aria-label="Show password" onclick="togglePw('password_confirmation', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div id="match-msg" class="match-msg"></div>
+                    </div>
 
-                <button type="submit" style="margin-top:20px;">Update Password →</button>
-            </form>
-        </div>
+                    <button type="submit" class="btn-login">Update Password →</button>
+                </form>
+            </div>
+        </main>
+
+        <footer class="page-footer">© {{ date('Y') }} PolyClinic Health · Authorized personnel only</footer>
     </div>
 </div>
 

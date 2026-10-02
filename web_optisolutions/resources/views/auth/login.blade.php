@@ -12,104 +12,107 @@
 
 <div class="login-container">
 
-    <!-- LEFT SIDE -->
+    <!-- LEFT SIDE: clinic photo -->
     <div class="left-panel">
-        <div class="circle circle-top"></div>
-        <div class="circle circle-left"></div>
-
-        <div class="branding">
-            <img src="{{ asset('images/polyclinic_logo.png') }}"
-     class="logo"
-     alt="PolyClinic Logo"
-     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<div class=logo>PC</div>'">
-            <div>
-                <h2>PolyClinic</h2>
-                <p>Inquiry System · Smart Care</p>
-            </div>
-        </div>
-
-        <div class="welcome">
-            <h1>
-                Connected Care,
-                <span>Seamless Access</span>
-            </h1>
-            <p>Dedicated to delivering exceptional healthcare with compassion and clinical excellence.</p>
-        </div>
-
-        <small>© PolyClinic Health — secure portal</small>
+        <img src="{{ asset('images/Polyclinic.jpg') }}" alt="PolyClinic building">
+        <div class="photo-caption"><strong>Secure staff portal</strong></div>
     </div>
 
     <!-- RIGHT SIDE -->
     <div class="right-panel">
-        <div class="form-box">
-            <h2>Access Account</h2>
-            <p class="subtitle">Log in with your institutional account</p>
 
-        {{-- Forced-logout notice (role mismatch / session collision) --}}
-        @if (session('unauthorized'))
-            <div class="error-message show">
-                {{ session('unauthorized') }}
+        <header class="branding">
+            <img src="{{ asset('images/polyclinic_logo.png') }}"
+                 class="logo"
+                 alt="PolyClinic Logo"
+                 onerror="this.onerror=null; this.style.display='none';">
+            <div>
+                <h2>PolyClinic</h2>
+                <p>Inquiry System · Smart Care</p>
             </div>
-        @endif
+        </header>
 
-        {{-- Error message --}}
-        @if ($errors->any())
-            <div class="error-message show">
-                {{ $errors->first('email') }}
-            </div>
-        @endif
+        <main class="form-wrap">
+            <div class="form-box">
+                <h1>Access Account</h1>
+                <p class="subtitle">Log in with your institutional account</p>
 
+                {{-- Forced-logout notice (role mismatch / session collision) --}}
+                @if (session('unauthorized'))
+                    <div class="error-message show" role="alert">
+                        {{ session('unauthorized') }}
+                    </div>
+                @endif
 
+                {{-- Error message --}}
+                @if ($errors->any())
+                    <div class="error-message show" role="alert">
+                        {{ $errors->first('email') }}
+                    </div>
+                @endif
 
+                {{-- Google login error (shown via JS) --}}
+                <div id="google-error" class="error-message" role="alert"></div>
 
-            {{-- Error message --}}
-            @if ($errors->any())
-                <div class="error-message show">
-                    {{ $errors->first('email') }}
+                <form method="POST" action="/auth/login" autocomplete="on">
+                    @csrf
+
+                    <div class="field">
+                        <input type="email"
+                               id="email"
+                               name="email"
+                               placeholder="Enter your email"
+                               aria-label="Email address"
+                               value="{{ old('email') }}"
+                               autocomplete="email"
+                               required>
+                    </div>
+
+                    <div class="field">
+                        <div class="input-wrap">
+                            <input type="password"
+                                   id="password"
+                                   name="password"
+                                   placeholder="Enter your password"
+                                   aria-label="Password"
+                                   autocomplete="new-password"
+                                   required>
+                            <button type="button" class="toggle" id="togglePw" aria-label="Show password">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="forgot">
+                        <a href="{{ route('password.forgot') }}" class="forgot-link">Forgot password?</a>
+                    </div>
+
+                    <button type="submit" class="btn-login">Log In →</button>
+                </form>
+
+                <div class="divider"><span>or</span></div>
+
+                <div id="g_id_onload"
+                     data-client_id="1041975122502-tjr2cth2cnetpo53o75l4r6gu99tr63g.apps.googleusercontent.com"
+                     data-callback="handleGoogleLogin">
                 </div>
-            @endif
-
-            {{-- Google login error (shown via JS) --}}
-            <div id="google-error" class="error-message"></div>
-
-            <form method="POST" action="/auth/login" autocomplete="on">
-                @csrf
-
-                <input type="email"
-                       id="email"
-                       name="email"
-                       placeholder="Enter your email"
-                       value="{{ old('email') }}"
-                       autocomplete="email"
-                       required>
-
-                <input type="password"
-                       id="password"
-                       name="password"
-                       placeholder="Enter your password"
-                       autocomplete="new-password"
-                       required>
-
-                <div class="forgot">
-                    <a href="{{ route('password.forgot') }}">Forgot password?</a>
-                </div>
-
-                <button type="submit">Log In →</button>
-            </form>
-
-            <div class="divider"><span>or</span></div>
-
-            <div id="g_id_onload"
-                 data-client_id="1041975122502-tjr2cth2cnetpo53o75l4r6gu99tr63g.apps.googleusercontent.com"
-                 data-callback="handleGoogleLogin">
+                <div class="g_id_signin" data-type="standard" data-width="100%"></div>
             </div>
-            <div class="g_id_signin" data-type="standard" data-width="100%"></div>
+        </main>
 
-        </div>
+        <footer class="page-footer">© {{ date('Y') }} PolyClinic Health · Authorized personnel only</footer>
     </div>
 </div>
 
 <script>
+document.getElementById('togglePw').addEventListener('click', function () {
+    const pw = document.getElementById('password');
+    const show = pw.type === 'password';
+    pw.type = show ? 'text' : 'password';
+    this.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    this.classList.toggle('on', show);
+});
+
 async function handleGoogleLogin(response) {
     const errorBox = document.getElementById('google-error');
     errorBox.classList.remove('show');

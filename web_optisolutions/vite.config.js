@@ -29,9 +29,7 @@ export default defineConfig({
                 'resources/css/patient_css/app.css',
                 'resources/css/patient_css/chatbot.css',
                 'resources/css/patient_css/contact.css',
-                'resources/css/patient_css/doctors.css',
                 'resources/css/patient_css/home.css',
-                'resources/css/patient_css/services.css',
 
                 'resources/js/app.js',
                 'resources/js/bootstrap.js',

@@ -165,8 +165,8 @@ class ReviewConversation extends Conversation
             ->addButtons([
                 Button::create('Schedule Visit')->value('schedule visit'),
                 Button::create('General Information')->value('general information'),
-                Button::create('Submit Review/Rating')->value('review'),
-                Button::create('Submit Complaint')->value('complaint'),
+                Button::create('Submit Review/Rating')->value('submit review/rating'),
+                Button::create('Submit Complaint')->value('submit complaint'),
             ]);
 
         $this->ask($question, function (Answer $answer) {

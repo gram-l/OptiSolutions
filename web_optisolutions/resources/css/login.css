@@ -50,32 +50,32 @@ body{
     content:'';
     position:absolute;
     inset:auto 0 0 0;
-    height:220px;
+    height:242px;
     background:linear-gradient(to top, rgba(8,30,44,0.72), transparent);
     pointer-events:none;
 }
 
 .photo-caption{
     position:absolute;
-    left:36px;
-    right:36px;
-    bottom:30px;
+    left:39.5px;
+    right:39.5px;
+    bottom:33px;
     z-index:1;
-    max-width:460px;
+    max-width:506px;
     color:#fff;
 }
 
 .photo-caption strong{
     display:block;
-    font-size:20px;
+    font-size:22px;
     font-weight:600;
     letter-spacing:-0.01em;
 }
 
 .photo-caption span{
     display:block;
-    margin-top:4px;
-    font-size:14px;
+    margin-top:4.5px;
+    font-size:15.5px;
     font-weight:400;
     line-height:1.5;
     opacity:.92;
@@ -85,7 +85,7 @@ body{
 
 .right-panel{
     width:42%;
-    min-width:420px;
+    min-width:462px;
     display:flex;
     flex-direction:column;
     background:#fff;
@@ -94,27 +94,27 @@ body{
 .branding{
     display:flex;
     align-items:center;
-    gap:14px;
-    padding:20px 32px;
+    gap:15.5px;
+    padding:22px 35px;
     border-bottom:1px solid #eef2f6;
 }
 
 .branding .logo{
-    width:56px;
-    height:56px;
+    width:61.5px;
+    height:61.5px;
     object-fit:contain;
     flex-shrink:0;
 }
 
 .branding h2{
-    font-size:18px;
+    font-size:20px;
     font-weight:600;
     color:var(--brand);
     line-height:1.25;
 }
 
 .branding p{
-    font-size:13px;
+    font-size:14.5px;
     font-weight:400;
     color:var(--muted);
     line-height:1.4;
@@ -125,49 +125,49 @@ body{
     display:flex;
     justify-content:center;
     align-items:center;
-    padding:32px 56px;
+    padding:35px 61.5px;
 }
 
 .form-box{
     width:100%;
-    max-width:400px;
+    max-width:440px;
 }
 
 .form-box h1{
-    font-size:30px;
+    font-size:33px;
     font-weight:600;
     letter-spacing:-0.015em;
     color:var(--ink);
-    margin-bottom:6px;
+    margin-bottom:6.5px;
 }
 
 .subtitle{
-    font-size:14px;
+    font-size:15.5px;
     color:var(--muted);
-    margin-bottom:28px;
+    margin-bottom:31px;
 }
 
 /* Fields */
 
 .field{
-    margin-bottom:18px;
+    margin-bottom:20px;
 }
 
 .field label{
     display:block;
-    font-size:13px;
+    font-size:14.5px;
     font-weight:500;
     color:var(--ink);
-    margin-bottom:7px;
+    margin-bottom:7.5px;
 }
 
 .forgot{
     text-align:right;
-    margin:-6px 0 22px;
+    margin:-6px 0 24px;
 }
 
 .forgot-link{
-    font-size:13px;
+    font-size:14.5px;
     font-weight:500;
     color:var(--brand);
     text-decoration:none;
@@ -179,13 +179,13 @@ body{
 
 input{
     width:100%;
-    height:48px;
-    padding:0 14px;
-    font-size:14.5px;
+    height:53px;
+    padding:0 15.5px;
+    font-size:16px;
     color:var(--ink);
     background:var(--field);
     border:1px solid var(--line);
-    border-radius:10px;
+    border-radius:11px;
     outline:none;
     transition:border-color .15s, box-shadow .15s, background-color .15s;
 }
@@ -197,30 +197,30 @@ input:hover{ border-color:#bccbd6; }
 input:focus{
     background:#fff;
     border-color:var(--brand);
-    box-shadow:0 0 0 3px rgba(11,85,116,0.14);
+    box-shadow:0 0 0 3.5px rgba(11,85,116,0.14);
 }
 
-.input-wrap input{ padding-right:48px; }
+.input-wrap input{ padding-right:53px; }
 
 .toggle{
     position:absolute;
-    right:6px;
+    right:6.5px;
     top:50%;
     transform:translateY(-50%);
-    width:36px;
-    height:36px;
+    width:39.5px;
+    height:39.5px;
     display:flex;
     align-items:center;
     justify-content:center;
     border:none;
-    border-radius:8px;
+    border-radius:9px;
     background:transparent;
     cursor:pointer;
 }
 
 .toggle svg{
-    width:19px;
-    height:19px;
+    width:21px;
+    height:21px;
     fill:none;
     stroke:#8797a6;
     stroke-width:1.8;
@@ -236,13 +236,13 @@ input:focus{
 .btn-login{
     display:block;
     width:100%;
-    height:48px;
-    margin-top:6px;
+    height:53px;
+    margin-top:6.5px;
     border:none;
-    border-radius:10px;
+    border-radius:11px;
     background:var(--brand);
     color:#fff;
-    font-size:15px;
+    font-size:16.5px;
     font-weight:600;
     cursor:pointer;
     transition:background-color .15s;
@@ -253,7 +253,7 @@ input:focus{
 .btn-login:focus-visible,
 .toggle:focus-visible,
 .forgot-link:focus-visible{
-    outline:3px solid rgba(11,85,116,0.35);
+    outline:3.5px solid rgba(11,85,116,0.35);
     outline-offset:2px;
 }
 
@@ -261,13 +261,13 @@ input:focus{
 
 .error-message{
     display:none;
-    margin-bottom:18px;
-    padding:11px 14px;
-    font-size:13px;
+    margin-bottom:20px;
+    padding:12px 15.5px;
+    font-size:14.5px;
     color:#b42318;
     background:#fef3f2;
     border:1px solid #fecdca;
-    border-radius:10px;
+    border-radius:11px;
 }
 
 .error-message.show{ display:block; }
@@ -281,9 +281,9 @@ input:focus{
 /* Secondary links (forgot / otp / reset pages) */
 
 .back-link{
-    margin-top:22px;
+    margin-top:24px;
     text-align:center;
-    font-size:13px;
+    font-size:14.5px;
     color:var(--muted);
 }
 
@@ -299,26 +299,26 @@ input:focus{
 
 .otp-inputs{
     display:flex;
-    gap:10px;
+    gap:11px;
     justify-content:center;
-    margin:8px 0 24px;
+    margin:9px 0 26.5px;
 }
 
 .otp-inputs input{
-    width:48px;
-    height:56px;
+    width:53px;
+    height:61.5px;
     padding:0;
     text-align:center;
-    font-size:22px;
+    font-size:24px;
     font-weight:600;
     color:var(--brand);
-    border-radius:10px;
+    border-radius:11px;
 }
 
 .resend-row{
-    margin-top:18px;
+    margin-top:20px;
     text-align:center;
-    font-size:13px;
+    font-size:14.5px;
     color:var(--muted);
 }
 
@@ -343,65 +343,65 @@ input:focus{
 
 .field > label{
     display:block;
-    margin-bottom:7px;
-    font-size:13px;
+    margin-bottom:7.5px;
+    font-size:14.5px;
     font-weight:500;
     color:var(--ink);
 }
 
 .password-wrapper{ position:relative; }
 
-.password-wrapper input{ padding-right:48px; }
+.password-wrapper input{ padding-right:53px; }
 
 .toggle-eye{
     position:absolute;
-    right:6px;
-    top:24px;
+    right:6.5px;
+    top:26.5px;
     transform:translateY(-50%);
-    width:36px;
-    height:36px;
+    width:39.5px;
+    height:39.5px;
     display:flex;
     align-items:center;
     justify-content:center;
     border:none;
-    border-radius:8px;
+    border-radius:9px;
     background:transparent;
     color:#8797a6;
-    font-size:18px;
+    font-size:20px;
     cursor:pointer;
 }
 
 .toggle-eye:hover{ color:var(--brand); }
 
 .toggle-eye:focus-visible{
-    outline:3px solid rgba(11,85,116,0.35);
+    outline:3.5px solid rgba(11,85,116,0.35);
     outline-offset:2px;
 }
 
 .strength-bar{
-    height:4px;
-    margin:10px 0 4px;
-    border-radius:4px;
+    height:4.5px;
+    margin:11px 0 4.5px;
+    border-radius:4.5px;
     background:#e6edf2;
 }
 
 .strength-bar-fill{
     width:0;
     height:100%;
-    border-radius:4px;
+    border-radius:4.5px;
     transition:width .3s, background-color .3s;
 }
 
 .strength-label{
-    min-height:16px;
-    font-size:12px;
+    min-height:17.5px;
+    font-size:13px;
     color:var(--muted);
 }
 
 .match-msg{
-    min-height:16px;
-    margin-top:6px;
-    font-size:12px;
+    min-height:17.5px;
+    margin-top:6.5px;
+    font-size:13px;
 }
 
 /* Divider */
@@ -409,8 +409,8 @@ input:focus{
 .divider{
     display:flex;
     align-items:center;
-    margin:22px 0 18px;
-    font-size:12.5px;
+    margin:24px 0 20px;
+    font-size:14px;
     color:#8797a6;
 }
 
@@ -422,13 +422,13 @@ input:focus{
     background:#e3eaf0;
 }
 
-.divider span{ padding:0 14px; }
+.divider span{ padding:0 15.5px; }
 
 /* Footer */
 
 .page-footer{
-    padding:18px 32px;
-    font-size:12px;
+    padding:20px 35px;
+    font-size:13px;
     color:#8797a6;
     text-align:center;
     border-top:1px solid #eef2f6;
@@ -453,12 +453,12 @@ input:focus{
 
     .left-panel{
         width:100%;
-        height:220px;
+        height:242px;
     }
 
     .photo-caption{
-        left:20px;
-        bottom:18px;
+        left:22px;
+        bottom:20px;
     }
 
     .right-panel{
@@ -467,11 +467,11 @@ input:focus{
         flex:1;
     }
 
-    .branding{ padding:16px 20px; }
+    .branding{ padding:17.5px 22px; }
 
-    .form-wrap{ padding:28px 20px; }
+    .form-wrap{ padding:31px 22px; }
 
-    .form-box h1{ font-size:26px; }
+    .form-box h1{ font-size:28.5px; }
 }
 
 @media (prefers-reduced-motion:reduce){

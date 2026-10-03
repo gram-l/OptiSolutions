@@ -25,9 +25,9 @@
         </div>
         <div class="profile-modal-badge">Clinic Admin</div>
         <div class="profile-photo-hint" id="profilePhotoHint" hidden>New photo selected — click Save Changes to apply.</div>
-        @error('photo') <div class="profile-field-error">{{ $message }}</div> @enderror
+        @error('profile_photo') <div class="profile-field-error">{{ $message }}</div> @enderror
 
-        <input type="file" name="photo" id="profilePhotoInput" accept=".jpg,.jpeg,.png" hidden>
+        <input type="file" name="profile_photo" id="profilePhotoInput" accept=".jpg,.jpeg,.png" hidden>
       </div>
 
       @if (session('profile_success'))

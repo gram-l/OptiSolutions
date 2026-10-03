@@ -7,6 +7,7 @@
 
     <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data">
       @csrf
+      <input type="hidden" name="_profile_form" value="1">
 
       {{-- Avatar + camera badge + role pill --}}
       <div class="profile-modal-photo-wrap">
@@ -29,8 +30,8 @@
         <input type="file" name="photo" id="profilePhotoInput" accept=".jpg,.jpeg,.png" hidden>
       </div>
 
-      @if (session('success'))
-        <div class="profile-alert-success">{{ session('success') }}</div>
+      @if (session('profile_success'))
+        <div class="profile-alert-success">{{ session('profile_success') }}</div>
       @endif
 
       <div class="profile-modal-section-title">Personal Information</div>
@@ -323,7 +324,7 @@
         document.getElementById('profilePhotoHint').hidden = false;
     });
 
-    @if (session('success') || $errors->any())
+    @if (session('profile_success') || (old('_profile_form') && $errors->any()))
         openProfileModal();
     @endif
 </script>

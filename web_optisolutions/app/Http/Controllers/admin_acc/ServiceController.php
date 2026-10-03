@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\admin_acc;
 
 use App\Http\Controllers\Controller;
-use App\Models\admin_acc\Service;
+use App\Models\admin_models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 class ServiceController extends Controller

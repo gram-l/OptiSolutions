@@ -40,7 +40,7 @@ class ProfileController extends Controller
 
         $user->update($validated);
 
-        return redirect()->back()->with('success', 'Profile updated successfully.');
+        return redirect()->back()->with('profile_success', 'Profile updated successfully.');
     }
 
     /**

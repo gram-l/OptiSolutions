@@ -410,7 +410,7 @@
             ssShowToast('success', 'Saved', @json(session('success')));
         @endif
 
-        @if (session('error'))net starnet
+        @if (session('error'))
             ssShowToast('error', 'Unsuccessful', @json(session('error')));
         @endif
 

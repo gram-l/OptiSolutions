@@ -107,6 +107,16 @@
             height: 100%;
             object-fit: cover;
         }
+        .photo-upload-row button {
+            padding: 0.45rem 0.65rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .photo-upload-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .specialty-tags { display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem; }
+        .specialty-tag { display:inline-flex;align-items:center;gap:0.4rem;background:#eaf3fb;color:#062744;padding:0.35rem 0.55rem;border-radius:8px;font-size:0.85rem; }
+        .specialty-tag button { border:0;background:none;color:inherit;cursor:pointer;font-size:1rem; }
         .btn-save[disabled], .btn-save:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -224,6 +234,10 @@
                     <div class="photo-preview" id="photoPreview"><i class="fa-solid fa-user-doctor"></i></div>
                     <div>
                         <input type="file" id="docPhoto" accept="image/png,image/jpeg,image/webp">
+                        <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+                            <button type="button" class="btn-cancel" id="deletePhotoBtn" onclick="deletePhoto()">Delete photo</button>
+                        </div>
+                        <small>Photo changes are applied when you save the doctor.</small>
                         <div class="field-error" id="err-profile_image"></div>
                     </div>
                 </div>
@@ -235,8 +249,10 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Specialty *</label>
-                        <input type="text" id="docSpecialty" required placeholder="e.g., Ophthalmology" maxlength="60">
+                        <label for="docSpecialty">Specialties *</label>
+                        <select id="docSpecialty" aria-describedby="specialtyHelp"><option value="">Choose a specialty</option></select>
+                        <div class="specialty-tags" id="specialtyTags" aria-live="polite"></div>
+                        <small id="specialtyHelp">Choose one or more specialties.</small>
                         <div class="field-error" id="err-specialty"></div>
                     </div>
                     <div class="form-group">
@@ -246,6 +262,33 @@
                     </div>
                 </div>
 
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="docGender">Gender *</label>
+                        <select id="docGender"><option value="male">Male</option><option value="female">Female</option></select>
+                        <div class="field-error" id="err-gender"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="docExperience">Years of experience</label>
+                        <input type="number" id="docExperience" min="0" max="2147483647" step="1" placeholder="e.g., 10">
+                        <div class="field-error" id="err-years_experience"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="docEducation">Education</label>
+                    <input type="text" id="docEducation" maxlength="255">
+                    <div class="field-error" id="err-education"></div>
+                </div>
+                <div class="form-group">
+                    <label for="docLicense">License</label>
+                    <input type="text" id="docLicense" maxlength="255">
+                    <div class="field-error" id="err-license"></div>
+                </div>
+                <div class="form-group">
+                    <label for="docFellowship">Fellowship</label>
+                    <input type="text" id="docFellowship" maxlength="255">
+                    <div class="field-error" id="err-fellowship"></div>
+                </div>
                 <div class="form-group">
                     <label>Schedule *</label>
                     <div id="sessionGroups"></div>
@@ -319,7 +362,44 @@
     let currentEditId = null;
     let sessions = []; // [{day, start_time, end_time}] for the open modal
     let selectedPhotoFile = null;
+    let removePhoto = false;
     let existingPhotoUrl = null;
+    let selectedSpecialties = [];
+    const DEFAULT_SPECIALTIES = ['Pediatrics', 'OB-Gyne', 'Surgery', 'IM-Pulmonology', 'Ophthalmology', 'ENT', 'IM-Cardiology', 'General Medicine', 'Adult Medicine', 'Medical Oncology'];
+
+    function splitSpecialties(value) {
+        return [...new Set((value || '').split(/\s*\/\s*|\s*,\s*/).map(s => s.trim()).filter(Boolean))];
+    }
+
+    function renderSpecialtyPicker() {
+        const options = [...new Set([...DEFAULT_SPECIALTIES, ...doctorsData.flatMap(d => splitSpecialties(d.specialty)), ...selectedSpecialties])].sort();
+        const select = document.getElementById('docSpecialty');
+        select.innerHTML = '<option value="">Choose a specialty to add</option>' + options
+            .filter(s => !selectedSpecialties.some(selected => selected.toLowerCase() === s.toLowerCase()))
+            .map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+        document.getElementById('specialtyTags').innerHTML = selectedSpecialties.map((s, index) =>
+            `<span class="specialty-tag">${escapeHtml(s)}<button type="button" onclick="removeSpecialty(${index})" aria-label="Remove ${escapeHtml(s)}">&times;</button></span>`
+        ).join('');
+    }
+
+    function removeSpecialty(index) {
+        selectedSpecialties.splice(index, 1);
+        clearFieldError('specialty');
+        renderSpecialtyPicker();
+    }
+
+    document.getElementById('docSpecialty').addEventListener('change', (event) => {
+        const specialty = event.target.value;
+        if (!specialty) return;
+        if ([...selectedSpecialties, specialty].join(' / ').length > 100) {
+            setFieldError('specialty', 'Selected specialties must fit within 100 characters.');
+            event.target.value = '';
+            return;
+        }
+        selectedSpecialties.push(specialty);
+        clearFieldError('specialty');
+        renderSpecialtyPicker();
+    });
 
     // ── Confirmation modal ──────────────────────────────────────
     function showConfirm({ title = 'Are you sure?', message, variant = 'primary', confirmText = 'Confirm' }) {
@@ -389,7 +469,7 @@
     function populateDepartmentFilter() {
         const select = document.getElementById('departmentFilter');
         const current = select.value;
-        const departments = [...new Set(doctorsData.map(d => d.specialty).filter(Boolean))].sort();
+        const departments = [...new Set(doctorsData.flatMap(d => splitSpecialties(d.specialty)))].sort();
         select.innerHTML = '<option value="all">All Departments</option>' +
             departments.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
         if (departments.includes(current)) select.value = current;
@@ -412,7 +492,7 @@
             const matchesStatus = statusFilter === 'all' ||
                                  (statusFilter === 'active' && doc.active) ||
                                  (statusFilter === 'inactive' && !doc.active);
-            const matchesDepartment = departmentFilter === 'all' || doc.specialty === departmentFilter;
+            const matchesDepartment = departmentFilter === 'all' || splitSpecialties(doc.specialty).includes(departmentFilter);
             return matchesSearch && matchesStatus && matchesDepartment;
         });
 
@@ -562,28 +642,44 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         }
         const allowed = ['image/jpeg', 'image/png', 'image/webp'];
         if (!allowed.includes(file.type)) {
+            selectedPhotoFile = null;
             setFieldError('profile_image', 'Please choose a JPG, PNG, or WEBP image.');
             e.target.value = '';
+            updatePhotoPreview();
             return;
         }
         if (file.size > 2 * 1024 * 1024) {
+            selectedPhotoFile = null;
             setFieldError('profile_image', 'The photo must not be larger than 2MB.');
             e.target.value = '';
+            updatePhotoPreview();
             return;
         }
         selectedPhotoFile = file;
+        removePhoto = false;
         updatePhotoPreview();
     });
 
+    function deletePhoto() {
+        selectedPhotoFile = null;
+        removePhoto = !!existingPhotoUrl;
+        document.getElementById('docPhoto').value = '';
+        clearFieldError('profile_image');
+        updatePhotoPreview();
+    }
+
     function updatePhotoPreview() {
         const preview = document.getElementById('photoPreview');
+        document.getElementById('deletePhotoBtn').disabled = !selectedPhotoFile && (!existingPhotoUrl || removePhoto);
         if (selectedPhotoFile) {
+            const previewFile = selectedPhotoFile;
             const reader = new FileReader();
             reader.onload = (ev) => {
+                if (selectedPhotoFile !== previewFile) return;
                 preview.innerHTML = `<img src="${ev.target.result}" alt="Preview">`;
             };
             reader.readAsDataURL(selectedPhotoFile);
-        } else if (existingPhotoUrl) {
+        } else if (existingPhotoUrl && !removePhoto) {
             preview.innerHTML = `<img src="${escapeHtml(existingPhotoUrl)}" alt="Preview">`;
         } else {
             preview.innerHTML = '<i class="fa-solid fa-user-doctor"></i>';
@@ -599,7 +695,7 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         setFieldError(field, '');
     }
     function clearAllFieldErrors() {
-        ['profile_image', 'doctor_name', 'specialty', 'contact_number', 'schedule_sessions', 'description']
+        ['profile_image', 'doctor_name', 'specialty', 'contact_number', 'schedule_sessions', 'description', 'gender', 'years_experience', 'education', 'license', 'fellowship']
             .forEach(clearFieldError);
         document.getElementById('err-session-inline').textContent = '';
     }
@@ -610,9 +706,12 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         sessions = [];
         selectedPhotoFile = null;
         existingPhotoUrl = null;
+        removePhoto = false;
         clearAllFieldErrors();
         document.getElementById('modalTitle').innerText = 'Add New Doctor';
         document.getElementById('doctorForm').reset();
+        selectedSpecialties = [];
+        renderSpecialtyPicker();
         document.getElementById('doctorId').value = '';
         renderSessions();
         updatePhotoPreview();
@@ -627,14 +726,21 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         sessions = (doctor.schedule_sessions || []).map(s => ({ ...s }));
         selectedPhotoFile = null;
         existingPhotoUrl = doctor.profile_image_url || null;
+        removePhoto = false;
         clearAllFieldErrors();
 
         document.getElementById('modalTitle').innerText = 'Edit Doctor Profile';
         document.getElementById('doctorId').value = doctor.id;
         document.getElementById('docName').value = doctor.name;
-        document.getElementById('docSpecialty').value = doctor.specialty;
+        selectedSpecialties = splitSpecialties(doctor.specialty);
+        renderSpecialtyPicker();
         document.getElementById('docDescription').value = doctor.description || '';
         document.getElementById('docPhone').value = doctor.phone || '';
+        document.getElementById('docGender').value = doctor.gender || 'male';
+        document.getElementById('docExperience').value = doctor.years_experience ?? '';
+        document.getElementById('docEducation').value = doctor.education || '';
+        document.getElementById('docLicense').value = doctor.license || '';
+        document.getElementById('docFellowship').value = doctor.fellowship || '';
         document.getElementById('docPhoto').value = '';
 
         renderSessions();
@@ -656,7 +762,7 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         else if (name.length > 100) { setFieldError('doctor_name', 'Name is too long (max 100 characters).'); ok = false; }
 
         if (!specialty) { setFieldError('specialty', 'Required'); ok = false; }
-        else if (specialty.length > 60) { setFieldError('specialty', 'Specialty is too long (max 60 characters).'); ok = false; }
+        else if (specialty.length > 100) { setFieldError('specialty', 'Selected specialties must fit within 100 characters.'); ok = false; }
 
         if (phone) {
             const phoneRe = /^\+?[0-9]{7,15}$/;
@@ -682,17 +788,28 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         clearAllFieldErrors();
 
         const name = document.getElementById('docName').value.trim();
-        const specialty = document.getElementById('docSpecialty').value.trim();
+        const specialty = selectedSpecialties.join(' / ');
         const description = document.getElementById('docDescription').value.trim();
         const phone = document.getElementById('docPhone').value.trim();
 
         if (!validateForm(name, specialty, phone, description)) return;
+        const experience = document.getElementById('docExperience').value.trim();
+        if (experience !== '' && (!/^\d+$/.test(experience) || Number(experience) > 2147483647)) {
+            setFieldError('years_experience', 'Enter a whole number of years, zero or greater.');
+            return;
+        }
 
         const formData = new FormData();
         formData.append('doctor_name', name);
         formData.append('specialty', specialty);
         formData.append('description', description);
         formData.append('contact_number', phone);
+        formData.append('gender', document.getElementById('docGender').value);
+        formData.append('years_experience', experience);
+        formData.append('education', document.getElementById('docEducation').value.trim());
+        formData.append('license', document.getElementById('docLicense').value.trim());
+        formData.append('fellowship', document.getElementById('docFellowship').value.trim());
+        formData.append('remove_profile_image', removePhoto ? '1' : '0');
         formData.append('schedule_sessions', JSON.stringify(sessions));
         if (selectedPhotoFile) formData.append('profile_image', selectedPhotoFile);
 

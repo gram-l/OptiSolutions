@@ -22,6 +22,11 @@ class Doctor extends Model
         'schedule',
         'contact_number',
         'profile_image',
+        'gender',
+        'years_experience',
+        'education',
+        'license',
+        'fellowship',
     ];
 
     public function schedules()

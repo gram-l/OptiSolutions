@@ -38,6 +38,11 @@ class DoctorController extends Controller
             return [
                 'id' => $doctor->doctor_id,
                 'name' => $doctor->doctor_name,
+                'gender' => $doctor->gender,
+                'years_experience' => $doctor->years_experience,
+                'education' => $doctor->education,
+                'license' => $doctor->license,
+                'fellowship' => $doctor->fellowship,
                 'specialty' => $doctor->specialty,
                 'schedule' => $this->formatSchedule($doctor->schedules),
                 'schedule_sessions' => $this->sessionsForApi($doctor->schedules),
@@ -73,7 +78,7 @@ class DoctorController extends Controller
     {
         $validated = $this->validateDoctorRequest($request);
 
-        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image'])->toArray();
+        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image'])->toArray();
         $doctorData['status'] = $doctorData['status'] ?? 'Active';
         // `available` is the column every patient-facing surface actually
         // filters on (chatbot, home page, doctors page, staff side) — keep
@@ -114,7 +119,7 @@ class DoctorController extends Controller
         // would incorrectly flag itself as a duplicate).
         $validated = $this->validateDoctorRequest($request, $doctor->doctor_id);
 
-        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image'])->toArray();
+        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image'])->toArray();
 
         // Same reasoning as store(): if this edit touches `status`, keep
         // `available` (the field patient-facing pages/chatbot/home/staff
@@ -124,16 +129,17 @@ class DoctorController extends Controller
             $doctorData['available'] = $doctorData['status'] === 'Active' ? 1 : 0;
         }
 
+        $oldPhoto = $doctor->profile_image;
         if ($request->hasFile('profile_image')) {
-            // Replacing an existing photo — remove the old file so uploads
-            // don't pile up on disk.
-            if ($doctor->profile_image) {
-                Storage::disk('public')->delete($doctor->profile_image);
-            }
             $doctorData['profile_image'] = $request->file('profile_image')->store('doctors', 'public');
+        } elseif ($request->boolean('remove_profile_image')) {
+            $doctorData['profile_image'] = null;
         }
 
         $doctor->update($doctorData);
+        if (array_key_exists('profile_image', $doctorData) && $oldPhoto) {
+            Storage::disk('public')->delete($oldPhoto);
+        }
 
         $this->syncScheduleRows($doctor, $validated['schedule_sessions']);
 
@@ -236,7 +242,13 @@ class DoctorController extends Controller
                 // case-insensitively, so this catches "Dr. Smith" vs "dr. smith" too.
                 Rule::unique('doctors', 'doctor_name')->ignore($doctorId, 'doctor_id'),
             ],
-            'specialty'       => 'required|string|max:60',
+            'specialty'       => 'required|string|max:100',
+            'gender'          => 'sometimes|required|in:male,female',
+            'years_experience' => 'nullable|integer|min:0|max:2147483647',
+            'education'       => 'nullable|string|max:255',
+            'license'         => 'nullable|string|max:255',
+            'fellowship'      => 'nullable|string|max:255',
+            'remove_profile_image' => 'sometimes|boolean',
             'description'     => 'nullable|string|max:500',
             'contact_number'  => ['nullable', 'regex:/^\+?[0-9]{7,15}$/'],
             'status'          => 'nullable|string|in:Active,Inactive',
@@ -250,7 +262,7 @@ class DoctorController extends Controller
             'doctor_name.unique' => 'A doctor with this name already exists.',
             'doctor_name.min' => 'Name is too short.',
             'doctor_name.max' => 'Name is too long (max 100 characters).',
-            'specialty.max' => 'Specialty is too long (max 60 characters).',
+            'specialty.max' => 'Selected specialties must fit within 100 characters.',
             'description.max' => 'Description is too long (max 500 characters).',
             'contact_number.regex' => 'Enter a valid phone number (digits only, 7–15 digits).',
             'profile_image.image' => 'The photo must be an image file.',

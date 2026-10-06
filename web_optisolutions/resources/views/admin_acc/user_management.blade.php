@@ -58,12 +58,7 @@
             </div>
 
             <!-- Toast -->
-            <div id="toast" style="
-                display:none; position:fixed; bottom:2rem; right:2rem;
-                background:#062744; color:#fff; padding:0.9rem 1.5rem;
-                border-radius:12px; font-size:0.9rem; z-index:9999;
-                box-shadow:0 4px 20px rgba(0,0,0,0.2); max-width:350px;
-            "></div>
+            <div id="toast" class="um-toast" role="status" aria-live="polite" hidden></div>
 
             <!-- Users Table -->
             <div class="users-table-container">
@@ -137,17 +132,54 @@
         </div>
     </div>
 
+    <dialog id="userConfirm" class="um-confirm" aria-labelledby="userConfirmTitle" aria-describedby="userConfirmText">
+        <div class="um-confirm-icon"><i class="fa-solid fa-trash" aria-hidden="true"></i></div>
+        <h3 id="userConfirmTitle">Remove user?</h3>
+        <p id="userConfirmText"></p>
+        <form method="dialog" class="um-confirm-actions">
+            <button class="um-confirm-cancel" value="cancel" autofocus>Cancel</button>
+            <button class="um-confirm-remove" value="remove">Remove</button>
+        </form>
+    </dialog>
+
     <script>
         // Seeded from PHP — uses actual column names
         let usersData = @json($users);
         const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
+        let toastTimer;
         function showToast(msg, isError = false) {
             const t = document.getElementById('toast');
-            t.textContent = msg;
-            t.style.background = isError ? '#e74c3c' : '#062744';
-            t.style.display = 'block';
-            setTimeout(() => t.style.display = 'none', 3500);
+            clearTimeout(toastTimer);
+            t.replaceChildren();
+            const icon = document.createElement('i');
+            icon.className = isError ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-check';
+            icon.setAttribute('aria-hidden', 'true');
+            const message = document.createElement('span');
+            message.textContent = msg;
+            t.append(icon, message);
+            t.classList.toggle('is-error', isError);
+            t.hidden = false;
+            toastTimer = setTimeout(() => t.hidden = true, 3500);
+        }
+
+        function confirmUserRemoval(user) {
+            const dialog = document.getElementById('userConfirm');
+            const warning = user.user_role === 'Admin' ? 'This user is an administrator. ' : '';
+            document.getElementById('userConfirmText').textContent = warning +
+                `Are you sure you want to permanently remove ${user.name} from the system? This action cannot be undone.`;
+            dialog.returnValue = 'cancel';
+            return new Promise(resolve => {
+                dialog.addEventListener('close', () => resolve(dialog.returnValue === 'remove'), { once: true });
+                dialog.showModal();
+            });
+        }
+
+        function userAvatar(user, initials) {
+            if (!user.profile_photo) return escapeHtml(initials);
+            const base = @json(asset('storage'));
+            const path = String(user.profile_photo).split('/').map(encodeURIComponent).join('/');
+            return `<span class="um-avatar-fallback">${escapeHtml(initials)}</span><img src="${escapeHtml(base + '/' + path)}" alt="${escapeHtml(user.name)}" onerror="this.hidden=true">`;
         }
 
         function escapeHtml(text) {
@@ -185,7 +217,7 @@
                         <tr id="row-${u.user_id}">
                             <td data-label="User">
                                 <div style="display:flex;align-items:center;gap:0.8rem;">
-                                    <div class="user-avatar-small">${initials}</div>
+                                    <div class="user-avatar-small">${userAvatar(u, initials)}</div>
                                     <strong>${escapeHtml(u.name)}</strong>
                                 </div>
                             </td>
@@ -344,8 +376,7 @@
             const u = usersData.find(u => u.user_id === user_id);
             if (!u) return;
 
-            const warn = u.user_role === 'Admin' ? `⚠️ ${u.name} is an Administrator. ` : '';
-            if (!confirm(`${warn}Permanently delete ${u.name}'s account? This cannot be undone.`)) return;
+            if (!await confirmUserRemoval(u)) return;
 
             try {
                 const res  = await fetch(`/admin_acc/user_management/${user_id}`, {

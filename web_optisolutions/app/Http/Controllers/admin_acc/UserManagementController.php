@@ -13,7 +13,7 @@ class UserManagementController extends Controller
     public function index()
     {
         $users = DB::table('users')
-            ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at')
+            ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at', 'profile_photo')
             ->orderBy('name')
             ->get();
 
@@ -52,7 +52,7 @@ class UserManagementController extends Controller
         ]);
 
         $user = DB::table('users')
-            ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at')
+            ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at', 'profile_photo')
             ->where('user_id', $user_id)
             ->first();
 
@@ -88,7 +88,7 @@ class UserManagementController extends Controller
         DB::table('users')->where('user_id', $user_id)->update($data);
 
         $updated = DB::table('users')
-            ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at')
+            ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at', 'profile_photo')
             ->where('user_id', $user_id)
             ->first();
 
@@ -125,7 +125,7 @@ class UserManagementController extends Controller
 
 public function getUsers(){
     $users = DB::table('users')
-        ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at')
+        ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at', 'profile_photo')
         ->orderBy('name')
         ->get();
 

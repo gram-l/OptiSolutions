@@ -629,3 +629,20 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+/* User management feedback and avatars. */
+.um-toast { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10000; display:flex; align-items:center; gap:12px; max-width:calc(100vw - 32px); width:max-content; padding:18px 26px; border-radius:13px; background:#1064ad; color:white; font-size:16px; font-weight:600; box-shadow:0 12px 32px rgba(6,39,68,.22); pointer-events:none; }
+.um-toast[hidden] { display:none; }
+.um-toast.is-error { background:#ee493c; }
+.user-avatar-small { position:relative; overflow:hidden; flex-shrink:0; }
+.user-avatar-small img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:white; }
+.user-avatar-small img[hidden] { display:none; }
+.um-confirm { width:475px; max-width:calc(100vw - 32px); margin:auto; padding:40px 32px 34px; border:0; border-radius:25px; background:white; color:#062744; text-align:center; box-shadow:0 20px 60px rgba(6,39,68,.18); }
+.um-confirm::backdrop { background:rgba(0,0,0,.48); }
+.um-confirm-icon { display:grid; place-items:center; margin:0 auto 24px; width:70px; height:70px; border-radius:50%; color:#ee493c; background:#feeeec; font-size:30px; }
+.um-confirm h3 { font-size:23px; margin:0 0 12px; }
+.um-confirm p { font-size:16px; line-height:1.7; color:#727b8f; margin:0 0 28px; }
+.um-confirm-actions { display:flex; justify-content:center; gap:20px; }
+.um-confirm-actions button { padding:14px 30px; border:0; border-radius:10px; font:inherit; font-weight:600; cursor:pointer; }
+.um-confirm-cancel { background:#edf0f2; color:#333; }
+.um-confirm-remove { background:#ee493c; color:white; }
+.um-confirm-actions button:focus-visible { outline:3px solid #1064ad; outline-offset:3px; }

@@ -23,6 +23,17 @@ class NotificationService
             'created_at'     => now(),
             'updated_at'     => now(),
         ]);
+
+        if ($type === 'chat_inquiry') {
+            try {
+                DB::afterCommit(fn () => InquiryEmailService::send($title, $message, $referenceId));
+            } catch (\Throwable $exception) {
+                \Illuminate\Support\Facades\Log::error('Could not send chatbot inquiry email.', [
+                    'inquiry_id' => $referenceId,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
     }
 
     // type: 'chat_inquiry' — matches the Flutter app's NotifType.inquiry

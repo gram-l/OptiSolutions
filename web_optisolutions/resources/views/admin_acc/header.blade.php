@@ -80,6 +80,7 @@
     @include('admin_acc.partials.logout')
 </header>
 @include('admin_acc.partials.mobile_tables')
+@include('admin_acc.partials.compact_spacing')
 
 {{-- Empty container the notifications panel gets injected into on demand --}}
 <div id="notifPanelContainer"></div>

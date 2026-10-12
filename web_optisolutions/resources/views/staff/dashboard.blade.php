@@ -1,6 +1,7 @@
 @extends('staff.layouts.app')
 
 @section('content')
+@include('partials.mobile_dashboard_charts')
 <div class="container">
 <div class="dash-page">
 
@@ -224,7 +225,7 @@
             </p>
         </div>
 
-        <div class="chart-card">
+        <div class="chart-card inquiry-status-card">
             <div class="chart-header">
                 <div class="chart-header-title">
                     <div class="chart-icon-badge"><i class="bi bi-chat-square-text"></i></div>

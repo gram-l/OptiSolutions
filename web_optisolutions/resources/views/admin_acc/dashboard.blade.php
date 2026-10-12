@@ -14,12 +14,13 @@
     ])
 </head>
 <body>
+    @include('partials.mobile_dashboard_charts')
     @include('admin_acc.header')
 
     <div class="container">
         @include('admin_acc.sidebar')
 
-        <main class="main-content">
+        <main class="main-content admin-dashboard">
             <div class="welcome-banner">
                 <div class="welcome-banner-text">
                     <h2>Welcome, {{ Auth::user()->name }}!</h2>
@@ -253,7 +254,7 @@
                 </div>
 
                 <!-- 6) CHAT INQUIRIES: RESOLVED VS IN PROGRESS (donut) -->
-                <div class="chart-card">
+                <div class="chart-card inquiry-status-card">
                     <div class="chart-header">
                         <div class="chart-header-title">
                             <div class="chart-icon-badge"><i class="bi bi-chat-left-dots"></i></div>
@@ -275,7 +276,7 @@
                             </div>
                             <div class="donut-legend-row">
                                 <span class="donut-legend-label">
-                                    <span class="donut-legend-dot" style="background: #f39c12;"></span>
+                                    <span class="donut-legend-dot" style="background: #9DBCD4;"></span>
                                     In Progress
                                 </span>
                                 <span class="donut-legend-value" id="inquiryStatusUnresolvedValue">{{ $unresolvedInquiriesCount }}</span>
@@ -319,10 +320,16 @@
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { display: hasServiceData, position: 'bottom' },
+                    legend: { display: hasServiceData && !window.matchMedia('(max-width: 768px)').matches, position: 'bottom' },
                     tooltip: { enabled: hasServiceData }
                 }
             }
+        });
+
+        window.matchMedia('(max-width: 768px)').addEventListener('change', event => {
+            serviceChart.options.plugins.legend.display = !event.matches && !!serviceChart.options.plugins.tooltip.enabled;
+            serviceChart.resize();
+            serviceChart.update('none');
         });
 
         const weeklyChart = new Chart(document.getElementById('weeklyVisitsChart'), {
@@ -410,7 +417,7 @@
                 labels: ['Resolved', 'In Progress'],
                 datasets: [{
                     data: [@json($resolvedInquiriesCount), @json($unresolvedInquiriesCount)],
-                    backgroundColor: hasInquiryStatusData ? ['#0E62AA', '#f39c12'] : [emptyGrey],
+                    backgroundColor: hasInquiryStatusData ? ['#0E62AA', '#9DBCD4'] : [emptyGrey],
                     borderWidth: 0
                 }]
             },
@@ -446,7 +453,7 @@
                 serviceChart.data.datasets[0].backgroundColor = hasServices
                     ? ['#0E62AA', '#3969A8', '#5C8BC0', '#79A8CB', '#9DBCD4', '#00897B', '#43A047', '#FB8C00']
                     : [emptyGrey];
-                serviceChart.options.plugins.legend.display = hasServices;
+                serviceChart.options.plugins.legend.display = hasServices && !window.matchMedia('(max-width: 768px)').matches;
                 serviceChart.options.plugins.tooltip.enabled = hasServices;
                 serviceChart.update();
 
@@ -506,7 +513,7 @@
                 const unresolvedCount = data.unresolvedInquiries ?? 0;
                 const hasStatusData = (resolvedCount + unresolvedCount) > 0;
                 inquiryStatusChart.data.datasets[0].data = [resolvedCount, unresolvedCount];
-                inquiryStatusChart.data.datasets[0].backgroundColor = hasStatusData ? ['#0E62AA', '#f39c12'] : [emptyGrey];
+                inquiryStatusChart.data.datasets[0].backgroundColor = hasStatusData ? ['#0E62AA', '#9DBCD4'] : [emptyGrey];
                 inquiryStatusChart.options.plugins.tooltip.enabled = hasStatusData;
                 inquiryStatusChart.update();
                 document.getElementById('inquiryStatusResolvedValue').textContent = resolvedCount;

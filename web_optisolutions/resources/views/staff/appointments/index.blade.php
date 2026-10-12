@@ -402,23 +402,78 @@
         currentNotesVisitId = null;
     }
 
+function showVisitMessage(message, { confirm = false, variant = 'primary', title = 'Mark visit as completed?' } = {}) {
+        let overlay = document.getElementById('visitMessageOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'visitMessageOverlay';
+            overlay.className = 'visit-message-overlay';
+            overlay.hidden = true;
+            overlay.innerHTML = '<section class="visit-message-dialog" role="dialog" aria-modal="true" aria-labelledby="visitMessageTitle" aria-describedby="visitMessageText"><div class="visit-message-icon" aria-hidden="true"></div><h3 id="visitMessageTitle"></h3><p id="visitMessageText"></p><div class="visit-message-actions"><button type="button" class="visit-message-cancel">Cancel</button><button type="button" class="visit-message-ok">Confirm</button></div></section>';
+            document.body.appendChild(overlay);
+        }
+        const cancel = overlay.querySelector('.visit-message-cancel');
+        const ok = overlay.querySelector('.visit-message-ok');
+        const priorFocus = document.activeElement;
+        const priorOverflow = document.body.style.overflow;
+        overlay.dataset.variant = variant;
+        overlay.querySelector('.visit-message-icon').textContent = confirm ? '?' : (variant === 'success' ? '✓' : '!');
+        overlay.querySelector('#visitMessageTitle').textContent = title;
+        overlay.querySelector('#visitMessageText').textContent = message;
+        cancel.hidden = !confirm;
+        ok.textContent = confirm ? 'Confirm' : 'OK';
+        overlay.hidden = false;
+        document.body.style.overflow = 'hidden';
+        (confirm ? cancel : ok).focus();
+        return new Promise(resolve => {
+            function close(answer) {
+                overlay.hidden = true;
+                document.body.style.overflow = priorOverflow;
+                cancel.removeEventListener('click', onCancel);
+                ok.removeEventListener('click', onOk);
+                overlay.removeEventListener('click', onBackdrop);
+                document.removeEventListener('keydown', onKey);
+                if (priorFocus?.isConnected) priorFocus.focus();
+                resolve(answer);
+            }
+            function onCancel() { close(false); }
+            function onOk() { close(true); }
+            function onBackdrop(event) { if (event.target === overlay) close(false); }
+            function onKey(event) {
+                if (event.key === 'Escape') { event.preventDefault(); close(false); }
+                if (event.key === 'Tab') {
+                    event.preventDefault();
+                    if (!confirm) ok.focus();
+                    else (document.activeElement === cancel ? ok : cancel).focus();
+                }
+            }
+            cancel.addEventListener('click', onCancel);
+            ok.addEventListener('click', onOk);
+            overlay.addEventListener('click', onBackdrop);
+            document.addEventListener('keydown', onKey);
+        });
+    }
     async function markVisitCompleted(id, button) {
-        if (!confirm('Confirm this patient attended the visit and send their review pass?')) return;
+        if (button.disabled) return;
         button.disabled = true;
         try {
+            if (!await showVisitMessage('Confirm this patient attended the visit and send their review pass?', { confirm: true })) return;
             const response = await fetch(`/staff/appointments/${id}/visited`, {
                 method: 'POST',
                 headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
             });
             const data = await response.json();
-            alert(data.message || Object.values(data.errors || {}).flat()[0] || 'Unable to update this visit.');
+            await showVisitMessage(data.message || Object.values(data.errors || {}).flat()[0] || 'Unable to update this visit.', {
+                title: data.success ? (data.email_sent ? 'Visit completed' : 'Email needs attention') : 'Unable to update visit',
+                variant: data.success ? (data.email_sent ? 'success' : 'warning') : 'error',
+            });
             if (data.success) {
                 document.getElementById(`visitedText-${id}`).innerHTML = '<strong style="color:#15803d">Visited</strong><br><small>' + (data.email_sent ? 'Review pass emailed' : 'Email not sent') + '</small>';
                 if (data.email_sent) button.remove();
                 else button.textContent = 'Retry email';
             }
         } catch (error) {
-            alert('Could not reach the server. Please refresh to check the visit status before retrying.');
+            await showVisitMessage('Could not reach the server. Please refresh to check the visit status before retrying.', { title: 'Connection problem', variant: 'error' });
         } finally { button.disabled = false; }
     }
 

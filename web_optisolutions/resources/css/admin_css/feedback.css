@@ -67,7 +67,7 @@
         .pattern-list { list-style: none; }
         .pattern-item { display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0; border-bottom: 1px solid var(--light-gray); }
         .pattern-item:last-child { border-bottom: none; }
-        .pattern-name { font-weight: 500; }
+        .pattern-name { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
         .pattern-stats { display: flex; gap: 1rem; align-items: center; }
         .negative-count { background: var(--negative); color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem; font-weight: bold; }
         .progress-bar { width: 100px; height: 6px; background: var(--light-gray); border-radius: 3px; overflow: hidden; }
@@ -94,6 +94,9 @@
             .search-box { width: 100%; }
         }
         @media (max-width: 768px) {
+            .pattern-item { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+            .pattern-stats { gap: 0.6rem; justify-content: space-between; }
+            .pattern-stats .progress-bar { flex: 1; min-width: 0; }
             .container { flex-direction: column; align-items: stretch; padding: 0 1rem; }
             .sidebar { width: 100%; position: static; }
             .page-header { padding-left: 0.15rem; }

@@ -300,26 +300,31 @@
 
             document.getElementById('avgRatingValue').innerText = avgRating;
 
-            // Recurring negative patterns (no department/doctor split)
-            const negativeComments = filteredData.filter(f => f.sentiment === 'negative').map(f => f.comment);
-            const patterns = [
-                { keywords: ['wait', 'waiting', 'delay', 'late'], message: 'Long waiting times' },
-                { keywords: ['rude', 'unfriendly', 'receptionist', 'staff'], message: 'Staff attitude concerns' },
-                { keywords: ['rushed', 'not listen', "didn't address", 'barely spent'], message: 'Rushed consultations' },
-                { keywords: ['scheduling', 'appointment', 'book', 'reschedule'], message: 'Scheduling difficulties' },
-                { keywords: ['clean', 'dirty', 'facility', 'parking'], message: 'Facility issues' }
-            ];
-
-            const counts = patterns.map(p => ({
-                message: p.message,
-                count: negativeComments.filter(c => p.keywords.some(kw => (c || '').toLowerCase().includes(kw))).length
-            })).filter(p => p.count > 0).sort((a, b) => b.count - a.count);
+            // Use the shared diagnosis categories, including complaints.
+            const search = document.getElementById('searchInput').value.trim().toLowerCase();
+            const from = document.getElementById('dateFromFilter').value;
+            const to = document.getElementById('dateToFilter').value;
+            const complaints = complaintData.filter(c => {
+                const date = toDateOnly(c.created_at);
+                return (c.complaint_text || '').toLowerCase().includes(search)
+                    && (!from || (date && date >= from)) && (!to || (date && date <= to));
+            });
+            const entries = [...filteredData.filter(f => f.sentiment === 'negative' && (f.comment || '').trim()),
+                ...complaints.filter(c => (c.complaint_text || '').trim())];
+            const totals = {};
+            entries.forEach(entry => {
+                const categories = [...new Set(entry.issue_categories || [])];
+                if (!categories.length) categories.push(entry.issues_analyzed ? 'other' : 'unclassified');
+                categories.forEach(category => totals[category] = (totals[category] || 0) + 1);
+            });
+            const counts = Object.entries(totals).map(([category, count]) => ({ message: categoryLabel(category), count }))
+                .sort((a, b) => b.count - a.count || a.message.localeCompare(b.message));
 
             document.getElementById('negativePatterns').innerHTML = counts.length ? counts.map(p => {
-                const percent = negativeComments.length ? ((p.count / negativeComments.length) * 100).toFixed(0) : 0;
+                const percent = entries.length ? ((p.count / entries.length) * 100).toFixed(0) : 0;
                 return `
                     <div class="pattern-item">
-                        <div class="pattern-name">${p.message}</div>
+                        <div class="pattern-name">${escapeHtml(p.message)}</div>
                         <div class="pattern-stats">
                             <span class="negative-count">${p.count} mentions</span>
                             <div class="progress-bar"><div class="progress-fill fill-negative" style="width: ${percent}%"></div></div>
@@ -327,7 +332,8 @@
                         </div>
                     </div>
                 `;
-            }).join('') : '<div style="padding:1rem; text-align:center; color:#95a5a6;">No negative feedback for selected filters</div>';
+            }).join('') + '<p style="font-size:0.75rem;color:#7f8c8d;margin-top:0.6rem;">Based on negative feedback and complaints. One entry can mention multiple categories; percentages may total more than 100%. Unclassified entries need the analysis service.</p>'
+                : '<div style="padding:1rem; text-align:center; color:#95a5a6;">No negative feedback or complaints for selected filters</div>';
         }
 
         function renderFeedbackTable(filteredData) {
@@ -388,7 +394,7 @@
             tbody.innerHTML = rowsToShow.map(c => `
                 <tr>
                     <td class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
-                    <td>${escapeHtml(c.category)}</td>
+                    <td>${escapeHtml(categoryLabel(c.category))}</td>
                     <td>${formatDate(c.created_at)}</td>
                 </tr>
             `).join('');
@@ -397,6 +403,11 @@
             pageInfo.textContent = `Page ${complaintCurrentPage} of ${totalPages}`;
             prevBtn.disabled = complaintCurrentPage <= 1;
             nextBtn.disabled = complaintCurrentPage >= totalPages;
+        }
+
+        function categoryLabel(category) {
+            const text = String(category || 'Uncategorized').trim().replace(/_/g, ' ');
+            return text.replace(/\b\w/g, letter => letter.toUpperCase());
         }
 
         function sentimentTag(sentiment) {
@@ -474,7 +485,7 @@
             if (section === 'complaint') {
                 return complaintData.map(c => ({
                     Complaint: c.complaint_text || '',
-                    Category: c.category || '',
+                    Category: categoryLabel(c.category),
                     Date: formatDate(c.created_at),
                 }));
             }

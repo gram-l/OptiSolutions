@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\admin_models\Complaint;
 use App\Services\RatingSentimentFallback;
+use App\Services\SentimentAnalysisService;
 
 class FeedbackController extends Controller
 {
@@ -38,6 +39,29 @@ class FeedbackController extends Controller
                 'created_at' => $c->created_at,
             ];
         });
+
+    $items = $feedback->where('sentiment', 'negative')->map(fn ($entry) => [
+        'id' => $entry['id'], 'text' => $entry['comment'], 'source' => 'feedback',
+    ])->concat($complaints->map(fn ($entry) => [
+        'id' => $entry['complaint_id'], 'text' => $entry['complaint_text'], 'source' => 'complaint',
+    ]))->values();
+    $diagnosis = $items->isEmpty() ? ['details' => []] : app(SentimentAnalysisService::class)->diagnose($items->all());
+    $details = collect($diagnosis['details'] ?? [])->keyBy(fn ($entry) => $entry['source'] . ':' . $entry['id']);
+    $feedback = $feedback->map(function ($entry) use ($details, $diagnosis) {
+        $entry['issue_categories'] = $details->get('feedback:' . $entry['id'])['matched_categories'] ?? [];
+        $entry['issues_analyzed'] = $diagnosis !== null;
+        return $entry;
+    });
+    $complaints = $complaints->map(function ($entry) use ($details, $diagnosis) {
+        $categories = $details->get('complaint:' . $entry['complaint_id'])['matched_categories'] ?? [];
+        $stored = strtolower(trim($entry['category'] ?? ''));
+        if ($categories) {
+            $entry['category'] = $categories[0];
+        }
+        $entry['issue_categories'] = $categories ?: (!in_array($stored, ['', 'other', 'uncategorized'], true) ? [$stored] : []);
+        $entry['issues_analyzed'] = $diagnosis !== null;
+        return $entry;
+    });
 
     return view('admin_acc.feedback', [
         'feedbackData' => $feedback,

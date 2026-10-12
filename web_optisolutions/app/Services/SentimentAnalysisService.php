@@ -7,6 +7,20 @@ use Illuminate\Support\Facades\Log;
 
 class SentimentAnalysisService
 {
+    public function diagnose(array $items): ?array
+    {
+        try {
+            $response = Http::timeout(5)->post(config('services.django.url') . '/api/diagnose/', ['items' => $items]);
+            if ($response->successful() && is_array($response->json('details'))) {
+                return $response->json();
+            }
+            Log::warning('Issue diagnosis API non-success', ['status' => $response->status()]);
+        } catch (\Throwable $exception) {
+            Log::warning('Issue diagnosis API unavailable', ['error' => $exception->getMessage()]);
+        }
+        return null;
+    }
+
     public function analyze(string $text): ?array
     {
         try {

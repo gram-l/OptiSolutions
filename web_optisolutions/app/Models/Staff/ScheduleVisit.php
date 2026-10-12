@@ -14,6 +14,9 @@ class ScheduleVisit extends Model
         'doctor_id', 'patient_id', 'service_type', 'visit_date', 'notes', 'scheduled_at',
     ];
 
+    protected $casts = ['visited' => 'boolean', 'visited_at' => 'datetime'];
+    protected $hidden = ['review_pass_code', 'review_pass_hash'];
+
     public function doctor()
     {
         return $this->belongsTo(Doctor::class, 'doctor_id', 'doctor_id');

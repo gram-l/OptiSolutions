@@ -22,8 +22,10 @@ class AppointmentController extends Controller
                 'doctors.doctor_name as doctor_name',
                 'schedule_visit.visit_date',
                 'schedule_visit.service_type',
-                'doctors.specialty as service',
+                DB::raw('COALESCE(schedule_visit.service_type, doctors.specialty) as service'),
                 'schedule_visit.notes',
+                'schedule_visit.visited',
+                'schedule_visit.review_pass_sent_at',
                 DB::raw("TRIM(CONCAT(patients.patient_fname, ' ', patients.patient_lname)) as patient_name")
             )
             ->orderBy('schedule_visit.visit_date')
@@ -62,8 +64,9 @@ class AppointmentController extends Controller
             ->select(
                 'schedule_visit.visit_id',
                 'schedule_visit.visit_date',
+                'schedule_visit.visited',
                 'doctors.doctor_name as doctor_name',
-                'doctors.specialty as service',
+                DB::raw('COALESCE(schedule_visit.service_type, doctors.specialty) as service'),
                 DB::raw("TRIM(CONCAT(patients.patient_fname, ' ', patients.patient_lname)) as patient_name")
             )
             ->orderBy('schedule_visit.visit_date')
@@ -100,7 +103,7 @@ class AppointmentController extends Controller
 
             foreach ($grouped as $date => $visits) {
                 fputcsv($handle, [$date]);
-                fputcsv($handle, ['Visit ID', 'Patient', 'Doctor', 'Service']);
+                fputcsv($handle, ['Visit ID', 'Patient', 'Doctor', 'Service', 'Visited']);
 
                 foreach ($visits as $visit) {
                     fputcsv($handle, [
@@ -108,6 +111,7 @@ class AppointmentController extends Controller
                         $visit->patient_name ?: 'N/A',
                         $visit->doctor_name ?? 'N/A',
                         $visit->service ?? 'N/A',
+                        $visit->visited ? 'Yes' : 'No',
                     ]);
                 }
 
@@ -131,12 +135,13 @@ class AppointmentController extends Controller
         $html .= '<table border="1">';
 
         foreach ($grouped as $date => $visits) {
-            $html .= '<tr><td colspan="4"><b>' . e($date) . '</b></td></tr>';
+            $html .= '<tr><td colspan="5"><b>' . e($date) . '</b></td></tr>';
             $html .= '<tr>'
                 . '<th>Visit ID</th>'
                 . '<th>Patient</th>'
                 . '<th>Doctor</th>'
                 . '<th>Service</th>'
+                . '<th>Visited</th>'
                 . '</tr>';
 
             foreach ($visits as $visit) {
@@ -145,10 +150,11 @@ class AppointmentController extends Controller
                     . '<td>' . e($visit->patient_name ?: 'N/A') . '</td>'
                     . '<td>' . e($visit->doctor_name ?? 'N/A') . '</td>'
                     . '<td>' . e($visit->service ?? 'N/A') . '</td>'
+                    . '<td>' . ($visit->visited ? 'Yes' : 'No') . '</td>'
                     . '</tr>';
             }
 
-            $html .= '<tr><td colspan="4">&nbsp;</td></tr>'; // blank row between dates
+            $html .= '<tr><td colspan="5">&nbsp;</td></tr>'; // blank row between dates
         }
 
         $html .= '</table></body></html>';

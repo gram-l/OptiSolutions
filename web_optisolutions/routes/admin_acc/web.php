@@ -76,6 +76,7 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
 
     Route::get('/admin_acc/appointments/day', [VisitController::class, 'dayJson']);
     Route::get('/admin_acc/appointments/visit-dates', [VisitController::class, 'visitDates']);
+    Route::post('/admin_acc/appointments/{id}/visited', [\App\Http\Controllers\VisitCompletionController::class, 'store'])->middleware('throttle:20,1');
     Route::put('/admin_acc/appointments/{id}', [VisitController::class, 'update']);
     Route::delete('/admin_acc/appointments/{id}', [VisitController::class, 'destroy']);
 

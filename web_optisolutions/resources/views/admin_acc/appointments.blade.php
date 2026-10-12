@@ -418,7 +418,7 @@
             container.innerHTML = `
                 <div class="day-panel">
                     <table class="appointments-table">
-                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th> </th></tr></thead>
+                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th>Visited</th><th> </th></tr></thead>
                         <tbody>
                             ${filtered.map(v => `
                                 <tr>
@@ -427,10 +427,11 @@
                                     <td>${escapeHtml(v.service_type || '—')}</td>
                                     <td><small style="color:#7f8c8d">${formatBookedAt(v.scheduled_at)}</small></td>
                                     <td>${escapeHtml((v.notes || '').length > 40 ? v.notes.substring(0, 40) + '...' : (v.notes || '—'))}</td>
+                                    <td>${Number(v.visited) === 1 ? '<strong style="color:#15803d">Visited</strong><br><small>' + (v.review_pass_sent_at ? 'Review pass emailed' : 'Email not sent') + '</small>' : 'Not visited'}</td>
                                     <td class="action-buttons">
+                                        ${Number(v.visited) !== 1 || !v.review_pass_sent_at ? `<button class="btn-sm btn-edit" onclick="markVisited(${v.visit_id}, this)">${Number(v.visited) === 1 ? 'Retry email' : 'Mark visited'}</button>` : ''}
                                         <button class="btn-sm btn-edit" onclick="openEditNotesModal(${v.visit_id})"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
-                                        <button class="btn-sm btn-reschedule" onclick="openRescheduleModal(${v.visit_id})"><i class="fa-regular fa-calendar-xmark"></i> Reschedule</button>
-                                        <button class="btn-sm btn-cancel" onclick="cancelAppointment(${v.visit_id})"><i class="fa-solid fa-trash"></i> Remove</button>
+                                        ${Number(v.visited) !== 1 ? `<button class="btn-sm btn-reschedule" onclick="openRescheduleModal(${v.visit_id})"><i class="fa-regular fa-calendar-xmark"></i> Reschedule</button><button class="btn-sm btn-cancel" onclick="cancelAppointment(${v.visit_id})"><i class="fa-solid fa-trash"></i> Remove</button>` : ''}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -584,6 +585,23 @@
             document.getElementById('downloadDropdown').classList.toggle('open');
         }
 
+        async function markVisited(id, button) {
+            const visit = visitsData.find(v => v.visit_id === id);
+            if (!visit || !confirm(Number(visit.visited) === 1 ? 'Retry sending this patient\'s existing review pass?' : 'Confirm this patient attended the visit? A review pass will be emailed to them.')) return;
+            button.disabled = true;
+            try {
+                const response = await fetch(`${VISIT_BASE}/${id}/visited`, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                const data = await response.json();
+                alert(data.message || Object.values(data.errors || {}).flat()[0] || 'Unable to update this visit.');
+                if (data.success) await loadDay();
+            } catch (error) {
+                alert('Could not reach the server. Please refresh to check the visit status before retrying.');
+            } finally { button.disabled = false; }
+        }
+
         function getExportRows() {
             return getFiltered().map(v => ({
                 Patient: v.patient_name || 'Unknown patient',
@@ -591,6 +609,7 @@
                 Service: v.service_type || '—',
                 'Scheduled At': formatBookedAt(v.scheduled_at),
                 Notes: v.notes || '',
+                Visited: Number(v.visited) === 1 ? 'Yes' : 'No',
             }));
         }
 
@@ -638,8 +657,8 @@
             doc.text(`Scheduled Visits - ${formatDayLabel(currentDate)}`, 14, 15);
             doc.autoTable({
                 startY: 22,
-                head: [['Patient', 'Doctor', 'Service', 'Scheduled At', 'Notes']],
-                body: rows.map(r => [r.Patient, r.Doctor, r.Service, r['Scheduled At'], r.Notes]),
+                head: [['Patient', 'Doctor', 'Service', 'Scheduled At', 'Notes', 'Visited']],
+                body: rows.map(r => [r.Patient, r.Doctor, r.Service, r['Scheduled At'], r.Notes, r.Visited]),
                 styles: { fontSize: 9, cellPadding: 3 },
                 headStyles: { fillColor: [14, 98, 170] },
                 columnStyles: { 4: { cellWidth: 60 } },

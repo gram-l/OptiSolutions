@@ -26,6 +26,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
 
     // APPOINTMENTS
     Route::get('/staff/appointments', [AppointmentController::class, 'index'])->name('staff.appointments');
+    Route::post('/staff/appointments/{id}/visited', [\App\Http\Controllers\VisitCompletionController::class, 'store'])->middleware('throttle:20,1');
     Route::get('visits/export/{format}', [AppointmentController::class, 'export'])->name('staff.visits.export');
 
     // INQUIRIES

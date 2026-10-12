@@ -56,6 +56,8 @@ public function apiIndex(Request $request)
                 'schedule_visit.service_type',
                 'schedule_visit.visit_date',
                 'schedule_visit.notes',
+                'schedule_visit.visited',
+                'schedule_visit.review_pass_sent_at',
                 'schedule_visit.scheduled_at',
                 'doctors.doctor_name',
                 DB::raw("CONCAT(patients.patient_fname, ' ', patients.patient_lname) as patient_name")
@@ -101,6 +103,10 @@ public function apiIndex(Request $request)
             'notes' => 'sometimes|nullable|string|max:1000',
         ]);
 
+        if (isset($validated['visit_date']) && DB::table('schedule_visit')->where('visit_id', $id)->where('visited', true)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Completed visits cannot be rescheduled.'], 422);
+        }
+
         if (empty($validated)) {
             return response()->json(['success' => false, 'message' => 'Nothing to update.'], 422);
         }
@@ -125,6 +131,9 @@ public function apiIndex(Request $request)
     // "cancelled", so cancelling removes the row.
     public function destroy($id)
     {
+        if (DB::table('schedule_visit')->where('visit_id', $id)->where('visited', true)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Completed visits must be retained for review verification.'], 422);
+        }
         $deleted = DB::table('schedule_visit')->where('visit_id', $id)->delete();
 
         if (!$deleted) {

@@ -28,6 +28,7 @@
                     <th>Patient</th>
                     <th>Doctor</th>
                     <th>Service</th>
+                    <th>Visited</th>
                 </tr>
             </thead>
             <tbody>
@@ -37,6 +38,7 @@
                         <td>{{ $visit->patient_name ?: 'N/A' }}</td>
                         <td>{{ $visit->doctor_name ?? 'N/A' }}</td>
                         <td>{{ $visit->service ?? 'N/A' }}</td>
+                        <td>{{ $visit->visited ? 'Yes' : 'No' }}</td>
                     </tr>
                 @endforeach
             </tbody>

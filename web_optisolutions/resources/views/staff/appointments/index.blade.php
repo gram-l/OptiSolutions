@@ -330,6 +330,7 @@
                     <th>Service</th>
                     <th>Scheduled At</th>
                     <th>Notes</th>
+                    <th>Visited</th>
                     <th></th>
                 </tr>
             </thead>
@@ -345,7 +346,17 @@
                     <td>{{ $apt->service ?? 'N/A' }}</td>
                     <td>{{ $scheduledAt }}</td>
                     <td class="notes-cell" id="notesText-{{ $apt->visit_id }}">{{ $apt->notes ?: '—' }}</td>
+                    <td id="visitedText-{{ $apt->visit_id }}">
+                        @if($apt->visited)
+                            <strong style="color:#15803d">Visited</strong><br><small>{{ $apt->review_pass_sent_at ? 'Review pass emailed' : 'Email not sent' }}</small>
+                        @else
+                            Not visited
+                        @endif
+                    </td>
                     <td>
+                        @if(!$apt->visited || !$apt->review_pass_sent_at)
+                            <button type="button" class="btn-edit-notes" onclick="markVisitCompleted({{ $apt->visit_id }}, this)">{{ $apt->visited ? 'Retry email' : 'Mark visited' }}</button>
+                        @endif
                         <button
                             type="button"
                             class="btn-edit-notes"
@@ -389,6 +400,26 @@
     function closeNotesModal() {
         document.getElementById('notesModal').classList.remove('show');
         currentNotesVisitId = null;
+    }
+
+    async function markVisitCompleted(id, button) {
+        if (!confirm('Confirm this patient attended the visit and send their review pass?')) return;
+        button.disabled = true;
+        try {
+            const response = await fetch(`/staff/appointments/${id}/visited`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+            });
+            const data = await response.json();
+            alert(data.message || Object.values(data.errors || {}).flat()[0] || 'Unable to update this visit.');
+            if (data.success) {
+                document.getElementById(`visitedText-${id}`).innerHTML = '<strong style="color:#15803d">Visited</strong><br><small>' + (data.email_sent ? 'Review pass emailed' : 'Email not sent') + '</small>';
+                if (data.email_sent) button.remove();
+                else button.textContent = 'Retry email';
+            }
+        } catch (error) {
+            alert('Could not reach the server. Please refresh to check the visit status before retrying.');
+        } finally { button.disabled = false; }
     }
 
     function saveNotes() {

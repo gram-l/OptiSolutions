@@ -176,7 +176,7 @@
     <!-- Header -->
     @include('admin_acc.header')
 
-    <div class="container">
+    <div class="container admin-visits-layout">
            @include('admin_acc.sidebar')
         <div style="flex: 1; min-width: 0;">
         <div class="page-header">

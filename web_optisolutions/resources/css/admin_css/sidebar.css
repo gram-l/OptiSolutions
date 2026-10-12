@@ -134,12 +134,14 @@
 
 /* ── Mobile: slide-out drawer, triggered by the header hamburger ── */
 @media (max-width: 768px) {
-    .sidebar,
-    .sidebar.collapsed {
+    .container > .sidebar,
+    .container > .sidebar.collapsed {
+        display: block;
         position: fixed;
         top: 0;
         left: 0;
         height: 100vh;
+        height: 100dvh;
         width: 220px;
         max-width: 82vw;
         margin: 0;
@@ -150,7 +152,7 @@
         overflow-y: auto;
         padding: 1rem 0.85rem;
     }
-    .sidebar.mobile-open {
+    .container > .sidebar.mobile-open {
         transform: translateX(0);
     }
     .sidebar.collapsed .sidebar-brand-row {

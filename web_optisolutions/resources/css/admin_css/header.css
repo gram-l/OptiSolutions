@@ -385,3 +385,61 @@ img {
         min-width: 220px;
     }
 }
+
+/* Shared phone/tablet header. Scoped selectors also override legacy
+   page stylesheets that load after header.css. Desktop is unchanged. */
+@media (max-width: 768px) {
+    body > .header {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        height: 70px;
+        min-height: 70px;
+        padding: 0 12px;
+        gap: 8px;
+        box-sizing: border-box;
+        z-index: 200;
+    }
+    .header .header-left {
+        flex: 1;
+        min-width: 0;
+        gap: 8px;
+    }
+    .header .mobile-menu-btn {
+        display: flex;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        background: #eef2f7;
+        font-size: 1.3rem;
+    }
+    .header .logo-section {
+        flex: 1;
+        min-width: 0;
+        gap: 8px;
+    }
+    .header .logo-section img {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+    .header .logo-section h1 {
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1.2;
+        font-weight: 700;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+    .header .header-controls {
+        flex: 0 0 auto;
+        gap: 4px;
+    }
+    .header .icon-btn,
+    .header .avatar-btn {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+}

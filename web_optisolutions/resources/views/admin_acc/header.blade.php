@@ -79,6 +79,7 @@
     @include('admin_acc.partials.settings')
     @include('admin_acc.partials.logout')
 </header>
+@include('admin_acc.partials.mobile_tables')
 
 {{-- Empty container the notifications panel gets injected into on demand --}}
 <div id="notifPanelContainer"></div>

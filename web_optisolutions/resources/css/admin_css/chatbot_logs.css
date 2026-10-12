@@ -911,3 +911,13 @@
                 padding-left: 0.15rem;
             }
         }
+@media (max-width: 768px) {
+    body .modal-overlay { padding: 12px; }
+    body .modal-overlay .modal-box {
+        width: 100%; max-width: 360px; padding: 1rem;
+        max-height: calc(100dvh - 32px); overflow-y: auto;
+        border-radius: 14px; box-sizing: border-box;
+    }
+    body .modal-overlay .modal-actions { gap: 0.5rem; flex-wrap: wrap; }
+    body .modal-overlay .modal-btn { flex: 1; padding: 0.65rem 0.8rem; }
+}

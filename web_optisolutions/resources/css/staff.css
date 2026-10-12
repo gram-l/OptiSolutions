@@ -154,6 +154,15 @@ body > .container {
     gap: 0;
 }
 
+@media (min-width: 769px) {
+    body > .container,
+    body > .container > .dashboard-layout {
+        margin-top: 0;
+        padding-top: 0;
+    }
+    .dashboard-layout > .sidebar { margin-top: 0; }
+}
+
 /* Sidebar — matches the admin panel's: full-height rail flush under the
    header, no rounded corners, toggle button only (no brand row). */
 .sidebar {

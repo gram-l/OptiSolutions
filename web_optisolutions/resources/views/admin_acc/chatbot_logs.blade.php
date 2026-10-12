@@ -747,10 +747,10 @@
         // Initial render
         renderChatList("");
 
-        // Auto-select first chat if exists
-        if (chatLogs.length > 0) {
+        // Desktop opens the first conversation; mobile starts with the recent list.
+        if (chatLogs.length > 0 && !window.matchMedia('(max-width: 768px)').matches) {
             setTimeout(() => {
-                openChat(chatLogs[0].id);
+                if (!window.matchMedia('(max-width: 768px)').matches) openChat(chatLogs[0].id);
             }, 100);
         }
     </script>

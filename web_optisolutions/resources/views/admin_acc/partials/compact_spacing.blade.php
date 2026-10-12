@@ -17,6 +17,14 @@
     body .container .action-bar { padding: 0.8rem 1rem; gap: 0.75rem; margin-bottom: 1rem; }
     body .container .day-nav { flex-wrap: wrap; gap: 0.5rem; }
 
+    @media (min-width: 769px) {
+        body > .container { margin-top: 0; }
+        body > .container > .sidebar { margin-top: 0; }
+        body > .container > :not(.sidebar):not(.sidebar-overlay):not(script) {
+            margin-top: 1.25rem;
+        }
+    }
+
     @media (max-width: 768px) {
         body > .container { margin-top: 1rem; }
         body .container .page-header { margin-bottom: 0.85rem; }

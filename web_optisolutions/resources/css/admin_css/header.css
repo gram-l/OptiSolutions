@@ -443,3 +443,17 @@ img {
         flex-shrink: 0;
     }
 }
+
+@media (max-width: 768px) {
+    body .profile-modal-overlay,
+    body .settings-overlay,
+    body .logout-overlay { padding: 12px; box-sizing: border-box; }
+    body .profile-modal,
+    body .settings-modal,
+    body .logout-modal {
+        width: 100%; max-width: 420px;
+        max-height: calc(100dvh - 32px);
+        overflow-y: auto; box-sizing: border-box;
+        border-radius: 14px;
+    }
+}

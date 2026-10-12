@@ -322,7 +322,7 @@
     </div>
 
     @if($appointments->count() > 0)
-        <table class="data-table" id="visitsTable">
+        <table class="data-table table-cards" id="visitsTable">
             <thead>
                 <tr>
                     <th>Patient</th>
@@ -341,19 +341,19 @@
                     $scheduledAt = \Carbon\Carbon::parse($apt->visit_date)->format('M j, g:i A');
                 @endphp
                 <tr data-date="{{ $visitDate }}" data-service="{{ strtolower($apt->service ?? '') }}">
-                    <td>{{ $apt->patient_name ?: 'N/A' }}</td>
-                    <td>{{ $apt->doctor_name ?? 'N/A' }}</td>
-                    <td>{{ $apt->service ?? 'N/A' }}</td>
-                    <td>{{ $scheduledAt }}</td>
-                    <td class="notes-cell" id="notesText-{{ $apt->visit_id }}">{{ $apt->notes ?: '—' }}</td>
-                    <td id="visitedText-{{ $apt->visit_id }}">
+                    <td data-label="Patient">{{ $apt->patient_name ?: 'N/A' }}</td>
+                    <td data-label="Doctor">{{ $apt->doctor_name ?? 'N/A' }}</td>
+                    <td data-label="Service">{{ $apt->service ?? 'N/A' }}</td>
+                    <td data-label="Scheduled At">{{ $scheduledAt }}</td>
+                    <td data-label="Notes" class="notes-cell" id="notesText-{{ $apt->visit_id }}">{{ $apt->notes ?: '—' }}</td>
+                    <td data-label="Visited" id="visitedText-{{ $apt->visit_id }}">
                         @if($apt->visited)
                             <strong style="color:#15803d">Visited</strong><br><small>{{ $apt->review_pass_sent_at ? 'Review pass emailed' : 'Email not sent' }}</small>
                         @else
                             Not visited
                         @endif
                     </td>
-                    <td>
+                    <td data-label="" class="table-cards-actions">
                         @if(!$apt->visited || !$apt->review_pass_sent_at)
                             <button type="button" class="btn-edit-notes" onclick="markVisitCompleted({{ $apt->visit_id }}, this)">{{ $apt->visited ? 'Retry email' : 'Mark visited' }}</button>
                         @endif

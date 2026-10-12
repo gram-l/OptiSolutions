@@ -144,7 +144,7 @@
                     <span><i class="fa-solid fa-star-half-stroke"></i></span>
                     Feedback & Sentiment Analysis
                 </h2>
-                <p>Review patient feedback, analyze sentiment trends, and identify recurring issues</p>
+                <p>Review patient feedback, analyze sentiment, and identify recurring issues</p>
             </div>
 
             <!-- Filter Bar -->
@@ -163,7 +163,7 @@
                 </div>
             </div>
 
-            <!-- Overview: sentiment + trend stacked left, recurring patterns tall on the right -->
+            <!-- Overview: sentiment distribution and recurring patterns -->
             <div class="overview-grid">
                 <div class="analytics-card card-sentiment">
                     <div class="analytics-title"><i class="fa-solid fa-chart-pie"></i> Sentiment Distribution</div>
@@ -171,14 +171,6 @@
                     <div style="margin-top: 0.6rem;">
                         <div class="rating-stars" id="avgRating"></div>
                         <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 0.25rem;">Average Rating: <span id="avgRatingValue">0</span>/5</div>
-                    </div>
-                </div>
-                <div class="analytics-card card-trend">
-                    <div class="analytics-title"><i class="fa-solid fa-chart-line"></i> Trend Overview</div>
-                    <div id="trendInfo" class="trend-info">
-                        <div><i class="fa-regular fa-face-smile-beam"></i> Positive feedback: <span id="positivePercent">0</span>%</div>
-                        <div><i class="fa-regular fa-face-frown"></i> Negative feedback: <span id="negativePercent">0</span>%</div>
-                        <div><i class="fa-regular fa-file-lines"></i> Total responses: <span id="totalCount">0</span></div>
                     </div>
                 </div>
                 <div class="pattern-card card-pattern">
@@ -307,9 +299,6 @@
             `;
 
             document.getElementById('avgRatingValue').innerText = avgRating;
-            document.getElementById('positivePercent').innerText = total ? ((positive/total)*100).toFixed(0) : 0;
-            document.getElementById('negativePercent').innerText = total ? ((negative/total)*100).toFixed(0) : 0;
-            document.getElementById('totalCount').innerText = total;
 
             // Recurring negative patterns (no department/doctor split)
             const negativeComments = filteredData.filter(f => f.sentiment === 'negative').map(f => f.comment);

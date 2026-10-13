@@ -38,6 +38,7 @@ class VisitCompletionTest extends TestCase
         $this->postJson('/admin_acc/appointments/1/visited')->assertOk()->assertJson(['visited' => true, 'email_sent' => true]);
         $visit = DB::table('schedule_visit')->first();
         $code = Crypt::decryptString($visit->review_pass_code);
+        $this->assertMatchesRegularExpression('/^[A-Z0-9]{20}$/', $code);
         $this->assertEquals(hash('sha256', $code), $visit->review_pass_hash);
         $this->assertNotNull($visit->visited_at);
         $this->assertNotNull($visit->review_pass_sent_at);
@@ -57,6 +58,22 @@ class VisitCompletionTest extends TestCase
         $this->loginAs('Staff');
         $this->postJson('/staff/appointments/1/visited')->assertOk()->assertJson(['email_sent' => true]);
         Mail::assertSent(VisitReviewPass::class, 1);
+    }
+
+    public function test_email_includes_a_private_qr_image_and_review_link(): void
+    {
+        config(['app.url' => 'https://clinic.example.com']);
+        $mail = new VisitReviewPass('Test Patient', 'Dr. Test', 'Eye examination', '2026-10-01', 'ABCDEFGHJKLM23456789', 1);
+        $this->assertSame('https://clinic.example.com/home#review-code=ABCDEFGHJKLM23456789', $mail->reviewUrl);
+        $png = $mail->qrCodePng();
+        $this->assertSame("\x89PNG\r\n\x1a\n", substr($png, 0, 8));
+        $dimensions = unpack('Nwidth/Nheight', substr($png, 16, 8));
+        $this->assertSame($dimensions['width'], $dimensions['height']);
+        $this->assertGreaterThan(200, $dimensions['width']);
+        $html = $mail->render();
+        // Laravel converts embedded CID images to data URLs in render() previews.
+        $this->assertStringContainsString('data:image/png;base64,', $html);
+        $this->assertStringContainsString($mail->reviewUrl, $html);
     }
 
     public function test_future_visit_or_missing_patient_email_does_not_issue_a_pass(): void

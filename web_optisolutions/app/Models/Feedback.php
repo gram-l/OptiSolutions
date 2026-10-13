@@ -12,5 +12,5 @@ class Feedback extends Model
     const CREATED_AT = 'submitted_at';
     const UPDATED_AT = null;
 
-    protected $fillable = ['log_id', 'patient_id', 'feedback_text', 'star_rating'];
+    protected $fillable = ['visit_id', 'log_id', 'patient_id', 'feedback_text', 'star_rating'];
 }

@@ -11,6 +11,7 @@ class Feedback extends Model
     public $timestamps = false; // uses submitted_at instead of created_at/updated_at
 
     protected $fillable = [
+        'visit_id',
         'log_id',
         'patient_id',
         'feedback_text',

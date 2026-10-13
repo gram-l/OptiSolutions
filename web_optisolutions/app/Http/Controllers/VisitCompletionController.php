@@ -35,7 +35,7 @@ class VisitCompletionController extends Controller
             $doctor = DB::table('doctors')->where('doctor_id', $visit->doctor_id)->first();
             $code = $visit->review_pass_code
                 ? Crypt::decryptString($visit->review_pass_code)
-                : strtoupper(bin2hex(random_bytes(16)));
+                : \App\Services\VisitReviewService::generateCode();
             DB::table('schedule_visit')->where('visit_id', $id)->update([
                 'visited' => true,
                 'visited_at' => $visit->visited_at ?? now(),

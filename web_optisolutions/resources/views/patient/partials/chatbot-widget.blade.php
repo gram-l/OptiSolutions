@@ -829,7 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function sendMessage(text, displayText, opts = {}) {
     text = typeof text === 'string' ? text : String(text ?? '');
-    if (!text.trim() || isSending) return;
+    if (!text.trim() || isSending) return false;
 
     setSendingState(true);
 
@@ -866,6 +866,7 @@ document.addEventListener('DOMContentLoaded', () => {
           driver: 'web',
           message: text,
           userId: session.clientId,
+          startReviewFromPass: opts.startReviewFromPass === true,
         }),
       });
 
@@ -878,7 +879,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           addErrorBubble('Something went wrong reaching the chatbot. Please try again.');
         }
-        return;
+        return false;
       }
 
       const messages = Array.isArray(data) ? data : (data.messages || []);
@@ -922,10 +923,13 @@ document.addEventListener('DOMContentLoaded', () => {
         clearQuickReplies();
       }
 
+      return true;
+
     } catch (err) {
       removeSaving();
       console.error('Chat error:', err);
       addErrorBubble('Unable to connect. Please check your internet connection and try again.');
+      return false;
     } finally {
       removeSaving();
       setSendingState(false);
@@ -1100,14 +1104,22 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(pollForReplies, 3000);
 
   // Global trigger: open chat + jump straight to Submit Feedback
-  window.openChatbotAndSubmitFeedback = function () {
+  window.openChatbotAndSubmitFeedback = async function (transactionCode = '') {
     if (!panel.classList.contains('open')) {
       panel.classList.add('open');
     }
     input.focus();
     scrollToBottom();
     pollForReplies();
-    sendMessage('submit review/rating', 'Submit Review/Rating');
+    const started = await sendMessage('submit review/rating', 'Submit Review/Rating', { startReviewFromPass: !!transactionCode });
+    if (transactionCode) {
+      if (started) {
+        const verified = await sendMessage(transactionCode, 'Review transaction code entered');
+        if (!verified) input.value = transactionCode;
+      } else {
+        input.value = transactionCode;
+      }
+    }
   };
 
   // Global trigger: open chat + jump straight to Schedule Visit
@@ -1125,6 +1137,13 @@ document.addEventListener('DOMContentLoaded', () => {
   restoreConversation();
   persistSession();
   pollForReplies();
+  const reviewLink = new URLSearchParams(window.location.hash.slice(1));
+  const reviewCode = (reviewLink.get('review-code') || '').toUpperCase();
+  if (/^(?:[A-Z0-9]{20}|[A-F0-9]{32})$/.test(reviewCode)) {
+    // Remove the private pass from the visible URL before opening the review flow.
+    history.replaceState(history.state, '', window.location.pathname + window.location.search);
+    window.openChatbotAndSubmitFeedback(reviewCode);
+  }
 });
 </script>
 

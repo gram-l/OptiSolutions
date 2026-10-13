@@ -116,7 +116,7 @@ class BotManController extends Controller
                 ));
             });
 
-            $botman->hears('submit review/rating', function ($bot) {
+            $reviewCommand = $botman->hears('submit review/rating', function ($bot) {
                 Log::info('MATCHED: submit review/rating');
                 $stored = $bot->userStorage()->find() ?: [];
                 $bot->startConversation(new ReviewConversation(
@@ -124,6 +124,9 @@ class BotManController extends Controller
                     $stored['patient_name'] ?? null
                 ));
             });
+            if ($request->boolean('startReviewFromPass')) {
+                $reviewCommand->stopsConversation();
+            }
 
             // "Is there anything else you need?" buttons. The widget shows
             // these itself after Admin/Staff resolves an inquiry, so no
@@ -265,6 +268,10 @@ class BotManController extends Controller
 
     protected function logExchange(string $conversationId, string $userMessage, array $capturedReplies, $botman)
     {
+        // Review passes are private bearer codes, not inquiry text.
+        if (preg_match(\App\Services\VisitReviewService::CODE_PATTERN, \App\Services\VisitReviewService::normalizeCode($userMessage))) {
+            $userMessage = '[Review transaction code entered]';
+        }
         try {
             $replies = collect($capturedReplies)->filter()->implode("\n---\n");
 

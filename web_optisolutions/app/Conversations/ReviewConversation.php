@@ -12,10 +12,10 @@ use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
 use App\Conversations\Concerns\HandlesRateLimit;
 use App\Services\SentimentAnalysisService;
-use App\Services\RatingSentimentFallback;
 use App\Services\NotificationService;
 use App\Models\Notification;
 use App\Models\Staff\InquiryReply;
+use App\Services\VisitReviewService;
 
 class ReviewConversation extends Conversation
 {
@@ -30,6 +30,7 @@ class ReviewConversation extends Conversation
     protected $rating;
     protected $feedbackId;
     protected $contactEmail;
+    protected $transactionCode;
 
     public function __construct($patientId = null, $patientName = null)
     {
@@ -39,12 +40,40 @@ class ReviewConversation extends Conversation
 
     public function run()
     {
-        $this->askRating();
+        $this->askTransactionCode();
+    }
+
+    public function askTransactionCode()
+    {
+        $this->ask('Before submitting a rating or review, please paste the transaction code emailed to you after your completed visit. No code? Please contact the clinic. Type menu to return to the main options.', function (Answer $answer) {
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, fn() => $this->askTransactionCode());
+            }
+            if ($this->tooManySubmissions('review-code', 5, 10)) {
+                $this->say('Too many code attempts. Please wait a few minutes before trying again.');
+                return $this->askAnythingElse();
+            }
+            $code = VisitReviewService::normalizeCode($answer->getText());
+            $visit = app(VisitReviewService::class)->verify($code);
+            if (!$visit) {
+                $this->say('That code is invalid or already used. Only an unused code from a completed visit can be used to submit a review.');
+                return $this->askTransactionCode();
+            }
+            $this->transactionCode = $code;
+            $this->patientId = $visit->patient_id;
+            $patient = DB::table('patients')->where('patient_id', $visit->patient_id)->first();
+            $this->patientName = trim(($patient->patient_fname ?? '') . ' ' . ($patient->patient_lname ?? '')) ?: 'A patient';
+            $this->say('Transaction code verified. You can now rate your completed visit.');
+            return $this->askRating();
+        });
     }
 
     // Ask the patient for a star rating.
     public function askRating()
     {
+        if (!$this->transactionCode || !app(VisitReviewService::class)->verify($this->transactionCode)) {
+            return $this->askTransactionCode();
+        }
         $question = Question::create('How would you rate your experience with us?')
             ->fallback('Please tap one of the star options above.')
             ->addButtons([
@@ -185,20 +214,7 @@ class ReviewConversation extends Conversation
         $saved = false;
 
         try {
-            $logId = DB::table('chatbot_logs')->insertGetId([
-                'user_id'      => $this->patientId,
-                'user_message' => $text ?? '(no comment)',
-                'bot_message'  => 'Review recorded',
-            ]);
-
-            // Create the feedback record.
-            $feedback = Feedback::create([
-                'log_id'        => $logId,
-                'patient_id'    => $this->patientId,
-                'feedback_text' => $text,
-                'star_rating'   => $this->rating,
-                'submitted_at'  => now(),
-            ]);
+            $feedback = app(VisitReviewService::class)->submit($this->transactionCode ?? '', $this->rating, $text, null, true);
             $this->feedbackId = $feedback->feedback_id;
             $saved = true;
 
@@ -210,24 +226,29 @@ class ReviewConversation extends Conversation
             }
 
             if (!empty($text)) {
+              try {
                 $result = app(SentimentAnalysisService::class)->analyze($text);
 
-                // ML service down/unreachable? Fall back to a rating-based
-                // label instead of leaving this feedback unclassified.
-                $label = $result['sentiment_label'] ?? RatingSentimentFallback::labelFor($this->rating);
-                $confidence = $result['confidence_score'] ?? null;
-
-                $feedback->sentimentResult()->create([
-                    'sentiment_label'  => $label,
-                    'confidence_score' => $confidence,
-                    'analyzed_at'      => now(),
-                ]);
+                // Keep analysis pending if the service is unavailable; the
+                // verified review itself has already been saved.
+                if (isset($result['sentiment_label'], $result['confidence_score'])) {
+                    $feedback->sentimentResult()->create([
+                        'sentiment_label' => $result['sentiment_label'], 'confidence_score' => $result['confidence_score'], 'analyzed_at' => now(),
+                    ]);
+                }
+              } catch (\Throwable $analysisError) {
+                \Illuminate\Support\Facades\Log::warning('Review saved; sentiment analysis remains pending.', ['feedback_id' => $feedback->feedback_id]);
+              }
             }
 
             // Low ratings already got the apology message above.
             if (!$this->isLowRating()) {
                 $this->say("Thank you for your feedback!\n\nYou rated us {$this->rating}/5. We appreciate you taking the time to help us improve.");
             }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->transactionCode = null;
+            $this->say('Your transaction code is missing, invalid, or already used. No review was saved.');
+            return $this->askTransactionCode();
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('submitReview failed: ' . $e->getMessage());
             $this->say("⚠️ We couldn't record your review right now. Please try again, or contact us directly.");

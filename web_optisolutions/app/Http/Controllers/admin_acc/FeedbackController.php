@@ -7,7 +7,6 @@ use App\Models\admin_models\Feedback;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\admin_models\Complaint;
-use App\Services\RatingSentimentFallback;
 use App\Services\SentimentAnalysisService;
 
 class FeedbackController extends Controller
@@ -71,28 +70,31 @@ class FeedbackController extends Controller
 public function store(Request $request, SentimentAnalysisService $sentimentService)
 {
     $validated = $request->validate([
+        'transaction_code' => 'required|string|max:80',
         'log_id' => 'nullable|integer',
         'patient_id' => 'nullable|integer',
         'feedback_text' => 'nullable|string',
         'star_rating' => 'required|integer|min:1|max:5',
     ]);
 
-    $feedback = Feedback::create(array_merge($validated, ['submitted_at' => now()]));
+    $feedback = app(\App\Services\VisitReviewService::class)->submit(
+        $validated['transaction_code'], $validated['star_rating'], $validated['feedback_text'] ?? null, null, true,
+    );
 
     // Only classify if there's actual comment text
     if (trim($feedback->feedback_text ?? '') !== '') {
+      try {
         $result = $sentimentService->analyze($feedback->feedback_text);
 
-        // ML service down/unreachable? Fall back to a rating-based
-        // label instead of leaving this feedback unclassified.
-        $label = $result['sentiment_label'] ?? RatingSentimentFallback::labelFor($feedback->star_rating);
-        $confidence = $result['confidence_score'] ?? null;
-
-        $feedback->sentimentResult()->create([
-            'sentiment_label' => $label,
-            'confidence_score' => $confidence,
+        // Analysis can remain pending without losing the saved review.
+        if (isset($result['sentiment_label'], $result['confidence_score'])) $feedback->sentimentResult()->create([
+            'sentiment_label' => $result['sentiment_label'],
+            'confidence_score' => $result['confidence_score'],
             'analyzed_at' => now(),
         ]);
+      } catch (\Throwable $exception) {
+        \Illuminate\Support\Facades\Log::warning('Review saved; sentiment analysis remains pending.', ['feedback_id' => $feedback->feedback_id]);
+      }
     }
 
     return redirect()->back()->with('success', 'Feedback submitted.');

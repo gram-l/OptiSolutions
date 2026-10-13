@@ -47,7 +47,7 @@ Route::get('/services', [ServiceController::class, 'index']);
 Route::get('/clinic-info', [ClinicInfoController::class, 'index']);
 Route::post('/schedule-visit', [AppointmentController::class, 'store']);
 Route::post('/complaints', [ComplaintController::class, 'store']);
-Route::post('/feedback', [FeedbackController::class, 'store']);
+Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:10,1');
 //Route::post('/chatbot-logs', [ChatbotLogController::class, 'store']);
 
 Route::prefix('charts')->group(function () {

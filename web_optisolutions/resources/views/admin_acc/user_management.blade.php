@@ -22,22 +22,6 @@
                 <p>Manage staff accounts, roles, and permissions</p>
             </div>
 
-            <!-- Stats Bar -->
-            <div class="stats-bar">
-                <div class="stat-card">
-                    <div class="stat-number" id="totalUsers">{{ $stats['total'] }}</div>
-                    <div class="stat-label">Total Staff</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="activeUsers">{{ $stats['active'] }}</div>
-                    <div class="stat-label">Active Accounts</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="adminCount">{{ $stats['admins'] }}</div>
-                    <div class="stat-label">Administrators</div>
-                </div>
-            </div>
-
             <!-- Action Bar -->
             <div class="action-bar">
                 <input type="text" class="search-box" id="searchInput" placeholder="Search by name or email...">
@@ -245,13 +229,6 @@
                 }).join('');
             }
 
-            updateStats();
-        }
-
-        function updateStats() {
-            document.getElementById('totalUsers').innerText  = usersData.length;
-            document.getElementById('activeUsers').innerText = usersData.filter(u => u.status === 'active').length;
-            document.getElementById('adminCount').innerText  = usersData.filter(u => u.user_role === 'Admin').length;
         }
 
         function openAddModal() {

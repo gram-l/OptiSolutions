@@ -107,3 +107,28 @@
     :is(.admin-dashboard, .dash-page) .sentiment-value { width: auto; font-size: 0.8rem; }
 }
 </style>
+<script>
+(() => {
+    function updateChartTheme() {
+        if (!window.Chart) return;
+        const dark = document.body.classList.contains('dark-mode');
+        const text = dark ? '#c8d5e5' : '#66727f';
+        const grid = dark ? '#344155' : '#e5e7eb';
+        Chart.defaults.color = text;
+        document.querySelectorAll('canvas').forEach(canvas => {
+            const chart = Chart.getChart(canvas);
+            if (!chart) return;
+            if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = text;
+            Object.values(chart.options.scales || {}).forEach(scale => {
+                if (scale.ticks) scale.ticks.color = text;
+                if (scale.grid) scale.grid.color = grid;
+                if (scale.border) scale.border.color = grid;
+                if (scale.title) scale.title.color = text;
+            });
+            chart.update('none');
+        });
+    }
+    document.addEventListener('DOMContentLoaded', () => requestAnimationFrame(updateChartTheme));
+    new MutationObserver(() => requestAnimationFrame(updateChartTheme)).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
+</script>

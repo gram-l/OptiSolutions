@@ -58,6 +58,8 @@ public function apiIndex(Request $request)
                 'schedule_visit.notes',
                 'schedule_visit.visited',
                 'schedule_visit.review_pass_sent_at',
+                'schedule_visit.visit_time',
+                'schedule_visit.visit_end_time',
                 'schedule_visit.scheduled_at',
                 'doctors.doctor_name',
                 DB::raw("CONCAT(patients.patient_fname, ' ', patients.patient_lname) as patient_name")
@@ -98,6 +100,7 @@ public function apiIndex(Request $request)
     // rather than always requiring visit_date.
     public function update(Request $request, $id)
     {
+        if ($request->has('visit_date')) return app(\App\Http\Controllers\VisitRescheduleController::class)->store($request, (int) $id);
         $validated = $request->validate([
             'visit_date' => 'sometimes|required|date',
             'notes' => 'sometimes|nullable|string|max:1000',

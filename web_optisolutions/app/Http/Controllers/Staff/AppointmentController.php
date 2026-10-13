@@ -26,6 +26,8 @@ class AppointmentController extends Controller
                 'schedule_visit.notes',
                 'schedule_visit.visited',
                 'schedule_visit.review_pass_sent_at',
+                'schedule_visit.visit_time',
+                'schedule_visit.visit_end_time',
                 DB::raw("TRIM(CONCAT(patients.patient_fname, ' ', patients.patient_lname)) as patient_name")
             )
             ->orderBy('schedule_visit.visit_date')
@@ -56,7 +58,7 @@ class AppointmentController extends Controller
      * Export every scheduled visit grouped by date.
      * Format is one of: csv, xlsx, pdf.
      */
-    public function export($format)
+    public function export(Request $request, $format)
     {
         $appointments = DB::table('schedule_visit')
             ->leftJoin('doctors', 'schedule_visit.doctor_id', '=', 'doctors.doctor_id')
@@ -65,6 +67,7 @@ class AppointmentController extends Controller
                 'schedule_visit.visit_id',
                 'schedule_visit.visit_date',
                 'schedule_visit.visited',
+                'schedule_visit.notes',
                 'doctors.doctor_name as doctor_name',
                 DB::raw('COALESCE(schedule_visit.service_type, doctors.specialty) as service'),
                 DB::raw("TRIM(CONCAT(patients.patient_fname, ' ', patients.patient_lname)) as patient_name")
@@ -72,6 +75,17 @@ class AppointmentController extends Controller
             ->orderBy('schedule_visit.visit_date')
             ->orderBy('schedule_visit.visit_id')
             ->get();
+
+        $appointments = $appointments->filter(function ($visit) use ($request) {
+            $date = $request->query('date', '');
+            $doctor = $request->query('doctor', '');
+            $service = $request->query('service', '');
+            $search = mb_strtolower(trim($request->query('search', '')));
+            return (!$date || Carbon::parse($visit->visit_date)->format('Y-m-d') === $date)
+                && (!$doctor || $visit->doctor_name === $doctor)
+                && (!$service || mb_strtolower($visit->service ?? '') === $service)
+                && str_contains(mb_strtolower(implode(' ', [$visit->patient_name, $visit->doctor_name, $visit->service, $visit->notes ?? ''])), $search);
+        });
 
         // Group all visits under their date (Y-m-d), so every patient who
         // booked on the same day ends up listed together.
@@ -111,7 +125,7 @@ class AppointmentController extends Controller
                         $visit->patient_name ?: 'N/A',
                         $visit->doctor_name ?? 'N/A',
                         $visit->service ?? 'N/A',
-                        $visit->visited ? 'Yes' : 'No',
+                        \App\Services\VisitReviewService::attendanceLabel($visit),
                     ]);
                 }
 
@@ -150,7 +164,7 @@ class AppointmentController extends Controller
                     . '<td>' . e($visit->patient_name ?: 'N/A') . '</td>'
                     . '<td>' . e($visit->doctor_name ?? 'N/A') . '</td>'
                     . '<td>' . e($visit->service ?? 'N/A') . '</td>'
-                    . '<td>' . ($visit->visited ? 'Yes' : 'No') . '</td>'
+                    . '<td>' . \App\Services\VisitReviewService::attendanceLabel($visit) . '</td>'
                     . '</tr>';
             }
 

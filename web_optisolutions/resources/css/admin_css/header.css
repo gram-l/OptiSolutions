@@ -457,3 +457,94 @@ img {
         border-radius: 14px;
     }
 }
+/* Unified admin/staff dark palette, including dynamically rendered content. */
+.clinic-logo-dark { display: none !important; }
+body.dark-mode .clinic-logo-light { display: none !important; }
+body.dark-mode .clinic-logo-dark { display: block !important; }
+body.dark-mode {
+    --white: #1a2232; --light-gray: #293548; --text-dark: #e7edf5;
+    --text-light: #afbdce; --primary-dark: #e7edf5; --shadow: rgba(0,0,0,.25);
+    color-scheme: dark; background: #101622 !important; color: #e7edf5;
+}
+body.dark-mode :is(.header, .sidebar, .dropdown, .profile-menu, .notif-panel, .notifications-panel,
+    .filter-bar, .stat-card, .chart-card, .analytics-card, .pattern-card, .doctor-card, .feedback-section,
+    .patients-table-container, .users-table-container, .table-container, .data-table, .feedback-table,
+    .patients-table, .users-table, .inquiries-container, .chat-list, .chat-conversation,
+    .chat-conversation-header, .reply-area, .modal-content, .modal-box, .notes-modal-content,
+    .visit-message-dialog, .profile-modal, .settings-modal, .settings-panel, .settings-panel-header,
+    .inq-sidebar, .inq-main, .inq-header, .inq-reply, .inq-container) {
+    background: #1a2232 !important; color: #e7edf5 !important; border-color: #344155 !important;
+}
+body.dark-mode :is(.messages-area, .chat-messages, .inq-messages, .schedule-info, .top-complaint-box,
+    .day-block, .settings-nav, .settings-sidebar, .chat-list-header, .info-modal-field,
+    .download-menu, .settings-toggle-row, .settings-row, .notif-item, .patient-details) {
+    background: #222d3e !important; border-color: #344155 !important;
+}
+body.dark-mode :is(table, tbody, tr, td) { color: #e7edf5 !important; border-color: #344155 !important; }
+body.dark-mode :is(.data-table, .patients-table, .users-table, .feedback-table, .visit-history-table) :is(tbody, tr, td) {
+    background: #1a2232 !important;
+}
+body.dark-mode :is(table th, .table-header) { background: #293548 !important; color: #e7edf5 !important; border-color: #344155 !important; }
+body.dark-mode :is(.data-table, .patients-table, .users-table, .feedback-table) tr:hover > td { background: #25344a !important; }
+body.dark-mode :is(h1,h2,h3,h4,h5, .doctor-name, .schedule-title, .chart-title, .analytics-title,
+    .pattern-header, .section-title, .chat-list-header-top, .patient-details strong, .message-sender,
+    .inq-name, .inq-title, .top-complaint-label, .settings-row-label, .settings-content-title,
+    .modal-header, .info-modal-value, .info-list .value) { color: #e7edf5 !important; }
+body.dark-mode :is(.page-subtitle, .page-header p, .doctor-description, .doctor-specialty,
+    .schedule-text, .chart-subtitle, .stat-label, .stat-subtitle, .top-complaint-text,
+    .message-time, .settings-row-desc, .settings-item-desc, .settings-pane-header p,
+    .info-modal-label, .visit-ratings-note, .visit-rating-count, .empty-state) { color: #afbdce !important; }
+body.dark-mode :is(.stat-number, .stat-value, .analytics-value, .positive, .neutral,
+    .negative, .sentiment-value, .donut-legend-label, .visit-rating-score) { color: #8bc9ff !important; }
+body.dark-mode :is(input:not([type=checkbox]):not([type=radio]):not([type=submit]), select, textarea) {
+    background: #222d3e !important; color: #e7edf5 !important; border-color: #45556e !important;
+}
+body.dark-mode :is(input,textarea)::placeholder { color: #a2b1c5 !important; opacity: 1; }
+body.dark-mode :is(input,select,textarea,button,a):focus-visible { outline: 2px solid #8bc9ff; outline-offset: 2px; }
+body.dark-mode :is(.message-bubble, .message-content, .chat-bubble, .inq-bubble) {
+    background: #263449 !important; color: #e7edf5 !important; border-color: #45556e !important;
+}
+body.dark-mode :is(.nav-item.active, .settings-nav-item.active, .chat-item.active) { background: #155e9c !important; color: #fff !important; }
+body.dark-mode :is(.nav-item.active, .settings-nav-item.active) i { color: #fff !important; }
+body.dark-mode :is(.welcome-banner, .welcome-banner h2, .welcome-banner p, .welcome-banner i) { color: #fff !important; }
+body.dark-mode :is(.btn-edit, .btn-view, .btn-reschedule, .notes-modal-btn-cancel, .btn-settings-outline,
+    .page-btn, .back-to-list-btn, .settings-mobile-back, .btn-today, .btn-clear) {
+    background: #263e5e !important; color: #b6dbff !important; border-color: #45556e !important;
+}
+body.dark-mode :is(.btn-remove, .btn-delete, .btn-cancel, .selection-delete-btn) { background: #4a2831 !important; color: #ffb9c1 !important; }
+body.dark-mode :is(.btn-deactivate, .status-pending) { background: #443826 !important; color: #ffd98b !important; }
+body.dark-mode :is(.status-active, .status-available, .resolve-btn-modern) { background: #1d4039 !important; color: #8ce3ba !important; }
+body.dark-mode :is(.sentiment-positive,.sentiment-neutral,.sentiment-negative) { background: #263e5e !important; color: #b6dbff !important; }
+body.dark-mode .bar-container { background: #344155 !important; }
+body.dark-mode .fill-negative { background: #8bc9ff !important; }
+body.dark-mode :is(.settings-overlay,.profile-modal-overlay,.modal-overlay) { background-color: rgba(3,8,16,.75); }
+/* Legacy inline backgrounds used by empty states and dynamically built cards. */
+body.dark-mode :is(.main-content,.container,.content,.inquiries-container) [style*="background: white"],
+body.dark-mode :is(.main-content,.container,.content) [style*="background: #fff"],
+body.dark-mode :is(.main-content,.container,.content) [style*="background:#fff"] { background: #1a2232 !important; color: #e7edf5 !important; }
+body.dark-mode :is(.conv-list-panel,.conv-detail-panel,.conv-list,.conv-item,.conv-detail-empty,
+    .content-card,.summary-card,.service-card,.hours-card,.toolbar,.form-card,.card,.card-header,.card-body) { background: #1a2232 !important; color: #e7edf5 !important; border-color: #344155 !important; }
+body.dark-mode :is(.conv-item-active,.conv-item:hover) { background: #253b56 !important; }
+body.dark-mode :is(.conv-list-title,.conv-item-name,.inq-message-sender,.chat-avatar,.conv-avatar) { color: #e7edf5 !important; }
+body.dark-mode :is(.inq-message-content,.inq-message) { background: #263449 !important; color: #e7edf5 !important; border-color: #45556e !important; }
+body.dark-mode :is(.conv-item-id,.conv-item-date,.inq-message-time,.visit-message-dialog p) { color: #afbdce !important; }
+body.dark-mode :is(.profile-modal-bio,.profile-modal-email,.profile-modal-field-value,.form-group label,.form-control) { color: #e7edf5 !important; }
+body.dark-mode :is(.visit-message-cancel,.filter-btn,.btn-outline-secondary,.btn-secondary,.select-mode-btn) { background: #293b53 !important; color: #c8d5e5 !important; border-color: #45556e !important; }
+body.dark-mode :is(.notes-modal,.modal) [style*="color:#7f8c8d"] { color: #afbdce !important; }
+body.dark-mode .header .logo-section { color: #e7edf5 !important; }
+body.dark-mode .message-staff { background: #155e9c !important; color: #fff !important; }
+/* Complete notification panels and secondary appointment/account controls. */
+body.dark-mode :is(.notif-panel-header,.notif-toolbar,.notif-list-scroll,.notif-group,.notif-row,.notif-row.read) { background: #1a2232 !important; color: #e7edf5 !important; border-color: #344155 !important; }
+body.dark-mode .notif-row.unread { background: #24344b !important; }
+body.dark-mode .notif-row:hover { background: #2c405b !important; }
+body.dark-mode :is(.notif-title,.notif-row-title,.notif-title-line,.notif-title-line strong) { color: #e7edf5 !important; }
+body.dark-mode :is(.notif-message,.notif-desc,.notif-row-message,.notif-time,.notif-meta-line,.notif-group-label) { color: #b2c1d4 !important; }
+body.dark-mode :is(.notif-meta-tag,.tab-count) { background: #344155 !important; color: #d3e3f5 !important; }
+body.dark-mode :is(.notif-tab,.mark-all-link,.mark-read-link,.notif-mark-read,.notif-read-btn) { color: #9cd2ff !important; }
+body.dark-mode .notif-icon { background: #304f6f !important; color: #c3e2ff !important; }
+body.dark-mode :is(.today-btn,.day-nav-btn,.date-nav-btn,.date-btn,.nav-btn,.btn-activate) { background: #263e5e !important; color: #b6dbff !important; border-color: #45556e !important; }
+body.dark-mode :is(.download-btn,.add-doctor-btn,.add-patient-btn,.add-user-btn,.btn-primary) { color: #fff !important; }
+body.dark-mode .download-btn i { color: #fff !important; }
+body.dark-mode :is(.role-admin,.role-doctor) { background: #443826 !important; color: #ffd98b !important; }
+body.dark-mode :is(.role-staff,.role-nurse) { background: #363050 !important; color: #dec6ff !important; }
+body.dark-mode .status-inactive { background: #4a2831 !important; color: #ffb9c1 !important; }

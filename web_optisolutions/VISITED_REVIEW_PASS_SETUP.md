@@ -1,5 +1,12 @@
 # Completed visits and review passes: Admin and Staff
 
+Admin and Staff can reschedule an uncompleted visit using that visit's doctor's weekday/time slots. The date must be in the future (or today before the selected slot starts), the doctor must be available, and the patient must have a valid email. Start/end times are saved separately and an updated visit email is sent. If SMTP fails, the saved change is retained and the dialog offers Retry email; staff must close the dialog to refresh the page after completion. Apply the additive time migration before using the updated visit pages:
+
+```bash
+php artisan migrate --path=database/migrations/2026_10_14_000001_add_visit_times_to_schedule_visit.php --force
+php artisan view:clear
+```
+
 Admin and Staff Scheduled Visits pages have a Visited column. Mark visited confirms attendance for a visit dated today or earlier, records completion, generates a private transaction code, and sends it to the patient's saved email address. A valid email is required. Existing records start as not visited; past dates alone do not imply attendance.
 
 One code is stored per visit, encrypted at rest, with a separate SHA-256 hash for later verification. Retries reuse that code. Completed visits cannot be removed or rescheduled through the Admin page, preserving their doctor/service association. Notes can still be edited. A failed email does not reverse attendance: the page shows Email not sent and offers Retry email.

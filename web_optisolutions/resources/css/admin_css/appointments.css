@@ -559,3 +559,22 @@
     .visit-message-dialog { padding: 1.25rem; border-radius: 14px; }
     .visit-message-actions button { flex: 1; padding: 0.65rem 0.8rem; }
 }
+/* Keep appointment rows readable in dark mode on desktop and mobile. */
+body.dark-mode .appointments-table,
+body.dark-mode .appointments-table :is(tbody, tr, td) {
+    background: #1a2232 !important;
+    color: #e7edf5 !important;
+    border-color: #344155 !important;
+}
+body.dark-mode .appointments-table tr:hover > td { background: #25344a !important; }
+body.dark-mode .appointments-table th { background: #293548 !important; color: #e7edf5 !important; }
+body.dark-mode .appointments-table td small { color: #afbdce !important; }
+/* Search and doctor filters fit alongside existing visit controls. */
+.filter-group { flex-wrap: wrap; }
+.visit-search { min-width: 180px; max-width: 100%; }
+.visited-cell .btn-sm { display: block; margin-top: 0.4rem; }
+@media (max-width: 768px) {
+    .filter-group .visit-search, .filter-group #doctorFilter { width: 100%; min-width: 0; }
+}
+.visit-no-show { display: block; color: #b45309; font-weight: 600; } body.dark-mode .visit-no-show { color: #ffd98b; }
+.visit-reschedule-dialog { text-align: left; max-height: 85dvh; overflow-y: auto; } .visit-reschedule-dialog label { display: block; margin-top: 1rem; font-weight: 600; } .visit-reschedule-dialog input, .visit-reschedule-dialog select { width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid #b8c4d2; margin: 0.35rem 0 0.6rem; }

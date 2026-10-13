@@ -204,6 +204,8 @@
 
         <div class="filter-bar">
             <div class="filter-group">
+                <input type="search" class="search-box visit-search" id="visitSearch" placeholder="Search patient, doctor or notes" aria-label="Search scheduled visits">
+                <select class="filter-select" id="doctorFilter" aria-label="Filter by doctor"><option value="all">All Doctors</option></select>
                 <select class="filter-select" id="serviceFilter">
                     <option value="all">All Services</option>
                 </select>
@@ -371,6 +373,7 @@
                 }
                 visitsData = data.visits;
                 populateServiceFilter();
+                populateDoctorFilter();
                 renderDay();
             } catch (e) {
                 container.innerHTML = '<div style="text-align:center;padding:3rem;background:#fff;border-radius:16px;">Could not reach the server. Please try again.</div>';
@@ -386,9 +389,21 @@
             if (services.includes(current)) select.value = current;
         }
 
+        function populateDoctorFilter() {
+            const select = document.getElementById('doctorFilter');
+            const current = select.value;
+            const doctors = [...new Set(visitsData.map(v => v.doctor_name).filter(Boolean))].sort();
+            select.replaceChildren(new Option('All Doctors', 'all'), ...doctors.map(name => new Option(name, name)));
+            select.value = doctors.includes(current) ? current : 'all';
+        }
+
         function getFiltered() {
             const serviceFilter = document.getElementById('serviceFilter').value;
-            return visitsData.filter(v => serviceFilter === 'all' || v.service_type === serviceFilter);
+            const doctor = document.getElementById('doctorFilter').value;
+            const search = document.getElementById('visitSearch').value.trim().toLowerCase();
+            return visitsData.filter(v => (serviceFilter === 'all' || v.service_type === serviceFilter)
+                && (doctor === 'all' || v.doctor_name === doctor)
+                && [v.patient_name, v.doctor_name, v.service_type, v.notes].some(value => String(value || '').toLowerCase().includes(search)));
         }
 
         function updateStats(filtered) {
@@ -402,6 +417,16 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function philippineDate() {
+            const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+            const value = type => parts.find(part => part.type === type).value;
+            return `${value('year')}-${value('month')}-${value('day')}`;
+        }
+
+        function visitAttendance(v) {
+            return Number(v.visited) === 1 ? 'Visited' : (v.visit_date && String(v.visit_date).slice(0, 10) < philippineDate() ? 'Did not visit' : 'Pending');
         }
 
         function renderDay() {
@@ -425,13 +450,14 @@
                                     <td><strong>${escapeHtml(v.patient_name || 'Unknown patient')}</strong></td>
                                     <td>${escapeHtml(v.doctor_name || '—')}</td>
                                     <td>${escapeHtml(v.service_type || '—')}</td>
-                                    <td><small style="color:#7f8c8d">${formatBookedAt(v.scheduled_at)}</small></td>
+                                    <td><small style="color:#7f8c8d">${v.visit_time ? escapeHtml(v.visit_date + ' ' + v.visit_time.slice(0, 5) + ' – ' + (v.visit_end_time || '').slice(0, 5)) : formatBookedAt(v.scheduled_at)}</small></td>
                                     <td>${escapeHtml((v.notes || '').length > 40 ? v.notes.substring(0, 40) + '...' : (v.notes || '—'))}</td>
-                                    <td>${Number(v.visited) === 1 ? '<strong style="color:#15803d">Visited</strong><br><small>' + (v.review_pass_sent_at ? 'Review pass emailed' : 'Email not sent') + '</small>' : 'Not visited'}</td>
-                                    <td class="action-buttons">
+                                    <td class="visited-cell">${Number(v.visited) === 1 ? '<strong style="color:#15803d">Visited</strong><br><small>' + (v.review_pass_sent_at ? 'Review pass emailed' : 'Email not sent') + '</small>' : (visitAttendance(v) === 'Did not visit' ? '<span class="visit-no-show">Did not visit</span>' : '')}
                                         ${Number(v.visited) !== 1 || !v.review_pass_sent_at ? `<button class="btn-sm btn-edit" onclick="markVisited(${v.visit_id}, this)">${Number(v.visited) === 1 ? 'Retry email' : 'Mark visited'}</button>` : ''}
+                                    </td>
+                                    <td class="action-buttons">
                                         <button class="btn-sm btn-edit" onclick="openEditNotesModal(${v.visit_id})"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
-                                        ${Number(v.visited) !== 1 ? `<button class="btn-sm btn-reschedule" onclick="openRescheduleModal(${v.visit_id})"><i class="fa-regular fa-calendar-xmark"></i> Reschedule</button><button class="btn-sm btn-cancel" onclick="cancelAppointment(${v.visit_id})"><i class="fa-solid fa-trash"></i> Remove</button>` : ''}
+                                        ${Number(v.visited) !== 1 ? `<button class="btn-sm btn-reschedule" onclick="openVisitReschedule(${v.visit_id})"><i class="fa-regular fa-calendar-xmark"></i> Reschedule</button><button class="btn-sm btn-cancel" onclick="cancelAppointment(${v.visit_id})"><i class="fa-solid fa-trash"></i> Remove</button>` : ''}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -664,7 +690,7 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
                 Service: v.service_type || '—',
                 'Scheduled At': formatBookedAt(v.scheduled_at),
                 Notes: v.notes || '',
-                Visited: Number(v.visited) === 1 ? 'Yes' : 'No',
+                Visited: visitAttendance(v),
             }));
         }
 
@@ -734,6 +760,16 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         });
 
         document.getElementById('serviceFilter').addEventListener('change', () => renderDay());
+        document.getElementById('doctorFilter').addEventListener('change', () => renderDay());
+        document.getElementById('visitSearch').addEventListener('input', () => renderDay());
+        let attendanceDate = philippineDate();
+        setInterval(() => {
+            const date = philippineDate();
+            if (date !== attendanceDate) {
+                attendanceDate = date;
+                renderDay();
+            }
+        }, 60000);
         document.getElementById('prevDayBtn').addEventListener('click', () => goToDayWithVisits(-1));
         document.getElementById('nextDayBtn').addEventListener('click', () => goToDayWithVisits(1));
         document.getElementById('todayBtn').addEventListener('click', () => { currentDate = todayStr(); loadDay(); });
@@ -750,5 +786,6 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
 
         loadDay();
     </script>
+@include('partials.visit-reschedule', ['rescheduleBase' => '/admin_acc/appointments'])
 </body>
 </html>

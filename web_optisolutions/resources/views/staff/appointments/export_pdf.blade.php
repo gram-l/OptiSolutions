@@ -38,7 +38,7 @@
                         <td>{{ $visit->patient_name ?: 'N/A' }}</td>
                         <td>{{ $visit->doctor_name ?? 'N/A' }}</td>
                         <td>{{ $visit->service ?? 'N/A' }}</td>
-                        <td>{{ $visit->visited ? 'Yes' : 'No' }}</td>
+                        <td>{{ \App\Services\VisitReviewService::attendanceLabel($visit) }}</td>
                     </tr>
                 @endforeach
             </tbody>

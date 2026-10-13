@@ -270,6 +270,13 @@
     @endphp
 
     <div class="visits-filter-bar">
+        <input type="search" id="visitSearch" class="search-box visit-search" placeholder="Search patient, doctor or notes" aria-label="Search scheduled visits" oninput="filterVisitsTable()">
+        <select id="doctorFilter" aria-label="Filter by doctor" onchange="filterVisitsTable()">
+            <option value="">All Doctors</option>
+            @foreach($appointments->pluck('doctor_name')->filter()->unique()->sort() as $doctorName)
+                <option value="{{ $doctorName }}">{{ $doctorName }}</option>
+            @endforeach
+        </select>
         <select id="serviceFilter" onchange="filterVisitsTable()">
             <option value="">All Services</option>
             @foreach($services as $service)
@@ -338,9 +345,11 @@
                 @foreach($appointments as $apt)
                 @php
                     $visitDate = \Carbon\Carbon::parse($apt->visit_date)->format('Y-m-d');
-                    $scheduledAt = \Carbon\Carbon::parse($apt->visit_date)->format('M j, g:i A');
+                    $scheduledAt = $apt->visit_time
+                        ? \Carbon\Carbon::parse($apt->visit_date . ' ' . $apt->visit_time)->format('M j, g:i A') . ' – ' . \Carbon\Carbon::parse($apt->visit_end_time)->format('g:i A')
+                        : \Carbon\Carbon::parse($apt->visit_date)->format('M j, g:i A');
                 @endphp
-                <tr data-date="{{ $visitDate }}" data-service="{{ strtolower($apt->service ?? '') }}">
+                <tr data-visited="{{ $apt->visited ? '1' : '0' }}" data-date="{{ $visitDate }}" data-service="{{ strtolower($apt->service ?? '') }}" data-doctor="{{ $apt->doctor_name ?? '' }}" data-search="{{ strtolower(implode(' ', [$apt->patient_name, $apt->doctor_name, $apt->service, $apt->notes])) }}">
                     <td data-label="Patient">{{ $apt->patient_name ?: 'N/A' }}</td>
                     <td data-label="Doctor">{{ $apt->doctor_name ?? 'N/A' }}</td>
                     <td data-label="Service">{{ $apt->service ?? 'N/A' }}</td>
@@ -350,12 +359,15 @@
                         @if($apt->visited)
                             <strong style="color:#15803d">Visited</strong><br><small>{{ $apt->review_pass_sent_at ? 'Review pass emailed' : 'Email not sent' }}</small>
                         @else
-                            Not visited
+                            <span class="visit-no-show">{{ \App\Services\VisitReviewService::attendanceLabel($apt) === 'Did not visit' ? 'Did not visit' : '' }}</span>
+                        @endif
+                        @if(!$apt->visited || !$apt->review_pass_sent_at)
+                            <button type="button" class="btn-edit-notes" onclick="markVisitCompleted({{ $apt->visit_id }}, this)">{{ $apt->visited ? 'Retry email' : 'Mark visited' }}</button>
                         @endif
                     </td>
                     <td data-label="" class="table-cards-actions">
-                        @if(!$apt->visited || !$apt->review_pass_sent_at)
-                            <button type="button" class="btn-edit-notes" onclick="markVisitCompleted({{ $apt->visit_id }}, this)">{{ $apt->visited ? 'Retry email' : 'Mark visited' }}</button>
+                        @if(!$apt->visited)
+                            <button type="button" class="btn-edit-notes" onclick="openVisitReschedule({{ $apt->visit_id }})"><i class="bi bi-calendar-event"></i> Reschedule</button>
                         @endif
                         <button
                             type="button"
@@ -469,6 +481,11 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
             });
             if (data.success) {
                 document.getElementById(`visitedText-${id}`).innerHTML = '<strong style="color:#15803d">Visited</strong><br><small>' + (data.email_sent ? 'Review pass emailed' : 'Email not sent') + '</small>';
+                document.getElementById(`visitedText-${id}`).closest('tr').dataset.visited = '1';
+                if (!data.email_sent) {
+                    button.textContent = 'Retry email';
+                    document.getElementById(`visitedText-${id}`).appendChild(button);
+                }
                 if (data.email_sent) button.remove();
                 else button.textContent = 'Retry email';
             }
@@ -495,6 +512,9 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
             .then(data => {
                 if (data.success) {
                     document.getElementById(`notesText-${currentNotesVisitId}`).textContent = notes || '—';
+                    const row = document.getElementById(`notesText-${currentNotesVisitId}`).closest('tr');
+                    row.dataset.search = [row.cells[0].textContent, row.dataset.doctor, row.dataset.service, notes].join(' ').toLowerCase();
+                    filterVisitsTable();
                     closeNotesModal();
                 } else {
                     alert('Could not save notes. Please try again.');
@@ -561,6 +581,8 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
     function clearVisitFilters() {
         document.getElementById('visitDate').value = '';
         document.getElementById('serviceFilter').value = '';
+        document.getElementById('doctorFilter').value = '';
+        document.getElementById('visitSearch').value = '';
         handleDateInputChange();
     }
 
@@ -582,6 +604,13 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
     function filterVisitsTable() {
         const selectedDate = document.getElementById('visitDate').value;
         const serviceFilter = document.getElementById('serviceFilter').value;
+        const doctor = document.getElementById('doctorFilter').value;
+        const search = document.getElementById('visitSearch').value.trim().toLowerCase();
+        document.querySelectorAll('#exportMenu a').forEach(link => {
+            const url = new URL(link.href);
+            url.search = new URLSearchParams({ date: selectedDate, service: serviceFilter, doctor, search }).toString();
+            link.href = url.toString();
+        });
 
         const table = document.getElementById('visitsTable');
         if (!table) return;
@@ -598,7 +627,8 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
             const matchesDate = !selectedDate || rowDate === selectedDate;
             const matchesService = serviceFilter === '' || rowService === serviceFilter;
 
-            const isMatch = matchesDate && matchesService;
+            const isMatch = matchesDate && matchesService && (!doctor || row.dataset.doctor === doctor)
+                && (row.dataset.search || '').includes(search);
             row.style.display = isMatch ? '' : 'none';
             if (isMatch) visibleCount++;
         }
@@ -613,5 +643,19 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
     updateDateLabel();
     updateTodayButtonState();
     filterVisitsTable();
+    function refreshVisitAttendance() {
+        const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+        const value = type => parts.find(part => part.type === type).value;
+        const today = `${value('year')}-${value('month')}-${value('day')}`;
+        document.querySelectorAll('#visitsTable tbody tr[data-visited="0"]').forEach(row => {
+            const label = row.querySelector('.visit-no-show');
+            if (label) label.textContent = row.dataset.date && row.dataset.date < today ? 'Did not visit' : '';
+        });
+    }
+    refreshVisitAttendance();
+    setInterval(refreshVisitAttendance, 60000);
 </script>
 @endsection
+@push('scripts')
+@include('partials.visit-reschedule', ['rescheduleBase' => '/staff/appointments'])
+@endpush

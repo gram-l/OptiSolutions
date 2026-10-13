@@ -79,6 +79,8 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
     Route::get('/admin_acc/appointments/visit-dates', [VisitController::class, 'visitDates']);
     Route::post('/admin_acc/appointments/{id}/visited', [\App\Http\Controllers\VisitCompletionController::class, 'store'])->middleware('throttle:20,1');
     Route::put('/admin_acc/appointments/{id}', [VisitController::class, 'update']);
+    Route::get('/admin_acc/appointments/{id}/schedules', [\App\Http\Controllers\VisitRescheduleController::class, 'schedules']);
+    Route::post('/admin_acc/appointments/{id}/reschedule', [\App\Http\Controllers\VisitRescheduleController::class, 'store'])->middleware('throttle:10,1');
     Route::delete('/admin_acc/appointments/{id}', [VisitController::class, 'destroy']);
 
     Route::get('/admin_acc/doctors', [DoctorController::class, 'index']);

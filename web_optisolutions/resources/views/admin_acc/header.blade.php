@@ -1,4 +1,13 @@
 <header class="header">
+    <script>
+    window.addEventListener('storage', event => {
+        if (event.key !== 'admin_dark_mode') return;
+        const dark = event.newValue === '1';
+        document.body.classList.toggle('dark-mode', dark);
+        const toggle = document.getElementById('darkModeToggle');
+        if (toggle) toggle.checked = dark;
+    });
+    </script>
 
     <div class="header-left">
         <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu">
@@ -7,7 +16,8 @@
 
         {{-- Logo --}}
         <a class="logo-section" href="/admin_acc/dashboard">
-            <img src="{{ asset('images/polyclinic_logo.png') }}" alt="Polyclinic Logo">
+            <img class="clinic-logo-light" src="{{ asset('images/polyclinic_logo.png') }}" alt="Polyclinic Logo">
+            <img class="clinic-logo-dark" src="{{ asset('images/polyclinic_logo_dark.png') }}" alt="Polyclinic Logo">
             <h1>Polyclinic Admin</h1>
         </a>
     </div>

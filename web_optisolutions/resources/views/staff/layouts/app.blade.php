@@ -15,6 +15,13 @@
         if (localStorage.getItem('staffDarkMode') === 'true') {
             document.body.classList.add('dark-mode');
         }
+        window.addEventListener('storage', event => {
+            if (event.key !== 'staffDarkMode') return;
+            const dark = event.newValue === 'true';
+            document.body.classList.toggle('dark-mode', dark);
+            const toggle = document.getElementById('darkModeToggle');
+            if (toggle) toggle.checked = dark;
+        });
 
         if (localStorage.getItem('staffSidebarCollapsed') === 'true') {
             document.body.classList.add('sidebar-collapsed');
@@ -28,7 +35,8 @@
                 <i class="bi bi-list"></i>
             </button>
             <div class="logo-section">
-                <img src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: cover;">
+                <img class="clinic-logo-light" src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
+                <img class="clinic-logo-dark" src="{{ asset('images/polyclinic_logo_dark.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
                 <h1>PolyClinic Staff</h1>
             </div>
         </div>

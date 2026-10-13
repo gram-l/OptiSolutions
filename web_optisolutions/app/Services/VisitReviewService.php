@@ -11,6 +11,13 @@ class VisitReviewService
 {
     public const CODE_PATTERN = '/^(?:[A-Z0-9]{20}|[A-F0-9]{32})$/';
 
+    public static function attendanceLabel(object $visit): string
+    {
+        if ($visit->visited) return 'Visited';
+        if ($visit->visit_date && \Carbon\Carbon::parse($visit->visit_date, 'Asia/Manila')->toDateString() < now('Asia/Manila')->toDateString()) return 'Did not visit';
+        return 'Pending';
+    }
+
     public static function generateCode(): string
     {
         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

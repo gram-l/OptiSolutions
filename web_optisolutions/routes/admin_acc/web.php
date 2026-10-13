@@ -3,6 +3,7 @@
 //admin_acc/web.php
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
+use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
@@ -139,11 +140,14 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
     });
 
     // Settings > Security — password & session (Settings modal forms)
-    Route::put('/admin_acc/profile/password', [ProfileController::class, 'updatePassword'])
+    Route::put('/admin_acc/profile/password', [AccountSettingsController::class, 'password'])
         ->name('admin.profile.password');
 
-    Route::put('/admin_acc/profile/session', [ProfileController::class, 'updateSession'])
+    Route::put('/admin_acc/profile/session', [AccountSettingsController::class, 'session'])
         ->name('admin.profile.session');
+
+    Route::post('/admin_acc/profile/activity', [AccountSettingsController::class, 'activity'])->name('admin.profile.activity');
+    Route::post('/admin_acc/profile/cache', [AccountSettingsController::class, 'clearCache'])->name('admin.profile.cache')->middleware('throttle:6,1');
 
     Route::get('admin_acc/feedback/diagnose', [FeedbackController::class, 'diagnoseRootCauses']);
 
@@ -163,25 +167,13 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
         ->name('admin.patients.export');
 
     // notification routes
+    Route::get('/admin_acc/notification-preferences', [NotificationController::class, 'preferences']);
+    Route::put('/admin_acc/notification-preferences', [NotificationController::class, 'savePreferences']);
     Route::get('/admin_acc/notifications', [NotificationController::class, 'index']);
     Route::get('/admin_acc/notifications/api', [NotificationController::class, 'apiIndex']);
     Route::post('/admin_acc/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 
-
-    //settings
-
-    Route::put('/admin_acc/profile/password', [ProfileController::class, 'updatePassword'])
-        ->name('admin.profile.password');
-
-    Route::put('/admin_acc/profile/session', [ProfileController::class, 'updateSession'])
-        ->name('admin.profile.session');
-
-
-    Route::get('/admin_acc/patients/export', [PatientListController::class, 'export'])
-        ->name('admin.patients.export');
-
-    Route::post('/admin_acc/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 
     //chatbot logs bulk delete route
     Route::delete('/admin_acc/chatbot_logs/bulk-delete', [ChatbotInquiryController::class, 'bulkDestroy'])

@@ -20,7 +20,8 @@ class LoginController extends Controller
             $user = Auth::user();
 
             // Record accurate last login timestamp
-            $user->update(['last_login_at' => now()]);
+            $user->forceFill(['last_login_at' => now()])->save();
+            $request->session()->put('account_last_activity', now()->timestamp);
 
             return redirect($user->dashboardRoute());
         }

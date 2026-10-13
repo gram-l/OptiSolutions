@@ -53,7 +53,9 @@ body {
 .settings-modal {
     width: 100%;
     max-width: 1100px;
+    height: 560px;
     max-height: 85vh;
+    max-height: 85dvh;
     display: flex;
     flex-direction: column;
     background: var(--white);
@@ -208,8 +210,11 @@ body {
 .settings-panel {
     flex: 1;
     min-width: 0;
+    min-height: 0;
     padding: 1.75rem 2rem;
     overflow-y: auto;
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
 }
 
 .settings-pane { display: none; }
@@ -345,9 +350,10 @@ body {
 
 @media (max-width: 900px) {
     .settings-overlay { padding: 0; }
-    .settings-modal { max-width: 100%; max-height: 100vh; height: 100vh; border-radius: 0; }
+    .settings-modal { max-width: 100%; max-height: 100dvh; height: 100dvh; border-radius: 0; }
     .settings-shell { flex-direction: column; }
     .settings-nav {
+        flex-shrink: 0;
         width: 100%;
         flex-direction: row;
         overflow-x: auto;
@@ -548,4 +554,71 @@ body.dark-mode .settings-nav-item.active {
 }
 body.dark-mode .settings-nav-item.active i {
     color: #6cb2f5;
+}
+/* Mobile settings start with the navigation, then reveal the chosen pane. */
+.settings-mobile-back { display: none; }
+@media (min-width: 901px) {
+    #settingsOverlay #pane-notifications .settings-row,
+    #settingsOverlay #pane-appearance .settings-row {
+        background: #ecf0f1;
+        border: 0;
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 0.65rem;
+        gap: 1rem;
+    }
+    body.dark-mode #settingsOverlay #pane-notifications .settings-row,
+    body.dark-mode #settingsOverlay #pane-appearance .settings-row { background: #232b3d; }
+}
+@media (max-width: 900px) {
+    #settingsOverlay .settings-modal-topbar-text { min-width: 0; }
+    #settingsOverlay .settings-modal-topbar-text p { overflow-wrap: anywhere; }
+    #settingsOverlay .settings-nav { flex: 1; min-height: 0; width: 100%; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+    #settingsOverlay .settings-nav-scroll { display: block; flex: 1; overflow-y: auto; }
+    #settingsOverlay .settings-nav-group { display: block; margin: 0 0 1.4rem; }
+    #settingsOverlay .settings-nav-group-label { display: block; }
+    #settingsOverlay .settings-nav-item { width: 100%; }
+    #settingsOverlay .settings-nav-divider { display: block; }
+    #settingsOverlay .settings-nav-item-danger { width: 100%; }
+    #settingsOverlay .settings-panel { display: none; }
+    #settingsOverlay.settings-show-content .settings-nav { display: none; }
+    #settingsOverlay.settings-show-content .settings-panel { display: block; }
+    #settingsOverlay .settings-mobile-back { display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; padding: 0.6rem 0.8rem; border: 0; border-radius: 8px; background: #eaf0f6; color: #0E62AA; cursor: pointer; }
+}
+.settings-profile-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+/* Bring settings content closer to the header. */
+#settingsOverlay .settings-panel { padding-top: 0.75rem; }
+@media (max-width: 900px) {
+    #settingsOverlay .settings-panel { padding-top: 0.5rem; }
+}
+/* Larger settings text on mobile screens. */
+@media (max-width: 900px) {
+    #settingsOverlay .settings-nav-item,
+    #settingsOverlay .settings-nav-item-danger { font-size: 1rem; }
+    #settingsOverlay .settings-nav-group-label { font-size: 0.8rem; }
+    #settingsOverlay .settings-row-label,
+    #settingsOverlay .info-list,
+    #settingsOverlay .settings-input { font-size: 1rem; }
+    #settingsOverlay .settings-row-desc,
+    #settingsOverlay .settings-pane-header p,
+    #settingsOverlay .settings-field-label,
+    #settingsOverlay .settings-modal-topbar-text p { font-size: 0.9rem; line-height: 1.5; }
+    #settingsOverlay .settings-pane-header h3 { font-size: 1.25rem; }
+    #settingsOverlay .settings-mobile-back,
+    #settingsOverlay .btn-settings { font-size: 0.95rem; }
+}
+
+/* Give mobile toggle rows the same distinction as desktop. */
+@media (max-width: 900px) {
+    #settingsOverlay #pane-notifications .settings-row,
+    #settingsOverlay #pane-appearance .settings-row {
+        background: #ecf0f1;
+        border: 0;
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 0.65rem;
+        gap: 1rem;
+    }
+    body.dark-mode #settingsOverlay #pane-notifications .settings-row,
+    body.dark-mode #settingsOverlay #pane-appearance .settings-row { background: #232b3d; }
 }

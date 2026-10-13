@@ -285,6 +285,7 @@
 
             {{-- RIGHT: content pane --}}
             <div class="settings-content">
+                <button type="button" class="settings-mobile-back" onclick="document.getElementById('settingsModalOverlay').classList.remove('settings-show-content')"><i class="bi bi-arrow-left"></i> Back</button>
 
                 {{-- NOTIFICATIONS --}}
                 <div class="settings-tab-panel active" id="settings-tab-notifications">
@@ -344,8 +345,14 @@
 
 {{-- PROFILE --}}
                 <div class="settings-tab-panel" id="settings-tab-profile">
-                    <div class="settings-content-title"><i class="bi bi-person-badge"></i> Profile</div>
+                    <div class="settings-profile-heading">
+                        <div class="settings-content-title"><i class="bi bi-person-badge"></i> Profile</div>
+                        <button type="button" class="btn-sm btn-primary" onclick="closeSettingsModal(); openProfileModal();">Manage profile</button>
+                    </div>
                     <p class="settings-content-subtitle">Your account details for this installation</p>
+
+                    <div class="info-modal-field"><div class="info-modal-label">Name</div><div class="info-modal-value">{{ Auth::user()->name }}</div></div>
+                    <div class="info-modal-field"><div class="info-modal-label">Email</div><div class="info-modal-value">{{ Auth::user()->email }}</div></div>
 
                     <div class="info-modal-field" style="margin-top: 1.5rem;">
                         <div class="info-modal-label">App version</div>
@@ -355,13 +362,13 @@
                     <div class="info-modal-field">
                         <div class="info-modal-label">Last login</div>
                         <div class="info-modal-value">
-                            {{ Auth::user()->last_login_at ? \Carbon\Carbon::parse(Auth::user()->last_login_at)->format('M d, g:i A') : 'N/A' }}
+                            {{ Auth::user()->last_login_at ? \Carbon\Carbon::parse(Auth::user()->last_login_at)->timezone('Asia/Manila')->format('M d, Y, g:i A') . ' PHT' : 'No login recorded' }}
                         </div>
                     </div>
 
                     <div class="info-modal-field">
                         <div class="info-modal-label">Account role</div>
-                        <div class="info-modal-value">{{ ucfirst(Auth::user()->user_role ?? 'Admin') }}</div>
+                        <div class="info-modal-value">{{ Auth::user()->user_role }}</div>
                     </div>
 
                     <div class="info-modal-field">
@@ -375,9 +382,12 @@
                     <div class="settings-content-title"><i class="bi bi-shield-lock"></i> Security & Access</div>
                     <p class="settings-content-subtitle">Update your password and session settings</p>
 
-                    @if($errors->has('current_password') || $errors->has('password'))
+                    @if(session('account_settings_status'))
+                        <p role="status">{{ session('account_settings_status') }}</p>
+                    @endif
+                    @if($errors->has('current_password') || $errors->has('password') || $errors->has('session_timeout'))
                         <div class="error-message show">
-                            {{ $errors->first('current_password') ?: $errors->first('password') }}
+                            {{ $errors->first('current_password') ?: ($errors->first('password') ?: $errors->first('session_timeout')) }}
                         </div>
                     @endif
 
@@ -411,7 +421,7 @@
                     <div class="settings-section-heading" style="margin-top: 2.5rem; font-size: 0.8rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">SESSION</div>
                     
                     {{-- Working Session Form --}}
-                    <form method="POST" action="{{ route('staff.profile.session') ?? '#' }}" id="updateSessionForm">
+                    <form method="POST" action="{{ route('staff.profile.session') }}" id="updateSessionForm">
                         @csrf
                         <div class="settings-toggle-row">
                             <div class="settings-item-text">
@@ -419,13 +429,14 @@
                                 <div class="settings-item-desc">Automatically log out after inactivity</div>
                             </div>
                             <select name="session_timeout" class="form-control" style="width: auto; display: inline-block; padding: 0.4rem 1rem;" onchange="this.form.submit()">
-                                <option value="15" {{ config('session.lifetime') == 15 ? 'selected' : '' }}>15 minutes</option>
-                                <option value="30" {{ config('session.lifetime') == 30 ? 'selected' : '' }}>30 minutes</option>
-                                <option value="60" {{ config('session.lifetime') == 60 ? 'selected' : '' }}>1 hour</option>
-                                <option value="never" {{ config('session.lifetime') > 60 ? 'selected' : '' }}>Never</option>
+                                <option value="15" @selected((Auth::user()->session_timeout ?? 30) == 15)>15 minutes</option>
+                                <option value="30" @selected((Auth::user()->session_timeout ?? 30) == 30)>30 minutes</option>
+                                <option value="60" @selected((Auth::user()->session_timeout ?? 30) == 60)>1 hour</option>
+                                <option value="0" @selected((Auth::user()->session_timeout ?? 30) == 0)>Never</option>
                             </select>
                         </div>
                     </form>
+                    <p class="settings-item-desc">Never disables inactivity logout. Normal browser and server session expiry still applies.</p>
                 </div>
 
                 {{-- DATA & PRIVACY --}}
@@ -452,10 +463,11 @@
                     <div class="settings-toggle-row" style="align-items: center; border-bottom: none;">
                         <div class="settings-item-text">
                             <div class="settings-item-title">Clear cached data</div>
-                            <div class="settings-item-desc">Free up space used by cached images and files</div>
+                            <div class="settings-item-desc">Refresh cached page templates while keeping records and preferences</div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius: 20px; padding: 0.3rem 1rem;"><i class="bi bi-trash"></i> Clear</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-account-clear-cache data-cache-url="{{ route('staff.profile.cache') }}" style="border-radius: 20px; padding: 0.3rem 1rem;"><i class="bi bi-trash"></i> Clear</button>
                     </div>
+                    <p data-account-cache-status role="status" aria-live="polite"></p>
                 </div>
 
             </div>
@@ -714,6 +726,7 @@
 
         //  SETTINGS MODAL 
         function openSettingsModal() {
+            document.getElementById('settingsModalOverlay').classList.remove('settings-show-content');
             document.getElementById('staffDropdown').classList.remove('show');
             document.getElementById('settingsModalOverlay').classList.add('show');
         }
@@ -728,13 +741,14 @@
         function closeStaffTermsModal() {
             document.getElementById('staffTermsModalOverlay').classList.remove('show');
         }
-        @if($errors->has('current_password') || $errors->has('password'))
+        @if(session('account_settings_tab') || $errors->has('current_password') || $errors->has('password') || $errors->has('session_timeout'))
             openSettingsModal();
             switchSettingsTab('security');
         @endif
 
 
         function switchSettingsTab(tab) {
+            document.getElementById('settingsModalOverlay').classList.add('settings-show-content');
             document.querySelectorAll('.settings-nav-item[data-tab]').forEach(function (btn) {
                 btn.classList.toggle('active', btn.dataset.tab === tab);
             });
@@ -989,5 +1003,6 @@
 
     @vite(['resources/js/bootstrap.js'])
     @stack('scripts')
+@include('partials.account-settings', ['accountRole' => 'staff'])
 </body>
 </html>

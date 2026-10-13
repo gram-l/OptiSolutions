@@ -8,10 +8,23 @@ use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
+    public function preferences(Request $request)
+    {
+        return response()->json(\App\Services\NotificationPreferences::forUser($request->user()->user_id));
+    }
+
+    public function savePreferences(Request $request)
+    {
+        $validated = $request->validate(array_fill_keys(array_keys(\App\Services\NotificationPreferences::DEFAULTS), 'sometimes|required|boolean'));
+        $preferences = array_replace(\App\Services\NotificationPreferences::forUser($request->user()->user_id), $validated);
+        DB::table('users')->where('user_id', $request->user()->user_id)->update(['notification_preferences' => json_encode($preferences)]);
+        return response()->json($preferences);
+    }
     // ── Web view: /admin_acc/notifications ──────────────────────
     public function index(Request $request)
     {
         $notifications = DB::table('app_notifications')
+            ->whereIn('type', \App\Services\NotificationPreferences::visibleTypes($request->user()->user_id))
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -57,9 +70,10 @@ class NotificationController extends Controller
         };
     }
 
-    public function apiIndex()
+    public function apiIndex(Request $request)
     {
         $notifications = DB::table('app_notifications')
+            ->whereIn('type', \App\Services\NotificationPreferences::visibleTypes($request->user()->user_id))
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get();
@@ -77,7 +91,7 @@ class NotificationController extends Controller
             return $notification;
         });
 
-        $unreadCount = DB::table('app_notifications')->where('is_read', 0)->count();
+        $unreadCount = DB::table('app_notifications')->whereIn('type', \App\Services\NotificationPreferences::visibleTypes($request->user()->user_id))->where('is_read', 0)->count();
 
         return response()->json([
             'success'       => true,

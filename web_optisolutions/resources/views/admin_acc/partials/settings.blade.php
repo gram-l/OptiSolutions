@@ -64,16 +64,6 @@
                         <i class="bi bi-shield-check"></i> Data &amp; Privacy
                     </button>
                 </div>
-
-                <div class="settings-nav-group">
-                    <div class="settings-nav-group-label">Clinic</div>
-                    <button class="settings-nav-item" data-target="pane-clinic-info">
-                        <i class="bi bi-hospital"></i> Clinic Info
-                    </button>
-                    <button class="settings-nav-item" data-target="pane-working-hours">
-                        <i class="bi bi-clock-history"></i> Working Hours
-                    </button>
-                </div>
             </div>
 
             <div class="settings-nav-divider"></div>
@@ -84,6 +74,7 @@
 
         <!-- Right panel -->
         <div class="settings-panel">
+            <button type="button" class="settings-mobile-back" onclick="document.getElementById('settingsOverlay').classList.remove('settings-show-content')"><i class="bi bi-arrow-left"></i> Back</button>
 
             <!-- Notifications -->
             <div class="settings-pane active" id="pane-notifications">
@@ -94,8 +85,8 @@
 
                 <div class="settings-row">
                     <div>
-                        <div class="settings-row-label">New appointment bookings</div>
-                        <div class="settings-row-desc">Alert when a patient books an appointment</div>
+                        <div class="settings-row-label">New schedule visit</div>
+                        <div class="settings-row-desc">Alert when a patient schedules a visit</div>
                     </div>
                     <label class="switch">
                         <input type="checkbox" checked data-setting="notify_appointments">
@@ -124,8 +115,18 @@
                 </div>
                 <div class="settings-row">
                     <div>
+                        <div class="settings-row-label">New feedback</div>
+                        <div class="settings-row-desc">Alert when a patient sends a review or rating</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" checked data-setting="notify_feedback">
+                        <span class="switch-track"></span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div>
                         <div class="settings-row-label">Email notifications</div>
-                        <div class="settings-row-desc">Also send the above to your email</div>
+                        <div class="settings-row-desc">Also send enabled chatbot inquiry alerts to your email</div>
                     </div>
                     <label class="switch">
                         <input type="checkbox" data-setting="notify_email">
@@ -134,6 +135,7 @@
                 </div>
             </div>
 
+            <p id="notificationSettingsStatus" role="status" aria-live="polite" style="padding:0 2rem;color:#687984;"></p>
             <!-- Appearance -->
             <div class="settings-pane" id="pane-appearance">
                 <div class="settings-pane-header">
@@ -156,15 +158,20 @@
             <!-- Profile -->
             <div class="settings-pane" id="pane-profile">
                 <div class="settings-pane-header">
-                    <h3><i class="bi bi-person-circle"></i> Profile</h3>
+                    <div class="settings-profile-heading">
+                        <h3><i class="bi bi-person-circle"></i> Profile</h3>
+                        <button type="button" class="btn-settings btn-settings-outline" onclick="closeSettingsModal(); openProfileModal();">Manage profile</button>
+                    </div>
                     <p>Your account details for this installation</p>
                 </div>
 
                 <ul class="info-list">
-                    <li><span class="label">App version</span><span class="value">v1.0.0</span></li>
-                    <li><span class="label">Last login</span><span class="value" id="lastLoginValue">—</span></li>
-                    <li><span class="label">Account role</span><span class="value" id="roleValue">Admin</span></li>
-                    <li><span class="label">Last backup</span><span class="value">Not configured</span></li>
+                    <li><span class="label">Name</span><span class="value">{{ Auth::user()->name }}</span></li>
+                    <li><span class="label">Email</span><span class="value">{{ Auth::user()->email }}</span></li>
+                    <li><span class="label">App version</span><span class="value">{{ config('app.version', 'v1.0.0') }}</span></li>
+                    <li><span class="label">Last login</span><span class="value">{{ Auth::user()->last_login_at ? \Carbon\Carbon::parse(Auth::user()->last_login_at)->timezone('Asia/Manila')->format('M d, Y, g:i A') . ' PHT' : 'No login recorded' }}</span></li>
+                    <li><span class="label">Account role</span><span class="value">{{ Auth::user()->user_role }}</span></li>
+                    <li><span class="label">Last backup</span><span class="value">{{ config('app.last_backup', 'Not configured') }}</span></li>
                 </ul>
             </div>
 
@@ -175,9 +182,12 @@
                     <p>Update your password and session settings</p>
                 </div>
 
-                @if($errors->has('current_password') || $errors->has('password'))
+                @if(session('account_settings_status'))
+                    <p role="status">{{ session('account_settings_status') }}</p>
+                @endif
+                @if($errors->has('current_password') || $errors->has('password') || $errors->has('session_timeout'))
                     <div style="background:#fdecea; color:#b3261e; padding:0.75rem 1rem; border-radius:8px; margin-bottom:1rem; font-size:0.85rem;">
-                        {{ $errors->first('current_password') ?: $errors->first('password') }}
+                        {{ $errors->first('current_password') ?: ($errors->first('password') ?: $errors->first('session_timeout')) }}
                     </div>
                 @endif
 
@@ -217,13 +227,14 @@
                                 <div class="settings-row-desc">Automatically log out after inactivity</div>
                             </div>
                             <select class="settings-input" style="width:auto; margin-top:0;" name="session_timeout" id="sessionTimeout" onchange="this.form.submit()">
-                                <option value="15" {{ config('session.lifetime') == 15 ? 'selected' : '' }}>15 minutes</option>
-                                <option value="30" {{ config('session.lifetime') == 30 ? 'selected' : '' }}>30 minutes</option>
-                                <option value="60" {{ config('session.lifetime') == 60 ? 'selected' : '' }}>1 hour</option>
-                                <option value="0" {{ config('session.lifetime') > 60 ? 'selected' : '' }}>Never</option>
+                                <option value="15" @selected((Auth::user()->session_timeout ?? 30) == 15)>15 minutes</option>
+                                <option value="30" @selected((Auth::user()->session_timeout ?? 30) == 30)>30 minutes</option>
+                                <option value="60" @selected((Auth::user()->session_timeout ?? 30) == 60)>1 hour</option>
+                                <option value="0" @selected((Auth::user()->session_timeout ?? 30) == 0)>Never</option>
                             </select>
                         </div>
                     </form>
+                    <p class="settings-row-desc">Never disables inactivity logout. Normal browser and server session expiry still applies.</p>
                 </div>
             </div>
 
@@ -255,65 +266,15 @@
                 <div class="settings-row">
                     <div>
                         <div class="settings-row-label">Clear cached data</div>
-                        <div class="settings-row-desc">Free up space used by cached images and files</div>
+                        <div class="settings-row-desc">Refresh cached page templates while keeping records and preferences</div>
                     </div>
-                    <button class="btn-settings btn-settings-outline" id="clearCacheBtn">
+                    <button type="button" class="btn-settings btn-settings-outline" data-account-clear-cache data-cache-url="{{ route('admin.profile.cache') }}">
                         <i class="bi bi-trash3"></i> Clear
                     </button>
                 </div>
+                <p data-account-cache-status role="status" aria-live="polite"></p>
             </div>
 
-            <!-- Clinic Info -->
-            <div class="settings-pane" id="pane-clinic-info">
-                <div class="settings-pane-header">
-                    <h3><i class="bi bi-hospital"></i> Clinic Info</h3>
-                    <p>Details shown to patients and used across the system</p>
-                </div>
-
-                <form id="clinicInfoForm">
-                    <div class="settings-field-grid">
-                        <div class="settings-field">
-                            <label class="settings-field-label">Clinic name</label>
-                            <input type="text" class="settings-input" id="clinicName" placeholder="e.g. PolyClinic Balayan">
-                        </div>
-                        <div class="settings-field">
-                            <label class="settings-field-label">Contact number</label>
-                            <input type="text" class="settings-input" id="clinicPhone" placeholder="e.g. (043) 000 0000">
-                        </div>
-                    </div>
-                    <div class="settings-field">
-                        <label class="settings-field-label">Address</label>
-                        <input type="text" class="settings-input" id="clinicAddress" placeholder="Street, city, province">
-                    </div>
-                    <div class="settings-field">
-                        <label class="settings-field-label">Email</label>
-                        <input type="email" class="settings-input" id="clinicEmail" placeholder="clinic@example.com">
-                    </div>
-                    <div class="save-bar">
-                        <button type="submit" class="btn-settings btn-settings-primary">
-                            <i class="bi bi-check2"></i> Save Changes
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Working Hours -->
-            <div class="settings-pane" id="pane-working-hours">
-                <div class="settings-pane-header">
-                    <h3><i class="bi bi-clock-history"></i> Working Hours</h3>
-                    <p>Set when the clinic is open for appointments</p>
-                </div>
-
-                <div id="workingHoursList">
-                    <!-- Rows are rendered by JS below from the DAYS array -->
-                </div>
-
-                <div class="save-bar">
-                    <button type="button" class="btn-settings btn-settings-primary" id="saveHoursBtn">
-                        <i class="bi bi-check2"></i> Save Changes
-                    </button>
-                </div>
-            </div>
         </div>
         </div>
     </div>
@@ -499,18 +460,14 @@
 </div>
 
 <script>
-    // ---- Placeholder wiring for the panels that aren't wired up yet ----
-    // Security (password + session) and Data & Privacy > Export are now
-    // real forms/links posting to admin routes — see markup above.
-    // Notifications toggles, Clinic Info, and Working Hours are still
-    // pending backend wiring.
-
     // ----- Modal open/close behavior -----
     // Now an overlay included on every page (like admin_acc.partials.profile)
     // instead of its own route, so open/close just toggles display instead
     // of navigating.
     function openSettingsModal() {
+        document.getElementById('settingsOverlay').classList.remove('settings-show-content');
         document.getElementById('settingsOverlay').style.display = 'flex';
+        loadNotificationPreferences();
     }
 
     function closeSettingsModal() {
@@ -539,14 +496,52 @@
 
             navItem.classList.add('active');
             document.getElementById(navItem.dataset.target).classList.add('active');
+            document.getElementById('settingsOverlay').classList.add('settings-show-content');
         });
     });
 
-    document.querySelectorAll('[data-setting]').forEach(input => {
-        if (input.id === 'darkModeToggle') return; // handled separately below
-        input.addEventListener('change', () => {
-            // TODO: POST { key: input.dataset.setting, value: input.checked }
-            console.log('Setting changed:', input.dataset.setting, input.checked);
+    const notificationSwitches = [...document.querySelectorAll('#pane-notifications [data-setting]')];
+    const notificationStatus = document.getElementById('notificationSettingsStatus');
+    let notificationPreferencesBusy = false;
+    async function loadNotificationPreferences() {
+        if (notificationPreferencesBusy) return;
+        notificationPreferencesBusy = true;
+        notificationSwitches.forEach(input => input.disabled = true);
+        notificationStatus.textContent = 'Loading notification preferences…';
+        try {
+            const response = await fetch('/admin_acc/notification-preferences', { headers: { Accept: 'application/json' } });
+            if (!response.ok) throw new Error('load');
+            const preferences = await response.json();
+            notificationSwitches.forEach(input => input.checked = !!preferences[input.dataset.setting]);
+            notificationStatus.textContent = '';
+            notificationSwitches.forEach(input => input.disabled = false);
+        } catch (error) {
+            notificationStatus.textContent = 'Could not load preferences. Close and reopen settings to retry.';
+        } finally {
+            notificationPreferencesBusy = false;
+        }
+    }
+    notificationSwitches.forEach(input => {
+        input.disabled = true;
+        input.addEventListener('change', async () => {
+            notificationPreferencesBusy = true;
+            notificationSwitches.forEach(toggle => toggle.disabled = true);
+            notificationStatus.textContent = 'Saving…';
+            try {
+                const response = await fetch('/admin_acc/notification-preferences', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ [input.dataset.setting]: input.checked }),
+                });
+                if (!response.ok) throw new Error('save');
+                notificationStatus.textContent = 'Notification preferences saved.';
+            } catch (error) {
+                input.checked = !input.checked;
+                notificationStatus.textContent = 'Could not save preferences. Please try again.';
+            } finally {
+                notificationPreferencesBusy = false;
+                notificationSwitches.forEach(toggle => toggle.disabled = false);
+            }
         });
     });
 
@@ -561,13 +556,6 @@
 
     document.getElementById('viewTermsBtn').addEventListener('click', openAdminTermsModal);
     document.getElementById('adminTermsCloseBtn').addEventListener('click', closeAdminTermsModal);
-
-    document.getElementById('clearCacheBtn').addEventListener('click', () => {
-        if (confirm('Clear cached data? This will not delete any patient records.')) {
-            // TODO: call cache-clear endpoint.
-            alert('Cache cleared.');
-        }
-    });
 
     // ----- Dark mode -----
     // Persisted client-side via localStorage (per-browser, like the rest
@@ -584,62 +572,13 @@
         localStorage.setItem('admin_dark_mode', e.target.checked ? '1' : '0');
     });
 
-    document.getElementById('clinicInfoForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        // TODO: POST clinic name/phone/address/email to a clinic-info endpoint.
-        alert('Clinic info saved.');
-    });
-
-    // ----- Working hours -----
-    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-    function renderWorkingHours() {
-        const list = document.getElementById('workingHoursList');
-        list.innerHTML = DAYS.map((day, i) => `
-            <div class="hours-row" data-day="${day}">
-                <div class="hours-day">${day}</div>
-                <label class="switch">
-                    <input type="checkbox" class="hours-open-toggle" ${i === 6 ? '' : 'checked'}>
-                    <span class="switch-track"></span>
-                </label>
-                <div class="hours-times">
-                    <input type="time" class="settings-input hours-open" value="08:00" style="width:auto;">
-                    <span>to</span>
-                    <input type="time" class="settings-input hours-close" value="17:00" style="width:auto;">
-                </div>
-            </div>
-        `).join('');
-
-        list.querySelectorAll('.hours-open-toggle').forEach(toggle => {
-            const row = toggle.closest('.hours-row');
-            const updateRowState = () => {
-                const times = row.querySelector('.hours-times');
-                times.style.display = toggle.checked ? 'flex' : 'none';
-            };
-            toggle.addEventListener('change', updateRowState);
-            updateRowState();
-        });
-    }
-    renderWorkingHours();
-
-    document.getElementById('saveHoursBtn').addEventListener('click', () => {
-        // TODO: collect per-day open/close values and POST to a
-        // working-hours endpoint.
-        alert('Working hours saved.');
-    });
-
     document.getElementById('logoutBtn').addEventListener('click', () => {
         if (confirm('Are you sure you want to logout?')) {
-            // TODO: replace with real logout — POST to /logout then
-            // redirect, same as the rest of the admin panel should do.
-            window.location.href = '/logout';
+            document.getElementById('accountLogoutForm').submit();
         }
     });
 
-    // Populate System Info with whatever's easily available client-side.
-    document.getElementById('lastLoginValue').innerText = new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    @if($errors->has('current_password') || $errors->has('password'))
+    @if(session('account_settings_tab') || $errors->has('current_password') || $errors->has('password') || $errors->has('session_timeout'))
         // Reopen the modal on the Security pane if password validation failed,
         // same pattern as the staff side.
         document.addEventListener('DOMContentLoaded', () => {
@@ -648,3 +587,4 @@
         });
     @endif
 </script>
+@include('partials.account-settings', ['accountRole' => 'admin'])

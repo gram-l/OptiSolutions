@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
@@ -27,7 +28,8 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name'          => 'required|string|max:255',
-            'email'         => 'required|email|max:255',
+            'email'         => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->getKey(), 'user_id')],
+            'birthday'      => ['nullable', 'date', 'before_or_equal:today'],
             'profile_photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
@@ -38,7 +40,7 @@ class ProfileController extends Controller
             $validated['profile_photo'] = $request->file('profile_photo')->store('profile_photos', 'public');
         }
 
-        $user->update($validated);
+        $user->forceFill($validated)->save();
 
         return redirect()->back()->with('profile_success', 'Profile updated successfully.');
     }

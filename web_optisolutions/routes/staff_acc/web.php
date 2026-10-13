@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Staff\StaffController;
+use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\Staff\AppointmentController;
 use App\Http\Controllers\Staff\InquiryController;
 use App\Http\Controllers\Staff\DoctorController;
@@ -11,9 +12,11 @@ use App\Http\Controllers\Staff\NotificationController;
 Route::middleware(['auth', 'staff'])->group(function () {
 
     Route::post('/staff/profile/photo', [StaffController::class, 'updatePhoto'])->name('staff.profile.photo');
-    Route::put('/staff/profile/password', [StaffController::class, 'updatePassword'])->name('staff.profile.password');
-    Route::post('/staff/profile/session', [StaffController::class, 'updateSession'])
+    Route::put('/staff/profile/password', [AccountSettingsController::class, 'password'])->name('staff.profile.password');
+    Route::post('/staff/profile/session', [AccountSettingsController::class, 'session'])
     ->name('staff.profile.session');
+    Route::post('/staff/profile/activity', [AccountSettingsController::class, 'activity'])->name('staff.profile.activity');
+    Route::post('/staff/profile/cache', [AccountSettingsController::class, 'clearCache'])->name('staff.profile.cache')->middleware('throttle:6,1');
     
     // DASHBOARD
     Route::get('/staff/dashboard', [StaffController::class, 'dashboard'])->name('staff.dashboard');

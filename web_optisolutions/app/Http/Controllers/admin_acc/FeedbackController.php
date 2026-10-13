@@ -14,12 +14,18 @@ class FeedbackController extends Controller
     public function index()
 {
     $feedback = Feedback::with('sentimentResult')
-        ->orderBy('submitted_at', 'desc')
+        ->leftJoin('schedule_visit as review_visit', 'feedback.visit_id', '=', 'review_visit.visit_id')
+        ->leftJoin('doctors as review_doctor', 'review_visit.doctor_id', '=', 'review_doctor.doctor_id')
+        ->select('feedback.*', 'review_visit.doctor_id as review_doctor_id', 'review_doctor.doctor_name as review_doctor_name', 'review_visit.service_type as review_service')
+        ->orderBy('feedback.submitted_at', 'desc')
         ->get()
         ->map(function ($f) {
             return [
                 'id' => $f->feedback_id,
                 'rating' => (int) $f->star_rating,
+                'doctor_id' => $f->review_doctor_id,
+                'doctor' => $f->review_doctor_name,
+                'service' => $f->review_service,
                 'comment' => $f->feedback_text,
                 'sentiment' => trim($f->feedback_text ?? '') === ''
                     ? 'no_comment'

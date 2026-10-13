@@ -42,6 +42,25 @@ class VisitReviewPassTest extends TestCase
         $this->assertNull($service->verify($this->code));
     }
 
+    public function test_feedback_page_uses_the_review_visit_instead_of_guessing_from_patient(): void
+    {
+        foreach (['doctors', 'complaints', 'sentiment_results'] as $table) {
+            (require database_path("migrations/2026_01_01_000001_create_{$table}_table.php"))->up();
+        }
+        DB::table('doctors')->insert(['doctor_id' => 4, 'doctor_name' => 'Dr. Linked Visit', 'specialty' => 'Eye care']);
+        app(VisitReviewService::class)->submit($this->code, 4, null);
+        DB::table('feedback')->insert(['patient_id' => 9, 'star_rating' => 5, 'submitted_at' => now()]);
+        $view = app(\App\Http\Controllers\admin_acc\FeedbackController::class)->index();
+        $entries = $view->getData()['feedbackData'];
+        $linked = $entries->firstWhere('doctor_id', 4);
+        $this->assertSame('Dr. Linked Visit', $linked['doctor']);
+        $this->assertSame('Eye examination', $linked['service']);
+        $legacy = $entries->firstWhere('doctor_id', null);
+        $this->assertNull($legacy['doctor']);
+        $this->assertNull($legacy['service']);
+        $this->assertCount(2, $entries);
+    }
+
     public function test_new_twenty_character_codes_are_accepted_and_consumed_once(): void
     {
         $code = VisitReviewService::generateCode();

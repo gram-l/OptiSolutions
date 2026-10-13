@@ -46,6 +46,28 @@
             gap: 1.1rem;
             margin-bottom: 1.5rem;
         }
+        .visit-ratings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.1rem; margin-bottom: 0.6rem; }
+        .visit-ratings-grid .analytics-card { min-width: 0; }
+        .visit-ratings-grid [id$="Ratings"] { max-height: 320px; overflow-y: auto; }
+        .visit-rating-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.15rem 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid var(--light-gray); }
+        .visit-rating-row:last-child { border-bottom: 0; }
+        .visit-sentiments { grid-column: 1 / -1; min-width: 0; margin-top: 0.35rem; }
+        .visit-sentiment-bar { display: flex; height: 7px; border-radius: 5px; overflow: hidden; background: var(--light-gray); }
+        .visit-sentiment-bar > span { height: 100%; }
+        .visit-sentiment-positive { background: #0E62AA; }
+        .visit-sentiment-neutral { background: #9DBCD4; }
+        .visit-sentiment-negative { background: #062744; }
+        .visit-sentiment-pending { background: #7f8c8d; }
+        .visit-sentiment-no_comment { background: #dce3e8; }
+        .visit-sentiment-legend { display: flex; flex-wrap: wrap; gap: 0.3rem 0.75rem; margin-top: 0.4rem; color: #687984; font-size: 0.72rem; }
+        .visit-sentiment-legend > span { display: inline-flex; align-items: center; gap: 0.25rem; }
+        .visit-sentiment-legend i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .visit-rating-name { font-weight: 500; overflow-wrap: anywhere; }
+        .visit-rating-score { font-weight: 600; color: var(--primary-dark); white-space: nowrap; }
+        .visit-rating-score span:last-child, .visit-rating-count { color: #7f8c8d; font-size: 0.75rem; font-weight: 400; }
+        .visit-ratings-note, .visit-ratings-empty { color: #7f8c8d; font-size: 0.8rem; line-height: 1.5; }
+        .visit-ratings-note { margin-bottom: 1.2rem; }
+        @media (max-width: 768px) { .visit-ratings-grid { grid-template-columns: minmax(0, 1fr); } }
         .card-sentiment { grid-area: sentiment; }
         .card-pattern { grid-area: pattern; display: flex; flex-direction: column; }
 

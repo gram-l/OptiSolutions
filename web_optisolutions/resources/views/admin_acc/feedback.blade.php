@@ -150,7 +150,7 @@
             <!-- Filter Bar -->
             <div class="filter-bar">
                 <div class="filter-group">
-                    <input type="text" class="search-box" id="searchInput" placeholder="Search by comment...">
+                    <input type="text" class="search-box" id="searchInput" placeholder="Search comment, doctor or service...">
                     <select class="filter-select" id="sentimentFilter">
                         <option value="all">All Sentiments</option>
                         <option value="positive">Positive <i class="fa-regular fa-face-smile-beam"></i></option>
@@ -180,6 +180,17 @@
             </div>
 
             <!-- Feedback List -->
+            <div class="visit-ratings-grid">
+                <div class="analytics-card">
+                    <div class="analytics-title"><i class="fa-solid fa-user-doctor"></i> Doctor Star Ratings</div>
+                    <div id="doctorRatings"></div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-title"><i class="fa-solid fa-stethoscope"></i> Service Overall Ratings</div>
+                    <div id="serviceRatings"></div>
+                </div>
+            </div>
+            <p class="visit-ratings-note">Doctor and service averages use reviews linked to completed visits and follow the selected filters. A visit's overall rating contributes to both averages.</p>
             <div class="feedback-section">
                 <div class="section-title">
                     <span>All Patient Feedback</span>
@@ -199,6 +210,8 @@
                         <tr>
                             <th>Rating</th>
                             <th>Comment</th>
+                            <th>Doctor</th>
+                            <th>Service</th>
                             <th>Sentiment</th>
                             <th>Date</th>
                         </tr>
@@ -285,7 +298,51 @@
             return stars;
         }
 
+        function groupVisitRatings(data, key, label) {
+            const groups = new Map();
+            data.forEach(entry => {
+                const rating = Number(entry.rating);
+                const name = String(entry[label] || '').trim();
+                if (!entry[key] || !name || !Number.isInteger(rating) || rating < 1 || rating > 5) return;
+                const id = key === 'service' ? name.toLowerCase() : String(entry[key]);
+                const group = groups.get(id) || { name, total: 0, count: 0, sentiments: { positive: 0, neutral: 0, negative: 0, pending: 0, no_comment: 0 } };
+                group.total += rating;
+                group.count++;
+                const sentiment = Object.hasOwn(group.sentiments, entry.sentiment) ? entry.sentiment : 'pending';
+                group.sentiments[sentiment]++;
+                groups.set(id, group);
+            });
+            return [...groups.values()].map(group => ({ ...group, average: group.total / group.count }))
+                .sort((a, b) => b.average - a.average || b.count - a.count || a.name.localeCompare(b.name));
+        }
+
+        function renderVisitSentiments(group) {
+            const labels = { positive: 'Positive', neutral: 'Neutral', negative: 'Negative', pending: 'Pending', no_comment: 'No comment' };
+            const segments = Object.entries(group.sentiments).filter(([, count]) => count > 0);
+            const description = segments.map(([category, count]) => `${labels[category]}: ${count} (${(count / group.count * 100).toFixed(1)}%)`).join(', ');
+            return `<div class="visit-sentiments">
+                <div class="visit-sentiment-bar" role="img" aria-label="${escapeHtml(description)}">${segments.map(([category, count]) =>
+                    `<span class="visit-sentiment-${category}" style="width:${count / group.count * 100}%" title="${labels[category]}: ${count}"></span>`).join('')}</div>
+                <div class="visit-sentiment-legend">${Object.entries(labels).filter(([category]) => ['positive', 'neutral', 'negative'].includes(category) || group.sentiments[category] > 0).map(([category, label]) =>
+                    `<span><i class="visit-sentiment-${category}" aria-hidden="true"></i>${label} <strong>${group.sentiments[category]}</strong></span>`).join('')}</div>
+            </div>`;
+        }
+
+        function renderVisitRatings(data, elementId, key, label) {
+            const groups = groupVisitRatings(data, key, label);
+            document.getElementById(elementId).innerHTML = groups.length ? groups.map(group => `
+                <div class="visit-rating-row">
+                    <div class="visit-rating-name">${escapeHtml(group.name)}</div>
+                    <div class="visit-rating-score"><span class="star-filled" aria-hidden="true">★</span> ${group.average.toFixed(1)}<span>/5</span></div>
+                    <div class="visit-rating-count">${group.count} ${group.count === 1 ? 'review' : 'reviews'}</div>
+                    ${renderVisitSentiments(group)}
+                </div>
+            `).join('') : '<p class="visit-ratings-empty">No linked visit reviews for the selected filters.</p>';
+        }
+
         function renderAnalytics(filteredData) {
+            renderVisitRatings(filteredData, 'doctorRatings', 'doctor_id', 'doctor');
+            renderVisitRatings(filteredData, 'serviceRatings', 'service', 'service');
             const total = filteredData.length;
             const positive = filteredData.filter(f => f.sentiment === 'positive').length;
             const neutral = filteredData.filter(f => f.sentiment === 'neutral').length;
@@ -344,7 +401,7 @@
             const nextBtn = document.getElementById('feedbackNextBtn');
 
             if (filteredData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No feedback entries found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No feedback entries found</td></tr>';
                 paginationWrap.style.display = 'none';
                 return;
             }
@@ -358,10 +415,12 @@
 
             tbody.innerHTML = rowsToShow.map(f => `
                 <tr>
-                    <td class="rating-stars">${renderStars(f.rating)}</td>
-                    <td class="feedback-comment">${escapeHtml(f.comment)}</td>
-                    <td>${sentimentTag(f.sentiment)}</td>
-                    <td>${formatDate(f.date)}</td>
+                    <td data-label="Rating"><span class="rating-stars">${renderStars(f.rating)}</span></td>
+                    <td data-label="Comment" class="feedback-comment">${escapeHtml(f.comment)}</td>
+                    <td data-label="Doctor">${escapeHtml(f.doctor || 'Not linked')}</td>
+                    <td data-label="Service">${escapeHtml(f.service || 'Not linked')}</td>
+                    <td data-label="Sentiment">${sentimentTag(f.sentiment)}</td>
+                    <td data-label="Date">${formatDate(f.date)}</td>
                 </tr>
             `).join('');
 
@@ -452,7 +511,7 @@
             const dateTo = document.getElementById('dateToFilter').value;
 
             return feedbackData.filter(f => {
-                const matchesSearch = (f.comment || '').toLowerCase().includes(searchTerm);
+                const matchesSearch = [f.comment, f.doctor, f.service].some(value => (value || '').toLowerCase().includes(searchTerm));
                 const matchesSentiment = sentimentFilter === 'all' || f.sentiment === sentimentFilter;
 
                 const entryDate = toDateOnly(f.date);
@@ -492,6 +551,8 @@
             return getFilteredData().map(f => ({
                 Rating: f.rating,
                 Comment: f.comment || '',
+                Doctor: f.doctor || 'Not linked',
+                Service: f.service || 'Not linked',
                 Sentiment: f.sentiment,
                 Date: formatDate(f.date),
             }));
@@ -562,11 +623,11 @@
             } else {
                 doc.autoTable({
                     startY: 22,
-                    head: [['Rating', 'Comment', 'Sentiment', 'Date']],
-                    body: rows.map(r => [r.Rating, r.Comment, r.Sentiment, r.Date]),
-                    styles: { fontSize: 9, cellPadding: 3 },
+                    head: [['Rating', 'Comment', 'Doctor', 'Service', 'Sentiment', 'Date']],
+                    body: rows.map(r => [r.Rating, r.Comment, r.Doctor, r.Service, r.Sentiment, r.Date]),
+                    styles: { fontSize: 8, cellPadding: 2 },
                     headStyles: { fillColor: [14, 98, 170] },
-                    columnStyles: { 1: { cellWidth: 80 } },
+                    columnStyles: { 1: { cellWidth: 45 } },
                 });
             }
             doc.save(`${section}${exportFilenameSuffix()}.pdf`);

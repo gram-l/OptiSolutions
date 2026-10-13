@@ -317,7 +317,7 @@
                     <div class="settings-toggle-row">
                         <div class="settings-item-text">
                             <div class="settings-item-title">Email notifications</div>
-                            <div class="settings-item-desc">Also send the above to your email</div>
+                            <div class="settings-item-desc">Also send enabled chatbot inquiry alerts to your email</div>
                         </div>
                         <label class="toggle-switch">
                             <input type="checkbox" class="notif-pref-toggle" data-pref="email" onchange="saveNotifPref('email', this.checked)">
@@ -326,6 +326,7 @@
                     </div>
                 </div>
 
+                <p id="staffNotificationSettingsStatus" role="status" aria-live="polite"></p>
                 {{-- APPEARANCE --}}
                 <div class="settings-tab-panel" id="settings-tab-appearance">
                     <div class="settings-content-title"><i class="bi bi-palette"></i> Appearance</div>
@@ -758,7 +759,8 @@
         }
 
 
-        const notifPrefDefaults = { appointments: true, inquiries: true, patients: true, email: false };
+        let staffNotificationPreferences = @json(\App\Services\NotificationPreferences::forUser(Auth::user()->user_id));
+        const staffNotificationKeys = { appointments: 'notify_appointments', inquiries: 'notify_chatbot', email: 'notify_email' };
 
         const notifPrefKeyByType = {
             appointment: 'appointments',
@@ -773,14 +775,31 @@
         }
 
         function getNotifPref(key) {
-            const saved = localStorage.getItem('staffNotifPref_' + key);
-            return saved !== null ? saved === 'true' : notifPrefDefaults[key];
+            return staffNotificationPreferences[staffNotificationKeys[key]] !== false;
         }
 
-        function saveNotifPref(key, value) {
-            localStorage.setItem('staffNotifPref_' + key, value);
-
-            refreshNotifDisplay();
+        async function saveNotifPref(key, value) {
+            const inputs = [...document.querySelectorAll('.notif-pref-toggle')];
+            const status = document.getElementById('staffNotificationSettingsStatus');
+            inputs.forEach(input => input.disabled = true);
+            status.textContent = 'Saving…';
+            try {
+                const response = await fetch('/staff/notification-preferences', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ [staffNotificationKeys[key]]: value }),
+                });
+                if (!response.ok) throw new Error('save');
+                staffNotificationPreferences = await response.json();
+                refreshNotifDisplay();
+                loadNotifications();
+                status.textContent = 'Notification preferences saved.';
+            } catch (error) {
+                status.textContent = 'Could not save preferences. Please try again.';
+            } finally {
+                loadNotifPrefs();
+                inputs.forEach(input => input.disabled = false);
+            }
         }
 
 

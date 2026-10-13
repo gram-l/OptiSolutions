@@ -23,6 +23,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
     Route::get('/staff/dashboard/data', [StaffController::class, 'data'])->name('staff.dashboard.data');
 
     // NOTIFICATIONS
+    Route::put('/staff/notification-preferences', [NotificationController::class, 'savePreferences'])->name('staff.notification-preferences');
     Route::get('/staff/notifications', [NotificationController::class, 'index'])->name('staff.notifications.index');
     Route::put('/staff/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('staff.notifications.read');
     Route::put('/staff/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('staff.notifications.readAll');

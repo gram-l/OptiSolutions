@@ -19,10 +19,8 @@ class InquiryEmailService
 
             $sent = [];
             foreach ($recipients as $recipient) {
-                if (strtolower(trim($recipient->user_role)) === 'admin') {
-                    $preferences = NotificationPreferences::forUser($recipient->user_id);
-                    if (!$preferences['notify_email'] || !$preferences['notify_chatbot']) continue;
-                }
+                $preferences = NotificationPreferences::forUser($recipient->user_id);
+                if (!$preferences['notify_email'] || !$preferences['notify_chatbot']) continue;
                 $email = trim($recipient->email ?? '');
                 $key = strtolower($email);
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || isset($sent[$key])) {

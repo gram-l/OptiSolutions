@@ -36,7 +36,7 @@ class ChatbotInquiryEmailTest extends TestCase
         foreach (['admin@example.com', 'staff@example.com'] as $email) {
             Mail::assertSent(ChatbotInquiryAlert::class, fn ($mail) =>
                 $mail->hasTo($email) && count($mail->to) === 1 && !$mail->cc && !$mail->bcc
-                && $mail->inquiryId === 12 && $mail->loginUrl === 'https://polyclinic-lipa.tech/auth/login'
+                && $mail->inquiryId === 12 && $mail->loginUrl === 'https://clinic.example/auth/login'
             );
         }
     }

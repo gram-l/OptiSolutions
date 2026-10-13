@@ -29,6 +29,28 @@ class AccountSettingsTest extends TestCase
         return [['Admin', 'admin_acc', 'PUT'], ['Staff', 'staff', 'POST']];
     }
 
+    public function test_staff_notification_preferences_are_saved_and_control_alerts_and_email(): void
+    {
+        (require database_path('migrations/2026_10_13_000002_add_notification_preferences_to_users.php'))->up();
+        (require database_path('migrations/2026_01_01_000001_create_app_notifications_table.php'))->up();
+        $staff = $this->account('Staff');
+        $staff->forceFill(['status' => 'active'])->save();
+        $other = User::create(['name' => 'Other Staff', 'email' => 'other@example.com', 'password' => 'old-password', 'user_role' => 'Staff']);
+        $this->actingAs($staff)->putJson('/staff/notification-preferences', ['notify_chatbot' => 'invalid'])->assertUnprocessable();
+        $this->putJson('/staff/notification-preferences', ['notify_chatbot' => false, 'notify_email' => false])->assertOk();
+        $this->assertFalse(\App\Services\NotificationPreferences::forUser($staff->user_id)['notify_email']);
+        $this->assertTrue(\App\Services\NotificationPreferences::forUser($other->user_id)['notify_email']);
+        foreach (['chat_inquiry', 'appointment', 'complaint'] as $type) DB::table('app_notifications')->insert(['type' => $type, 'title' => $type, 'message' => 'Test', 'is_read' => 0]);
+        $this->getJson('/staff/notifications')->assertOk()->assertJsonCount(1, 'notifications')->assertJsonPath('unread_count', 1);
+        \Illuminate\Support\Facades\Mail::fake();
+        \App\Services\InquiryEmailService::send('Inquiry', 'Needs attention', 1);
+        \Illuminate\Support\Facades\Mail::assertNotSent(\App\Mail\ChatbotInquiryAlert::class, fn ($mail) => $mail->hasTo($staff->email));
+        $this->putJson('/staff/notification-preferences', ['notify_chatbot' => true, 'notify_email' => true])->assertOk();
+        $this->getJson('/staff/notifications')->assertJsonCount(2, 'notifications')->assertJsonPath('unread_count', 2);
+        \App\Services\InquiryEmailService::send('Inquiry', 'Needs attention', 1);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\ChatbotInquiryAlert::class, fn ($mail) => $mail->hasTo($staff->email));
+    }
+
     private function account(string $role = 'Admin'): User
     {
         return User::create(['name' => 'Clinic User', 'email' => strtolower($role).'@example.com',

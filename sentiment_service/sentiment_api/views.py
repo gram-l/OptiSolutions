@@ -4,6 +4,7 @@ from pathlib import Path
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .issue_categories import ISSUE_CATEGORIES, category_matches, classify_issue
+from .text_preprocessing import model_inputs
 
 # Load the trained pipeline once at startup, not per-request
 MODEL_PATH = Path(__file__).resolve().parent.parent / "ml_training" / "sentiment_model.pkl"
@@ -16,15 +17,21 @@ def predict_sentiment(request):
 
     try:
         body = json.loads(request.body)
-        text = body.get("feedback_text", "").strip()
+        text = body.get("feedback_text") if isinstance(body, dict) else None
+        if not isinstance(text, str):
+            return JsonResponse({"error": "feedback_text must be a string"}, status=400)
+        text = text.strip()
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     if not text:
         return JsonResponse({"error": "feedback_text is required"}, status=400)
 
-    label = model.predict([text])[0]
-    proba = model.predict_proba([text])[0]
+    inputs = model_inputs(model, [text])
+    if not inputs[0].strip():
+        return JsonResponse({"error": "feedback_text must contain review text"}, status=400)
+    label = model.predict(inputs)[0]
+    proba = model.predict_proba(inputs)[0]
     confidence = float(max(proba))
 
     label_map = {"positive": "Positive", "neutral": "Neutral", "negative": "Negative"}

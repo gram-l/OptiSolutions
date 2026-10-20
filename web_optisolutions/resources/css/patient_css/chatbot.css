@@ -1,6 +1,4 @@
-/* ============================================
-   GLOBAL RESET & ROOT VARIABLES
-   ============================================ */
+/* GLOBAL RESET & ROOT VARIABLES */
 * {
   margin: 0;
   padding: 0;
@@ -8,9 +6,9 @@
 }
 
 :root {
-  --primary: #0F67B3;
-  --primary-dark: #0A4B82;
-  --primary-light: #EFF7FF;
+  --primary: #022D67;
+  --primary-dark: #01204C;
+  --primary-light: #EAF0F9;
   --accent: #2C9E7A;
   --accent-light: #E0F2EC;
   --gray-50: #FBFCFE;
@@ -50,18 +48,9 @@ body {
   padding: 0 32px;
 }
 
-/* ============================================
-   CHATBOT STYLES
-   chatbot.css — import after style.css
-   All chatbot text uses a single font-family and
-   font-size for consistency. Icon glyphs (avatar,
-   trigger button, attach icon, star ratings, inline
-   button icons) are left at their functional sizes.
-   ============================================ */
+/* CHATBOT STYLES */
 
-/* ============================================
-   CHATBOT TRIGGER & PANEL
-   ============================================ */
+/* CHATBOT TRIGGER & PANEL */
 .chatbot-trigger {
   position: fixed;
   bottom: 28px;
@@ -78,13 +67,13 @@ body {
   border: none;
   font-size: 28px;
   color: white;
-  box-shadow: 0 8px 28px rgba(15,103,179,0.5);
+  box-shadow: 0 8px 28px rgba(2, 45, 103,0.5);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .chatbot-trigger:hover {
   transform: scale(1.08);
-  box-shadow: 0 12px 32px rgba(15,103,179,0.6);
+  box-shadow: 0 12px 32px rgba(2, 45, 103,0.6);
 }
 
 .chatbot-panel {
@@ -115,9 +104,7 @@ body {
   pointer-events: all;
 }
 
-/* ============================================
-   CHAT HEADER
-   ============================================ */
+/* CHAT HEADER */
 .chat-header {
   background: var(--white);
   padding: 18px 22px;
@@ -162,7 +149,7 @@ body {
   margin-top: 5px;
 }
 
-/* Close (X) button in chat header */
+/* Close button in chat header */
 .chat-close {
   background: transparent;
   border: none;
@@ -184,9 +171,7 @@ body {
   background: var(--primary-light);
 }
 
-/* ============================================
-   CHAT MESSAGES
-   ============================================ */
+/* CHAT MESSAGES */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -197,12 +182,7 @@ body {
   background: #F8FAFE;
 }
 
-/* NOTE: chatbot.js sets `messageWrap.style.flexDirection = 'column'`
-   inline on each .chat-message wrapper (to stack the bubble + the
-   "Translate" control vertically). Because it's a column flex now,
-   the axis that controls LEFT/RIGHT placement is the CROSS axis,
-   which is controlled by align-items — NOT justify-content (which
-   would only affect vertical spacing in a column layout). */
+/* align-items sets left/right placement in column flex */
 .chat-message {
   display: flex;
   flex-direction: column;
@@ -226,11 +206,7 @@ body {
   font-size: 14px;
   line-height: 1.45;
   word-break: break-word;
-  /* Preserves \n line breaks from the backend (e.g. multi-line
-     "Suggested schedule:" messages) as real line breaks instead of
-     collapsing them into one run-on paragraph. Also preserves
-     ordinary spaces, which is fine since word-break already handles
-     long unbroken strings. */
+  /* Keep \n line breaks from backend */
   white-space: pre-line;
 }
 
@@ -255,9 +231,7 @@ body {
   cursor: pointer;
 }
 
-/* ============================================
-   TYPING INDICATOR (animated bouncing dots)
-   ============================================ */
+/* TYPING INDICATOR */
 .typing-dots {
   display: inline-flex;
   align-items: center;
@@ -288,13 +262,7 @@ body {
   }
 }
 
-/* ============================================
-   QUICK REPLIES (pinned above the input, Messenger-style)
-   Populated by addButtons()/renderQuickReplies() in
-   chatbot-widget.blade.php. Sits between the scrolling message
-   list and the input bar so the patient can always tap an option
-   without scrolling — and clears itself once answered.
-   ============================================ */
+/* QUICK REPLIES */
 .quick-replies {
   display: none;
   flex-wrap: wrap;
@@ -335,17 +303,7 @@ body {
   border-color: var(--primary);
 }
 
-/* ============================================
-   INLINE BUTTONS (embedded in the message flow)
-   Populated by addButtons()/addInlineButtons() for any button set
-   that ISN'T the top-level 4-option main menu — service lists,
-   doctor lists, schedule confirmation, etc. Unlike .quick-replies,
-   these render as part of the scrolling message list, one full-width
-   option per row, right under the question that was just asked.
-   Keeps the normal white chat-bubble look (background/border/shadow)
-   — just needs its own padding/gap so the stacked buttons have room
-   to breathe instead of touching the bubble edges or each other.
-   ============================================ */
+/* INLINE BUTTONS */
 .inline-buttons-bubble {
   display: flex;
   flex-direction: column;
@@ -381,9 +339,7 @@ body {
   cursor: default;
 }
 
-/* ============================================
-   CHAT INPUT AREA
-   ============================================ */
+/* CHAT INPUT AREA */
 .chat-input-area {
   border-top: 1px solid var(--gray-200);
   padding: 14px 18px;
@@ -407,7 +363,7 @@ body {
 
 .chat-input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(15,103,179,0.1);
+  box-shadow: 0 0 0 2px rgba(2, 45, 103,0.1);
 }
 
 .attach-btn {
@@ -443,13 +399,7 @@ body {
 
 .file-input { display: none; }
 
-/* ============================================
-   ATTACHMENT PREVIEW (staged, pre-send)
-   Shown in the input area between the chat-messages
-   list and chat-input-area once a file is selected
-   but not yet sent, so the patient can still type a
-   message alongside it or remove it before sending.
-   ============================================ */
+/* ATTACHMENT PREVIEW */
 .attachment-preview {
   display: none;
   align-items: center;
@@ -491,13 +441,8 @@ body {
   color: var(--gray-700);
 }
 
-/* ============================================
-   ATTACHMENT BUBBLE (sent, inside chat-messages)
-   Used by addAttachmentBubble() for image attachments
-   that have actually been sent in the conversation.
-   ============================================ */
-/* Light background instead of inheriting the big solid-blue chat
-   bubble — the blue now only shows as a thin accent border. */
+/* ATTACHMENT BUBBLE */
+/* Light bubble with thin blue border */
 .chat-message.user .chat-bubble.attachment-bubble,
 .chat-message.bot .chat-bubble.attachment-bubble {
   background: var(--gray-50);
@@ -521,8 +466,7 @@ body {
   word-break: break-all;
 }
 
-/* The patient's typed question, shown above the file inside the same
-   bubble — so the text and attachment travel/read as one message. */
+/* Typed question above the file */
 .chat-attachment-caption-text {
   font-size: 14px;
   line-height: 1.45;
@@ -531,9 +475,7 @@ body {
   word-break: break-word;
 }
 
-/* ============================================
-   CHATBOT - BUTTONS & COMPONENTS
-   ============================================ */
+/* CHATBOT */
 .menu-grid { display: flex; flex-direction: column; gap: 10px; }
 .menu-row { display: flex; gap: 12px; flex-wrap: wrap; }
 
@@ -648,9 +590,7 @@ body {
   margin-bottom: 16px;
   color: var(--gray-900);
   text-align: center;
-  /* Same reasoning as .chat-bubble above — card titles can now carry
-     \n line breaks (e.g. "Schedule Visit Confirmed, Juan!") without
-     collapsing into one run-on line. */
+  /* Keep \n line breaks in card titles */
   white-space: pre-line;
 }
 
@@ -803,9 +743,7 @@ body {
   transform: scale(1.05);
 }
 
-/* Once a star is picked (see chatbot.js addStarRating), the button is
-   disabled but should stay visually gold — without this, the disabled
-   state's default dimmed styling could make it look unpicked again. */
+/* Keep picked star gold when disabled */
 .star-btn.filled:disabled {
   color: #F5B042;
   opacity: 1;
@@ -822,9 +760,7 @@ body {
   resize: vertical;
 }
 
-/* ============================================
-   PER-MESSAGE TRANSLATE
-   ============================================ */
+/* PER-MESSAGE TRANSLATE */
 .msg-translate-btn {
   background: var(--primary-light);
   border: 1px solid transparent;
@@ -936,9 +872,7 @@ body {
   color: white;
 }
 
-/* ============================================
-   CHATBOT STANDALONE PAGE
-   ============================================ */
+/* CHATBOT STANDALONE PAGE */
 .chat-wrapper {
   width: 100%;
   max-width: 480px;
@@ -972,9 +906,7 @@ body {
 
 .footer-note a:hover { text-decoration: underline; }
 
-/* ============================================
-   RESPONSIVE - CHATBOT
-   ============================================ */
+/* RESPONSIVE - CHATBOT */
 @media (max-width: 768px) {
   .chatbot-panel {
     width: calc(100vw - 32px);
@@ -987,8 +919,7 @@ body {
   .post-appt-btn { padding: 10px 16px; font-size: 14px; min-width: 130px; }
   .menu-btn { padding: 8px 14px; font-size: 14px; min-width: 100px; }
   .quick-reply-btn { padding: 8px 14px; font-size: 13px; }
-  /* 16px prevents iOS Safari from auto-zooming the page when the
-     patient taps into the chat field; anything smaller triggers it. */
+  /* 16px stops iOS auto-zoom on focus */
   .chat-input { font-size: 16px; }
 }
 

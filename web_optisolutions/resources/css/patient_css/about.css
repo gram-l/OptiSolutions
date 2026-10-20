@@ -1,6 +1,4 @@
-/* ============================================
-   GLOBAL RESET & ROOT VARIABLES
-   ============================================ */
+/* GLOBAL RESET & ROOT VARIABLES */
 * {
   margin: 0;
   padding: 0;
@@ -8,9 +6,9 @@
 }
 
 :root {
-  --primary: #0F67B3;
-  --primary-dark: #0A4B82;
-  --primary-light: #EFF7FF;
+  --primary: #022D67;
+  --primary-dark: #01204C;
+  --primary-light: #EAF0F9;
   --accent: #2C9E7A;
   --accent-light: #E0F2EC;
   --gray-50: #FBFCFE;
@@ -50,17 +48,9 @@ body {
   padding: 0 32px;
 }
 
-/* ============================================
-   NAVBAR
-   (Styling and mobile behavior now live entirely in
-   resources/js/navbar-loader.js, which injects the nav markup
-   and its own <style> tag on every page. Keeping it in one place
-   avoids the nav rules here silently fighting the shared script.)
-   ============================================ */
+/* NAVBAR (styled in navbar-loader.js) */
 
-/* ============================================
-   SHARED SECTION STYLES
-   ============================================ */
+/* SHARED SECTION STYLES */
 .section {
   padding: 80px 40px;
 }
@@ -99,7 +89,7 @@ body {
 .btn-primary {
   background: var(--primary);
   color: white;
-  box-shadow: 0 4px 12px rgba(15,103,179,0.25);
+  box-shadow: 0 4px 12px rgba(2, 45, 103,0.25);
 }
 
 .btn-primary:hover {
@@ -125,11 +115,9 @@ body {
   flex-wrap: wrap;
 }
 
-/* ============================================
-   FOOTER - MODERN (shared with Home)
-   ============================================ */
+/* FOOTER */
 .footer-modern {
-  background: var(--gray-900);
+  background: var(--primary);
   color: #C9D9E8;
   padding: 56px 32px 0;
   margin-top: 60px;
@@ -149,11 +137,9 @@ body {
   gap: 12px;
 }
 .footer-modern-logo {
-  height: 40px;
+  height: 64px;
   width: auto;
   object-fit: contain;
-  filter: brightness(0) invert(1);
-  opacity: 0.95;
 }
 .footer-modern-brandname {
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -201,7 +187,7 @@ body {
   transition: all 0.2s ease;
 }
 .footer-modern-social a:hover {
-  background: var(--primary);
+  background: rgba(255, 255, 255, 0.22);
   transform: translateY(-2px);
 }
 .footer-modern-bottom {
@@ -219,17 +205,13 @@ body {
   .footer-modern-social { grid-column: 1 / -1; }
 }
 
-/* ============================================
-   MODAL ANIMATION
-   ============================================ */
+/* MODAL ANIMATION */
 @keyframes modalSlideIn {
   from { opacity: 0; transform: scale(0.95) translateY(-20px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* ============================================
-   RESPONSIVE - GLOBAL
-   ============================================ */
+/* RESPONSIVE - GLOBAL */
 @media (max-width: 768px) {
   .section { padding: 48px 20px; }
   .footer-modern-top { grid-template-columns: 1fr 1fr; text-align: left; }
@@ -240,10 +222,7 @@ body {
   .footer-modern-top { grid-template-columns: 1fr; }
 }
 
-/* ============================================
-   ABOUT PAGE STYLES
-   about.css — import after style.css
-   ============================================ */
+/* ABOUT PAGE STYLES */
 
 .about-section {
   padding-top: 36px;
@@ -385,7 +364,7 @@ body {
 .about-cta-btn:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(15, 103, 179, 0.3);
+  box-shadow: 0 8px 24px rgba(2, 45, 103, 0.3);
 }
 
 .about-cta-btn i {
@@ -426,7 +405,7 @@ body {
   right: -50%;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle, rgba(15, 103, 179, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(2, 45, 103, 0.05) 0%, transparent 70%);
   border-radius: 50%;
 }
 
@@ -465,9 +444,7 @@ body {
   z-index: 1;
 }
 
-/* ============================================
-   MISSION, VISION, VALUES
-   ============================================ */
+/* MISSION, VISION, VALUES */
 .mv-modern {
   display: flex;
   flex-direction: column;
@@ -538,7 +515,7 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* Mission / Vision cards: icon stacked above the heading, left-aligned */
+/* Mission / Vision cards */
 .mv-top-grid .mv-card-modern {
   flex-direction: column;
   align-items: flex-start;
@@ -635,9 +612,7 @@ body {
   margin: 0;
 }
 
-/* ============================================
-   RESPONSIVE - ABOUT
-   ============================================ */
+/* RESPONSIVE - ABOUT */
 @media (max-width: 992px) {
   .about-grid-modern { grid-template-columns: 1fr; gap: 32px; }
   .about-stats-modern { grid-template-columns: repeat(4, 1fr); }
@@ -680,24 +655,20 @@ body {
   .values-grid { grid-template-columns: 1fr; }
 }
 
-/* ============================================
-   BRAND TOKENS - shared by About / Services / Doctors v2
-   ============================================ */
+/* BRAND TOKENS */
 :root {
-  --brand-navy: #0A2C63;          /* headings */
-  --brand-blue: #0F67B3;          /* ONE blue for tags, icons, links, buttons (= site --primary) */
-  --brand-blue-bright: #0F67B3;   /* same blue (kept as alias) */
-  --brand-blue-soft: #E3EFFB;     /* pill / icon backgrounds */
-  --brand-blue-line: #BBD6F4;
+  --brand-navy: #022D67;          /* headings */
+  --brand-blue: #022D67;          /* Main blue */
+  --brand-blue-bright: #022D67;   /* same blue */
+  --brand-blue-soft: #E6ECF6;     /* pill / icon backgrounds */
+  --brand-blue-line: #C3CFE3;
   --brand-green: #1E7B2E;         /* accent text, badges, vision */
   --brand-green-soft: #E4F3E8;
   --text-muted: #5F6F86;          /* paragraphs */
   --border-soft: #DCE6F2;
 }
 
-/* ============================================
-   ABOUT V2 - matches approved mockup
-   ============================================ */
+/* ABOUT V2 */
 .section.about-v2 {
   position: relative;
   padding: 0 0 80px;

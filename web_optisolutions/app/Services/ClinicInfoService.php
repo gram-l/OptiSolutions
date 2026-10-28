@@ -737,7 +737,7 @@ class ClinicInfoService
                                 '7. Choose your preferred doctor/specialist.',
                                 '8. Confirm the suggested schedule, or ask for an alternative.',
                                 "9. We'll save your visit and send you a confirmation card.",
-                                '10. Optional: get the full conversation emailed to you.',
+                                '10. Optional: tick "Email me my visit confirmation" to get the details by email.',
                             ],
                         ],
                     ],

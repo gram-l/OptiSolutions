@@ -928,3 +928,251 @@ body {
   .chatbot-trigger { bottom: 16px; right: 16px; width: 50px; height: 50px; font-size: 20px; }
   .chat-wrapper { border-radius: 0; height: 100vh; max-height: 100vh; margin: 0; }
 }
+/* Patient information form (Schedule Visit) */
+.chat-message.chat-form-wrap {
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+}
+
+.chat-form-card {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 22px 20px;
+}
+
+.chat-form-card .post-appt-title {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.chat-form-notice {
+  font-size: 14px;
+  color: var(--gray-700);
+  text-align: center;
+  margin-bottom: 18px !important;
+}
+
+.chat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-form-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.chat-form-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  background: var(--white);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  color: var(--gray-900);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.chat-form-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.chat-form-input:disabled {
+  opacity: 0.6;
+}
+
+.chat-form-group.has-error .chat-form-input {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.chat-form-error {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #DC2626;
+}
+
+.chat-form-submit {
+  margin-top: 6px;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--primary);
+  color: var(--white);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-form-submit:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+
+.chat-form-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Schedule visit forms: step label, select, checkbox, footer, actions */
+.chat-form-step {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  text-align: center;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.chat-form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23022D67' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.chat-form-select:disabled {
+  cursor: not-allowed;
+  background-color: var(--gray-50);
+}
+
+.chat-form-check label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--gray-700);
+  cursor: pointer;
+}
+
+.chat-form-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+
+.chat-form-footer {
+  margin: 16px 0 0 !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  color: var(--gray-500, #6B7C93) !important;
+  text-align: center;
+}
+
+.chat-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.chat-form-actions .chat-form-submit {
+  width: 100%;
+  margin-top: 0;
+}
+
+.chat-form-secondary {
+  display: flex;
+  gap: 10px;
+}
+
+.chat-form-secondary .chat-form-back {
+  flex: 1;
+}
+
+.chat-form-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+
+.chat-form-summary-section {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.chat-form-summary-heading {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+
+.chat-form-summary-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-top: 1px solid var(--gray-100, #EEF2F7);
+}
+
+.chat-form-summary-heading + .chat-form-summary-row {
+  border-top: none;
+}
+
+.chat-form-summary-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.chat-form-summary-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-900);
+  word-break: break-word;
+}
+
+.chat-form-back {
+  padding: 14px 20px;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--gray-700);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-form-back:hover:not(:disabled) {
+  background: var(--gray-50);
+}
+
+.chat-form-back:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

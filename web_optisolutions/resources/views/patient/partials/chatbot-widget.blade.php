@@ -73,6 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const APPT_CARD_PREFIX = 'APPT_CARD::';
   const INFO_CARD_PREFIX = 'INFO_CARD::';
+  const FORM_CARD_PREFIX = 'FORM_CARD::';
+  const FORM_SUBMIT_PREFIX = 'FORM_SUBMIT::';
 
   // Guards against overlapping requests — rapid clicking a quick-reply
   // button or mashing Enter before the first response comes back used
@@ -98,6 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function focusInput() {
     if (!panel.classList.contains('open') || input.disabled) return;
+    // Don't steal focus while the patient is typing inside the form card.
+    const active = document.activeElement;
+    if (active && active.closest && active.closest('.chat-form')) return;
     // preventScroll: don't let the page jump when focus returns.
     input.focus({ preventScroll: true });
   }
@@ -710,6 +715,312 @@ document.addEventListener('DOMContentLoaded', () => {
     addCard(data, 'info_card', persist);
   }
 
+
+  // SCHEDULE VISIT FORMS (step 1: your details, step 2: choose your visit)
+  // Shown as a card with real form fields instead of one chat question per
+  // field. The server (AppointmentConversation) runs every validation and
+  // sends the card back with per-field errors when something is wrong.
+  // Field types: text/tel/email/date inputs, select (optionally dependent
+  // on another select via depends_on), and checkbox.
+
+  let activeForm = null; // { el, entry } for the form currently on screen
+
+  function removeActiveForm() {
+    if (!activeForm) return;
+    activeForm.el.remove();
+    if (activeForm.entry) {
+      const i = session.history.indexOf(activeForm.entry);
+      if (i !== -1) session.history.splice(i, 1);
+      persistSession();
+    }
+    activeForm = null;
+  }
+
+  function addFormCard(data, persist = true) {
+    // Only one live form at a time (a re-sent form replaces the old one).
+    removeActiveForm();
+
+    const messageWrap = document.createElement('div');
+    messageWrap.className = 'chat-message bot chat-form-wrap';
+    messageWrap.style.display = 'flex';
+    messageWrap.style.flexDirection = 'column';
+
+    const card = document.createElement('div');
+    card.className = 'post-appt-card chat-form-card';
+
+    if (data.step) {
+      const step = document.createElement('div');
+      step.className = 'chat-form-step';
+      step.textContent = data.step;
+      card.appendChild(step);
+    }
+
+    const title = document.createElement('div');
+    title.className = 'post-appt-title';
+    title.textContent = data.title || 'Details';
+    card.appendChild(title);
+
+    if (data.notice) {
+      const notice = document.createElement('p');
+      notice.className = 'chat-form-notice';
+      notice.textContent = data.notice;
+      card.appendChild(notice);
+    }
+
+    const form = document.createElement('form');
+    form.className = 'chat-form';
+    form.noValidate = true; // the server does the validating
+    form.autocomplete = 'on';
+
+    const controls = {};   // field name -> input/select element
+    const selectDefs = {}; // field name -> field definition (selects only)
+
+    function clearError(group) {
+      group.classList.remove('has-error');
+      const err = group.querySelector('.chat-form-error');
+      if (err) err.remove();
+    }
+
+    // Fills a select from its option list, keeping only the options that
+    // belong to the currently chosen parent value, then cascades to
+    // anything that depends on it. A single remaining choice is picked
+    // automatically so the patient has one less thing to tap.
+    function fillSelect(name) {
+      const def = selectDefs[name];
+      const el = controls[name];
+      const parentName = def.depends_on;
+      const parentVal = parentName ? controls[parentName].value : '';
+      const prev = el.value || el.dataset.initial || '';
+      el.dataset.initial = '';
+
+      el.innerHTML = '';
+      const ph = document.createElement('option');
+      ph.value = '';
+      ph.textContent = def.placeholder || 'Select';
+      el.appendChild(ph);
+
+      const opts = (def.options || []).filter(o => !parentName || (parentVal && o.parent === parentVal));
+      opts.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label;
+        el.appendChild(opt);
+      });
+
+      el.disabled = !!parentName && !parentVal;
+
+      if (opts.length === 1) {
+        el.value = opts[0].value;
+      } else if (opts.some(o => o.value === prev)) {
+        el.value = prev;
+      } else {
+        el.value = '';
+      }
+
+      cascadeFrom(name);
+    }
+
+    function cascadeFrom(name) {
+      Object.keys(selectDefs)
+        .filter(n => selectDefs[n].depends_on === name)
+        .forEach(fillSelect);
+    }
+
+    (data.fields || []).forEach(f => {
+      const id = 'chatForm_' + f.name;
+      const group = document.createElement('div');
+
+      if (f.type === 'checkbox') {
+        group.className = 'chat-form-check';
+        const label = document.createElement('label');
+        label.htmlFor = id;
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.id = id;
+        box.name = f.name;
+        box.checked = f.value === true;
+        const text = document.createElement('span');
+        text.textContent = f.label;
+        label.appendChild(box);
+        label.appendChild(text);
+        group.appendChild(label);
+        controls[f.name] = box;
+        form.appendChild(group);
+        return;
+      }
+
+      group.className = 'chat-form-group' + (f.error ? ' has-error' : '');
+
+      const label = document.createElement('label');
+      label.className = 'chat-form-label';
+      label.htmlFor = id;
+      label.textContent = f.label;
+
+      let field;
+      if (f.type === 'select') {
+        field = document.createElement('select');
+        field.className = 'chat-form-input chat-form-select';
+        field.dataset.initial = f.value || '';
+        selectDefs[f.name] = f;
+      } else {
+        field = document.createElement('input');
+        field.className = 'chat-form-input';
+        field.type = f.type || 'text';
+        field.placeholder = f.placeholder || '';
+        field.value = f.value || '';
+        if (f.maxlength) field.maxLength = f.maxlength;
+        if (f.min) field.min = f.min;
+        if (f.max) field.max = f.max;
+      }
+      field.id = id;
+      field.name = f.name;
+      if (f.autocomplete) field.autocomplete = f.autocomplete;
+      if (f.error) field.setAttribute('aria-invalid', 'true');
+
+      // Clear the error styling as soon as the patient edits the field.
+      const onEdit = () => {
+        clearError(group);
+        if (f.type === 'select') cascadeFrom(f.name);
+      };
+      field.addEventListener(f.type === 'select' ? 'change' : 'input', onEdit);
+
+      group.appendChild(label);
+      group.appendChild(field);
+
+      if (f.error) {
+        const err = document.createElement('div');
+        err.className = 'chat-form-error';
+        err.setAttribute('role', 'alert');
+        err.textContent = f.error;
+        group.appendChild(err);
+      }
+
+      controls[f.name] = field;
+      form.appendChild(group);
+    });
+
+    // Populate the selects (roots first; fillSelect cascades to the rest).
+    Object.keys(selectDefs)
+      .filter(n => !selectDefs[n].depends_on)
+      .forEach(fillSelect);
+
+    // Read-only review of everything the patient entered (review step).
+    if (Array.isArray(data.summary)) {
+      const summary = document.createElement('div');
+      summary.className = 'chat-form-summary';
+      data.summary.forEach(sec => {
+        const section = document.createElement('div');
+        section.className = 'chat-form-summary-section';
+        if (sec.heading) {
+          const h = document.createElement('div');
+          h.className = 'chat-form-summary-heading';
+          h.textContent = sec.heading;
+          section.appendChild(h);
+        }
+        (sec.rows || []).forEach(r => {
+          const row = document.createElement('div');
+          row.className = 'chat-form-summary-row';
+          const k = document.createElement('span');
+          k.className = 'chat-form-summary-label';
+          k.textContent = r.label;
+          const v = document.createElement('span');
+          v.className = 'chat-form-summary-value';
+          v.textContent = r.value;
+          row.appendChild(k);
+          row.appendChild(v);
+          section.appendChild(row);
+        });
+        summary.appendChild(section);
+      });
+      form.appendChild(summary);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'chat-form-actions';
+
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'chat-form-submit';
+    submit.textContent = data.submit || 'Next';
+    actions.appendChild(submit);
+
+    // Secondary buttons (Back / Edit details / Change visit) sit under the main button.
+    if (Array.isArray(data.secondary) && data.secondary.length) {
+      const row = document.createElement('div');
+      row.className = 'chat-form-secondary';
+      data.secondary.forEach(btn => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chat-form-back';
+        b.textContent = btn.label;
+        b.addEventListener('click', () => {
+          if (isSending) return;
+          sendMessage(btn.value, '', { skipUserBubble: true });
+        });
+        row.appendChild(b);
+      });
+      actions.appendChild(row);
+    }
+
+    form.appendChild(actions);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (isSending) return;
+
+      const values = {};
+      Object.keys(controls).forEach(k => {
+        const el = controls[k];
+        values[k] = el.type === 'checkbox' ? el.checked : (el.value || '').trim();
+      });
+      if (data.confirm) values.confirm = true;
+
+      form.querySelectorAll('input, select, button').forEach(el => { el.disabled = true; });
+
+      // No echo bubble repeating what the patient just entered: the next
+      // card (or the final confirmation) already shows it. The server
+      // replies with either the next step or this form again with errors;
+      // both replace this card (see addFormCard / sendMessage).
+      const ok = await sendMessage(FORM_SUBMIT_PREFIX + JSON.stringify(values), '', {
+        skipUserBubble: true,
+        showSaving: !!data.saving,
+      });
+      if (!ok && activeForm && activeForm.el === messageWrap) {
+        // Request failed: let the patient try again.
+        form.querySelectorAll('input, select, button').forEach(el => { el.disabled = false; });
+      }
+    });
+
+    card.appendChild(form);
+
+    if (data.footer) {
+      const footer = document.createElement('p');
+      footer.className = 'chat-form-footer';
+      footer.textContent = data.footer;
+      card.appendChild(footer);
+    }
+
+    messageWrap.appendChild(card);
+    messagesEl.appendChild(messageWrap);
+    scrollToBottom();
+
+    let entry = null;
+    if (persist) {
+      entry = { kind: 'form', data };
+      session.history.push(entry);
+      persistSession();
+    }
+
+    activeForm = { el: messageWrap, entry };
+
+    // Put the cursor in the first field with an error, else the first field.
+    const firstBad = form.querySelector('.has-error input, .has-error select') ||
+      form.querySelector('input:not([type=checkbox]), select:not(:disabled)');
+    if (firstBad && panel.classList.contains('open')) {
+      setTimeout(() => firstBad.focus({ preventScroll: true }), 50);
+    }
+  }
+
   function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true, caption = null) {
     const messageWrap = document.createElement('div');
     messageWrap.className = `chat-message ${sender}`;
@@ -787,6 +1098,12 @@ document.addEventListener('DOMContentLoaded', () => {
         addAppointmentCard(item.data, false);
       } else if (item.kind === 'info_card') {
         addInfoCard(item.data, false);
+      } else if (item.kind === 'form') {
+        // Only an unanswered form (the latest item) is worth restoring.
+        if (isLast) {
+          addFormCard(item.data, false);
+          if (activeForm) activeForm.entry = item;
+        }
       } else if (item.kind === 'attachment') {
         addAttachmentBubble(item.fileName, item.dataUrl, item.sender, false, item.caption);
       }
@@ -843,7 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // schedule) and removed as soon as the request finishes. Transient:
     // never persisted to session history.
     let savingEl = null;
-    if (text === 'confirm_yes') {
+    if (text === 'confirm_yes' || opts.showSaving) {
       const b = addBubble('Saving your schedule visit...', 'bot', false);
       savingEl = b.closest('.chat-message');
     }
@@ -884,6 +1201,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const messages = Array.isArray(data) ? data : (data.messages || []);
       let hadButtons = false;
+      let hadForm = false;
 
       messages.forEach(msg => {
         if (msg.text) {
@@ -894,6 +1212,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
               console.error('Failed to parse appointment card payload:', e);
               addBubble(msg.text, 'bot');
+            }
+          } else if (msg.text.startsWith(FORM_CARD_PREFIX)) {
+            try {
+              const formData = JSON.parse(msg.text.slice(FORM_CARD_PREFIX.length));
+              addFormCard(formData);
+              hadForm = true;
+            } catch (e) {
+              console.error('Failed to parse form payload:', e);
+              addBubble('Sorry, the form could not be loaded. Please try again.', 'bot');
             }
           } else if (msg.text.startsWith(INFO_CARD_PREFIX)) {
             try {
@@ -914,6 +1241,12 @@ document.addEventListener('DOMContentLoaded', () => {
           hadButtons = true;
         }
       });
+
+      // The conversation moved past the form (or never re-sent it), so
+      // the old form must not stay on screen as a stale, submittable card.
+      if (!hadForm) {
+        removeActiveForm();
+      }
 
       // The step we just landed on has no button options of its own
       // (e.g. "Please provide your full name.") — clear the pinned
@@ -968,7 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Clicking a button inside the panel (quick reply, inline option,
   // translate, etc.) shouldn't leave focus stranded on that button.
   panel.addEventListener('click', (e) => {
-    if (e.target.closest('a, .msg-translate-btn, .attach-btn, #chatClose')) return;
+    if (e.target.closest('a, .msg-translate-btn, .attach-btn, #chatClose, .chat-form')) return;
     setTimeout(focusInput, 0);
   });
 

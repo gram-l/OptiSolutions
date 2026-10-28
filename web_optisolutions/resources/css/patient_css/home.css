@@ -1749,6 +1749,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
 }
 .cta-banner-tag {
   font-size: 13px;
@@ -1793,7 +1794,8 @@ body {
   font-size: 16px;
 }
 .cta-info-label { display: block; font-size: 12px; color: var(--gray-500); font-weight: 500; }
-.cta-info-value { display: block; font-size: 15px; color: var(--gray-800); font-weight: 700; }
+.cta-info-value { display: block; font-size: 15px; color: var(--gray-800); font-weight: 700; text-wrap: balance; }
+.cta-banner-title, .cta-banner-desc { text-wrap: balance; }
 .btn-cta-banner {
   display: inline-flex;
   align-items: center;
@@ -1807,6 +1809,8 @@ body {
   text-decoration: none;
   transition: all 0.3s ease;
   width: fit-content;
+  max-width: 100%;
+  white-space: nowrap;
 }
 .btn-cta-banner:hover {
   background: var(--primary-dark);
@@ -1819,6 +1823,7 @@ body {
   border-radius: 16px;
   overflow: hidden;
   min-height: 300px;
+  min-width: 0;
   background: var(--gray-100);
 }
 .cta-banner-map iframe {
@@ -1830,12 +1835,14 @@ body {
 /* RESPONSIVE - HOME */
 @media (max-width: 992px) {
   .stats-modern-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-  .cta-banner-inner { grid-template-columns: 1fr; text-align: center; padding: 44px 36px; }
+  .cta-banner { padding: 32px 0; }
+  .cta-banner-content { align-items: center; }
+  .cta-banner-inner { grid-template-columns: minmax(0, 1fr); text-align: center; padding: 44px 36px; }
   .cta-banner-info { justify-content: center; }
   .cta-info-item { text-align: left; }
   .btn-cta-banner { margin: 0 auto; }
-  .cta-banner-map { min-height: 240px; }
-  .cta-banner-map iframe { min-height: 240px; }
+  .cta-banner-map { min-height: 280px; }
+  .cta-banner-map iframe { min-height: 280px; }
 }
 @media (max-width: 768px) {
   .hero-flutter-inner { flex-direction: column; }
@@ -1848,8 +1855,8 @@ body {
   .services-modern-section, .doctors-modern-section { padding: 48px 20px; }
   .services-modern-title, .doctors-modern-title { font-size: 30px; }
   .service-card-modern { padding: 32px 22px; }
-  .cta-banner { padding: 32px 20px; }
-  .cta-banner-inner { padding: 36px 28px; border-radius: 20px; }
+  .cta-banner { padding: 24px 0; }
+  .cta-banner-inner { padding: 32px 24px; border-radius: 20px; gap: 28px; }
   .cta-banner-title { font-size: 28px; }
   .filter-tabs { gap: 8px; }
   .filter-tab { font-size: 12px; padding: 6px 14px; }
@@ -1863,12 +1870,16 @@ body {
   .stat-modern-number { font-size: 26px; }
   .stat-modern-label { font-size: 14px; }
   .stat-modern-desc { font-size: 11px; }
+  .cta-banner { padding: 20px 0; }
+  .cta-banner-inner { padding: 28px 18px; gap: 24px; }
   .cta-banner-title { font-size: 24px; }
-  .cta-banner-info { flex-direction: column; gap: 18px; }
+  .cta-banner-desc { font-size: 15px; }
+  .cta-banner-info { flex-direction: column; align-items: center; gap: 18px; }
   .cta-info-item { flex-direction: column; justify-content: center; text-align: center; gap: 8px; }
-  .btn-cta-banner { width: 100%; justify-content: center; }
-  .cta-banner-map { min-height: 200px; }
-  .cta-banner-map iframe { min-height: 200px; }
+  .cta-info-value { font-size: 14px; }
+  .btn-cta-banner { width: 100%; justify-content: center; padding: 14px 20px; }
+  .cta-banner-map { min-height: 260px; }
+  .cta-banner-map iframe { min-height: 260px; }
   .service-grid-modern { grid-template-columns: 1fr; }
   .doctors-grid-modern > .doctor-card { flex-basis: 100%; }
   .filter-tabs { gap: 6px; padding: 0 5px; }

@@ -1,33 +1,5 @@
 <style>
-/* Desktop inquiry-status chart uses its card's available space rather
-   than the small side-by-side service-distribution layout. */
-@media screen and (min-width: 769px) {
-    :is(.admin-dashboard, .dash-page) .inquiry-status-card {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-    :is(.admin-dashboard, .dash-page) .inquiry-status-card .donut-layout {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        gap: 1.25rem;
-        padding: 0.5rem 0;
-        min-width: 0;
-    }
-    :is(.admin-dashboard, .dash-page) .inquiry-status-card .donut-chart-wrap {
-        width: min(100%, 340px);
-        max-width: 100%;
-        flex-shrink: 0;
-    }
-    :is(.admin-dashboard, .dash-page) .inquiry-status-card .donut-legend {
-        flex: 0 0 auto;
-        width: min(100%, 340px);
-    }
-    :is(.admin-dashboard, .dash-page) .inquiry-status-card .donut-legend-row { gap: 1rem; }
-}
+/* Both dashboard donuts use the compact chart with its legend beside it. */
 @media screen and (max-width: 768px) {
     :is(.admin-dashboard, .dash-page) {
         width: 100%;

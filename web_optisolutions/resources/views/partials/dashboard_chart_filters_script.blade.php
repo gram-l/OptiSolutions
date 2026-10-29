@@ -4,6 +4,37 @@
     .dashboard-chart-filter-status { color:#64748b; font-size:.85rem; }
 </style>
 <script>
+window.updateDashboardRatingLeaders = function (data) {
+    for (const [id, leaders] of [['doctors', data.leadingDoctors], ['services', data.leadingServices]]) {
+        const list = document.getElementById('rating-leaders-' + id);
+        if (!list || !Array.isArray(leaders)) continue;
+        const items = leaders.map((leader, index) => {
+            const item = document.createElement('li');
+            const name = document.createElement('span');
+            name.className = 'rating-leader-name';
+            name.textContent = `${index + 1}. ${leader.name}`;
+            const score = document.createElement('span');
+            score.className = 'rating-leader-score';
+            const star = document.createElement('i');
+            star.className = 'bi bi-star-fill';
+            star.setAttribute('aria-hidden', 'true');
+            score.append(star, ` ${Number(leader.average_rating).toFixed(1)}`);
+            const count = document.createElement('span');
+            count.className = 'rating-leader-count';
+            count.textContent = ' / 5 ratings';
+            score.append(count);
+            item.append(name, score);
+            return item;
+        });
+        if (!items.length) {
+            const empty = document.createElement('li');
+            empty.className = 'rating-leaders-empty';
+            empty.textContent = 'No linked ratings yet.';
+            items.push(empty);
+        }
+        list.replaceChildren(...items);
+    }
+};
 window.createDashboardChartFilters = function (refresh) {
     const inquiry = document.getElementById('inquiry-period-filter');
     const visits = document.getElementById('visit-weeks-filter');

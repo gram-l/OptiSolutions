@@ -134,7 +134,28 @@ class DashboardChartService
         $resolvedInquiries   = DB::table('inquiries')->where('resolved_status', 'Resolved')->count();
         $unresolvedInquiries = $totalInquiries - $resolvedInquiries;
 
+        $ratedVisits = fn () => DB::table('feedback as f')
+            ->join('schedule_visit as v', 'v.visit_id', '=', 'f.visit_id')
+            ->whereBetween('f.star_rating', [1, 5]);
+        $leadingDoctors = $ratedVisits()
+            ->join('doctors as d', 'd.doctor_id', '=', 'v.doctor_id')
+            ->whereNotNull('d.doctor_name')->where('d.doctor_name', '!=', '')
+            ->select('d.doctor_id', 'd.doctor_name as name')
+            ->selectRaw('AVG(f.star_rating) as average_rating, COUNT(*) as rating_count')
+            ->groupBy('d.doctor_id', 'd.doctor_name')
+            ->orderByDesc('average_rating')->orderByDesc('rating_count')->orderBy('d.doctor_name')
+            ->limit(3)->get();
+        $leadingServices = $ratedVisits()
+            ->whereNotNull('v.service_type')->where('v.service_type', '!=', '')
+            ->select('v.service_type as name')
+            ->selectRaw('AVG(f.star_rating) as average_rating, COUNT(*) as rating_count')
+            ->groupBy('v.service_type')
+            ->orderByDesc('average_rating')->orderByDesc('rating_count')->orderBy('v.service_type')
+            ->limit(3)->get();
+
         return [
+            'leadingDoctors' => $leadingDoctors,
+            'leadingServices' => $leadingServices,
             'inquiryPeriod' => $inquiryPeriod,
             'visitWeeks' => $weekCount,
             'inquiryPeriodLabel' => ($inquiryPeriod === 'last_week' ? 'Last week' : 'This week (ongoing)') . ': '

@@ -30,12 +30,6 @@
         $hasInquiryData = isset($inquiryVolumeByDay) && array_sum($inquiryVolumeByDay) > 0;
         $inquiryVolumeData = $hasInquiryData ? $inquiryVolumeByDay : array_fill(0, 7, 0);
 
-        // ---- Sentiment Trend defaults (empty until the controller supplies these) ----
-        $sentimentTrendLabelsData   = $sentimentTrendLabels ?? $defaultWeekLabels;
-        $sentimentTrendPositiveData = $sentimentTrendPositive ?? array_fill(0, 6, 0);
-        $sentimentTrendNeutralData  = $sentimentTrendNeutral ?? array_fill(0, 6, 0);
-        $sentimentTrendNegativeData = $sentimentTrendNegative ?? array_fill(0, 6, 0);
-        $hasSentimentTrendData = (array_sum($sentimentTrendPositiveData) + array_sum($sentimentTrendNeutralData) + array_sum($sentimentTrendNegativeData)) > 0;
 
         // ---- Chat Inquiries Status defaults (empty until the controller supplies these) ----
         $resolvedInquiriesCount   = $resolvedInquiries ?? 0;
@@ -106,38 +100,9 @@
         </a>
     </div>
 
-    <!-- ROW 1: SERVICE DISTRIBUTION + PATIENT FEEDBACK -->
+    <!-- ROW 1: STAR RATINGS + PATIENT FEEDBACK -->
     <div class="charts-section">
-        <div class="chart-card">
-            <div class="chart-header">
-                <div class="chart-header-title">
-                    <div class="chart-icon-badge"><i class="bi bi-pie-chart"></i></div>
-                    <h3>Service Distribution</h3>
-                </div>
-            </div>
-            <p class="chart-subtitle">Distribution of patient visits by service</p>
-
-            <div class="donut-layout">
-                <div class="donut-chart-wrap">
-                    <canvas id="serviceDistributionChart"></canvas>
-                </div>
-                <div class="donut-legend" id="serviceDistributionList">
-                    @if($hasServiceData)
-                        @foreach($serviceDistribution as $i => $service)
-                            <div class="donut-legend-row">
-                                <span class="donut-legend-label">
-                                    <span class="donut-legend-dot" style="background: {{ $serviceColors[$i % count($serviceColors)] }};"></span>
-                                    {{ $service->service_type }}
-                                </span>
-                                <span class="donut-legend-value">{{ $service->total }} visits</span>
-                            </div>
-                        @endforeach
-                    @else
-                        <p class="chart-empty-note">No service data available yet.</p>
-                    @endif
-                </div>
-            </div>
-        </div>
+        @include('partials.dashboard_rating_leaders')
 
         <div class="chart-card">
             <div class="chart-header">
@@ -181,64 +146,8 @@
         </div>
     </div>
 
-    <!-- ROW 2: INQUIRY VOLUME + PATIENT VISITS TREND -->
+    <!-- ROW 2: INQUIRY STATUS + SERVICE DISTRIBUTION -->
     <div class="charts-section">
-        <div class="chart-card">
-            <div class="chart-header">
-                <div class="chart-header-title">
-                    <div class="chart-icon-badge"><i class="bi bi-bar-chart"></i></div>
-                    <h3>Inquiry Volume</h3>
-                </div>
-                @include('partials.dashboard_chart_filter', ['chartFilter' => 'inquiry'])
-            </div>
-            <p class="chart-subtitle" id="inquiry-period-description">{{ $inquiryPeriodLabel ?? "Inquiries received Monday–Sunday (Philippine time)." }}</p>
-<p id="inquiry-filter-status" class="dashboard-chart-filter-status" role="status"></p>
-
-            <canvas id="inquiryVolumeChart" height="220"></canvas>
-
-            <p id="inquiryVolumeEmptyNote" class="chart-empty-note" style="{{ $hasInquiryData ? 'display:none;' : '' }}">
-                No inquiry data available yet.
-            </p>
-        </div>
-
-        <div class="chart-card">
-            <div class="chart-header">
-                <div class="chart-header-title">
-                    <div class="chart-icon-badge"><i class="bi bi-graph-up"></i></div>
-                    <h3>Patient Visits Trend</h3>
-                </div>
-                @include('partials.dashboard_chart_filter', ['chartFilter' => 'visits'])
-            </div>
-            <p class="chart-subtitle" id="visits-period-description">{{ $visitPeriodLabel ?? "Weekly scheduled visits, including this week (ongoing)." }}</p>
-<p id="visits-filter-status" class="dashboard-chart-filter-status" role="status"></p>
-
-            <canvas id="weeklyVisitsChart" height="220"></canvas>
-
-            <p id="weeklyVisitsEmptyNote" class="chart-empty-note" style="{{ $hasWeeklyData ? 'display:none;' : '' }}">
-                No visit data available yet.
-            </p>
-        </div>
-    </div>
-
-    <!-- ROW 3: SENTIMENT TREND + CHAT INQUIRIES STATUS -->
-    <div class="charts-section">
-        <div class="chart-card">
-            <div class="chart-header">
-                <div class="chart-header-title">
-                    <div class="chart-icon-badge"><i class="bi bi-graph-up-arrow"></i></div>
-                    <h3>Sentiment Trend</h3>
-                </div>
-                <span class="filter-btn">Last 6 Weeks</span>
-            </div>
-            <p class="chart-subtitle">Weekly feedback sentiment — positive vs. neutral vs. negative</p>
-
-            <canvas id="sentimentTrendChart" height="220"></canvas>
-
-            <p id="sentimentTrendEmptyNote" class="chart-empty-note" style="{{ $hasSentimentTrendData ? 'display:none;' : '' }}">
-                No sentiment trend data available yet.
-            </p>
-        </div>
-
         <div class="chart-card inquiry-status-card">
             <div class="chart-header">
                 <div class="chart-header-title">
@@ -272,6 +181,76 @@
 
             <p id="inquiryStatusEmptyNote" class="chart-empty-note" style="{{ $hasInquiryStatusData ? 'display:none;' : '' }}">
                 No inquiry status data available yet.
+            </p>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-header-title">
+                    <div class="chart-icon-badge"><i class="bi bi-pie-chart"></i></div>
+                    <h3>Service Distribution</h3>
+                </div>
+            </div>
+            <p class="chart-subtitle">Distribution of patient visits by service</p>
+
+            <div class="donut-layout">
+                <div class="donut-chart-wrap">
+                    <canvas id="serviceDistributionChart"></canvas>
+                </div>
+                <div class="donut-legend" id="serviceDistributionList">
+                    @if($hasServiceData)
+                        @foreach($serviceDistribution as $i => $service)
+                            <div class="donut-legend-row">
+                                <span class="donut-legend-label">
+                                    <span class="donut-legend-dot" style="background: {{ $serviceColors[$i % count($serviceColors)] }};"></span>
+                                    {{ $service->service_type }}
+                                </span>
+                                <span class="donut-legend-value">{{ $service->total }} visits</span>
+                            </div>
+                        @endforeach
+                    @else
+                        <p class="chart-empty-note">No service data available yet.</p>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 3: PATIENT VISITS TREND + INQUIRY VOLUME -->
+    <div class="charts-section">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-header-title">
+                    <div class="chart-icon-badge"><i class="bi bi-graph-up"></i></div>
+                    <h3>Patient Visits Trend</h3>
+                </div>
+                @include('partials.dashboard_chart_filter', ['chartFilter' => 'visits'])
+            </div>
+            <p class="chart-subtitle" id="visits-period-description">{{ $visitPeriodLabel ?? "Weekly scheduled visits, including this week (ongoing)." }}</p>
+<p id="visits-filter-status" class="dashboard-chart-filter-status" role="status"></p>
+
+            <canvas id="weeklyVisitsChart" height="220"></canvas>
+
+            <p id="weeklyVisitsEmptyNote" class="chart-empty-note" style="{{ $hasWeeklyData ? 'display:none;' : '' }}">
+                No visit data available yet.
+            </p>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-header-title">
+                    <div class="chart-icon-badge"><i class="bi bi-bar-chart"></i></div>
+                    <h3>Inquiry Volume</h3>
+                </div>
+                @include('partials.dashboard_chart_filter', ['chartFilter' => 'inquiry'])
+            </div>
+            <p class="chart-subtitle" id="inquiry-period-description">{{ $inquiryPeriodLabel ?? "Inquiries received Monday–Sunday (Philippine time)." }}</p>
+<p id="inquiry-filter-status" class="dashboard-chart-filter-status" role="status"></p>
+
+            <canvas id="inquiryVolumeChart" height="220"></canvas>
+
+            <p id="inquiryVolumeEmptyNote" class="chart-empty-note" style="{{ $hasInquiryData ? 'display:none;' : '' }}">
+                No inquiry data available yet.
             </p>
         </div>
     </div>
@@ -404,26 +383,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ---- Sentiment Trend (3-line chart) ----
-    const sentimentTrendChart = new Chart(document.getElementById('sentimentTrendChart'), {
-        type: 'line',
-        data: {
-            labels: @json($sentimentTrendLabelsData),
-            datasets: [
-                { label: 'Positive', data: @json($sentimentTrendPositiveData), borderColor: blue,  backgroundColor: blue,  tension: 0.35, pointBackgroundColor: blue },
-                { label: 'Neutral',  data: @json($sentimentTrendNeutralData),  borderColor: light, backgroundColor: light, tension: 0.35, pointBackgroundColor: light },
-                { label: 'Negative', data: @json($sentimentTrendNegativeData), borderColor: navy,  backgroundColor: navy,  tension: 0.35, pointBackgroundColor: navy }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
-            scales: {
-                y: { beginAtZero: true, max: 100, title: { display: true, text: 'Share of classified feedback (%)' }, ticks: { stepSize: 20, callback: value => value + '%' }, grid: {} },
-                x: { grid: {} }
-            }
-        }
-    });
-
     // ---- Chat Inquiries Status (doughnut) ----
     const inquiryStatusChart = new Chart(document.getElementById('inquiryStatusChart'), {
         type: 'doughnut',
@@ -446,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ===== DARK MODE THEMING FOR CHARTS =====
-    const allCharts = [serviceChart, weeklyChart, inquiryChart, sentimentTrendChart, inquiryStatusChart];
+    const allCharts = [serviceChart, weeklyChart, inquiryChart, inquiryStatusChart];
 
     function applyChartTheme() {
         const dark = isDarkMode();
@@ -516,6 +475,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const data = await chartFilters.load(DASHBOARD_DATA_URL);
                 if (!data) return;
+                window.updateDashboardRatingLeaders(data);
 
             // ---- Stat cards ----
             document.getElementById('stat-schedule-visit').textContent = data.todaysScheduledVisits ?? 0;
@@ -567,21 +527,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 row.querySelector('.sentiment-fill').style.width = value + '%';
             });
             document.getElementById('sentimentEmptyNote').style.display = sentimentTotal > 0 ? 'none' : 'block';
-
-            // ---- 5) Sentiment Trend (only if the controller sends it) ----
-            if (Array.isArray(data.sentimentTrendPositive)) {
-                const pos = data.sentimentTrendPositive;
-                const neu = Array.isArray(data.sentimentTrendNeutral) ? data.sentimentTrendNeutral : new Array(pos.length).fill(0);
-                const neg = Array.isArray(data.sentimentTrendNegative) ? data.sentimentTrendNegative : new Array(pos.length).fill(0);
-                const sum = a => a.reduce((t, n) => t + Number(n || 0), 0);
-                sentimentTrendChart.data.labels = data.sentimentTrendLabels ?? sentimentTrendChart.data.labels;
-                sentimentTrendChart.data.datasets[0].data = pos;
-                sentimentTrendChart.data.datasets[1].data = neu;
-                sentimentTrendChart.data.datasets[2].data = neg;
-                sentimentTrendChart.update();
-                document.getElementById('sentimentTrendEmptyNote').style.display =
-                    (sum(pos) + sum(neu) + sum(neg)) > 0 ? 'none' : 'block';
-            }
 
             // ---- 6) Chat Inquiries Status (only if the controller sends it) ----
             if (data.resolvedInquiries !== undefined || data.unresolvedInquiries !== undefined) {

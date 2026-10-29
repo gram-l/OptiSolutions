@@ -54,13 +54,6 @@
                 $hasInquiryData = isset($inquiryVolumeByDay) && count($inquiryVolumeByDay) > 0;
                 $inquiryVolumeData = $hasInquiryData ? $inquiryVolumeByDay : array_fill(0, 7, 0);
 
-                // ---- Sentiment Trend defaults ----
-                $defaultSentimentTrendLabels = ['W-5', 'W-4', 'W-3', 'W-2', 'W-1', 'This wk'];
-                $sentimentTrendLabelsData = $sentimentTrendLabels ?? $defaultSentimentTrendLabels;
-                $sentimentTrendPositiveData = $sentimentTrendPositive ?? array_fill(0, 6, 0);
-                $sentimentTrendNeutralData  = $sentimentTrendNeutral ?? array_fill(0, 6, 0);
-                $sentimentTrendNegativeData = $sentimentTrendNegative ?? array_fill(0, 6, 0);
-                $hasSentimentTrendData = (array_sum($sentimentTrendPositiveData) + array_sum($sentimentTrendNeutralData) + array_sum($sentimentTrendNegativeData)) > 0;
 
                 // ---- Chat Inquiries Status defaults ----
                 $resolvedInquiriesCount = $resolvedInquiries ?? 0;
@@ -135,35 +128,7 @@
 
             <div class="charts-grid">
                 <!-- 1) SERVICE DISTRIBUTION (doughnut + side legend) -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <div class="chart-header-title">
-                            <div class="chart-icon-badge"><i class="bi bi-pie-chart"></i></div>
-                            <h3>Service Distribution</h3>
-                        </div>
-                    </div>
-                    <p class="chart-subtitle">Distribution of patient visits by service</p>
-                    <div class="donut-layout">
-                        <div class="donut-chart-wrap">
-                            <canvas id="serviceDistributionChart"></canvas>
-                        </div>
-                        <div class="donut-legend" id="serviceDistributionList">
-                            @if($hasServiceData)
-                                @foreach($serviceDistribution as $i => $service)
-                                    <div class="donut-legend-row">
-                                        <span class="donut-legend-label">
-                                            <span class="donut-legend-dot" style="background: {{ $serviceColors[$i % count($serviceColors)] }};"></span>
-                                            {{ $service->service_type }}
-                                        </span>
-                                        <span class="donut-legend-value">{{ $service->total }} visits</span>
-                                    </div>
-                                @endforeach
-                            @else
-                                <p style="color: #7f8c8d; font-size: 0.85rem;">No service data available yet.</p>
-                            @endif
-                        </div>
-                    </div>
-                </div>
+                @include('partials.dashboard_rating_leaders')
 
                 <!-- 2) PATIENT FEEDBACK OVERVIEW (custom bars) -->
                 <div class="chart-card">
@@ -200,62 +165,6 @@
                 </div>
 
                 <!-- 3) INQUIRY VOLUME (bar) -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <div class="chart-header-title">
-                            <div class="chart-icon-badge"><i class="bi bi-bar-chart"></i></div>
-                            <h3>Inquiry Volume</h3>
-                        </div>
-                        @include('partials.dashboard_chart_filter', ['chartFilter' => 'inquiry'])
-                    </div>
-                    <p class="chart-subtitle" id="inquiry-period-description">{{ $inquiryPeriodLabel ?? "Inquiries received Monday–Sunday (Philippine time)." }}</p>
-<p id="inquiry-filter-status" class="dashboard-chart-filter-status" role="status"></p>
-                    <div>
-                        <canvas id="inquiryVolumeChart" height="220"></canvas>
-                    </div>
-                    <p id="inquiryVolumeEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasInquiryData ? 'display:none;' : '' }}">
-                        No inquiry data available yet.
-                    </p>
-                </div>
-
-                <!-- 4) PATIENT VISITS TREND (line) -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <div class="chart-header-title">
-                            <div class="chart-icon-badge"><i class="bi bi-graph-up"></i></div>
-                            <h3>Patient Visits Trend</h3>
-                        </div>
-                        @include('partials.dashboard_chart_filter', ['chartFilter' => 'visits'])
-                    </div>
-                    <p class="chart-subtitle" id="visits-period-description">{{ $visitPeriodLabel ?? "Weekly scheduled visits, including this week (ongoing)." }}</p>
-<p id="visits-filter-status" class="dashboard-chart-filter-status" role="status"></p>
-                    <div>
-                        <canvas id="weeklyVisitsChart" height="220"></canvas>
-                    </div>
-                    <p id="weeklyVisitsEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasWeeklyData ? 'display:none;' : '' }}">
-                        No visit data available yet.
-                    </p>
-                </div>
-
-                <!-- 5) SENTIMENT TREND OVER TIME (line) -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <div class="chart-header-title">
-                            <div class="chart-icon-badge"><i class="bi bi-graph-up-arrow"></i></div>
-                            <h3>Sentiment Trend</h3>
-                        </div>
-                        <button class="filter-btn">Last 6 Weeks <i class="bi bi-chevron-down"></i></button>
-                    </div>
-                    <p class="chart-subtitle">Weekly feedback sentiment — positive vs. neutral vs. negative</p>
-                    <div>
-                        <canvas id="sentimentTrendChart" height="220"></canvas>
-                    </div>
-                    <p id="sentimentTrendEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasSentimentTrendData ? 'display:none;' : '' }}">
-                        No sentiment data available yet.
-                    </p>
-                </div>
-
-                <!-- 6) CHAT INQUIRIES: RESOLVED VS IN PROGRESS (donut) -->
                 <div class="chart-card inquiry-status-card">
                     <div class="chart-header">
                         <div class="chart-header-title">
@@ -287,6 +196,75 @@
                     </div>
                     <p id="inquiryStatusEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasInquiryStatusData ? 'display:none;' : '' }}">
                         No chat inquiry data available yet.
+                    </p>
+                </div>
+
+                <!-- 4) PATIENT VISITS TREND (line) -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-header-title">
+                            <div class="chart-icon-badge"><i class="bi bi-pie-chart"></i></div>
+                            <h3>Service Distribution</h3>
+                        </div>
+                    </div>
+                    <p class="chart-subtitle">Distribution of patient visits by service</p>
+                    <div class="donut-layout">
+                        <div class="donut-chart-wrap">
+                            <canvas id="serviceDistributionChart"></canvas>
+                        </div>
+                        <div class="donut-legend" id="serviceDistributionList">
+                            @if($hasServiceData)
+                                @foreach($serviceDistribution as $i => $service)
+                                    <div class="donut-legend-row">
+                                        <span class="donut-legend-label">
+                                            <span class="donut-legend-dot" style="background: {{ $serviceColors[$i % count($serviceColors)] }};"></span>
+                                            {{ $service->service_type }}
+                                        </span>
+                                        <span class="donut-legend-value">{{ $service->total }} visits</span>
+                                    </div>
+                                @endforeach
+                            @else
+                                <p style="color: #7f8c8d; font-size: 0.85rem;">No service data available yet.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5) SENTIMENT TREND OVER TIME (line) -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-header-title">
+                            <div class="chart-icon-badge"><i class="bi bi-graph-up"></i></div>
+                            <h3>Patient Visits Trend</h3>
+                        </div>
+                        @include('partials.dashboard_chart_filter', ['chartFilter' => 'visits'])
+                    </div>
+                    <p class="chart-subtitle" id="visits-period-description">{{ $visitPeriodLabel ?? "Weekly scheduled visits, including this week (ongoing)." }}</p>
+<p id="visits-filter-status" class="dashboard-chart-filter-status" role="status"></p>
+                    <div>
+                        <canvas id="weeklyVisitsChart" height="220"></canvas>
+                    </div>
+                    <p id="weeklyVisitsEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasWeeklyData ? 'display:none;' : '' }}">
+                        No visit data available yet.
+                    </p>
+                </div>
+
+                <!-- 6) CHAT INQUIRIES: RESOLVED VS IN PROGRESS (donut) -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-header-title">
+                            <div class="chart-icon-badge"><i class="bi bi-bar-chart"></i></div>
+                            <h3>Inquiry Volume</h3>
+                        </div>
+                        @include('partials.dashboard_chart_filter', ['chartFilter' => 'inquiry'])
+                    </div>
+                    <p class="chart-subtitle" id="inquiry-period-description">{{ $inquiryPeriodLabel ?? "Inquiries received Monday–Sunday (Philippine time)." }}</p>
+<p id="inquiry-filter-status" class="dashboard-chart-filter-status" role="status"></p>
+                    <div>
+                        <canvas id="inquiryVolumeChart" height="220"></canvas>
+                    </div>
+                    <p id="inquiryVolumeEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasInquiryData ? 'display:none;' : '' }}">
+                        No inquiry data available yet.
                     </p>
                 </div>
             </div>
@@ -375,44 +353,6 @@
             }
         });
 
-        const sentimentTrendChart = new Chart(document.getElementById('sentimentTrendChart'), {
-            type: 'line',
-            data: {
-                labels: @json($sentimentTrendLabelsData),
-                datasets: [
-                    {
-                        label: 'Positive',
-                        data: @json($sentimentTrendPositiveData),
-                        borderColor: '#0E62AA',
-                        backgroundColor: 'rgba(14,98,170,0.08)',
-                        tension: 0.35,
-                        pointBackgroundColor: '#0E62AA'
-                    },
-                    {
-                        label: 'Neutral',
-                        data: @json($sentimentTrendNeutralData),
-                        borderColor: '#9DBCD4',
-                        backgroundColor: 'rgba(157,188,212,0.08)',
-                        tension: 0.35,
-                        pointBackgroundColor: '#9DBCD4'
-                    },
-                    {
-                        label: 'Negative',
-                        data: @json($sentimentTrendNegativeData),
-                        borderColor: navy,
-                        backgroundColor: 'rgba(6,39,68,0.08)',
-                        tension: 0.35,
-                        pointBackgroundColor: navy
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: true, position: 'bottom' } },
-                scales: { y: { beginAtZero: true, suggestedMax: 100, ticks: { callback: v => v + '%' } } }
-            }
-        });
-
         const hasInquiryStatusData = @json($hasInquiryStatusData);
 
         const inquiryStatusChart = new Chart(document.getElementById('inquiryStatusChart'), {
@@ -440,6 +380,7 @@
             try {
                 const data = await chartFilters.load(DASHBOARD_DATA_URL);
                 if (!data) return;
+                window.updateDashboardRatingLeaders(data);
 
                 document.getElementById('stat-pending-inquiries').textContent = data.pendingInquiries ?? 0;
                 document.getElementById('stat-todays-appointments').textContent = data.todaysAppointments ?? 0;
@@ -498,18 +439,6 @@
                 inquiryChart.data.datasets[0].data = hasInquiry ? inquiryVolume : new Array(7).fill(0);
                 inquiryChart.update();
                 document.getElementById('inquiryVolumeEmptyNote').style.display = hasInquiry ? 'none' : 'block';
-
-                const trendLabels = Array.isArray(data.sentimentTrendLabels) ? data.sentimentTrendLabels : [];
-                if (trendLabels.length) sentimentTrendChart.data.labels = trendLabels;
-                const trendPositive = Array.isArray(data.sentimentTrendPositive) ? data.sentimentTrendPositive : new Array(6).fill(0);
-                const trendNeutral  = Array.isArray(data.sentimentTrendNeutral)  ? data.sentimentTrendNeutral  : new Array(6).fill(0);
-                const trendNegative = Array.isArray(data.sentimentTrendNegative) ? data.sentimentTrendNegative : new Array(6).fill(0);
-                sentimentTrendChart.data.datasets[0].data = trendPositive;
-                sentimentTrendChart.data.datasets[1].data = trendNeutral;
-                sentimentTrendChart.data.datasets[2].data = trendNegative;
-                sentimentTrendChart.update();
-                const hasTrend = [...trendPositive, ...trendNeutral, ...trendNegative].some(v => v > 0);
-                document.getElementById('sentimentTrendEmptyNote').style.display = hasTrend ? 'none' : 'block';
 
                 const resolvedCount = data.resolvedInquiries ?? 0;
                 const unresolvedCount = data.unresolvedInquiries ?? 0;

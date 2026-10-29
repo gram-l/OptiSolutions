@@ -40,7 +40,7 @@ const context = {
         getElementById: getNode, querySelectorAll: () => [],
         addEventListener(name, callback) { if (name === 'DOMContentLoaded') ready = callback; },
     },
-    window: { addEventListener() {}, createDashboardChartFilters(callback) {
+    window: { addEventListener() {}, updateDashboardRatingLeaders() {}, createDashboardChartFilters(callback) {
         refresh = callback;
         return { async load() { loadCount++; return {
             serviceDistribution: [], weeklyVisits: Array(12).fill(0), weekLabels: Array(12).fill('Week'),

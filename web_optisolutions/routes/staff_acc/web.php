@@ -21,6 +21,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
     // DASHBOARD
     Route::get('/staff/dashboard', [StaffController::class, 'dashboard'])->name('staff.dashboard');
     Route::get('/staff/dashboard/data', [StaffController::class, 'data'])->name('staff.dashboard.data');
+    Route::get('/staff/dashboard/diagnostics', [StaffController::class, 'diagnostics'])->name('staff.dashboard.diagnostics');
 
     // NOTIFICATIONS
     Route::put('/staff/notification-preferences', [NotificationController::class, 'savePreferences'])->name('staff.notification-preferences');

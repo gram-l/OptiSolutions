@@ -141,13 +141,43 @@ class PatientListController extends Controller
         return response()->json(['success' => true, 'patient' => $patient]);
     }
 
+    public function webUpdate(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'patient_fname' => 'required|string|max:100',
+            'patient_lname' => 'required|string|max:100',
+            'patient_birthdate' => 'nullable|date',
+            'patient_email' => 'nullable|email|max:255',
+            'patient_contact' => 'nullable|string|max:20',
+            'notes' => 'sometimes|nullable|string|max:2000',
+            'notes_visit_id' => 'required_with:notes|nullable|integer|min:1',
+        ]);
+
+        return DB::transaction(function () use ($validated, $id) {
+            $patient = PatientList::findOrFail($id);
+            if (array_key_exists('notes', $validated)) {
+                $visit = DB::table('schedule_visit')->where('visit_id', $validated['notes_visit_id'] ?? null)
+                    ->where('patient_id', $id)->lockForUpdate()->first();
+                if (!$visit) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'notes' => 'The visit for these notes is no longer available. Refresh the patient list and try again.',
+                    ]);
+                }
+                DB::table('schedule_visit')->where('visit_id', $visit->visit_id)
+                    ->update(['notes' => $validated['notes']]);
+            }
+            $patient->update(collect($validated)->except(['notes', 'notes_visit_id'])->all());
+            return response()->json(['success' => true, 'patient' => $patient]);
+        });
+    }
+
     // ─────────────────────────────────────────────────────────
     //  Web-only below — the admin Blade page's patient list.
     //  Nothing above this line is touched; mobile keeps using
     //  apiIndex/apiServiceTypes/apiVisits/updateVisitNotes/store/update
     //  exactly as before via api.php. store() and update() are reused
-    //  as-is here too (their fields already match the web form), just
-    //  reached through a separate web.php route.
+    //  through separate web routes. webUpdate additionally saves the
+    //  selected visit's notes atomically with the patient's details.
     // ─────────────────────────────────────────────────────────
 
     // GET /admin_acc/patients/list
@@ -175,6 +205,7 @@ class PatientListController extends Controller
                 'department' => $latest->service_type ?? null,
                 'doctor' => $latest->doctor_name ?? null,
                 'notes' => $latest->notes ?? null,
+                'notes_visit_id' => $latest->visit_id ?? null,
                 'email' => $patient->patient_email,
                 'phone' => $patient->patient_contact,
             ];
@@ -243,8 +274,9 @@ class PatientListController extends Controller
     {
         return DB::table('schedule_visit')
             ->leftJoin('doctors', 'doctors.doctor_id', '=', 'schedule_visit.doctor_id')
-            ->select('schedule_visit.patient_id', 'schedule_visit.service_type', 'schedule_visit.visit_date', 'schedule_visit.notes', 'doctors.doctor_name')
+            ->select('schedule_visit.visit_id', 'schedule_visit.patient_id', 'schedule_visit.service_type', 'schedule_visit.visit_date', 'schedule_visit.notes', 'doctors.doctor_name')
             ->orderByDesc('schedule_visit.visit_date')
+            ->orderByDesc('schedule_visit.visit_id')
             ->get()
             ->groupBy('patient_id')
             ->map(fn ($rows) => $rows->first()); // already ordered desc, so first() = most recent

@@ -9,7 +9,7 @@
         <button type="button" id="diagnostic-banner-dismiss" class="diagnostic-banner-dismiss" aria-label="Dismiss comparison explanation">&times;</button>
         <button type="button" id="diagnostic-banner-never" class="diagnostic-banner-never">Don’t show again</button>
     </aside>
-    <form method="GET" action="{{ route('admin.dashboard') }}#diagnostic-title" data-compare-url="{{ route('admin.dashboard.diagnostics') }}" class="diagnostic-filters" id="diagnostic-form">
+    <form method="GET" action="{{ route($diagnosticDashboardRoute ?? 'admin.dashboard') }}#diagnostic-title" data-compare-url="{{ route($diagnosticCompareRoute ?? 'admin.dashboard.diagnostics') }}" class="diagnostic-filters" id="diagnostic-form">
         <label>Week starting (Monday)
             <input type="date" name="diagnostic_week" value="{{ old('diagnostic_week', $diagnostic['week']) }}" min="1970-01-05" step="7" max="{{ $diagnostic['latest_week'] }}" required>
         </label>

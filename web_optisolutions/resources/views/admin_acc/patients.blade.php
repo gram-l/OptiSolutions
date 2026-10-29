@@ -151,6 +151,14 @@
                 <p style="font-size:0.78rem; color:#7f8c8d; margin-top:-0.5rem;">
                     Department and doctor reflect the patient's most recent scheduled visit and update automatically as new visits are added.
                 </p>
+                <div class="form-group" id="patientNotesGroup" hidden>
+                    <label for="patientNotes">Notes</label>
+                    <input type="hidden" id="patientNotesVisitId">
+                    <textarea id="patientNotes" rows="3" maxlength="2000" placeholder="Add notes for this visit" aria-describedby="patientNotesHelp" style="resize:vertical;"></textarea>
+                    <small id="patientNotesHelp" style="color:#64748b;">Notes belong to the patient's most recent scheduled visit.</small>
+                    <div class="field-error" id="err-notes"></div>
+                    <div class="field-error" id="err-notes_visit_id"></div>
+                </div>
                 <div class="modal-buttons">
                     <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
                     <button type="submit" class="btn-save" id="saveBtn">Save Patient</button>
@@ -485,7 +493,7 @@
             if (el) el.textContent = message;
         }
         function clearAllFieldErrors() {
-            ['patient_fname', 'patient_lname', 'patient_birthdate', 'patient_contact', 'patient_email']
+            ['patient_fname', 'patient_lname', 'patient_birthdate', 'patient_contact', 'patient_email', 'notes', 'notes_visit_id']
                 .forEach(f => setFieldError(f, ''));
         }
 
@@ -497,6 +505,7 @@
             document.getElementById('patientId').value = '';
             document.getElementById('patientDepartment').value = '';
             document.getElementById('patientDoctor').value = '';
+            document.getElementById('patientNotesGroup').hidden = true;
             document.getElementById('patientModal').style.display = 'flex';
         }
 
@@ -515,6 +524,13 @@
             document.getElementById('patientEmail').value = patient.email || '';
             document.getElementById('patientDepartment').value = patient.department || '';
             document.getElementById('patientDoctor').value = patient.doctor || '';
+            document.getElementById('patientNotesGroup').hidden = false;
+            document.getElementById('patientNotesVisitId').value = patient.notes_visit_id || '';
+            document.getElementById('patientNotes').value = patient.notes || '';
+            document.getElementById('patientNotes').disabled = !patient.notes_visit_id;
+            document.getElementById('patientNotesHelp').textContent = patient.notes_visit_id
+                ? "Notes belong to the patient's most recent scheduled visit."
+                : 'Add a scheduled visit before entering notes.';
             document.getElementById('patientModal').style.display = 'flex';
         }
 
@@ -533,6 +549,10 @@
             };
 
             const isEdit = !!id;
+            if (isEdit && document.getElementById('patientNotesVisitId').value) {
+                payload.notes_visit_id = Number(document.getElementById('patientNotesVisitId').value);
+                payload.notes = document.getElementById('patientNotes').value.trim() || null;
+            }
             const url = isEdit ? `${PATIENT_BASE}/${id}` : PATIENT_BASE;
 
             const saveBtn = document.getElementById('saveBtn');

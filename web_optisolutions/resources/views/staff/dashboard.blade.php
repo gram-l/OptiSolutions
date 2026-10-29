@@ -14,8 +14,8 @@
 
         // ---- Weekly Patient Visits defaults ----
         $defaultWeekLabels = ['W-5', 'W-4', 'W-3', 'W-2', 'W-1', 'This wk'];
-        $hasWeeklyData = isset($weeklyVisits) && count($weeklyVisits) > 0;
-        $weeklyVisitsData = $hasWeeklyData ? $weeklyVisits : array_fill(0, 6, 0);
+        $hasWeeklyData = isset($weeklyVisits) && array_sum($weeklyVisits) > 0;
+        $weeklyVisitsData = $weeklyVisits ?? array_fill(0, 6, 0);
         $weeklyVisitsLabels = $weekLabels ?? $defaultWeekLabels;
 
         // ---- Patient Feedback defaults ----
@@ -27,7 +27,7 @@
         ];
 
         // ---- Inquiry Volume defaults ----
-        $hasInquiryData = isset($inquiryVolumeByDay) && count($inquiryVolumeByDay) > 0;
+        $hasInquiryData = isset($inquiryVolumeByDay) && array_sum($inquiryVolumeByDay) > 0;
         $inquiryVolumeData = $hasInquiryData ? $inquiryVolumeByDay : array_fill(0, 7, 0);
 
         // ---- Sentiment Trend defaults (empty until the controller supplies these) ----
@@ -61,12 +61,12 @@
             <div class="card-top-row">
                 <div class="card-icon-title">
                     <div class="card-icon-badge"><i class="bi bi-calendar-check"></i></div>
-                    <span class="card-title">Total Schedule Visit</span>
+                    <span class="card-title">Today's Scheduled Visits</span>
                 </div>
                 <i class="bi bi-chevron-right card-chevron"></i>
             </div>
-            <div class="card-value" id="stat-schedule-visit">{{ $totalScheduleVisit ?? 0 }}</div>
-            <div class="card-subtitle"><span class="dot"></span> <span id="stat-schedule-visit-sub">Scheduled visits</span></div>
+            <div class="card-value" id="stat-schedule-visit">{{ $todaysScheduledVisits ?? 0 }}</div>
+            <div class="card-subtitle"><span class="dot"></span> <span id="stat-schedule-visit-sub">Scheduled for today</span></div>
         </a>
 
         <a href="{{ route('staff.inquiries') }}" class="analytics-card">
@@ -85,19 +85,19 @@
             <div class="card-top-row">
                 <div class="card-icon-title">
                     <div class="card-icon-badge"><i class="bi bi-person-badge"></i></div>
-                    <span class="card-title">Active Doctors</span>
+                    <span class="card-title">Available Doctors Today</span>
                 </div>
                 <i class="bi bi-chevron-right card-chevron"></i>
             </div>
-            <div class="card-value" id="stat-active-doctors">{{ $activeDoctors ?? 0 }}</div>
-            <div class="card-subtitle"><span class="dot"></span> <span id="stat-active-doctors-sub">Currently practicing</span></div>
+            <div class="card-value" id="stat-active-doctors">{{ $availableDoctorsToday ?? 0 }}</div>
+            <div class="card-subtitle"><span class="dot"></span> <span id="stat-active-doctors-sub">Scheduled for today's weekday</span></div>
         </a>
 
         <a href="{{ route('staff.patients') }}" class="analytics-card">
             <div class="card-top-row">
                 <div class="card-icon-title">
                     <div class="card-icon-badge"><i class="bi bi-person"></i></div>
-                    <span class="card-title">Registered Patients</span>
+                    <span class="card-title">Patient Count</span>
                 </div>
                 <i class="bi bi-chevron-right card-chevron"></i>
             </div>
@@ -146,7 +146,7 @@
                     <h3>Patient Feedback Overview</h3>
                 </div>
             </div>
-            <p class="chart-subtitle">Breakdown of recent patient feedback</p>
+            <p class="chart-subtitle">Breakdown of classified patient feedback</p>
 
             <div class="sentiment-bars" id="sentimentBars">
                 @foreach($sentimentRows as $row)
@@ -166,6 +166,18 @@
             <p id="sentimentEmptyNote" class="chart-empty-note" style="{{ $sentimentTotal > 0 ? 'display:none;' : '' }}">
                 No feedback data available yet.
             </p>
+            <div class="staff-diagnostic-link">
+                <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+                <div>
+                    <div>Reported concerns</div>
+                    <a href="#diagnostic-title" id="diagnostic-open" aria-haspopup="dialog" aria-controls="diagnostic-modal">Click to view comparisons and supporting reviews</a>
+                </div>
+            </div>
+            <style>
+                .staff-diagnostic-link { display:flex; align-items:center; gap:.75rem; margin-top:1.5rem; padding:1rem; border-radius:14px; background:#eef5fc; color:#062744; }
+                .staff-diagnostic-link > i { display:grid; place-items:center; flex-shrink:0; width:38px; height:38px; border-radius:50%; background:#d5e5f4; color:#0e62aa; }
+                .staff-diagnostic-link a { color:#0e62aa; }
+            </style>
         </div>
     </div>
 
@@ -177,9 +189,10 @@
                     <div class="chart-icon-badge"><i class="bi bi-bar-chart"></i></div>
                     <h3>Inquiry Volume</h3>
                 </div>
-                <span class="filter-btn">This Week</span>
+                @include('partials.dashboard_chart_filter', ['chartFilter' => 'inquiry'])
             </div>
-            <p class="chart-subtitle">Inquiries received per day this week</p>
+            <p class="chart-subtitle" id="inquiry-period-description">{{ $inquiryPeriodLabel ?? "Inquiries received Monday–Sunday (Philippine time)." }}</p>
+<p id="inquiry-filter-status" class="dashboard-chart-filter-status" role="status"></p>
 
             <canvas id="inquiryVolumeChart" height="220"></canvas>
 
@@ -194,9 +207,10 @@
                     <div class="chart-icon-badge"><i class="bi bi-graph-up"></i></div>
                     <h3>Patient Visits Trend</h3>
                 </div>
-                <span class="filter-btn">Last 6 Weeks</span>
+                @include('partials.dashboard_chart_filter', ['chartFilter' => 'visits'])
             </div>
-            <p class="chart-subtitle">Visits over the past 6 weeks</p>
+            <p class="chart-subtitle" id="visits-period-description">{{ $visitPeriodLabel ?? "Weekly scheduled visits, including this week (ongoing)." }}</p>
+<p id="visits-filter-status" class="dashboard-chart-filter-status" role="status"></p>
 
             <canvas id="weeklyVisitsChart" height="220"></canvas>
 
@@ -288,10 +302,16 @@
 
 </div>
 </div>
+@include('admin_acc.partials.diagnostic_analytics', [
+    'diagnosticDashboardRoute' => 'staff.dashboard',
+    'diagnosticCompareRoute' => 'staff.dashboard.diagnostics',
+    'diagnosticStaff' => true,
+])
 @endsection
 
 @push('scripts')
 {{-- If staff.layouts.app already loads Chart.js elsewhere, remove this line to avoid loading it twice --}}
+@include('partials.dashboard_chart_filters_script')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 
 <script>
@@ -398,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function () {
             responsive: true,
             plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, suggestedMax: 5, grid: {} },
+                y: { beginAtZero: true, max: 100, title: { display: true, text: 'Share of classified feedback (%)' }, ticks: { stepSize: 20, callback: value => value + '%' }, grid: {} },
                 x: { grid: {} }
             }
         }
@@ -435,14 +455,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         allCharts.forEach(chart => {
             if (!chart) return;
+            const options = chart.config.options;
 
-            if (chart.options.plugins && chart.options.plugins.legend) {
-                chart.options.plugins.legend.labels = chart.options.plugins.legend.labels || {};
-                chart.options.plugins.legend.labels.color = textColor;
+            if (options.plugins && options.plugins.legend) {
+                options.plugins.legend.labels = options.plugins.legend.labels || {};
+                options.plugins.legend.labels.color = textColor;
             }
 
-            if (chart.options.scales) {
-                Object.values(chart.options.scales).forEach(scale => {
+            if (options.scales) {
+                Object.values(options.scales).forEach(scale => {
                     scale.ticks = scale.ticks || {};
                     scale.ticks.color = textColor;
                     scale.grid = scale.grid || {};
@@ -489,19 +510,17 @@ document.addEventListener('DOMContentLoaded', function () {
         `).join('');
     }
 
-    async function refreshDashboard() {
+    const chartFilters = window.createDashboardChartFilters(refreshDashboard);
+
+        async function refreshDashboard() {
         try {
-            const res = await fetch(DASHBOARD_DATA_URL, {
-                headers: { 'Accept': 'application/json' },
-                cache: 'no-store'
-            });
-            if (!res.ok) throw new Error('Bad response: ' + res.status);
-            const data = await res.json();
+            const data = await chartFilters.load(DASHBOARD_DATA_URL);
+                if (!data) return;
 
             // ---- Stat cards ----
-            document.getElementById('stat-schedule-visit').textContent = data.totalScheduleVisit ?? 0;
+            document.getElementById('stat-schedule-visit').textContent = data.todaysScheduledVisits ?? 0;
             document.getElementById('stat-pending-inquiries').textContent = data.pendingInquiries ?? 0;
-            document.getElementById('stat-active-doctors').textContent = data.activeDoctors ?? 0;
+            document.getElementById('stat-active-doctors').textContent = data.availableDoctorsToday ?? 0;
             document.getElementById('stat-total-patients').textContent = data.totalPatients ?? 0;
 
             // ---- 1) Service Distribution ----
@@ -521,15 +540,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // ---- 2) Patient Visits Trend ----
             const weekly = Array.isArray(data.weeklyVisits) ? data.weeklyVisits : [];
-            const hasWeekly = weekly.length > 0;
+            const hasWeekly = weekly.some(value => Number(value) > 0);
             weeklyChart.data.labels = data.weekLabels ?? weeklyChart.data.labels;
-            weeklyChart.data.datasets[0].data = hasWeekly ? weekly : new Array(6).fill(0);
+            weeklyChart.data.datasets[0].data = weekly;
             weeklyChart.update();
             document.getElementById('weeklyVisitsEmptyNote').style.display = hasWeekly ? 'none' : 'block';
 
             // ---- 3) Inquiry Volume ----
             const inquiryVolume = Array.isArray(data.inquiryVolumeByDay) ? data.inquiryVolumeByDay : [];
-            const hasInquiry = inquiryVolume.length > 0;
+            const hasInquiry = inquiryVolume.some(value => Number(value) > 0);
             inquiryChart.data.datasets[0].data = hasInquiry ? inquiryVolume : new Array(7).fill(0);
             inquiryChart.update();
             document.getElementById('inquiryVolumeEmptyNote').style.display = hasInquiry ? 'none' : 'block';

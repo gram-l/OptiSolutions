@@ -263,4 +263,45 @@ class DiagnosticAnalyticsTest extends TestCase
     {
         $this->getJson('/admin/dashboard/diagnostics')->assertUnauthorized();
     }
+
+    public function test_staff_dashboard_renders_shared_modal_with_staff_comparison_routes(): void
+    {
+        $this->withoutVite();
+        $staff = new \App\Models\admin_models\User([
+            'name' => 'Test Staff', 'email' => 'staff@example.test', 'user_role' => 'Staff',
+        ]);
+        $staff->user_id = 123;
+        $this->actingAs($staff);
+        $html = view('staff.dashboard', ['diagnostic' => $this->data()])->render();
+        $this->assertStringContainsString('id="diagnostic-open"', $html);
+        $this->assertStringContainsString('id="diagnostic-modal"', $html);
+        $this->assertStringContainsString('action="'.route('staff.dashboard').'#diagnostic-title"', $html);
+        $this->assertStringContainsString('data-compare-url="'.route('staff.dashboard.diagnostics').'"', $html);
+        $this->assertStringNotContainsString('href="'.route('admin_acc.feedback.index').'"', $html);
+        $route = app('router')->getRoutes()->match(Request::create('/staff/dashboard/diagnostics'));
+        $this->assertContains('staff', $route->gatherMiddleware());
+    }
+
+    public function test_staff_comparison_endpoint_returns_filtered_results_and_rejects_other_roles(): void
+    {
+        $this->getJson('/staff/dashboard/diagnostics')->assertUnauthorized();
+        $this->actingAs(new \App\Models\admin_models\User([
+            'name' => 'Test Admin', 'email' => 'admin@example.test', 'user_role' => 'Admin',
+        ]));
+        $this->getJson('/staff/dashboard/diagnostics')->assertForbidden();
+        $this->actingAs(new \App\Models\admin_models\User([
+            'name' => 'Test Staff', 'email' => 'staff@example.test', 'user_role' => 'Staff',
+        ]));
+        $this->review('2026-10-20', 'Negative', 'wait');
+        $response = $this->getJson('/staff/dashboard/diagnostics?diagnostic_doctor=1&diagnostic_specialty=Consultation');
+        $response->assertOk()->assertJsonStructure(['html']);
+        $this->assertStringContainsString('Waiting Time', $response->json('html'));
+        $this->assertStringContainsString('Doctor A', $response->json('html'));
+        $this->assertStringNotContainsString('href="'.route('admin_acc.feedback.index').'"', $response->json('html'));
+        $this->getJson('/staff/dashboard/diagnostics?diagnostic_week=2026-10-20')
+            ->assertUnprocessable()->assertJsonValidationErrors('diagnostic_week');
+        $this->getJson('/staff/dashboard/diagnostics?diagnostic_doctor=1&diagnostic_specialty=Pediatrics')
+            ->assertUnprocessable()->assertJsonValidationErrors('diagnostic_specialty');
+        $this->getJson('/admin/dashboard/diagnostics')->assertRedirect();
+    }
 }

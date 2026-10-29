@@ -53,7 +53,13 @@
             Share that were negative: not enough classified comments to compare both weeks.
         @endif
     </p>
-    <p class="diagnostic-note">{{ $diagnostic['unlinked'] }} review(s) across both weeks lack a doctor or specialty link. Reviews missing the selected link are excluded when that filter is applied. Complaints are reviewed separately on the <a href="{{ route('admin_acc.feedback.index') }}">Feedback page</a>.</p>
+    <p class="diagnostic-note">{{ $diagnostic['unlinked'] }} review(s) across both weeks lack a doctor or specialty link. Reviews missing the selected link are excluded when that filter is applied.
+        @if($diagnosticStaff ?? false)
+            Complaints are reviewed separately by an administrator on the Feedback page.
+        @else
+            Complaints are reviewed separately on the <a href="{{ route('admin_acc.feedback.index') }}">Feedback page</a>.
+        @endif
+    </p>
     @if(!$diagnostic['available'])
         <p role="status">Concern analysis is unavailable or incomplete. Review counts remain available; concern comparisons cannot be generated. Try Compare again later.</p>
     @else

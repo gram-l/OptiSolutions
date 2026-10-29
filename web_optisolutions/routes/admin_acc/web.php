@@ -160,7 +160,7 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
     //patient list routes
     Route::get('/admin_acc/patients/list', [PatientListController::class, 'webList']);
     Route::post('/admin_acc/patients', [PatientListController::class, 'store']);
-    Route::put('/admin_acc/patients/{id}', [PatientListController::class, 'update']);
+    Route::put('/admin_acc/patients/{id}', [PatientListController::class, 'webUpdate']);
     Route::get('/admin_acc/patients/{id}/visits', [PatientListController::class, 'apiVisits']);
 
     // Settings > Data & Privacy — patient data export

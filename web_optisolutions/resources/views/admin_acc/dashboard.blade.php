@@ -74,18 +74,18 @@
                     <div class="card-top-row">
                         <div class="card-icon-title">
                             <div class="card-icon-badge"><i class="bi bi-file-earmark-text"></i></div>
-                            <div class="card-title">Total Inquiries</div>
+                            <div class="card-title">Pending Inquiries</div>
                         </div>
                         <i class="bi bi-chevron-right card-chevron"></i>
                     </div>
-                    <div class="card-value" id="stat-total-inquiries">{{ $totalInquiries ?? 0 }}</div>
-                    <div class="card-subtitle"><span class="dot"></span> Live count</div>
+                    <div class="card-value" id="stat-pending-inquiries">{{ $pendingInquiries ?? 0 }}</div>
+                    <div class="card-subtitle"><span class="dot"></span> Awaiting reply</div>
                 </a>
                 <a href="{{ url('/admin_acc/appointments') }}" class="analytics-card">
                     <div class="card-top-row">
                         <div class="card-icon-title">
                             <div class="card-icon-badge"><i class="bi bi-calendar-check"></i></div>
-                            <div class="card-title">Today's Appointments</div>
+                            <div class="card-title">Today's Scheduled Visits</div>
                         </div>
                         <i class="bi bi-chevron-right card-chevron"></i>
                     </div>
@@ -96,7 +96,7 @@
                     <div class="card-top-row">
                         <div class="card-icon-title">
                             <div class="card-icon-badge"><i class="bi bi-person"></i></div>
-                            <div class="card-title">Active Patients</div>
+                            <div class="card-title"> Patient Count</div>
                         </div>
                         <i class="bi bi-chevron-right card-chevron"></i>
                     </div>
@@ -204,11 +204,12 @@
                     <div class="chart-header">
                         <div class="chart-header-title">
                             <div class="chart-icon-badge"><i class="bi bi-bar-chart"></i></div>
-                            <h3>Inquiry Volume (Last 7 Days)</h3>
+                            <h3>Inquiry Volume</h3>
                         </div>
-                        <button class="filter-btn">This Week <i class="bi bi-chevron-down"></i></button>
+                        @include('partials.dashboard_chart_filter', ['chartFilter' => 'inquiry'])
                     </div>
-                    <p class="chart-subtitle" style="visibility:hidden;">&nbsp;</p>
+                    <p class="chart-subtitle" id="inquiry-period-description">{{ $inquiryPeriodLabel ?? "Inquiries received Monday–Sunday (Philippine time)." }}</p>
+<p id="inquiry-filter-status" class="dashboard-chart-filter-status" role="status"></p>
                     <div>
                         <canvas id="inquiryVolumeChart" height="220"></canvas>
                     </div>
@@ -224,9 +225,10 @@
                             <div class="chart-icon-badge"><i class="bi bi-graph-up"></i></div>
                             <h3>Patient Visits Trend</h3>
                         </div>
-                        <button class="filter-btn">Last 6 Weeks <i class="bi bi-chevron-down"></i></button>
+                        @include('partials.dashboard_chart_filter', ['chartFilter' => 'visits'])
                     </div>
-                    <p class="chart-subtitle">Visits over the past 6 weeks</p>
+                    <p class="chart-subtitle" id="visits-period-description">{{ $visitPeriodLabel ?? "Weekly scheduled visits, including this week (ongoing)." }}</p>
+<p id="visits-filter-status" class="dashboard-chart-filter-status" role="status"></p>
                     <div>
                         <canvas id="weeklyVisitsChart" height="220"></canvas>
                     </div>
@@ -295,7 +297,8 @@
     </div>
     @include('admin_acc.partials.diagnostic_analytics')
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    @include('partials.dashboard_chart_filters_script')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function () {
         const navy = '#062744';
@@ -321,14 +324,14 @@
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { display: hasServiceData && !window.matchMedia('(max-width: 768px)').matches, position: 'bottom' },
+                    legend: { display: false },
                     tooltip: { enabled: hasServiceData }
                 }
             }
         });
 
         window.matchMedia('(max-width: 768px)').addEventListener('change', event => {
-            serviceChart.options.plugins.legend.display = !event.matches && !!serviceChart.options.plugins.tooltip.enabled;
+            serviceChart.options.plugins.legend.display = false;
             serviceChart.resize();
             serviceChart.update('none');
         });
@@ -431,16 +434,14 @@
             }
         });
 
+        const chartFilters = window.createDashboardChartFilters(refreshDashboard);
+
         async function refreshDashboard() {
             try {
-                const res = await fetch(DASHBOARD_DATA_URL, {
-                    headers: { 'Accept': 'application/json' },
-                    cache: 'no-store'
-                });
-                if (!res.ok) throw new Error('Bad response: ' + res.status);
-                const data = await res.json();
+                const data = await chartFilters.load(DASHBOARD_DATA_URL);
+                if (!data) return;
 
-                document.getElementById('stat-total-inquiries').textContent = data.totalInquiries ?? 0;
+                document.getElementById('stat-pending-inquiries').textContent = data.pendingInquiries ?? 0;
                 document.getElementById('stat-todays-appointments').textContent = data.todaysAppointments ?? 0;
                 document.getElementById('stat-pending-approval').textContent = data.pendingApproval ?? 0;
                 document.getElementById('stat-active-patients').textContent = data.activePatients ?? 0;
@@ -454,7 +455,7 @@
                 serviceChart.data.datasets[0].backgroundColor = hasServices
                     ? ['#0E62AA', '#3969A8', '#5C8BC0', '#79A8CB', '#9DBCD4', '#00897B', '#43A047', '#FB8C00']
                     : [emptyGrey];
-                serviceChart.options.plugins.legend.display = hasServices && !window.matchMedia('(max-width: 768px)').matches;
+                serviceChart.options.plugins.legend.display = false;
                 serviceChart.options.plugins.tooltip.enabled = hasServices;
                 serviceChart.update();
 

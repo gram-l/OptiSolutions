@@ -14,13 +14,24 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Carbon;
 
 class StaffController extends Controller
 {
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        return view('staff.dashboard', $this->buildDashboardData());
+        $data = $this->buildDashboardData();
+        $data['diagnostic'] = app(\App\Services\DiagnosticAnalyticsService::class)->dashboard($request);
+        return view('staff.dashboard', $data);
+    }
+
+    public function diagnostics(Request $request)
+    {
+        $diagnostic = app(\App\Services\DiagnosticAnalyticsService::class)->dashboard($request);
+        return response()->json([
+            'html' => view('admin_acc.partials.diagnostic_results', [
+                'diagnostic' => $diagnostic, 'diagnosticStaff' => true,
+            ])->render(),
+        ]);
     }
 
     public function data()
@@ -70,89 +81,27 @@ class StaffController extends Controller
 
     private function buildDashboardData(): array
     {
-        $totalScheduleVisit = ScheduleVisit::count();
+        $today = \Carbon\CarbonImmutable::now('Asia/Manila');
+        $todaysScheduledVisits = ScheduleVisit::whereDate('visit_date', $today->toDateString())->count();
 
 
         $pendingInquiries = Inquiry::whereNull('inquiry_reply')
             ->orWhere('inquiry_reply', '')
             ->count();
 
-        $activeDoctors      = Doctor::where('available', 1)->count();
+        $availableDoctorsToday = Doctor::where('available', 1)
+            ->whereHas('schedules', fn ($query) => $query->where('day', $today->format('l')))
+            ->count();
         $totalPatients      = Patient::count();
 
-        $serviceDistribution = ScheduleVisit::selectRaw('service_type, COUNT(*) as total')
-            ->groupBy('service_type')
-            ->get();
-
-        $weekLabels = [];
-        $weeklyVisits = [];
-        $startOfThisWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
-
-        for ($i = 5; $i >= 0; $i--) {
-            $weekStart = $startOfThisWeek->copy()->subWeeks($i);
-            $weekEnd   = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
-
-            $weekLabels[] = $i === 0 ? 'This wk' : 'W-' . $i;
-
-            $weeklyVisits[] = ScheduleVisit::whereBetween('visit_date', [
-                $weekStart->toDateString(),
-                $weekEnd->toDateString(),
-            ])->count();
-        }
-
-        $positivePercent = 0;
-        $neutralPercent  = 0;
-        $negativePercent = 0;
-
-        if (Schema::hasTable('feedback') && Schema::hasColumn('feedback', 'star_rating')) {
-            $feedbackCounts = DB::table('feedback')->selectRaw('
-                    SUM(CASE WHEN star_rating >= 4 THEN 1 ELSE 0 END) as positive,
-                    SUM(CASE WHEN star_rating = 3 THEN 1 ELSE 0 END) as neutral,
-                    SUM(CASE WHEN star_rating > 0 AND star_rating < 3 THEN 1 ELSE 0 END) as negative
-                ')->first();
-
-            $sentimentTotal = ($feedbackCounts->positive ?? 0)
-                + ($feedbackCounts->neutral ?? 0)
-                + ($feedbackCounts->negative ?? 0);
-
-            if ($sentimentTotal > 0) {
-                $positivePercent = round($feedbackCounts->positive / $sentimentTotal * 100);
-                $neutralPercent  = round($feedbackCounts->neutral  / $sentimentTotal * 100);
-                $negativePercent = round($feedbackCounts->negative / $sentimentTotal * 100);
-            }
-        }
-
-        $inquiryVolumeByDay = array_fill(0, 7, 0);
-
-        $thisWeekInquiries = DB::table('inquiries')
-            ->join('chatbot_logs', 'inquiries.log_id', '=', 'chatbot_logs.log_id')
-            ->whereBetween('chatbot_logs.chat_time', [
-                $startOfThisWeek->toDateTimeString(),
-                $startOfThisWeek->copy()->endOfWeek(Carbon::SUNDAY)->toDateTimeString(),
-            ])
-            ->pluck('chatbot_logs.chat_time');
-
-        foreach ($thisWeekInquiries as $chatTime) {
-            $dayIndex = Carbon::parse($chatTime)->dayOfWeekIso - 1;
-            $inquiryVolumeByDay[$dayIndex]++;
-        }
-
-        return [
-            'totalScheduleVisit'  => $totalScheduleVisit,
-            'pendingInquiries'    => $pendingInquiries,
-            'activeDoctors'       => $activeDoctors,
-            'totalPatients'       => $totalPatients,
-            'serviceDistribution' => $serviceDistribution,
-            'weekLabels'          => $weekLabels,
-            'weeklyVisits'        => $weeklyVisits,
-            'positivePercent'     => $positivePercent,
-            'neutralPercent'      => $neutralPercent,
-            'negativePercent'     => $negativePercent,
-            'inquiryVolumeByDay'  => $inquiryVolumeByDay,
-            'recentActivities'    => $this->buildRecentActivities(),
-        ];
+        return array_merge([
+            'todaysScheduledVisits' => $todaysScheduledVisits,
+            'pendingInquiries' => $pendingInquiries,
+            'availableDoctorsToday' => $availableDoctorsToday,
+            'totalPatients' => $totalPatients,
+            'recentActivities' => $this->buildRecentActivities(),
+        ], app(\App\Services\DashboardChartService::class)->data());
     }
-
 
     private function buildRecentActivities(int $limit = 5): array
     {

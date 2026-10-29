@@ -121,6 +121,21 @@ _ADDITIONAL_PHRASES = {
 for _category, _phrases in _ADDITIONAL_PHRASES.items():
     ISSUE_CATEGORIES[_category].extend(_phrases)
 
+# Additional complaint wording, restricted to the existing category names.
+_COMPLAINT_VARIANTS = {
+    'waiting_time': ['started much later', 'later than scheduled', 'later than the scheduled time',
+                     'started late', 'behind schedule', 'late nagsimula'],
+    'doctor_expertise': ['hindi magaling ang doctor', 'hindi magaling ang doktor',
+                         'hindi magaling na doctor', 'hindi magaling na doktor', 'not a good doctor'],
+    'staff_attitude': ['masama ugali', 'masama ang ugali', 'masamang ugali'],
+    'staff_attentiveness': ['not accommodating', 'hindi accommodating', 'not helpful'],
+    'cleanliness_hygiene': ['not clean', 'overcrowded waiting area', 'waiting area was overcrowded',
+                            'lacked enough seating', 'not enough seating', 'limited seating',
+                            'insufficient seating', 'lack of seating'],
+}
+for _category, _phrases in _COMPLAINT_VARIANTS.items():
+    ISSUE_CATEGORIES[_category].extend(_phrases)
+
 
 def _normalize(text):
     text = unicodedata.normalize('NFKC', text or '').casefold()
@@ -132,7 +147,7 @@ def _normalize(text):
     return ' '.join(aliases.get(token, token) for token in text.split())
 
 
-_PARTICLE = r'(?:po|ho|naman|talaga|very|so|the)'
+_PARTICLE = r'(?:po|ho|naman|talaga|very|so|the|clearly|properly|really)'
 
 
 def _phrase_pattern(phrase):

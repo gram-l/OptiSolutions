@@ -91,8 +91,13 @@ class DiagnosticAnalyticsTest extends TestCase
         $this->assertSame(1, $data['periods']['current']['pending']);
         $this->assertSame(1, $data['periods']['current']['rating_only']);
         $html = view('admin_acc.partials.diagnostic_analytics', ['diagnostic' => $data])->render();
-        $this->assertStringContainsString('71.4%', $html);
-        $this->assertStringContainsString('may help explain', $html);
+        $plain = preg_replace('/\s+/', ' ', strip_tags($html));
+        $this->assertStringContainsString('Negative comments went up from 8 to 14 this week.', $plain);
+        $this->assertStringContainsString('Waiting Time is the most mentioned problem: 10 of 14 negative comments this week (last week: 3 of 8).', $plain);
+        $this->assertStringContainsString('Negative comments: 8 → 14 (up by 6).', $plain);
+        $this->assertStringContainsString('Share that were negative: 20.0% → 35.0%.', $plain);
+        $this->assertStringContainsString('↑ Mentioned more than last week', $plain);
+        $this->assertStringContainsString('View comments (10 this week, 3 last week)', $plain);
         Http::assertSentCount(1);
         $this->assertCount(22, Http::recorded()[0][0]['items']);
     }
@@ -130,6 +135,32 @@ class DiagnosticAnalyticsTest extends TestCase
         $this->assertNull($data['periods']['current']['negative_rate']);
         $this->assertTrue($data['available']);
         Http::assertNothingSent();
+    }
+
+    public function test_simple_comparison_handles_ties_zero_counts_and_count_trends(): void
+    {
+        $data = $this->data();
+        $render = fn ($value) => preg_replace('/\s+/', ' ', strip_tags(
+            view('admin_acc.partials.diagnostic_results', ['diagnostic' => $value])->render()));
+        $this->assertStringContainsString('Negative comments stayed at 0 this week.', $render($data));
+        $this->assertStringContainsString('not enough classified comments', $render($data));
+        $data['periods']['previous']['negative'] = 5;
+        $data['periods']['current']['negative'] = 6;
+        $data['periods']['previous']['categories'] = ['waiting_time' => 1, 'staff_attitude' => 4];
+        $data['periods']['current']['categories'] = ['waiting_time' => 3, 'staff_attitude' => 3];
+        $data['categories'] = ['waiting_time', 'staff_attitude'];
+        $plain = $render($data);
+        $this->assertStringContainsString('are tied as the most mentioned problems', $plain);
+        $this->assertStringContainsString('last week: Waiting Time 1 of 5; Staff Attitude 4 of 5', $plain);
+        $this->assertStringContainsString('↓ Mentioned less than last week', $plain);
+        $data['periods']['previous']['categories']['waiting_time'] = 3;
+        $this->assertStringContainsString('→ Mentioned as often as last week', $render($data));
+        $data['periods']['current']['negative'] = 0;
+        $data['periods']['current']['categories'] = [];
+        $this->assertStringContainsString('Negative comments went down from 5 to 0 this week.', $render($data));
+        $this->assertStringContainsString('(down by 5).', $render($data));
+        $data['available'] = false;
+        $this->assertStringContainsString('Problem analysis is currently unavailable or incomplete.', $render($data));
     }
 
     public function test_incomplete_current_week_is_rejected(): void

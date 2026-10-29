@@ -70,6 +70,15 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     box-shadow: 0 2px 10px var(--shadow);
 }
 
+.toolbar .commands-toolbar-search { margin-left:0; width:320px; max-width:100%; }
+.toolbar #commandsCount { margin-right:auto; }
+.commands-table-container [hidden] { display:none !important; }
+.commands-see-more-wrap { display:flex; justify-content:center; padding:1rem; }
+.commands-see-more-btn { border:1px solid #9dbcd4; border-radius:999px; background:transparent; color:#0e62aa; padding:.5rem 1.25rem; font:inherit; font-size:.85rem; font-weight:600; cursor:pointer; }
+.commands-see-more-btn:hover { background:#eef5fc; }
+.commands-see-more-btn:focus-visible { outline:2px solid #0e62aa; outline-offset:3px; }
+@media(max-width:600px) { .toolbar .commands-toolbar-search { margin-left:0; width:100%; } }
+
 .add-command-btn {
     padding: 0.6rem 1.2rem;
     background: var(--primary-main);

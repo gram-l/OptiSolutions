@@ -93,7 +93,8 @@
             @endif
 
             <div class="toolbar">
-                <strong>{{ $commands->count() }} command(s)</strong>
+                <input type="search" class="search-box commands-toolbar-search" id="commandsSearch" placeholder="Search label, trigger, or reply..." aria-label="Search chatbot commands">
+                <strong id="commandsCount" role="status">{{ min(7, $commands->count()) }} of {{ $commands->count() }} command(s)</strong>
                 <button type="button" class="add-patient-btn" onclick="openCommandModal()">
                     <i class="fa-solid fa-plus"></i> Add Command
                 </button>
@@ -112,9 +113,9 @@
                             <th> </th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="commandsTableBody">
                         @forelse ($commands as $command)
-                            <tr>
+                            <tr data-command-row data-search="{{ $command->label . ' ' . $command->triggers->pluck('trigger_value')->implode(' ') . ' ' . $command->reply_text . ' ' . ($command->is_active ? 'active' : 'inactive') }}" @if($loop->index >= 7) hidden @endif>
                                 <td>{{ $command->label }}</td>
                                 <td>
                                     @foreach ($command->triggers as $trigger)
@@ -140,12 +141,15 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
-                                <td colspan="7" class="empty-state">No chatbot commands yet.</td>
-                            </tr>
                         @endforelse
+                        <tr id="commandsEmpty" @if($commands->isNotEmpty()) hidden @endif>
+                            <td colspan="5" class="empty-state">No chatbot commands yet.</td>
+                        </tr>
                     </tbody>
                 </table>
+                <div class="commands-see-more-wrap" id="commandsSeeMoreWrap" @if($commands->count() <= 7) hidden @endif>
+                    <button type="button" class="commands-see-more-btn" id="commandsSeeMore" aria-controls="commandsTableBody">See more ({{ max(0, $commands->count() - 7) }} more)</button>
+                </div>
             </div>
         </div>
     </div>
@@ -217,6 +221,33 @@
         </div>
     </div>
 
+    <script id="commands-list-script">
+        (() => {
+            const rows = Array.from(document.querySelectorAll('[data-command-row]'));
+            const search = document.getElementById('commandsSearch');
+            const count = document.getElementById('commandsCount');
+            const empty = document.getElementById('commandsEmpty');
+            const more = document.getElementById('commandsSeeMore');
+            const moreWrap = document.getElementById('commandsSeeMoreWrap');
+            let visible = 7;
+            const normalize = value => value.toLocaleLowerCase().replace(/\s+/g, ' ').trim();
+            function render() {
+                const query = normalize(search.value);
+                const matches = rows.filter(row => normalize(row.dataset.search).includes(query));
+                for (const row of rows) row.hidden = true;
+                for (const row of matches.slice(0, visible)) row.hidden = false;
+                count.textContent = `${Math.min(visible, matches.length)} of ${matches.length} command(s)`;
+                empty.hidden = matches.length > 0;
+                empty.querySelector('td').textContent = rows.length ? 'No commands match your search.' : 'No chatbot commands yet.';
+                const remaining = Math.max(0, matches.length - visible);
+                moreWrap.hidden = remaining === 0;
+                more.textContent = `See more (${remaining} more)`;
+            }
+            search.addEventListener('input', () => { visible = 7; render(); });
+            more.addEventListener('click', () => { visible += 7; render(); });
+            render();
+        })();
+    </script>
     <script>
         // Add/Edit Command modal
         const commandModal = document.getElementById('commandModal');

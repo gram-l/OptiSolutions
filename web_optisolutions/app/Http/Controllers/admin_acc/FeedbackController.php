@@ -5,7 +5,6 @@ namespace App\Http\Controllers\admin_acc;
 use App\Http\Controllers\Controller;
 use App\Models\admin_models\Feedback;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use App\Models\admin_models\Complaint;
 use App\Services\SentimentAnalysisService;
 
@@ -52,19 +51,18 @@ class FeedbackController extends Controller
     ]))->values();
     $diagnosis = $items->isEmpty() ? ['details' => []] : app(SentimentAnalysisService::class)->diagnose($items->all());
     $details = collect($diagnosis['details'] ?? [])->keyBy(fn ($entry) => $entry['source'] . ':' . $entry['id']);
-    $feedback = $feedback->map(function ($entry) use ($details, $diagnosis) {
+    $feedback = $feedback->map(function ($entry) use ($details) {
         $entry['issue_categories'] = $details->get('feedback:' . $entry['id'])['matched_categories'] ?? [];
-        $entry['issues_analyzed'] = $diagnosis !== null;
+        $entry['issue_findings'] = $details->get('feedback:' . $entry['id'])['findings'] ?? [];
+        $entry['issues_analyzed'] = is_array($details->get('feedback:' . $entry['id'])['matched_categories'] ?? null);
         return $entry;
     });
-    $complaints = $complaints->map(function ($entry) use ($details, $diagnosis) {
+    $complaints = $complaints->map(function ($entry) use ($details) {
         $categories = $details->get('complaint:' . $entry['complaint_id'])['matched_categories'] ?? [];
-        $stored = strtolower(trim($entry['category'] ?? ''));
-        if ($categories) {
-            $entry['category'] = $categories[0];
-        }
-        $entry['issue_categories'] = $categories ?: (!in_array($stored, ['', 'other', 'uncategorized'], true) ? [$stored] : []);
-        $entry['issues_analyzed'] = $diagnosis !== null;
+        $entry['issue_findings'] = $details->get('complaint:' . $entry['complaint_id'])['findings'] ?? [];
+        $entry['issues_analyzed'] = is_array($details->get('complaint:' . $entry['complaint_id'])['matched_categories'] ?? null);
+        $entry['category'] = $categories[0] ?? ($entry['issues_analyzed'] ? 'other' : 'unclassified');
+        $entry['issue_categories'] = $categories;
         return $entry;
     });
 
@@ -155,14 +153,12 @@ public function diagnoseRootCauses()
 
     $items = $negativeFeedback->concat($complaints)->values();
 
-    $response = Http::post('http://127.0.0.1:8001/api/diagnose/', [
-        'items' => $items,
-    ]);
+    $result = app(SentimentAnalysisService::class)->diagnose($items->all());
 
-    if ($response->successful()) {
-        return response()->json($response->json());
+    if ($result !== null) {
+        return response()->json($result);
     }
 
-    return response()->json(['error' => 'Diagnosis failed'], 500);
+    return response()->json(['error' => 'Issue analysis is temporarily unavailable. Please try again.'], 503);
 }
 }

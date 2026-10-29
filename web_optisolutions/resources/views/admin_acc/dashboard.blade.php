@@ -193,8 +193,8 @@
                     <div class="top-complaint-box">
                         <div class="top-complaint-icon"><i class="bi bi-chat-square-text"></i></div>
                         <div>
-                            <div class="top-complaint-label">Top Complaint:</div>
-                            <div class="top-complaint-text">Long waiting times at reception</div>
+                            <div class="top-complaint-label">Reported concerns</div>
+                            <div class="top-complaint-text"><a href="#diagnostic-title" id="diagnostic-open" aria-haspopup="dialog" aria-controls="diagnostic-modal">Click to view comparisons and supporting reviews</a></div>
                         </div>
                     </div>
                 </div>
@@ -293,6 +293,7 @@
 
         </main>
     </div>
+    @include('admin_acc.partials.diagnostic_analytics')
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script>

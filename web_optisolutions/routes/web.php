@@ -36,10 +36,6 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // ===== Protected admin routes =====
 Route::middleware('auth')->group(function () {
-    Route::get('/admin_acc/dashboard', function () {
-        return view('admin_acc.dashboard');
-    });
-
     // NOTE: Ang /admin_acc/chatbot_logs ay INALIS na dito — dating static
     // closure ito (return view() lang, walang data), at dahil dalawang
     // beses na-register ang parehong URL, ito (bilang huling na-load) ang

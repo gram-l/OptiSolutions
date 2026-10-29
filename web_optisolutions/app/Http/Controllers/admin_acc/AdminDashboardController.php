@@ -10,9 +10,10 @@ use Carbon\Carbon;
 
 class AdminDashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $data = $this->getDashboardData();
+        $data['diagnostic'] = app(\App\Services\DiagnosticAnalyticsService::class)->dashboard($request);
 
         return view('admin_acc.dashboard', $data);
     }
@@ -20,6 +21,14 @@ class AdminDashboardController extends Controller
     public function data(Request $request)
     {
         return response()->json($this->getDashboardData());
+    }
+
+    public function diagnostics(Request $request)
+    {
+        $diagnostic = app(\App\Services\DiagnosticAnalyticsService::class)->dashboard($request);
+        return response()->json([
+            'html' => view('admin_acc.partials.diagnostic_results', compact('diagnostic'))->render(),
+        ]);
     }
 
     public function getDashboardData(): array

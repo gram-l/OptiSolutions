@@ -12,6 +12,13 @@
     @vite(['resources/css/admin_css/feedback.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 
     <style>
+        .reported-reason-item { margin-bottom: .6rem; }
+        .reported-reasons-toggle {
+            display: block; padding: 0; border: 0; background: none;
+            color: var(--primary-main, #0e62aa); font-family: inherit;
+            font-size: .85rem; font-weight: 600; cursor: pointer;
+        }
+        .reported-reasons-toggle:focus-visible { outline: 2px solid #0e62aa; outline-offset: 3px; }
         /* ── Date filter inputs ── */
         .date-filter {
             border: 1px solid #d7dce3;
@@ -244,7 +251,8 @@
                     <thead>
                         <tr>
                             <th>Complaint</th>
-                            <th>Category</th>
+                            <th>Concern</th>
+                            <th>Reported reason</th>
                             <th>Date</th>
                         </tr>
                     </thead>
@@ -438,7 +446,7 @@
             const nextBtn = document.getElementById('complaintNextBtn');
 
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No complaints found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No complaints found</td></tr>';
                 paginationWrap.style.display = 'none';
                 return;
             }
@@ -454,6 +462,7 @@
                 <tr>
                     <td class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
                     <td>${escapeHtml(categoryLabel(c.category))}</td>
+                    <td>${renderComplaintEvidence(c)}</td>
                     <td>${formatDate(c.created_at)}</td>
                 </tr>
             `).join('');
@@ -462,6 +471,38 @@
             pageInfo.textContent = `Page ${complaintCurrentPage} of ${totalPages}`;
             prevBtn.disabled = complaintCurrentPage <= 1;
             nextBtn.disabled = complaintCurrentPage >= totalPages;
+        }
+
+        function complaintFindings(c) {
+            if (!c.issues_analyzed) return [{ category: 'unclassified', reported_reason: 'Analysis unavailable', evidence: '' }];
+            if (c.issue_findings?.length) return c.issue_findings.map(finding => ({
+                ...finding,
+                reported_reason: /^unspecified(?:\s|$)/i.test(finding.reported_reason || '')
+                    ? 'Reason unspecified' : finding.reported_reason,
+            }));
+            return [{ category: c.category || 'other', reported_reason: 'Reason unspecified', evidence: '' }];
+        }
+
+        function renderComplaintEvidence(c) {
+            const findings = complaintFindings(c);
+            const renderReason = f => `<div class="reported-reason-item">
+                <strong>${escapeHtml(categoryLabel(f.category))}</strong><br>
+                ${escapeHtml(f.reported_reason)}
+            </div>`;
+            if (findings.length < 2) return findings.map(renderReason).join('');
+            const moreId = `complaint-reasons-${Number(c.complaint_id)}`;
+            return `${renderReason(findings[0])}
+                <div id="${moreId}" hidden>${findings.slice(1).map(renderReason).join('')}</div>
+                <button type="button" class="reported-reasons-toggle" aria-expanded="false"
+                    aria-controls="${moreId}" data-remaining="${findings.length - 1}"
+                    onclick="toggleComplaintReasons(this)">+ ${findings.length - 1} more</button>`;
+        }
+
+        function toggleComplaintReasons(button) {
+            const expanded = button.getAttribute('aria-expanded') !== 'true';
+            button.previousElementSibling.hidden = !expanded;
+            button.setAttribute('aria-expanded', String(expanded));
+            button.textContent = expanded ? 'Show less' : `+ ${button.dataset.remaining} more`;
         }
 
         function categoryLabel(category) {
@@ -545,6 +586,8 @@
                 return complaintData.map(c => ({
                     Complaint: c.complaint_text || '',
                     Category: categoryLabel(c.category),
+                    'Reported reason': complaintFindings(c).map(f => `${categoryLabel(f.category)}: ${f.reported_reason}`).join('; '),
+                    Evidence: complaintFindings(c).map(f => f.evidence).filter(Boolean).join('; '),
                     Date: formatDate(c.created_at),
                 }));
             }
@@ -596,7 +639,7 @@
             if (rows.length === 0) { alert(`No ${section} to export for the selected filters.`); return; }
             const ws = XLSX.utils.json_to_sheet(rows);
             ws['!cols'] = section === 'complaint'
-                ? [{ wch: 50 }, { wch: 20 }, { wch: 20 }]
+                ? [{ wch: 50 }, { wch: 20 }, { wch: 50 }, { wch: 50 }, { wch: 20 }]
                 : [{ wch: 10 }, { wch: 50 }, { wch: 14 }, { wch: 20 }];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, section === 'complaint' ? 'Complaints' : 'Feedback');
@@ -614,11 +657,11 @@
             if (section === 'complaint') {
                 doc.autoTable({
                     startY: 22,
-                    head: [['Complaint', 'Category', 'Date']],
-                    body: rows.map(r => [r.Complaint, r.Category, r.Date]),
-                    styles: { fontSize: 9, cellPadding: 3 },
+                    head: [['Complaint', 'Concern', 'Reported reason', 'Evidence', 'Date']],
+                    body: rows.map(r => [r.Complaint, r.Category, r['Reported reason'], r.Evidence, r.Date]),
+                    styles: { fontSize: 8, cellPadding: 2 },
                     headStyles: { fillColor: [14, 98, 170] },
-                    columnStyles: { 0: { cellWidth: 90 } },
+                    columnStyles: { 0: { cellWidth: 45 }, 2: { cellWidth: 45 }, 3: { cellWidth: 45 } },
                 });
             } else {
                 doc.autoTable({

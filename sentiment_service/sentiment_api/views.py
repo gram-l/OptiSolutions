@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .issue_categories import ISSUE_CATEGORIES, category_matches, classify_issue
 from .text_preprocessing import model_inputs
+from .issue_evidence import issue_findings
 
 # Load the trained pipeline once at startup, not per-request
 MODEL_PATH = Path(__file__).resolve().parent.parent / "ml_training" / "sentiment_model.pkl"
@@ -41,8 +42,6 @@ def predict_sentiment(request):
         "confidence_score": round(confidence, 3)
     })
 
-    #Root cause / diagnostic analytrics for negative sentiment and complaints
-
 @csrf_exempt
 def diagnose_root_causes(request):
     if request.method != "POST":
@@ -50,9 +49,24 @@ def diagnose_root_causes(request):
 
     try:
         body = json.loads(request.body)
-        items = body.get("items", [])  # list of {"id": ..., "text": ..., "source": "feedback" | "complaint"}
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    if not isinstance(body, dict) or not isinstance(body.get("items"), list):
+        return JsonResponse({"error": "items must be a list"}, status=400)
+    items = body['items']
+    identities = set()
+    for entry in items:
+        if (not isinstance(entry, dict)
+                or type(entry.get('id')) not in (int, str)
+                or not str(entry['id']).strip()
+                or not isinstance(entry.get('text'), str)
+                or entry.get('source') not in ('feedback', 'complaint')):
+            return JsonResponse({"error": "Each item requires an id, text string, and feedback or complaint source"}, status=400)
+        identity = (entry['source'], str(entry['id']))
+        if identity in identities:
+            return JsonResponse({"error": "Duplicate record within a source"}, status=400)
+        identities.add(identity)
 
     # Separate counters per source
     feedback_counts = {cat: 0 for cat in ISSUE_CATEGORIES}
@@ -74,7 +88,8 @@ def diagnose_root_causes(request):
         matched_details.append({
             "id": entry.get("id"),
             "source": source,
-            "matched_categories": matched_categories
+            "matched_categories": matched_categories,
+            "findings": issue_findings(text),
         })
 
     feedback_ranked = dict(sorted(feedback_counts.items(), key=lambda x: x[1], reverse=True))

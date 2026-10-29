@@ -63,9 +63,7 @@ Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
 // ── Everything below this line is admin-only ──────────────────────────
 
 Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function () {
-    Route::get('/admin_acc/dashboard', function () {
-        return view('admin_acc.dashboard');
-    });
+    Route::get('/admin_acc/dashboard', [AdminDashboardController::class, 'index']);
 
     Route::get('/admin_acc/sidebar', function () {
         return view('admin_acc.sidebar');
@@ -156,6 +154,7 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [AdminDashboardController::class, 'data'])->name('dashboard.data');
+        Route::get('/dashboard/diagnostics', [AdminDashboardController::class, 'diagnostics'])->name('dashboard.diagnostics');
     });
 
     //patient list routes

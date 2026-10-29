@@ -15,7 +15,11 @@ class LoginController extends Controller
             'password' => 'required',
         ]);
 
-        if (Auth::attempt($credentials)) {
+        $deactivated = false;
+        if (Auth::attemptWhen($credentials, function ($user) use (&$deactivated) {
+            $deactivated = $user->status !== 'active';
+            return !$deactivated;
+        })) {
             $request->session()->regenerate();
             $user = Auth::user();
 
@@ -28,7 +32,7 @@ class LoginController extends Controller
 
         return back()
             ->withInput($request->only('email'))
-            ->withErrors(['email' => 'Invalid email or password.']);
+            ->withErrors(['email' => $deactivated ? 'This account is Deactivated' : 'Invalid email or password.']);
     }
 
     public function logout(Request $request)

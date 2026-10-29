@@ -34,6 +34,10 @@ class GoogleAuthController extends Controller
             ], 404);
         }
 
+        if ($user->status !== 'active') {
+            return response()->json(['message' => 'This account is Deactivated'], 403);
+        }
+
         // Link the Google ID on first-time Google login, so future logins can match on google_id too
         if (!$user->google_id) {
             $user->update(['google_id' => $googleId]);

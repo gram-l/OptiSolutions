@@ -175,14 +175,14 @@
                 <div class="analytics-card card-sentiment">
                     <div class="analytics-title"><i class="fa-solid fa-chart-pie"></i> Sentiment Distribution</div>
                     <div class="sentiment-summary" id="sentimentSummary"></div>
-                    <div style="margin-top: 0.6rem;">
+                    <div class="sentiment-rating">
                         <div class="rating-stars" id="avgRating"></div>
-                        <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 0.25rem;">Average Rating: <span id="avgRatingValue">0</span>/5</div>
+                        <div class="sentiment-rating-text">Average Rating: <span id="avgRatingValue">0</span>/5</div>
                     </div>
                 </div>
                 <div class="pattern-card card-pattern">
-                    <div class="pattern-header">Recurring Negative Patterns</div>
-                    <div id="negativePatterns"></div>
+                    <div class="analytics-title" id="negativePatternsTitle"><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i> Recurring Negative Patterns</div>
+                    <div id="negativePatterns" role="region" aria-labelledby="negativePatternsTitle" tabindex="0"></div>
                 </div>
             </div>
 

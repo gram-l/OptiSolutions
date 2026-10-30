@@ -117,12 +117,12 @@
     </div>
 
     <dialog id="userConfirm" class="um-confirm" aria-labelledby="userConfirmTitle" aria-describedby="userConfirmText">
-        <div class="um-confirm-icon"><i class="fa-solid fa-trash" aria-hidden="true"></i></div>
-        <h3 id="userConfirmTitle">Remove user?</h3>
+        <div class="um-confirm-icon"><i id="userConfirmIcon" class="fa-solid fa-trash" aria-hidden="true"></i></div>
+        <h3 id="userConfirmTitle">Delete account?</h3>
         <p id="userConfirmText"></p>
         <form method="dialog" class="um-confirm-actions">
             <button class="um-confirm-cancel" value="cancel" autofocus>Cancel</button>
-            <button class="um-confirm-remove" value="remove">Remove</button>
+            <button id="userConfirmAction" class="um-confirm-remove" value="confirm">Delete</button>
         </form>
     </dialog>
 
@@ -147,17 +147,34 @@
             toastTimer = setTimeout(() => t.hidden = true, 3500);
         }
 
-        function confirmUserRemoval(user) {
+        function confirmUserAction({ title, message, variant, action, icon }) {
             const dialog = document.getElementById('userConfirm');
-            const warning = user.user_role === 'Admin' ? 'This user is an administrator. ' : '';
-            document.getElementById('userConfirmText').textContent = warning +
-                `Are you sure you want to permanently remove ${user.name} from the system? This action cannot be undone.`;
+            if (dialog.open) return Promise.resolve(false);
+            document.getElementById('userConfirmTitle').textContent = title;
+            document.getElementById('userConfirmText').textContent = message;
+            document.getElementById('userConfirmAction').textContent = action;
+            document.getElementById('userConfirmIcon').className = `fa-solid ${icon}`;
+            dialog.dataset.variant = variant;
             dialog.returnValue = 'cancel';
+            const previousOverflow = document.body.style.overflow;
             return new Promise(resolve => {
-                dialog.addEventListener('close', () => resolve(dialog.returnValue === 'remove'), { once: true });
+                dialog.addEventListener('close', () => {
+                    document.body.style.overflow = previousOverflow;
+                    resolve(dialog.returnValue === 'confirm');
+                }, { once: true });
                 dialog.showModal();
+                document.body.style.overflow = 'hidden';
             });
         }
+
+        document.getElementById('userConfirm').addEventListener('click', event => {
+            const dialog = event.currentTarget;
+            const bounds = dialog.getBoundingClientRect();
+            if (event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right
+                || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
+                dialog.close('cancel');
+            }
+        });
 
         function userAvatar(user, initials) {
             if (!user.profile_photo) return escapeHtml(initials);
@@ -329,6 +346,20 @@
 
         // Toggle Active / Inactive
         async function toggleStatus(user_id) {
+            const user = usersData.find(u => u.user_id === user_id);
+            if (!user) return;
+            const willDeactivate = user.status === 'active';
+            const confirmed = await confirmUserAction({
+                title: willDeactivate ? 'Deactivate account?' : 'Activate account?',
+                message: willDeactivate
+                    ? `Are you sure you want to deactivate ${user.name}'s account? They will no longer be able to sign in until the account is activated again.`
+                    : `Are you sure you want to activate ${user.name}'s account? They will be able to sign in again.`,
+                variant: willDeactivate ? 'warning' : 'primary',
+                action: willDeactivate ? 'Deactivate' : 'Activate',
+                icon: willDeactivate ? 'fa-lock' : 'fa-unlock',
+            });
+            if (!confirmed) return;
+
             try {
                 const res  = await fetch(`/admin_acc/user_management/${user_id}/toggle`, {
                     method:  'PATCH',
@@ -353,7 +384,12 @@
             const u = usersData.find(u => u.user_id === user_id);
             if (!u) return;
 
-            if (!await confirmUserRemoval(u)) return;
+            const warning = u.user_role === 'Admin' ? 'This account belongs to an administrator. ' : '';
+            if (!await confirmUserAction({
+                title: 'Delete account?',
+                message: warning + `Are you sure you want to permanently delete ${u.name}'s account from the system? This action cannot be undone.`,
+                variant: 'danger', action: 'Delete', icon: 'fa-trash',
+            })) return;
 
             try {
                 const res  = await fetch(`/admin_acc/user_management/${user_id}`, {

@@ -41,10 +41,11 @@
         /* Sentiment distribution and recurring patterns */
         .overview-grid {
             display: grid;
-            grid-template-columns: 1.1fr 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             grid-template-areas: "sentiment pattern";
             gap: 1.1rem;
             margin-bottom: 1.5rem;
+            align-items: stretch;
         }
         .visit-ratings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.1rem; margin-bottom: 0.6rem; }
         .visit-ratings-grid .analytics-card { min-width: 0; }
@@ -68,8 +69,14 @@
         .visit-ratings-note, .visit-ratings-empty { color: #7f8c8d; font-size: 0.8rem; line-height: 1.5; }
         .visit-ratings-note { margin-bottom: 1.2rem; }
         @media (max-width: 768px) { .visit-ratings-grid { grid-template-columns: minmax(0, 1fr); } }
-        .card-sentiment { grid-area: sentiment; }
-        .card-pattern { grid-area: pattern; display: flex; flex-direction: column; }
+        .card-sentiment { grid-area: sentiment; display: flex; flex-direction: column; min-width: 0; }
+        .card-sentiment .sentiment-summary { flex: 1; align-items: center; gap: .75rem; padding: .6rem 0; }
+        .sentiment-rating { border-top: 1px solid var(--light-gray); padding-top: .65rem; margin-top: .6rem; }
+        .sentiment-rating-text { font-size: .8rem; color: #7f8c8d; }
+        .overview-grid .analytics-title { display: flex; align-items: center; gap: .4rem; padding-bottom: .5rem; margin-bottom: .6rem; border-bottom: 2px solid var(--light-gray); }
+        .card-pattern { grid-area: pattern; display: flex; flex-direction: column; min-width: 0; }
+        #negativePatterns { max-height: 10rem; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+        #negativePatterns:focus-visible { outline: 2px solid var(--primary-main); outline-offset: 3px; border-radius: 4px; }
 
         .analytics-card { background: var(--white); padding: 0.9rem 1.1rem; border-radius: 14px; box-shadow: 0 2px 10px var(--shadow); }
         .analytics-title { font-weight: 600; color: var(--primary-dark); margin-bottom: 0.5rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }

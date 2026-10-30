@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>PolyClinic</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Merriweather+Sans:wght@700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
   @vite(['resources/css/patient_css/home.css', 'resources/css/patient_css/about.css', 'resources/css/patient_css/contact.css', 'resources/js/script.js', 'resources/js/navbar-loader.js', 'resources/js/privacy-notice.js'])
@@ -203,158 +203,195 @@
 </section>
 
 <!-- ========== ABOUT - MODERN ========== -->
-<section class="section about-section" id="about">
-  <div class="container">
-    <div class="about-header">
-      <span class="about-tag">About PolyClinic</span>
-      <h2 class="about-title">Compassionate Care for Every Filipino Family</h2>
-      <p class="about-subtitle">We are a multi-specialty clinic dedicated to providing accessible, high-quality healthcare to the Lipa community and beyond.</p>
+<section class="section about-section about-v2" id="about">
+
+  {{-- decorative background --}}
+  <img class="about-v2-cross about-v2-cross-lg" src="/images/medical-cross.svg" alt="" aria-hidden="true">
+  <img class="about-v2-cross about-v2-cross-sm" src="/images/medical-cross.svg" alt="" aria-hidden="true">
+  <img class="about-v2-leaves" src="/images/leaves.svg" alt="" aria-hidden="true">
+
+  <div class="about-v2-hero">
+    <div class="about-v2-photo-wrap">
+      <div class="about-v2-photo">
+        <img src="/images/Polyclinic.jpg" alt="PolyClinic Lipa building" loading="lazy">
+      </div>
     </div>
 
-    <div class="about-grid-modern">
+    <div class="about-v2-content">
+      <span class="about-tag">About PolyClinic</span>
+      <h2 class="about-title">Compassionate Care for Every<br><span class="about-title-accent">Filipino Family</span></h2>
+      <div class="about-v2-rule"><i></i><b></b></div>
+      <p class="about-subtitle">We are a multi-specialty clinic dedicated to providing accessible, high-quality healthcare to the Lipa community and beyond.</p>
+
       <div class="about-text">
         <p><strong>{{ $clinicInfo->clinic_name ?? 'PolyClinic' }}</strong> is a multi-specialty clinic located at <strong>{{ $clinicInfo->address ?? 'TM Kalaw St., Lipa City' }}</strong>. We are committed to providing comprehensive and compassionate healthcare to the Lipa community and surrounding areas.</p>
-        <p>{{ $clinicInfo->about_us ?? '' }}</p>
-
-        <div class="trust-badges">
-          <div class="trust-badge">
-            <i class="fas fa-shield-halved"></i>
-            <span>DOH Accredited</span>
-          </div>
-          <div class="trust-badge">
-            <i class="fas fa-user-doctor"></i>
-            <span>Licensed Specialists</span>
-          </div>
-          <div class="trust-badge">
-            <i class="fas fa-lock"></i>
-            <span>Data Privacy Compliant</span>
-          </div>
-        </div>
+        @if (!empty($clinicInfo->about_us))
+          <p>{{ $clinicInfo->about_us }}</p>
+        @endif
       </div>
 
-      <div class="about-image-modern">
-        <div class="about-feature-card">
-          <div class="feature-icon-badge"><i class="fas fa-notes-medical"></i></div>
-          <h3>Modern Outpatient Care</h3>
-          <p>Equipped with clean consultation rooms, comfortable waiting areas, and digital patient record management to give you a seamless healthcare experience.</p>
-          <ul class="feature-checklist">
-            <li><i class="fas fa-check"></i> Clean &amp; Sanitized Facilities</li>
-            <li><i class="fas fa-check"></i> Minimal Waiting Times</li>
-            <li><i class="fas fa-check"></i> Friendly &amp; Courteous Staff</li>
-          </ul>
-          <div class="feature-card-footer">
-            <span>Department of Health Accredited</span>
-            <span class="doh-approved-pill">DOH Approved</span>
-          </div>
-        </div>
+      <div class="trust-badges">
+        <div class="trust-badge"><i class="fas fa-circle-check"></i><span>DOH Accredited</span></div>
+        <div class="trust-badge"><i class="fas fa-users"></i><span>Licensed Specialists</span></div>
+        <div class="trust-badge"><i class="fas fa-lock"></i><span>Data Privacy Compliant</span></div>
       </div>
     </div>
 
-    <div class="mv-modern">
-      <div class="mv-top-grid">
-        <div class="mv-card-modern">
-          <div class="mv-icon-modern"><i class="fas fa-bullseye"></i></div>
-          <div class="mv-content-modern">
-            <h3>Our Mission</h3>
-            @if (!empty($clinicInfo->mission))
-              <p>{{ $clinicInfo->mission }}</p>
-            @else
-              <p class="values-empty">Mission has not been set yet.</p>
-            @endif
-          </div>
-        </div>
+    <svg class="about-v2-wave" viewBox="0 0 1440 110" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 55 C220 105 430 5 720 45 C1010 85 1230 15 1440 60 L1440 110 L0 110Z" fill="#F7FAFE"/>
+      <path d="M0 55 C220 105 430 5 720 45 C1010 85 1230 15 1440 60" fill="none" stroke="#DCEAF9" stroke-width="2"/>
+    </svg>
+  </div>
 
-        <div class="mv-card-modern vision-card">
-          <div class="mv-icon-modern"><i class="fas fa-eye"></i></div>
-          <div class="mv-content-modern">
-            <h3>Our Vision</h3>
-            @if (!empty($clinicInfo->vision))
-              <p>{{ $clinicInfo->vision }}</p>
-            @else
-              <p class="values-empty">Vision has not been set yet.</p>
-            @endif
-          </div>
-        </div>
+  <div class="about-v2-mv">
+    <div class="about-v2-mv-item mission">
+      <div class="about-v2-icon"><i class="fas fa-bullseye"></i></div>
+      <div class="about-v2-mv-body">
+        <h3>Our Mission</h3>
+        @if (!empty($clinicInfo->mission))
+          <p>{{ $clinicInfo->mission }}</p>
+        @else
+          <p class="values-empty">Mission has not been set yet.</p>
+        @endif
       </div>
+    </div>
 
-      <div class="mv-card-modern values-card">
-        <div class="mv-icon-modern"><i class="fas fa-hand-holding-heart"></i></div>
-        <div class="mv-content-modern">
-          <h3>Our Core Values</h3>
-          <div class="values-grid">
-            @forelse (($clinicInfo->core_values ?? []) as $value)
-              <div class="value-item">
-                <strong>{{ $value }}</strong>
-              </div>
-            @empty
-              <p class="values-empty">Core values have not been set yet.</p>
-            @endforelse
-          </div>
-        </div>
+    <div class="about-v2-mv-item vision">
+      <div class="about-v2-icon"><i class="fas fa-eye"></i></div>
+      <div class="about-v2-mv-body">
+        <h3>Our Vision</h3>
+        @if (!empty($clinicInfo->vision))
+          <p>{{ $clinicInfo->vision }}</p>
+        @else
+          <p class="values-empty">Vision has not been set yet.</p>
+        @endif
+      </div>
+    </div>
+
+    <div class="about-v2-mv-item values">
+      <div class="about-v2-icon"><i class="fas fa-hand-holding-heart"></i></div>
+      <div class="about-v2-mv-body">
+        <h3>Our Core Values</h3>
+        @forelse (($clinicInfo->core_values ?? []) as $value)
+          <span class="about-v2-value">{{ $value }}</span>
+        @empty
+          <p class="values-empty">Core values have not been set yet.</p>
+        @endforelse
       </div>
     </div>
   </div>
 </section>
 
 <!-- ========== SERVICES - MODERN ========== -->
-<section class="services-modern-section" id="services">
+<section class="services-modern-section services-v2" id="services">
+  <img class="services-v2-cross" src="/images/medical-cross.svg" alt="" aria-hidden="true">
+  <img class="services-v2-leaves services-v2-leaves-left" src="/images/leaves.svg" alt="" aria-hidden="true">
+  <img class="services-v2-leaves services-v2-leaves-right" src="/images/leaves.svg" alt="" aria-hidden="true">
   <div class="container">
     <div class="services-modern-header">
       <span class="services-modern-tag">Services</span>
-      <h2 class="services-modern-title">Comprehensive Medical Care<br>For You & Your Family</h2>
+      <h2 class="services-modern-title">Comprehensive Medical Care<br><span class="services-title-accent">For You &amp; Your Family</span></h2>
       <p class="services-modern-subtitle">We offer a wide range of specialized healthcare services delivered with compassion and expertise.</p>
     </div>
     <div class="service-grid-modern">
       <div class="service-card-modern" onclick="openServiceModal('pediatrics')">
-        <div class="service-card-icon icon-blue"><i class="fas fa-child"></i></div>
-        <h3>Pediatrics</h3>
-        <p>Comprehensive care for children from newborn to adolescence, including vaccinations and growth monitoring.</p>
+        <div class="service-card-img"><img src="/images/pediatrics.png" alt="Pediatrics" loading="lazy"></div>
+        <div class="service-card-body">
+          <div class="service-card-icon icon-blue"><i class="fas fa-child"></i></div>
+          <div class="service-card-text">
+            <h3>Pediatrics</h3>
+            <p>Comprehensive care for children from newborn to adolescence, including vaccinations and growth monitoring.</p>
+            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('obgyne')">
-        <div class="service-card-icon icon-teal"><i class="fas fa-person-dress"></i></div>
-        <h3>OB-Gynecology</h3>
-        <p>Women's health, prenatal care, routine checkups, and reproductive health consultation.</p>
+        <div class="service-card-img"><img src="/images/ob_gynecology.png" alt="OB-Gynecology" loading="lazy"></div>
+        <div class="service-card-body">
+          <div class="service-card-icon icon-teal"><i class="fas fa-person-dress"></i></div>
+          <div class="service-card-text">
+            <h3>OB-Gynecology</h3>
+            <p>Women's health, prenatal care, routine checkups, and reproductive health consultation.</p>
+            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('surgery')">
-        <div class="service-card-icon icon-indigo"><i class="fas fa-kit-medical"></i></div>
-        <h3>General Surgery</h3>
-        <p>General surgical consultations, minor outpatient procedures, and post-operative follow-up evaluations.</p>
+        <div class="service-card-img"><img src="/images/general_surgery.png" alt="General Surgery" loading="lazy"></div>
+        <div class="service-card-body">
+          <div class="service-card-icon icon-indigo"><i class="fas fa-kit-medical"></i></div>
+          <div class="service-card-text">
+            <h3>General Surgery</h3>
+            <p>General surgical consultations, minor outpatient procedures, and post-operative follow-up evaluations.</p>
+            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('pulmonology')">
-        <div class="service-card-icon icon-cyan"><i class="fas fa-lungs"></i></div>
-        <h3>IM-Pulmonology</h3>
-        <p>Respiratory and pulmonary care for lung health, asthma, chronic cough, and bronchial conditions.</p>
+        <div class="service-card-img"><img src="/images/im_pulmonology.png" alt="IM-Pulmonology" loading="lazy"></div>
+        <div class="service-card-body">
+          <div class="service-card-icon icon-cyan"><i class="fas fa-lungs"></i></div>
+          <div class="service-card-text">
+            <h3>IM-Pulmonology</h3>
+            <p>Respiratory and pulmonary care for lung health, asthma, chronic cough, and bronchial conditions.</p>
+            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('ophthalmology')">
-        <div class="service-card-icon icon-green"><i class="fas fa-eye"></i></div>
-        <h3>Ophthalmology / ENT</h3>
-        <p>Eye care, vision assessments, ear, nose, and throat consultations and treatment plans.</p>
+        <div class="service-card-img"><img src="/images/ophthalmology_ent.png" alt="Ophthalmology / ENT" loading="lazy"></div>
+        <div class="service-card-body">
+          <div class="service-card-icon icon-green"><i class="fas fa-eye"></i></div>
+          <div class="service-card-text">
+            <h3>Ophthalmology / ENT</h3>
+            <p>Eye care, vision assessments, ear, nose, and throat consultations and treatment plans.</p>
+            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('cardiology')">
-        <div class="service-card-icon icon-pink"><i class="fas fa-heartbeat"></i></div>
-        <h3>IM-Cardiology</h3>
-        <p>Comprehensive cardiovascular care, heart consultations, hypertension, and preventive checkups.</p>
+        <div class="service-card-img"><img src="/images/im_cardiology.png" alt="IM-Cardiology" loading="lazy"></div>
+        <div class="service-card-body">
+          <div class="service-card-icon icon-pink"><i class="fas fa-heart-pulse"></i></div>
+          <div class="service-card-text">
+            <h3>IM-Cardiology</h3>
+            <p>Comprehensive cardiovascular care, heart consultations, hypertension, and preventive checkups.</p>
+            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('adultmedicine')">
-        <div class="service-card-icon icon-orange"><i class="fas fa-user-doctor"></i></div>
-        <h3>General / Adult Medicine</h3>
-        <p>Comprehensive primary care for adults, wellness checks, disease management, and consultations.</p>
+        <div class="service-card-img"><img src="/images/general_adult_medicine.png" alt="General / Adult Medicine" loading="lazy"></div>
+        <div class="service-card-body">
+          <div class="service-card-icon icon-orange"><i class="fas fa-user-doctor"></i></div>
+          <div class="service-card-text">
+            <h3>General / Adult Medicine</h3>
+            <p>Comprehensive primary care for adults, wellness checks, disease management, and consultations.</p>
+            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
       </div>
       <div class="service-card-modern" onclick="openServiceModal('oncology')">
-        <div class="service-card-icon icon-violet"><i class="fas fa-ribbon"></i></div>
-        <h3>Medical Oncology</h3>
-        <p>Specialized evaluation and management for oncological and blood disorder consultations.</p>
+        <div class="service-card-img"><img src="/images/medical_oncology.png" alt="Medical Oncology" loading="lazy"></div>
+        <div class="service-card-body">
+          <div class="service-card-icon icon-violet"><i class="fas fa-ribbon"></i></div>
+          <div class="service-card-text">
+            <h3>Medical Oncology</h3>
+            <p>Specialized evaluation and management for oncological and blood disorder consultations.</p>
+            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ========== DOCTORS - MODERN ========== -->
-<section class="doctors-modern-section" id="doctors">
+<section class="doctors-modern-section doctors-v2" id="doctors">
   <div class="container">
     <div class="doctors-modern-header">
       <span class="doctors-modern-tag">Medical Team</span>
-      <h2 class="doctors-modern-title">Meet Our Medical Experts</h2>
+      <h2 class="doctors-modern-title">Meet Our <span class="doctors-title-accent">Medical Experts</span></h2>
       <p class="doctors-modern-subtitle">Our board-certified physicians bring years of specialized experience and compassionate care to help you achieve optimal health.</p>
     </div>
 

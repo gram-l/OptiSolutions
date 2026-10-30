@@ -25,10 +25,32 @@ function formatTime(t) {
 }
 
 // ============ FETCH: DOCTORS (doctors + doctor_schedules) ============
+let _doctorsSig = '';        // para malaman kung may nagbago sa listahan
+let _doctorFiltersBound = false;
+
+function rerenderDoctorGrids() {
+  // Restores the selected filter tab and search value.
+  [
+    ['doctorsGrid', 'filterTabs', null],
+    ['doctorsGridHome', 'filterTabsHome', 'doctorsSearchHome']
+  ].forEach(([gridId, tabsId, searchId]) => {
+    const tabs = document.getElementById(tabsId);
+    const active = tabs ? tabs.querySelector('.filter-tab.active') : null;
+    const filter = active ? active.dataset.filter : 'all';
+    const input = searchId ? document.getElementById(searchId) : null;
+    renderDoctors(filter, gridId, input ? input.value : '');
+  });
+}
+
 async function loadDoctorsData() {
   try {
-    const res = await fetch('/api/doctors');
+    const res = await fetch('/api/doctors', { cache: 'no-store' });
     const raw = await res.json();
+
+    // Walang nagbago? Huwag nang i-render ulit.
+    const sig = JSON.stringify(raw);
+    if (sig === _doctorsSig) return;
+    _doctorsSig = sig;
 
     doctorsData = raw.map(doc => ({
       id: doc.doctor_id,
@@ -50,21 +72,31 @@ async function loadDoctorsData() {
       available: doc.available !== 0
     })).filter(d => d.available);
 
-    renderDoctors('all', 'doctorsGrid');
-    renderDoctors('all', 'doctorsGridHome');
-    setupFilterTabs('filterTabs', 'doctorsGrid');
-    setupFilterTabs('filterTabsHome', 'doctorsGridHome', 'doctorsSearchHome');
-    setupDoctorSearch('doctorsSearchHome', 'filterTabsHome', 'doctorsGridHome');
+    rerenderDoctorGrids();
+
+    // Isang beses lang i-bind ang mga click/search listener
+    if (!_doctorFiltersBound) {
+      setupFilterTabs('filterTabs', 'doctorsGrid');
+      setupFilterTabs('filterTabsHome', 'doctorsGridHome', 'doctorsSearchHome');
+      setupDoctorSearch('doctorsSearchHome', 'filterTabsHome', 'doctorsGridHome');
+      _doctorFiltersBound = true;
+    }
   } catch (err) {
     console.error('Failed to load doctors:', err);
   }
 }
 
 // ============ FETCH: SERVICES (services + service_conditions + service_doctors) ============
+let _servicesSig = '';
+
 async function loadServicesData() {
   try {
-    const res = await fetch('/api/services');
+    const res = await fetch('/api/services', { cache: 'no-store' });
     const raw = await res.json();
+
+    const sig = JSON.stringify(raw);
+    if (sig === _servicesSig) return;
+    _servicesSig = sig;
 
     servicesData = {};
     raw.filter(svc => svc.available !== 0).forEach(svc => {
@@ -191,10 +223,7 @@ function setupDoctorSearch(searchInputId, tabsContainerId, gridId) {
 
 // ============ DOCTOR MODAL ============
 
-// Maps a doctor's specialty string (as used by the filter tabs) to the
-// matching service_key in servicesData, so the modal can reuse the real
-// "conditions" list already maintained for that department as the doctor's
-// "Clinical Focus Areas" — no separate per-doctor tagging needed.
+// Matches a doctor's specialty with the corresponding service data.
 const doctorSpecialtyToServiceKey = {
   'Pediatrics': 'pediatrics',
   'OB-Gyne': 'obgyne',
@@ -431,12 +460,7 @@ function openServiceModal(serviceKey) {
   lockBodyScroll();
 }
 
-// ============ BODY SCROLL LOCK (modal open) ============
-// Plain `overflow:hidden` on body isn't enough on mobile: the page can still
-// rubber-band / the browser's address bar can collapse while you scroll or
-// switch tabs inside the modal, which resizes the viewport and makes the
-// fixed-position modal look like it "jumped" or got cut off at the top.
-// Locking body to position:fixed at the current scroll offset prevents that.
+// Prevents background scrolling while the modal is open.
 let _scrollLockY = 0;
 let _scrollLockCount = 0;
 function lockBodyScroll() {
@@ -460,13 +484,7 @@ function unlockBodyScroll() {
     document.body.style.right = '';
     document.body.style.width = '';
     document.body.style.overflow = '';
-    // Force an instant jump back, not an animated one. Several pages set
-    // `html { scroll-behavior: smooth }` for their own in-page anchor links,
-    // but that same CSS rule also hijacks *any* programmatic scroll —
-    // including this restore — turning what should be an invisible snap
-    // back to where the user was into a visible "dramatic" scroll down/up
-    // the page after closing a modal. Passing behavior: 'auto' explicitly
-    // overrides the CSS smooth-scroll setting for this one call only.
+   // Restores the previous scroll position immediately without animation.
     window.scrollTo({ top: _scrollLockY, left: 0, behavior: 'auto' });
   }
 }
@@ -504,12 +522,25 @@ window.loadServicesData     = loadServicesData;
 window.loadDoctorsData      = loadDoctorsData;
 window.handleDoctorPhotoError = handleDoctorPhotoError;
 
-// ============ AUTO-LOAD ON PAGE READY (THE FIX) ============
-// Without this, loadDoctorsData()/loadServicesData()/loadClinicInfo() are defined
-// but never called anywhere, so #doctorsGrid, #doctorsGridHome, #servicesGrid,
-// #serviceCardsHome, and clinic-info fields all stay empty on page load.
+// Loads the required data automatically when the page is ready.
 document.addEventListener('DOMContentLoaded', function () {
   loadDoctorsData();
   loadServicesData();
   loadClinicInfo();
+  startLiveSync();
 });
+
+// LIVE SYNC (Auto Refresh in Doctors and Services Data)
+const LIVE_SYNC_MS = 8000;
+
+function startLiveSync() {
+  const tick = () => {
+    if (document.hidden) return;
+    loadDoctorsData();
+    loadServicesData();
+  };
+  setInterval(tick, LIVE_SYNC_MS);
+  // Return in tab 
+  document.addEventListener('visibilitychange', tick);
+  window.addEventListener('focus', tick);
+}

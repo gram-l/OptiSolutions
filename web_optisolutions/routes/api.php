@@ -44,6 +44,7 @@ Route::get('/doctors', [PatientDoctorController::class, 'index']);
 // ── Patient side ──
 Route::get('/doctors', [PatientDoctorController::class, 'index']); // ⚠️ conflict with line above — same URI, dalawang beses defined
 Route::get('/services', [ServiceController::class, 'index']);
+Route::get('/schedule-visit-catalog', [PatientDoctorController::class, 'scheduleVisitCatalog']);
 Route::get('/clinic-info', [ClinicInfoController::class, 'index']);
 Route::post('/schedule-visit', [AppointmentController::class, 'store']);
 Route::post('/complaints', [ComplaintController::class, 'store']);

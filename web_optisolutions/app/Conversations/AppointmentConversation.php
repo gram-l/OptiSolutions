@@ -7,9 +7,11 @@ use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Messages\Outgoing\Actions\Button;
 use App\Services\ClinicInfoService;
-use App\Mail\ConversationTranscriptMail;
+use App\Mail\VisitConfirmationMail;
 use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
+use App\Support\PublicCatalog;
+use App\Support\ScheduleVisitCatalog;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
@@ -19,9 +21,19 @@ use Closure;
 
 class AppointmentConversation extends Conversation
 {
+    // Message prefixes shared with the chat widget (chatbot-widget.blade.php).
+    // FORM_CARD:: = bot -> widget, renders the patient information form.
+    // FORM_SUBMIT:: = widget -> bot, JSON with the submitted field values.
+    public const FORM_CARD_PREFIX   = 'FORM_CARD::';
+    public const FORM_SUBMIT_PREFIX = 'FORM_SUBMIT::';
+
     protected $fname, $lname, $phone, $dob, $email;
     protected $service, $serviceKey, $serviceId;
     protected $doctor, $doctorId, $scheduleDay, $scheduleSlotIndex = 0;
+    protected $scheduleId;
+
+    // Whether to email the patient their visit confirmation (checkbox on step 1).
+    protected $sendCopy = true;
     protected $scheduleSuggestion;
 
     // Full message log for this conversation, used to email a transcript later.
@@ -102,6 +114,11 @@ class AppointmentConversation extends Conversation
     // Returns the human-readable text to log for the patient's answer.
     protected function displayTextForAnswer(Answer $answer): string
     {
+        $raw = (string) $answer->getText();
+        if (str_starts_with($raw, self::FORM_SUBMIT_PREFIX)) {
+            return $this->summarizeFormSubmission($this->decodeFormSubmission($raw) ?? []);
+        }
+
         $value = (string) ($answer->getValue() ?: $answer->getText());
 
         if (isset($this->pendingButtonLabels[$value])) {
@@ -153,6 +170,12 @@ class AppointmentConversation extends Conversation
         // Summarize card payloads instead of dumping raw JSON.
         if (str_starts_with($text, 'INFO_CARD::')) {
             return '[Sent: Clinic Information Card]';
+        }
+
+        if (str_starts_with($text, self::FORM_CARD_PREFIX)) {
+            $form = json_decode(substr($text, strlen(self::FORM_CARD_PREFIX)), true);
+            $formTitle = is_array($form) ? trim((string) ($form['title'] ?? '')) : '';
+            return $formTitle !== '' ? "[Sent: {$formTitle} form]" : '[Sent: Form]';
         }
 
         if (str_starts_with($text, 'APPT_CARD::')) {
@@ -399,6 +422,7 @@ class AppointmentConversation extends Conversation
             'service' => $this->service, 'serviceKey' => $this->serviceKey, 'serviceId' => $this->serviceId,
             'doctor' => $this->doctor, 'doctorId' => $this->doctorId,
             'scheduleDay' => $this->scheduleDay, 'scheduleSlotIndex' => $this->scheduleSlotIndex,
+            'scheduleId' => $this->scheduleId, 'sendCopy' => $this->sendCopy,
             'scheduleSuggestion' => $this->scheduleSuggestion,
             'transcript' => $this->transcript,
         ];
@@ -412,6 +436,8 @@ class AppointmentConversation extends Conversation
         $this->service = $this->serviceKey = $this->serviceId = null;
         $this->doctor = $this->doctorId = $this->scheduleDay = null;
         $this->scheduleSlotIndex = 0;
+        $this->scheduleId = null;
+        $this->sendCopy = true;
         $this->scheduleSuggestion = null;
         $this->transcript = [];
         $this->pendingAnswerCallback = null;
@@ -432,17 +458,20 @@ class AppointmentConversation extends Conversation
     protected function resumeStep(string $stepKey)
     {
         switch ($stepKey) {
-            case 'name':             $this->askName(); break;
-            case 'phone':            $this->askPhone(); break;
-            case 'dob':              $this->askDob(); break;
-            case 'email':            $this->askEmail(); break;
-            case 'service':          $this->askService(); break;
-            case 'doctor':           $this->askDoctor(); break;
-            case 'schedule':         $this->suggestSchedule(); break;
-            case 'transcript_email': $this->askSendTranscriptEmail(); break;
+            case 'name':
+            case 'phone':
+            case 'dob':
+            case 'email':
+            case 'patient_form':     $this->askPatientForm(); break;
+            case 'service':
+            case 'doctor':
+            case 'schedule':
+            case 'visit_form':       $this->askVisitForm(); break;
+            case 'review':           $this->askReview(); break;
+            case 'transcript_email': $this->askPostAppointment(); break;
             case 'post':             $this->askPostAppointment(); break;
             case 'menu':             $this->sendMainMenu(); break;
-            default:                 $this->askName(); break;
+            default:                 $this->askPatientForm(); break;
         }
     }
 
@@ -518,7 +547,7 @@ class AppointmentConversation extends Conversation
 
             if ($choice === 'schedule visit') {
                 $this->resetState();
-                $this->askName();
+                $this->askPatientForm();
             } elseif ($choice === 'general information') {
                 $this->sayLogged(ClinicInfoService::infoCardMessage());
                 $this->sendMainMenu(false);
@@ -702,234 +731,406 @@ class AppointmentConversation extends Conversation
             return;
         }
 
-        $this->sayLogged("🔒 **Reminder**\nThe information you provide (name, contact number, date of birth, and email) is kept confidential and will only be used for record-keeping and to manage your visit at PolyClinic Lipa.");
-
-        $this->askName();
+        $this->askPatientForm();
     }
 
-    // STEP 1: PATIENT INFO (name → phone → dob → email)
+    // STEP 1: YOUR DETAILS — one form (name, phone, dob, email) instead of four chat questions.
+    // All the original validators still run, server-side, on every submission.
 
-    public function askName($prompt = 'Please provide your full name.')
+    // Builds the form values from whatever is already known (e.g. after a detour).
+    protected function currentFormValues(): array
     {
-        $this->askLogged($prompt, function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, 'name');
-            }
-            if ($this->handleOffTopicIfAny($answer, 'name')) {
-                return;
-            }
-
-            $error = $this->validateName($answer->getText());
-            if ($error) {
-                return $this->askName($error . "\nExample: Pedro Cruz");
-            }
-            $parts = preg_split('/\s+/', trim($answer->getText()));
-            $this->fname = array_shift($parts);
-            $this->lname = implode(' ', $parts) ?: $this->fname;
-            $this->askPhone();
-        });
-    }
-
-    public function askPhone($prompt = 'Please provide your contact number.')
-    {
-        $this->askLogged($prompt, function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, 'phone');
-            }
-            if ($this->handleOffTopicIfAny($answer, 'phone')) {
-                return;
-            }
-
-            $error = $this->validatePhone($answer->getText());
-            if ($error) {
-                return $this->askPhone($error . "\nExample: 09XX XXX XXXX or (043) 123-4567");
-            }
-            $this->phone = trim($answer->getText());
-            $this->askDob();
-        });
-    }
-
-    public function askDob($prompt = 'Please provide your date of birth.')
-    {
-        $this->askLogged($prompt, function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, 'dob');
-            }
-            if ($this->handleOffTopicIfAny($answer, 'dob')) {
-                return;
-            }
-
-            $error = $this->validateDOB($answer->getText());
-            if ($error) {
-                return $this->askDob($error . "\nExample: 05/15/1990 or May 15, 1990");
-            }
-            $this->dob = trim($answer->getText());
-            $this->askEmail();
-        });
-    }
-
-    public function askEmail($prompt = 'Please provide your email address:')
-    {
-        $this->askLogged($prompt, function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, 'email');
-            }
-            if ($this->handleOffTopicIfAny($answer, 'email')) {
-                return;
-            }
-
-            $error = $this->validateEmail($answer->getText());
-            if ($error) {
-                return $this->askEmail($error . "\nExample: juan@example.com");
-            }
-            $this->email = trim($answer->getText());
-            $this->askService(); // → move to Step 2
-        });
-    }
-
-
-    // STEP 2: SERVICE SELECTION
-
-
-    public function askService()
-    {
-        $services = DB::table('services')->where('available', 1)->get();
-
-        if ($services->isEmpty()) {
-            $this->sayLogged("We couldn't load our services right now. Please try again in a moment.");
-            return;
+        $fullName = trim("{$this->fname} {$this->lname}");
+        if ($this->fname !== null && $this->fname === $this->lname) {
+            $fullName = (string) $this->fname; // single-word fallback from older flow
         }
 
-        $buttons = $services->map(fn($s) => Button::create($s->title)->value($s->service_key))->toArray();
-
-        $question = Question::create('Please select the service you need:')
-            ->fallback('Please select a service from the buttons above.')
-            ->addButtons($buttons);
-
-        $this->askLogged($question, function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, 'service');
-            }
-            if ($this->handleOffTopicIfAny($answer, 'service')) {
-                return;
-            }
-
-            $key = $answer->getValue();
-            $svc = DB::table('services')->where('service_key', $key)->first();
-            if (!$svc) {
-                $this->sayLogged("Sorry, I didn't recognize that service. Please try again.");
-                return $this->askService();
-            }
-            $this->service = $svc->title;
-            $this->serviceKey = $svc->service_key;
-            $this->serviceId = $svc->service_id;
-            $this->askDoctor(); // → move to Step 3
-        });
+        return [
+            'full_name' => $fullName,
+            'phone'     => (string) $this->phone,
+            'dob'       => (string) $this->dob,
+            'email'     => (string) $this->email,
+            'send_copy' => (bool) $this->sendCopy,
+        ];
     }
 
-
-    // STEP 3: DOCTOR SELECTION
-
-
-    public function askDoctor()
+    // "1990-05-15" (or any accepted format) -> "May 15, 1990"; unparseable text is returned as-is.
+    protected function readableDob(string $dob): string
     {
-        $doctors = DB::table('doctors')
-            ->where('available', 1)
-            ->where('status', 'Active')
-            ->where('specialty', $this->service)
-            ->get();
-
-        if ($doctors->isEmpty()) {
-            $this->sayLogged("We currently don't have a specialist for {$this->service}. Please choose another service:");
-            $this->service = null;
-            $this->serviceKey = null;
-            $this->serviceId = null;
-            $this->askService();
-            return;
-        }
-
-        $buttons = $doctors->map(
-            fn($d) => Button::create("{$d->doctor_name} — {$d->specialty}")->value((string) $d->doctor_id)
-        )->toArray();
-
-        $question = Question::create("Here are our specialists for {$this->service}:")
-            ->fallback('Please select a doctor from the buttons above.')
-            ->addButtons($buttons);
-
-        $this->askLogged($question, function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, 'doctor');
-            }
-            if ($this->handleOffTopicIfAny($answer, 'doctor')) {
-                return;
-            }
-
-            $doctorId = (int) $answer->getValue();
-            $doc = DB::table('doctors')->where('doctor_id', $doctorId)->first();
-            if (!$doc) {
-                $this->sayLogged("Sorry, I couldn't find this doctor. Please try again.");
-                return $this->askDoctor();
-            }
-            $this->doctor = $doc->doctor_name;
-            $this->doctorId = $doc->doctor_id;
-            $this->suggestSchedule(); // → move to Step 4
-        });
+        $parsed = $dob !== '' ? $this->parseDOB($dob) : null;
+        return $parsed ? $parsed->format('F j, Y') : $dob;
     }
 
-    // STEP 4: SCHEDULE SUGGESTION + CONFIRMATION
-
-
-    protected function suggestSchedule()
+    // Value for the <input type="date"> (needs YYYY-MM-DD); '' if it can't be parsed.
+    protected function isoDobForInput(string $dob): string
     {
-        $schedules = DB::table('doctor_schedules')->where('doctor_id', $this->doctorId)->get();
+        $parsed = $dob !== '' ? $this->parseDOB($dob) : null;
+        return $parsed ? $parsed->format('Y-m-d') : '';
+    }
 
-        if ($schedules->isEmpty()) {
-            $this->sayLogged("Sorry, I couldn't find availability for this doctor. Please try another.");
-            return $this->askDoctor();
+    // Decodes the widget's FORM_SUBMIT:: payload: strings are trimmed, booleans kept. Null if malformed.
+    protected function decodeFormSubmission(string $text): ?array
+    {
+        if (!str_starts_with($text, self::FORM_SUBMIT_PREFIX)) {
+            return null;
         }
 
-        // Once we run out of distinct slots, stop offering "suggest
-        // alternative" instead of silently wrapping back to slot 0
-        // (which used to look like the same time was re-suggested
-        // forever with no explanation).
-        $noMoreAlternatives = $this->scheduleSlotIndex >= $schedules->count();
-        $slot = $schedules[$this->scheduleSlotIndex] ?? $schedules[0];
-        $this->scheduleDay = $slot->day;
-        $suggestedDate = $this->getNextAvailableDate($slot->day);
-        $this->scheduleSuggestion = "{$suggestedDate} at {$this->formatTime($slot->start_time)} - {$this->formatTime($slot->end_time)}";
-
-        // Bold header + date/time + note, each on its own line.
-        $scheduleText = "**Suggested schedule:**\n{$this->scheduleSuggestion}.\nBased on {$this->doctor}'s availability.";
-
-        if ($noMoreAlternatives) {
-            $scheduleText .= "\n\nThis is the last available time slot we have for {$this->doctor}.";
+        $data = json_decode(substr($text, strlen(self::FORM_SUBMIT_PREFIX)), true);
+        if (!is_array($data)) {
+            return null;
         }
 
-        $buttons = [Button::create('Yes, confirm')->value('confirm_yes')];
-        if (!$noMoreAlternatives) {
-            $buttons[] = Button::create('Suggest alternative')->value('confirm_no');
-        }
-
-        $question = Question::create($scheduleText)
-            ->fallback('Please use the confirmation buttons above.')
-            ->addButtons($buttons);
-
-        $this->askLogged($question, function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, 'schedule');
+        $values = [];
+        foreach ($data as $key => $v) {
+            if (!is_string($key)) {
+                continue;
             }
-            if ($this->handleOffTopicIfAny($answer, 'schedule')) {
-                return;
-            }
-
-            if ($answer->getValue() === 'confirm_yes') {
-                $this->submitAppointment(); // → move to Step 5
+            if (is_bool($v)) {
+                $values[$key] = $v;
+            } elseif (is_scalar($v)) {
+                $values[$key] = trim((string) $v);
             } else {
-                $this->scheduleSlotIndex++;
-                $this->suggestSchedule();
+                $values[$key] = '';
             }
+        }
+
+        return $values;
+    }
+
+    // String value of a decoded form field ('' when missing).
+    protected function formString(array $values, string $key): string
+    {
+        return is_string($values[$key] ?? null) ? $values[$key] : '';
+    }
+
+    // Readable summary of a submitted form, for the transcript only (not shown in the chat).
+    protected function summarizeFormSubmission(array $values): string
+    {
+        if (array_key_exists('confirm', $values)) {
+            return 'Confirmed schedule visit';
+        }
+
+        if (array_key_exists('full_name', $values)) {
+            return implode("\n", [
+                'Full name: ' . $this->formString($values, 'full_name'),
+                'Contact number: ' . $this->formString($values, 'phone'),
+                'Date of birth: ' . $this->readableDob($this->formString($values, 'dob')),
+                'Email: ' . $this->formString($values, 'email'),
+            ]);
+        }
+
+        try {
+            $service = DB::table('services')->where('service_key', $this->formString($values, 'service'))->value('title');
+            $doctor  = DB::table('doctors')->where('doctor_id', (int) $this->formString($values, 'doctor'))->value('doctor_name');
+            $slot    = DB::table('doctor_schedules')->where('schedule_id', (int) $this->formString($values, 'slot'))->first();
+            $when    = $slot ? $this->slotLabel($slot) : '';
+        } catch (\Throwable $e) {
+            $service = $doctor = $when = '';
+        }
+
+        return implode("\n", [
+            'Service: ' . ($service ?: ''),
+            'Doctor: ' . ($doctor ?: ''),
+            'Schedule: ' . $when,
+        ]);
+    }
+
+    // Sends the "Your details" form. $errors is a field => message map; $values pre-fills it.
+    public function askPatientForm(array $errors = [], ?array $values = null, ?string $notice = null)
+    {
+        $values = $values ?? $this->currentFormValues();
+        $values['send_copy'] = $values['send_copy'] ?? true;
+
+        $today = now()->timezone('Asia/Manila');
+        $fields = [
+            ['name' => 'full_name', 'label' => 'Full name',      'type' => 'text',  'placeholder' => 'e.g. Maria Santos',              'autocomplete' => 'name',  'maxlength' => 100],
+            ['name' => 'phone',     'label' => 'Contact number', 'type' => 'tel',   'placeholder' => '09XX XXX XXXX',                  'autocomplete' => 'tel',   'maxlength' => 20],
+            ['name' => 'dob',       'label' => 'Date of birth',  'type' => 'date',  'placeholder' => '',                               'autocomplete' => 'bday',
+                'max' => $today->format('Y-m-d'), 'min' => $today->copy()->subYears(120)->format('Y-m-d')],
+            ['name' => 'email',     'label' => 'Email address',  'type' => 'email', 'placeholder' => 'e.g. maria.santos@example.com',  'autocomplete' => 'email', 'maxlength' => 254],
+            ['name' => 'send_copy', 'label' => 'Email me my visit confirmation', 'type' => 'checkbox'],
+        ];
+
+        if (isset($values['dob'])) {
+            $values['dob'] = $this->isoDobForInput((string) $values['dob']);
+        }
+
+        foreach ($fields as &$field) {
+            $field['value'] = $values[$field['name']] ?? '';
+            $field['error'] = $errors[$field['name']] ?? null;
+        }
+        unset($field);
+
+        $payload = [
+            'title'  => 'Your details',
+            'step'   => 'Step 1 of 3',
+            'notice' => $notice ?? (!empty($errors) ? 'Please fix the highlighted fields and try again.' : null),
+            'footer' => 'Your information is kept confidential and only used for record-keeping and to manage your visit at PolyClinic Lipa.',
+            'submit' => 'Next',
+            'fields' => $fields,
+        ];
+
+        $this->askLogged(self::FORM_CARD_PREFIX . json_encode($payload, JSON_UNESCAPED_UNICODE), function (Answer $answer) {
+            $text = (string) $answer->getText();
+
+            // Form submission: validate every field with the original validators.
+            if (str_starts_with($text, self::FORM_SUBMIT_PREFIX)) {
+                $values = $this->decodeFormSubmission($text);
+                if ($values === null) {
+                    return $this->askPatientForm([], $this->currentFormValues(), 'Something went wrong with that form. Please fill it out again.');
+                }
+
+                $name  = $this->formString($values, 'full_name');
+                $phone = $this->formString($values, 'phone');
+                $dob   = $this->formString($values, 'dob');
+                $email = $this->formString($values, 'email');
+                $values['send_copy'] = !empty($values['send_copy']);
+
+                $errors = [];
+                if ($e = $this->validateName($name)) {
+                    $errors['full_name'] = $e . ' Example: Maria Santos';
+                }
+                if ($e = $this->validatePhone($phone)) {
+                    $errors['phone'] = $e . ' Example: 09XX XXX XXXX or (043) 123-4567';
+                }
+                if ($e = $this->validateDOB($dob)) {
+                    $errors['dob'] = $e . ' Please pick your date of birth from the calendar.';
+                }
+                if ($e = $this->validateEmail($email)) {
+                    $errors['email'] = $e . ' Example: maria.santos@example.com';
+                }
+
+                if (!empty($errors)) {
+                    return $this->askPatientForm($errors, $values);
+                }
+
+                $parts = preg_split('/\s+/', $name);
+                $this->fname = array_shift($parts);
+                $this->lname = implode(' ', $parts) ?: $this->fname;
+                $this->phone = $phone;
+                $this->dob   = $this->readableDob($dob);
+                $this->email = $email;
+                $this->sendCopy = $values['send_copy'];
+                return $this->askVisitForm(); // → move to Step 2
+            }
+
+            // Anything typed in the chat box instead of using the form.
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, 'patient_form');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'patient_form')) {
+                return;
+            }
+
+            return $this->askPatientForm([], $this->currentFormValues(), 'Please fill out and submit the form below to continue.');
         });
     }
+
+
+    // STEP 2: CHOOSE YOUR VISIT — service, doctor, and date/time in one card.
+    // The widget filters doctors by service and times by doctor; the server re-checks everything.
+
+    // "Monday, October 30, 2026 · 9AM - 12PM" for a doctor_schedules row.
+    protected function slotLabel($slot): string
+    {
+        return $this->getNextAvailableDate($slot->day) . ' · ' . $this->formatTime($slot->start_time) . ' - ' . $this->formatTime($slot->end_time);
+    }
+
+    // Bookable services, their doctors, and each doctor's time slots (flat option lists with a parent value).
+    protected function buildScheduleVisitCatalog(): array
+    {
+        return ScheduleVisitCatalog::build();
+    }
+
+    public function askVisitForm(array $errors = [], ?array $values = null, ?string $notice = null)
+    {
+        $catalog = $this->buildScheduleVisitCatalog();
+
+        if (empty($catalog['services'])) {
+            $this->sayLogged("We couldn't find any available doctors right now. Please try again later, or contact us directly at 0985 475 5511.");
+            return;
+        }
+
+        $values = $values ?? [
+            'service' => (string) $this->serviceKey,
+            'doctor'  => $this->doctorId ? (string) $this->doctorId : '',
+            'slot'    => $this->scheduleId ? (string) $this->scheduleId : '',
+        ];
+
+        $fields = [
+            ['name' => 'service', 'label' => 'Service',        'type' => 'select', 'placeholder' => 'Select a service',        'options' => $catalog['services']],
+            ['name' => 'doctor',  'label' => 'Doctor',         'type' => 'select', 'placeholder' => 'Select a doctor',         'options' => $catalog['doctors'], 'depends_on' => 'service'],
+            ['name' => 'slot',    'label' => 'Date and time',  'type' => 'select', 'placeholder' => 'Select a date and time',  'options' => $catalog['slots'],   'depends_on' => 'doctor'],
+        ];
+
+        foreach ($fields as &$field) {
+            $field['value'] = $values[$field['name']] ?? '';
+            $field['error'] = $errors[$field['name']] ?? null;
+        }
+        unset($field);
+
+        $patientName = trim("{$this->fname} {$this->lname}");
+
+        $payload = [
+            'title'  => 'Choose your visit',
+            'step'   => 'Step 2 of 3',
+            'notice' => $notice ?? (!empty($errors) ? 'Please fix the highlighted fields and try again.' : ($patientName !== '' ? "Visit for {$patientName}" : null)),
+            'submit' => 'Next',
+            'secondary' => [['label' => 'Back', 'value' => 'back_to_details']],
+            'fields' => $fields,
+        ];
+
+        $this->askLogged(self::FORM_CARD_PREFIX . json_encode($payload, JSON_UNESCAPED_UNICODE), function (Answer $answer) {
+            $text = (string) $answer->getText();
+
+            if (str_starts_with($text, self::FORM_SUBMIT_PREFIX)) {
+                $values = $this->decodeFormSubmission($text);
+                if ($values === null) {
+                    return $this->askVisitForm([], null, 'Something went wrong with that form. Please try again.');
+                }
+
+                $serviceKey = $this->formString($values, 'service');
+                $doctorId   = $this->formString($values, 'doctor');
+                $slotId     = $this->formString($values, 'slot');
+                $errors = [];
+
+                $svc = $serviceKey !== ''
+                    ? PublicCatalog::services()->where('service_key', $serviceKey)->first()
+                    : null;
+                if (!$svc) {
+                    $errors['service'] = 'Please select a service.';
+                }
+
+                $doc = null;
+                if ($svc && ctype_digit($doctorId)) {
+                    $doc = PublicCatalog::doctors()
+                        ->where('doctor_id', (int) $doctorId)
+                        ->where('specialty', $svc->title)
+                        ->first();
+                }
+                if (!$doc) {
+                    $errors['doctor'] = 'Please select a doctor.';
+                }
+
+                $slot = null;
+                if ($doc && ctype_digit($slotId)) {
+                    $slot = DB::table('doctor_schedules')
+                        ->where('schedule_id', (int) $slotId)
+                        ->where('doctor_id', $doc->doctor_id)
+                        ->first();
+                }
+                if (!$slot) {
+                    $errors['slot'] = 'Please select an available date and time.';
+                }
+
+                if (!empty($errors)) {
+                    return $this->askVisitForm($errors, [
+                        'service' => $serviceKey, 'doctor' => $doctorId, 'slot' => $slotId,
+                    ]);
+                }
+
+                $this->service    = $svc->title;
+                $this->serviceKey = $svc->service_key;
+                $this->serviceId  = $svc->service_id;
+                $this->doctor     = $doc->doctor_name;
+                $this->doctorId   = $doc->doctor_id;
+                $this->scheduleId = $slot->schedule_id;
+                $this->scheduleDay = $slot->day;
+                $this->scheduleSuggestion = $this->getNextAvailableDate($slot->day)
+                    . ' at ' . $this->formatTime($slot->start_time) . ' - ' . $this->formatTime($slot->end_time);
+
+                return $this->askReview(); // → move to Step 3 (review before saving)
+            }
+
+            // "Back" button: return to the details form with everything still filled in.
+            if (trim($text) === 'back_to_details') {
+                return $this->askPatientForm();
+            }
+
+            // Anything typed in the chat box instead of using the form.
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, 'visit_form');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'visit_form')) {
+                return;
+            }
+
+            return $this->askVisitForm([], null, 'Please choose your service, doctor, and schedule below to continue.');
+        });
+    }
+
+    // STEP 3: REVIEW — read-only summary of everything entered, then "Confirm Schedule Visit".
+
+    public function askReview(?string $notice = null)
+    {
+        // Nothing to review yet (e.g. resumed mid-way): go back to the step that is missing.
+        if (!$this->fname || !$this->scheduleId) {
+            return $this->fname ? $this->askVisitForm() : $this->askPatientForm();
+        }
+
+        $fullName = trim("{$this->fname} {$this->lname}");
+        if ($this->fname === $this->lname) {
+            $fullName = (string) $this->fname;
+        }
+
+        $payload = [
+            'title'   => 'Review your visit',
+            'step'    => 'Step 3 of 3',
+            'notice'  => $notice ?? 'Please check that everything is correct before confirming.',
+            'summary' => [
+                ['heading' => 'Your details', 'rows' => [
+                    ['label' => 'Full name',      'value' => $fullName],
+                    ['label' => 'Contact number', 'value' => (string) $this->phone],
+                    ['label' => 'Date of birth',  'value' => (string) $this->dob],
+                    ['label' => 'Email',          'value' => (string) $this->email],
+                ]],
+                ['heading' => 'Your visit', 'rows' => [
+                    ['label' => 'Service',       'value' => (string) $this->service],
+                    ['label' => 'Doctor',        'value' => (string) $this->doctor],
+                    ['label' => 'Date and time', 'value' => (string) $this->scheduleSuggestion],
+                ]],
+            ],
+            'fields'  => [],
+            'confirm' => true,
+            'saving'  => true,
+            'submit'  => 'Confirm Schedule Visit',
+            'secondary' => [
+                ['label' => 'Edit details', 'value' => 'back_to_details'],
+                ['label' => 'Change visit', 'value' => 'back_to_visit'],
+            ],
+        ];
+
+        $this->askLogged(self::FORM_CARD_PREFIX . json_encode($payload, JSON_UNESCAPED_UNICODE), function (Answer $answer) {
+            $text = (string) $answer->getText();
+
+            if (str_starts_with($text, self::FORM_SUBMIT_PREFIX)) {
+                $values = $this->decodeFormSubmission($text);
+                if (is_array($values) && !empty($values['confirm'])) {
+                    return $this->submitAppointment(); // → move to Step 4
+                }
+                return $this->askReview('Something went wrong. Please try confirming again.');
+            }
+
+            // The Edit / Change buttons: go back with everything still filled in.
+            if (trim($text) === 'back_to_details') {
+                return $this->askPatientForm();
+            }
+            if (trim($text) === 'back_to_visit') {
+                return $this->askVisitForm();
+            }
+
+            // Anything typed in the chat box instead of using the buttons.
+            if ($this->isGlobalCommand($answer)) {
+                return $this->handleGlobalCommand($answer, 'review');
+            }
+            if ($this->handleOffTopicIfAny($answer, 'review')) {
+                return;
+            }
+
+            return $this->askReview('Please use the buttons below to confirm or edit your visit.');
+        });
+    }
+
 
     //  Date/time helpers
 
@@ -978,7 +1179,7 @@ class AppointmentConversation extends Conversation
     }
 
 
-    // STEP 5: SUBMIT & SAVE TO DATABASE
+    // STEP 4: SUBMIT & SAVE TO DATABASE
 
 
     protected function submitAppointment()
@@ -1057,8 +1258,12 @@ class AppointmentConversation extends Conversation
 
             $this->sayLogged('APPT_CARD::' . json_encode($card));
 
-            // → move to the transcript-email offer, THEN post-appointment options
-            $this->askSendTranscriptEmail();
+            // Email the visit confirmation if the box on the details form was left ticked.
+            if ($this->sendCopy) {
+                $this->sendConfirmationEmail((int) $visitId);
+            }
+
+            $this->askPostAppointment(); // → move to the final step
         } catch (\Throwable $e) {
             Log::error('Failed to save schedule visit: ' . $e->getMessage(), [
                 'exception' => $e,
@@ -1072,54 +1277,32 @@ class AppointmentConversation extends Conversation
     }
 
 
-    // STEP 6: OFFER TO EMAIL THE FULL CONVERSATION TRANSCRIPT
+    // STEP 5: EMAIL THE VISIT CONFIRMATION (only if the patient ticked the box on step 1)
 
-
-    protected function askSendTranscriptEmail()
-    {
-        $question = Question::create("Would you like us to email you a copy of this whole conversation at {$this->email}?")
-            ->fallback('Please choose an option from the buttons above.')
-            ->addButtons([
-                Button::create('Yes, email it to me')->value('yes_email'),
-                Button::create('No, skip')->value('no_email'),
-            ]);
-
-        $this->askLogged($question, function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, 'transcript_email');
-            }
-            if ($this->handleOffTopicIfAny($answer, 'transcript_email')) {
-                return;
-            }
-
-            $choice = $this->normalizeCommand($answer);
-
-            if ($choice === 'yes_email') {
-                $this->sendTranscriptEmail();
-            }
-
-            $this->askPostAppointment(); // → move to Step 7
-        });
-    }
-
-    protected function sendTranscriptEmail()
+    protected function sendConfirmationEmail(int $visitId)
     {
         try {
             Mail::to($this->email)->send(
-                new ConversationTranscriptMail($this->transcript, trim("{$this->fname} {$this->lname}"))
+                new VisitConfirmationMail(
+                    $this->fname === $this->lname ? (string) $this->fname : trim("{$this->fname} {$this->lname}"),
+                    (string) $this->service,
+                    (string) $this->doctor,
+                    (string) $this->scheduleSuggestion,
+                    $visitId
+                )
             );
-            $this->sayLogged("Your conversation transcript has been sent to {$this->email}. Please check your inbox, including your spam folder.");
+            $this->sayLogged("Your visit confirmation has been sent to {$this->email}. Please check your inbox, including your spam folder.");
         } catch (\Throwable $e) {
-            Log::error('Failed to send conversation transcript email: ' . $e->getMessage(), [
+            Log::error('Failed to send visit confirmation email: ' . $e->getMessage(), [
                 'exception' => $e,
                 'email' => $this->email,
             ]);
-            $this->sayLogged("Sorry, we couldn't send that email right now. Please try again later, or contact us directly.");
+            $this->sayLogged("Sorry, we couldn't send the confirmation email right now. Your visit is still saved, so please take a screenshot of the confirmation above, or contact us at 0985 475 5511.");
         }
     }
 
 
-    // STEP 7: POST-APPOINTMENT ACTIONS (schedule again / info / review / complaint)
+    // STEP 6: POST-APPOINTMENT ACTIONS (schedule again / info / review / complaint)
 
     protected function askPostAppointment()
     {

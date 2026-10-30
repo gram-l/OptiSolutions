@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SiteSetting;
 use App\Models\admin_models\ClinicInfo;
 use Illuminate\Support\Facades\DB;
+use App\Support\PublicCatalog;
 
 class PolyclinicController extends Controller
 {
@@ -13,7 +14,7 @@ class PolyclinicController extends Controller
         $heroImage = SiteSetting::get('hero_image', 'images/doctors_pic.png');
 
         $clinicInfo = ClinicInfo::first();
-        $specialistsCount = DB::table('doctors')->where('available', 1)->count();
+        $specialistsCount = PublicCatalog::doctors()->count();
 
         $avgRating = DB::table('feedback')->avg('star_rating');
         $avgRating = $avgRating ? round($avgRating, 1) : null;
@@ -54,7 +55,7 @@ class PolyclinicController extends Controller
         $clinicInfo = ClinicInfo::first();
 
         // Count ng available doctors → "Specialists" stat
-        $specialistsCount = DB::table('doctors')->where('available', 1)->count();
+        $specialistsCount = PublicCatalog::doctors()->count();
 
         // Average star rating mula sa feedback → "Patient Rating" stat
         $avgRating = DB::table('feedback')->avg('star_rating');

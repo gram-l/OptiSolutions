@@ -3,14 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use App\Support\PublicCatalog;
+use App\Support\ScheduleVisitCatalog;
 
 class PatientDoctorController extends Controller
 {
     // GET /api/doctors — used by the patient-facing website
     public function index()
     {
-        $doctors = DB::table('doctors')
-            ->where('available', 1)
+        $doctors = PublicCatalog::doctors()
             ->orderBy('doctor_name')
             ->get();
 
@@ -42,5 +43,12 @@ class PatientDoctorController extends Controller
         });
 
         return response()->json($result);
+    }
+
+    // GET /api/schedule-visit-catalog — live na listahan para sa Schedule Visit form ng chatbot
+    public function scheduleVisitCatalog()
+    {
+        return response()->json(ScheduleVisitCatalog::build())
+            ->header('Cache-Control', 'no-store, max-age=0');
     }
 }

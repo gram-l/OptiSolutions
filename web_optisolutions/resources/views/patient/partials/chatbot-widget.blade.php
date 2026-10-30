@@ -343,13 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  // Renders text into a bubble/title element, converting **bold** markers
-  // into real <strong> tags. HTML-escapes first so nothing from the
-  // backend (or, indirectly, from patient input reflected back) can
-  // inject markup — only the ** syntax we control from PHP is honored.
-  // Combined with `white-space: pre-line` in CSS, plain \n line breaks
-  // in the source text also render as real line breaks instead of being
-  // collapsed into one paragraph.
+  // Formats text with bold styling and preserves line breaks.
   function renderBubbleText(el, text) {
     const escaped = text
       .replace(/&/g, '&amp;')
@@ -369,9 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBubbleText(bubble, text);
 
     messageWrap.appendChild(bubble);
-    // Pass the original (un-rendered) text to the translator, not the
-    // bubble's innerHTML/textContent, so ** markers don't leak into
-    // what gets sent for translation.
+    // Sends the original text for translation without formatting markers.
     attachTranslateControls(messageWrap, () => text);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
@@ -384,12 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return bubble;
   }
 
-  // Error bubble: same as addBubble() but with an inline "Refresh"
-  // action so the patient has an easy way to recover from a sudden
-  // error (dropped connection, server hiccup, failed upload) instead
-  // of being stuck. Not persisted to history — it's a transient
-  // notice, re-showing a stale "please refresh" bubble on reload
-  // would be confusing.
+  // Displays an error message with a refresh option.
   function addErrorBubble(text) {
     const bubble = addBubble(text, 'bot', false);
 
@@ -405,11 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return bubble;
   }
 
-  // Auto-refresh once connectivity is back. If the patient's connection
-  // actually drops mid-chat, there's no reliable way to resume the
-  // in-flight request, so the simplest, least-confusing recovery is to
-  // reload the page as soon as the browser reports we're back online —
-  // the chat history itself is preserved via localStorage (session.history).
+  // Reloads the page automatically when the connection is restored.
   let wasOffline = false;
   window.addEventListener('offline', () => {
     wasOffline = true;
@@ -439,9 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
     row.className = 'star-rating-row';
 
     const stars = [];
-    // Once a star is picked, the fill locks in and further hover/click
-    // is ignored — this replaces the old behavior where mouseleave
-    // wiped every star back to unfilled right after a choice was made.
+    // Keeps the selected star rating filled and prevents further changes.
     let selectedIdx = selectedIndex;
 
     function paintUpTo(idx) {
@@ -497,10 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Renders the current option set as a pinned "quick replies" row
-  // sitting above the input box (Messenger-style), instead of inside
-  // the scrolling message list — so the patient never has to scroll
-  // up to find the buttons for the question that was just asked.
+  // Displays the current options above the message input.
   function renderQuickReplies(buttons) {
     quickRepliesEl.innerHTML = '';
 
@@ -523,27 +501,13 @@ document.addEventListener('DOMContentLoaded', () => {
     quickRepliesEl.classList.add('visible');
   }
 
-  // Clears the quick-replies bar (used when a new question comes in
-  // with no button options at all, or when starting a fresh
-  // conversation) — but the bar is no longer auto-cleared just
-  // because the patient answered; it stays visible until the next
-  // set of options replaces it.
+ // Clears the quick-replies bar when needed.
   function clearQuickReplies() {
     quickRepliesEl.innerHTML = '';
     quickRepliesEl.classList.remove('visible');
   }
 
-  // Recognizes the top-level 4-button main menu (Schedule Visit /
-  // General Information / Submit Review/Rating / Submit Complaint),
-  // regardless of which conversation produced it or which value
-  // convention it uses under the hood. AppointmentConversation's
-  // post-appointment menu, for example, reuses the same 4 labels but
-  // with its own distinct values ('post_schedule_visit', etc.), so
-  // this matches on the visible label text rather than the value —
-  // any button set with these exact 4 labels always gets the pinned
-  // "quick replies" treatment. Every other button set (service list,
-  // doctor list, schedule confirmation, star rating, etc.) renders
-  // inline instead, see addInlineButtons() below.
+ // Identifies the main menu buttons and displays them as pinned quick replies.
   const MAIN_MENU_LABELS = new Set([
     'schedule visit',
     'general information',
@@ -556,12 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
       buttons.every(b => MAIN_MENU_LABELS.has(String(b.text ?? b.value).trim().toLowerCase()));
   }
 
-  // Renders a button set inline, as part of the scrolling message
-  // list right under the question that was just asked — for service
-  // lists, doctor lists, schedule confirmation, and any other
-  // non-main-menu option set. Once one option is tapped, every button
-  // in the set is disabled so an earlier, already-answered set can't
-  // be re-clicked out of order.
+  // Displays inline options and prevents previously answered choices from being selected again.
   function addInlineButtons(buttons) {
     const messageWrap = document.createElement('div');
     messageWrap.className = 'chat-message bot';
@@ -716,17 +675,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // SCHEDULE VISIT FORMS (step 1: your details, step 2: choose your visit)
-  // Shown as a card with real form fields instead of one chat question per
-  // field. The server (AppointmentConversation) runs every validation and
-  // sends the card back with per-field errors when something is wrong.
-  // Field types: text/tel/email/date inputs, select (optionally dependent
-  // on another select via depends_on), and checkbox.
+  // Displays the schedule visit form with personal and visit details.
 
   let activeForm = null; // { el, entry } for the form currently on screen
 
   function removeActiveForm() {
     if (!activeForm) return;
+    if (activeForm.timer) clearInterval(activeForm.timer);
     activeForm.el.remove();
     if (activeForm.entry) {
       const i = session.history.indexOf(activeForm.entry);
@@ -781,10 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (err) err.remove();
     }
 
-    // Fills a select from its option list, keeping only the options that
-    // belong to the currently chosen parent value, then cascades to
-    // anything that depends on it. A single remaining choice is picked
-    // automatically so the patient has one less thing to tap.
+    // Updates dropdown options based on the selected value.
     function fillSelect(name) {
       const def = selectDefs[name];
       const el = controls[name];
@@ -977,10 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       form.querySelectorAll('input, select, button').forEach(el => { el.disabled = true; });
 
-      // No echo bubble repeating what the patient just entered: the next
-      // card (or the final confirmation) already shows it. The server
-      // replies with either the next step or this form again with errors;
-      // both replace this card (see addFormCard / sendMessage).
+      // Prevents duplicate patient messages when the next step or form is displayed.
       const ok = await sendMessage(FORM_SUBMIT_PREFIX + JSON.stringify(values), '', {
         skipUserBubble: true,
         showSaving: !!data.saving,
@@ -1012,6 +961,50 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     activeForm = { el: messageWrap, entry };
+
+    // Updates the available schedule visit options while the form is open.
+    if (selectDefs.service && selectDefs.doctor && selectDefs.slot) {
+      const thisForm = activeForm;
+      let lastSig = JSON.stringify([selectDefs.service.options, selectDefs.doctor.options, selectDefs.slot.options]);
+
+      const showNotice = (text) => {
+        let n = card.querySelector('.chat-form-notice');
+        if (!n) {
+          n = document.createElement('p');
+          n.className = 'chat-form-notice';
+          card.insertBefore(n, form);
+        }
+        n.textContent = text;
+      };
+
+      const refreshCatalog = async () => {
+        if (document.hidden || activeForm !== thisForm || submit.disabled || isSending) return;
+        try {
+          const res = await fetch('/api/schedule-visit-catalog', { cache: 'no-store', headers: { 'Accept': 'application/json' } });
+          if (!res.ok) return;
+          const cat = await res.json();
+
+          const sig = JSON.stringify([cat.services, cat.doctors, cat.slots]);
+          if (sig === lastSig) return;
+          lastSig = sig;
+
+          const before = { service: controls.service.value, doctor: controls.doctor.value, slot: controls.slot.value };
+
+          selectDefs.service.options = cat.services || [];
+          selectDefs.doctor.options  = cat.doctors  || [];
+          selectDefs.slot.options    = cat.slots    || [];
+          fillSelect('service'); // cascades to doctor -> slot, keeps the choice if it is still valid
+
+          const changed = ['service', 'doctor', 'slot'].some(k => before[k] && controls[k].value !== before[k]);
+          if (changed) {
+            showNotice('The available doctors and schedules were just updated. Please review your choice.');
+          }
+        } catch (e) { /* offline o server error: subukan ulit sa susunod */ }
+      };
+
+      thisForm.timer = setInterval(refreshCatalog, 8000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshCatalog(); });
+    }
 
     // Put the cursor in the first field with an error, else the first field.
     const firstBad = form.querySelector('.has-error input, .has-error select') ||
@@ -1084,11 +1077,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (item.kind === 'bubble') {
         addBubble(item.text, item.sender, false);
       } else if (item.kind === 'buttons') {
-        // Only the most recent, still-unanswered option set gets
-        // restored into the live quick-replies bar. Earlier button
-        // sets in the history were already answered (the next item
-        // is always the patient's reply), so re-showing them would
-        // offer stale, already-actioned choices.
+        // Restores only the latest unanswered quick-reply options.
         if (isLast) {
           addButtons(item.buttons, false);
         }
@@ -1111,10 +1100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
   }
 
-  // Typing indicator — reserved for a real Admin/Staff person actively
-  // composing a reply (see staffTyping in pollForReplies()). Guarded
-  // against duplicates since it's now called on every 3s poll tick
-  // while staffTyping stays true, not just once per request.
+  // Shows the typing indicator only when Admin/Staff is actively composing a reply.
   function showTyping() {
     if (document.getElementById('typingIndicator')) return;
 
@@ -1155,10 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     input.value = '';
 
-    // "Saving your schedule visit..." is shown ONLY while the visit is
-    // actually being saved (right after the patient confirms the suggested
-    // schedule) and removed as soon as the request finishes. Transient:
-    // never persisted to session history.
+    // Shows the saving message only while the schedule visit is being saved.
     let savingEl = null;
     if (text === 'confirm_yes' || opts.showSaving) {
       const b = addBubble('Saving your schedule visit...', 'bot', false);
@@ -1166,10 +1149,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const removeSaving = () => { if (savingEl) { savingEl.remove(); savingEl = null; } };
 
-    // No typing dots here — the bot computes and returns its reply in
-    // this same request/response cycle, there's no one "typing" it.
-    // The "..." indicator is reserved for a real Admin/Staff person
-    // composing a reply (see pollForReplies()/staffTyping below).
+    // Prevents the typing indicator from appearing for automated bot replies.
 
     try {
       const res = await fetch(botmanUrl, {
@@ -1242,16 +1222,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // The conversation moved past the form (or never re-sent it), so
-      // the old form must not stay on screen as a stale, submittable card.
+      // Removes the outdated form when the conversation moves to another step.
       if (!hadForm) {
         removeActiveForm();
       }
 
-      // The step we just landed on has no button options of its own
-      // (e.g. "Please provide your full name.") — clear the pinned
-      // bar instead of leaving the previous step's buttons sitting
-      // there looking clickable when they no longer apply.
+      // Clears the pinned buttons when the current step has no options.
       if (!hadButtons) {
         clearQuickReplies();
       }
@@ -1279,11 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // "Just start typing": if the chat is open and the patient presses a
-  // printable key while focus is somewhere else in the panel (e.g. on
-  // a quick-reply/inline button they just clicked, or the message
-  // list), send that keystroke to the message box instead of making
-  // them click into it first.
+  // Allows patients to type messages without clicking the message box first.
   document.addEventListener('keydown', (e) => {
     if (!panel.classList.contains('open')) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1298,8 +1270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!input.disabled && active !== input) input.focus({ preventScroll: true });
   });
 
-  // Clicking a button inside the panel (quick reply, inline option,
-  // translate, etc.) shouldn't leave focus stranded on that button.
+  // Prevents buttons inside the panel from keeping focus after being clicked.
   panel.addEventListener('click', (e) => {
     if (e.target.closest('a, .msg-translate-btn, .attach-btn, #chatClose, .chat-form')) return;
     setTimeout(focusInput, 0);
@@ -1322,9 +1293,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  // Both variants of the "sent to Admin/Staff" placeholder — the plain
-  // text-message one and the attachment-upload one — need to disappear
-  // once a real Admin/Staff reply comes in, not just the first one.
+  // Removes the pending message placeholders after an Admin/Staff reply arrives.
   const FALLBACK_TEXTS = new Set([
     "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
     "Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
@@ -1344,9 +1313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     persistSession();
   }
 
-  // The same 4-option main menu shown on a fresh session (see
-  // restoreConversation) — reused here so it can be brought back once
-  // Admin/Staff marks the patient's inquiry resolved.
+  // Restores the main menu after the inquiry is resolved.
   function showMainMenu() {
     addButtons([
       { text: 'Schedule Visit', value: 'schedule visit' },
@@ -1356,10 +1323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ]);
   }
 
-  // Guards against overlapping polling requests — e.g. opening the
-  // panel (which calls pollForReplies immediately) right as the
-  // 5-second interval also fires would otherwise let two fetches race
-  // and both try to render the same "new" reply.
+  // Prevents multiple polling requests from running at the same time.
   let isPolling = false;
 
   async function pollForReplies() {
@@ -1377,11 +1341,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const resolvedTypeById = {};
       (data.resolvedInquiries || []).forEach(r => { resolvedTypeById[r.id] = r.type; });
 
-      // The only legitimate source of the "..." indicator: a real
-      // Admin/Staff person is actively composing a reply to this chat
-      // right now (see TypingStatusService on the backend). Once their
-      // reply actually lands (newOnes.length > 0, below) we drop it
-      // immediately rather than waiting on the flag to expire.
+      // Shows the typing indicator only when Admin/Staff is actively composing a reply.
       if (data.staffTyping && newOnes.length === 0) {
         showTyping();
       } else {
@@ -1401,20 +1361,14 @@ document.addEventListener('DOMContentLoaded', () => {
         session.shownReplyIds = Array.from(shownReplyIds);
       }
 
-      // Once Admin/Staff has resolved the inquiry — whether that came
-      // with one last reply or a plain "Resolve" click — hand the
-      // patient back to the main menu automatically instead of leaving
-      // them stuck with nothing to tap.
+      // Returns the patient to the main menu after the inquiry is resolved.
       if (newlyResolved.length > 0) {
         newlyResolved.forEach(id => shownResolvedIds.add(id));
         session.shownResolvedIds = Array.from(shownResolvedIds);
 
-        // If this inquiry came from the "anything else?" step right after
-        // scheduling a visit, this is when the scheduling thank-you is
-        // finally shown (held back until the issue is resolved).
+        // Shows the scheduling thank-you message after the inquiry is resolved.
         const fromSchedule = newlyResolved.some(id => resolvedTypeById[id] === 'Schedule Visit Follow-up');
-        // One combined bubble (was two) so the resolved notice and the
-        // "anything else?" prompt read as a single message.
+        // Combines the resolved notice and follow-up prompt into one message.
         addBubble((fromSchedule
           ? "Thank you for scheduling your visit with us."
           : "Your inquiry has been resolved.") + " Is there anything else you need?", 'bot');
@@ -1432,8 +1386,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 3s (was 5s) so the real "Admin/Staff is typing…" indicator feels
-  // live rather than lagging noticeably behind their actual keystrokes.
+// Updates the typing indicator every 3 seconds.
   setInterval(pollForReplies, 3000);
 
   // Global trigger: open chat + jump straight to Submit Feedback

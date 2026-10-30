@@ -39,6 +39,7 @@ class DoctorController extends Controller
     
         if (isset($incoming['status'])) {
             $doctor->available = $incoming['status'] === 'Available';
+            $doctor->status    = $doctor->available ? 'Active' : 'Inactive'; // keep in sync sa admin
             $doctor->save();
         }
 

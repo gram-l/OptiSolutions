@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use App\Support\PublicCatalog;
 use App\Models\ChatbotCommand;
 use App\Models\ChatbotCommandTrigger;
 
@@ -354,7 +355,7 @@ class ClinicInfoService
         $words = preg_split('/[^\p{L}\p{N}]+/u', $lower, -1, PREG_SPLIT_NO_EMPTY);
         $wordSet = array_flip($words);
 
-        $doctors = DB::table('doctors')->where('available', 1)->get();
+        $doctors = PublicCatalog::doctors()->get();
 
         $scored = $doctors->map(function ($doctor) use ($wordSet) {
             $tokens = self::normalizeDoctorTokens($doctor->doctor_name);
@@ -432,7 +433,7 @@ class ClinicInfoService
             return null;
         }
 
-        $distinctSpecialties = DB::table('doctors')->distinct()->pluck('specialty');
+        $distinctSpecialties = PublicCatalog::doctors()->distinct()->pluck('specialty');
         foreach ($distinctSpecialties as $specialty) {
             if ($specialty && str_contains($lower, mb_strtolower($specialty))) {
                 return $specialty;
@@ -833,8 +834,7 @@ class ClinicInfoService
     // Returns the list of available doctors, grouped by specialty.
     public static function doctorsListMessage(): string
     {
-        $doctors = DB::table('doctors')
-            ->where('available', 1)
+        $doctors = PublicCatalog::doctors()
             ->orderBy('specialty')
             ->orderBy('doctor_name')
             ->get();
@@ -915,8 +915,7 @@ class ClinicInfoService
 
     public static function doctorsForSpecialtyMessage(string $specialty): string
     {
-        $doctors = DB::table('doctors')
-            ->where('available', 1)
+        $doctors = PublicCatalog::doctors()
             ->where('specialty', $specialty)
             ->orderBy('doctor_name')
             ->get();
@@ -976,8 +975,7 @@ class ClinicInfoService
 
     public static function servicesListMessage(): string
     {
-        $services = DB::table('services')
-            ->where('available', 1)
+        $services = PublicCatalog::services()
             ->orderBy('title')
             ->get();
 

@@ -3,23 +3,22 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use App\Support\PublicCatalog;
 
 class ServiceController extends Controller
 {
     // GET /api/services — used by the patient-facing website
     public function index()
     {
-        $services = DB::table('services')
-            ->where('available', 1)
+        $services = PublicCatalog::services()
             ->orderBy('title')
             ->get();
 
         $conditions = DB::table('service_conditions')->get()->groupBy('service_id');
 
         $result = $services->map(function ($svc) use ($conditions) {
-            $doctorNames = DB::table('doctors')
+            $doctorNames = PublicCatalog::doctors()
                 ->where('specialty', $svc->title)
-                ->where('available', 1)
                 ->pluck('doctor_name');
 
             return [

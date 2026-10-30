@@ -10,6 +10,8 @@ use App\Services\ClinicInfoService;
 use App\Mail\VisitConfirmationMail;
 use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
+use App\Support\PublicCatalog;
+use App\Support\ScheduleVisitCatalog;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
@@ -935,51 +937,14 @@ class AppointmentConversation extends Conversation
     }
 
     // Bookable services, their doctors, and each doctor's time slots (flat option lists with a parent value).
-    protected function buildBookingCatalog(): array
+    protected function buildScheduleVisitCatalog(): array
     {
-        $services = DB::table('services')->where('available', 1)->get();
-        $doctors  = DB::table('doctors')->where('available', 1)->where('status', 'Active')->get();
-        $schedules = $doctors->isEmpty()
-            ? collect()
-            : DB::table('doctor_schedules')
-                ->whereIn('doctor_id', $doctors->pluck('doctor_id')->all())
-                ->orderBy('doctor_id')->orderBy('schedule_id')
-                ->get()->groupBy('doctor_id');
-
-        $serviceOptions = $doctorOptions = $slotOptions = [];
-
-        foreach ($services as $svc) {
-            $hasDoctor = false;
-
-            foreach ($doctors as $d) {
-                if (mb_strtolower(trim((string) $d->specialty)) !== mb_strtolower(trim((string) $svc->title))) {
-                    continue;
-                }
-
-                $docSlots = $schedules->get($d->doctor_id, collect());
-                if ($docSlots->isEmpty()) {
-                    continue;
-                }
-
-                $hasDoctor = true;
-                $doctorOptions[] = ['value' => (string) $d->doctor_id, 'label' => $d->doctor_name, 'parent' => $svc->service_key];
-
-                foreach ($docSlots as $slot) {
-                    $slotOptions[] = ['value' => (string) $slot->schedule_id, 'label' => $this->slotLabel($slot), 'parent' => (string) $d->doctor_id];
-                }
-            }
-
-            if ($hasDoctor) {
-                $serviceOptions[] = ['value' => $svc->service_key, 'label' => $svc->title];
-            }
-        }
-
-        return ['services' => $serviceOptions, 'doctors' => $doctorOptions, 'slots' => $slotOptions];
+        return ScheduleVisitCatalog::build();
     }
 
     public function askVisitForm(array $errors = [], ?array $values = null, ?string $notice = null)
     {
-        $catalog = $this->buildBookingCatalog();
+        $catalog = $this->buildScheduleVisitCatalog();
 
         if (empty($catalog['services'])) {
             $this->sayLogged("We couldn't find any available doctors right now. Please try again later, or contact us directly at 0985 475 5511.");
@@ -1030,7 +995,7 @@ class AppointmentConversation extends Conversation
                 $errors = [];
 
                 $svc = $serviceKey !== ''
-                    ? DB::table('services')->where('service_key', $serviceKey)->where('available', 1)->first()
+                    ? PublicCatalog::services()->where('service_key', $serviceKey)->first()
                     : null;
                 if (!$svc) {
                     $errors['service'] = 'Please select a service.';
@@ -1038,10 +1003,8 @@ class AppointmentConversation extends Conversation
 
                 $doc = null;
                 if ($svc && ctype_digit($doctorId)) {
-                    $doc = DB::table('doctors')
+                    $doc = PublicCatalog::doctors()
                         ->where('doctor_id', (int) $doctorId)
-                        ->where('available', 1)
-                        ->where('status', 'Active')
                         ->where('specialty', $svc->title)
                         ->first();
                 }

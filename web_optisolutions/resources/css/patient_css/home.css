@@ -1,15 +1,13 @@
-/* ============================================
-   GLOBAL RESET & ROOT VARIABLES
-   ============================================ */
+/* GLOBAL RESET & ROOT VARIABLES */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 :root {
-  --primary: #0F67B3;
-  --primary-dark: #0A4B82;
-  --primary-light: #EFF7FF;
+  --primary: #022D67;
+  --primary-dark: #01204C;
+  --primary-light: #EAF0F9;
   --accent: #2C9E7A;
   --accent-light: #E0F2EC;
   --gray-50: #FBFCFE;
@@ -30,15 +28,13 @@
   --radius-md: 16px;
   --radius-sm: 12px;
 
-  /* Logo palette (from polyclinic_logo.png quadrants) */
+  /* Logo palette */
   --logo-orange: #F2542D;
   --logo-blue: #29ABE2;
   --logo-yellow: #FFC72C;
   --logo-green: #8DC63F;
 }
-/* overflow-x: hidden lives on <html> only (not <body>) — see note in
-   navbar-loader.js's injected reset for why putting it on <body> too
-   silently breaks the sticky navbar. */
+/* overflow-x on html only; on body it breaks the sticky navbar */
 html { scroll-behavior: smooth; overflow-x: hidden; }
 body {
   font-family: 'Inter', sans-serif;
@@ -57,16 +53,8 @@ body {
 @media (max-width: 480px) {
   .container { padding: 0 16px; }
 }
-/* ============================================
-   NAVBAR
-   (Styling and mobile behavior now live entirely in
-   resources/js/navbar-loader.js, which injects the nav markup
-   and its own <style> tag on every page. Keeping it in one place
-   avoids the nav rules here silently fighting the shared script.)
-   ============================================ */
-/* ============================================
-   SHARED SECTION STYLES
-   ============================================ */
+/* NAVBAR (styled in navbar-loader.js) */
+/* SHARED SECTION STYLES */
 .section { padding: 64px 40px; }
 .section-title {
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -99,7 +87,7 @@ body {
 .btn-primary {
   background: var(--primary);
   color: white;
-  box-shadow: 0 4px 12px rgba(15,103,179,0.25);
+  box-shadow: 0 4px 12px rgba(2, 45, 103,0.25);
 }
 .btn-primary:hover {
   background: var(--primary-dark);
@@ -138,7 +126,7 @@ body {
 .btn-modern-primary:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(15, 103, 179, 0.3);
+  box-shadow: 0 8px 28px rgba(2, 45, 103, 0.3);
 }
 .btn-modern-primary i { transition: transform 0.3s ease; }
 .btn-modern-primary:hover i { transform: translateX(4px); }
@@ -160,15 +148,13 @@ body {
   background: var(--primary);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(15, 103, 179, 0.2);
+  box-shadow: 0 8px 28px rgba(2, 45, 103, 0.2);
 }
 .btn-modern-outline i { transition: transform 0.3s ease; }
 .btn-modern-outline:hover i { transform: translateX(4px); }
-/* ============================================
-   REVIEWS BANNER
-   ============================================ */
+/* REVIEWS BANNER */
 .reviews-banner-footer {
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   border-radius: 24px;
   padding: 40px 48px;
   width: 100%;
@@ -200,11 +186,9 @@ body {
   color: rgba(255,255,255,0.9);
   margin-top: 6px;
 }
-/* ============================================
-   FOOTER - MODERN (multi-column, like Care Center)
-   ============================================ */
+/* FOOTER */
 .footer-modern {
-  background: var(--gray-900);
+  background: var(--primary);
   color: #C9D9E8;
   padding: 56px 32px 0;
   margin-top: 0;
@@ -224,11 +208,9 @@ body {
   gap: 12px;
 }
 .footer-modern-logo {
-  height: 40px;
+  height: 64px;
   width: auto;
   object-fit: contain;
-  filter: brightness(0) invert(1);
-  opacity: 0.95;
 }
 .footer-modern-brandname {
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -276,7 +258,7 @@ body {
   transition: all 0.2s ease;
 }
 .footer-modern-social a:hover {
-  background: var(--primary);
+  background: rgba(255, 255, 255, 0.22);
   transform: translateY(-2px);
 }
 .footer-modern-bottom {
@@ -285,16 +267,12 @@ body {
   font-size: 13px;
   color: #93A6BC;
 }
-/* ============================================
-   MODAL ANIMATION
-   ============================================ */
+/* MODAL ANIMATION */
 @keyframes modalSlideIn {
   from { opacity: 0; transform: scale(0.95) translateY(-20px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
-/* ============================================
-   RESPONSIVE - GLOBAL
-   ============================================ */
+/* RESPONSIVE - GLOBAL */
 @media (max-width: 992px) {
   .footer-modern-top {
     grid-template-columns: 1fr 1fr 1fr;
@@ -311,12 +289,8 @@ body {
   .section-title { font-size: 28px; }
   .footer-modern-top { grid-template-columns: 1fr; }
 }
-/* ============================================
-   HOME PAGE STYLES
-   ============================================ */
-/* ============================================
-   HERO - FLUTTER STYLE
-   ============================================ */
+/* HOME PAGE STYLES */
+/* HERO */
 .hero-flutter {
   background: var(--white);
   padding: 24px 40px 0;
@@ -441,7 +415,7 @@ body {
   background: #ffffff;
   border: 1px solid #E7ECF1;
   border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(15, 103, 179, 0.07);
+  box-shadow: 0 8px 24px rgba(2, 45, 103, 0.07);
   max-width: 560px;
 }
 .hero-live-feedback-head {
@@ -542,10 +516,7 @@ body {
   border-radius: 0;
   display: block;
 }
-/* -------- Hero stats dock --------
-   Reserved beside the logo from page load (fixed width, just hidden via
-   opacity/visibility), so the logo is already positioned to leave room for
-   it — the dock's own size/design never changes when it's revealed. */
+/* Hero stats dock */
 .hero-stats-dock {
   flex: 0 0 260px;
   width: 260px;
@@ -561,10 +532,7 @@ body {
   opacity: 1;
   visibility: visible;
 }
-/* hero-flutter-actions sizes fluidly at wider widths via flex:1 1 0 +
-   min-width:0 on both children (see base rules above). Below ~480px there
-   isn't room for two pill buttons side by side without clipping the
-   nowrap "Leave Patient Feedback" label, so they stack full-width instead. */
+/* Stack hero buttons below 480px */
 @media (max-width: 480px) {
   .hero-flutter-actions { flex-wrap: wrap; }
   .hero-learn-more-wrap,
@@ -574,9 +542,7 @@ body {
     white-space: normal;
   }
 }
-/* ============================================
-   STATS - MODERN
-   ============================================ */
+/* STATS */
 .stats-modern-section {
   padding: 28px 20px;
   background: var(--white);
@@ -641,25 +607,18 @@ body {
   color: inherit;
 }
 
-/* Logo-colored numbers, same order as the docked version */
+/* Logo-colored numbers */
 .stats-modern-grid .stat-modern-item:nth-child(1) .stat-modern-number { color: var(--logo-orange); }
 .stats-modern-grid .stat-modern-item:nth-child(2) .stat-modern-number { color: var(--logo-blue); }
 .stats-modern-grid .stat-modern-item:nth-child(3) .stat-modern-number { color: var(--logo-yellow); }
 .stats-modern-grid .stat-modern-item:nth-child(4) .stat-modern-number { color: var(--logo-green); }
-/* -------- Docked (single column, bigger, centered) --------
-   display:contents lets the 4 stat items become direct children of the
-   .hero-stats-dock flex column, so each renders as its own card. */
+/* Docked stats */
 .stats-modern-grid.docked {
   display: contents;
 }
 
-/* The docked cards now inherit the exact same look as the original grid
-   (.stat-modern-item already defines the stacked/centered card style,
-   logo-colored numbers, and visible stars) — no separate overrides needed,
-   so "before" and "after" the fly-up animation look identical. */
-/* ============================================
-   SERVICES - MODERN (HOME)
-   ============================================ */
+/* Docked cards reuse the grid card style */
+/* SERVICES */
 .services-modern-section {
   padding: 56px 40px;
   background: var(--gray-50);
@@ -674,7 +633,7 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: var(--primary);
-  background: rgba(15, 103, 179, 0.08);
+  background: rgba(2, 45, 103, 0.08);
   padding: 6px 18px;
   border-radius: 40px;
   letter-spacing: 1px;
@@ -750,9 +709,7 @@ body {
 @media (max-width: 1100px) {
   .service-grid-modern { grid-template-columns: repeat(2, 1fr); }
 }
-/* ============================================
-   DOCTORS - MODERN (HOME)
-   ============================================ */
+/* DOCTORS */
 .doctors-modern-section {
   padding: 56px 40px;
   background: var(--white);
@@ -768,7 +725,7 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: var(--primary);
-  background: rgba(15, 103, 179, 0.08);
+  background: rgba(2, 45, 103, 0.08);
   padding: 6px 18px;
   border-radius: 40px;
   letter-spacing: 1px;
@@ -792,7 +749,7 @@ body {
 .doctors-grid-modern {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center; /* centers 1-2 cards, keeps full rows aligned */
+  justify-content: center; /* Center 1-2 cards, keep rows aligned */
   gap: 28px;
 }
 .doctors-grid-modern > .doctor-card {
@@ -801,9 +758,7 @@ body {
   max-width: 100%;
 }
 .doctors-grid-modern > .no-doctors { flex: 1 1 100%; }
-/* ============================================
-   SEARCH BAR - DOCTORS SECTION
-   ============================================ */
+/* SEARCH BAR */
 .doctors-search-wrap {
   max-width: 560px;
   margin: 0 auto 32px;
@@ -816,12 +771,12 @@ body {
   border: 1.5px solid var(--gray-300);
   border-radius: 50px;
   padding: 12px 22px;
-  box-shadow: 0 4px 20px rgba(15,103,179,0.07);
+  box-shadow: 0 4px 20px rgba(2, 45, 103,0.07);
   transition: border-color 0.25s, box-shadow 0.25s;
 }
 .doctors-search-box:focus-within {
   border-color: var(--primary);
-  box-shadow: 0 4px 24px rgba(15,103,179,0.15);
+  box-shadow: 0 4px 24px rgba(2, 45, 103,0.15);
 }
 .doctors-search-box i {
   color: var(--gray-500);
@@ -855,9 +810,7 @@ body {
   font-size: 18px;
   color: var(--gray-300);
 }
-/* ============================================
-   DOCTOR CARDS
-   ============================================ */
+/* DOCTOR CARDS */
 .doctor-card {
   background: var(--white);
   border-radius: var(--radius-lg);
@@ -891,7 +844,7 @@ body {
   object-fit: cover;
 }
 
-/* Doctor card photo (used by renderDoctors() in script.js) - full-width banner */
+/* Doctor card photo */
 .doctor-card { padding: 0 0 24px; overflow: hidden; }
 .doctor-card-photo {
   width: 100%;
@@ -949,9 +902,7 @@ body {
   font-size: 16px;
   grid-column: 1 / -1;
 }
-/* ============================================
-   DOCTOR MODAL
-   ============================================ */
+/* DOCTOR MODAL */
 .doctor-modal {
   position: fixed;
   top: 0; left: 0;
@@ -984,9 +935,7 @@ body {
   display: flex;
   flex-direction: column;
 }
-/* Wrapper injected by JS around the header/summary/tabbar/tabpanels/footer.
-   A flex column filling the fixed-height modal so the panel area below
-   can scroll on its own, independent of the header/tabs/footer. */
+/* Modal wrapper: flex column so panels scroll alone */
 .doctor-modal #modalContent {
   display: flex;
   flex-direction: column;
@@ -1010,13 +959,11 @@ body {
   transition: all 0.2s;
 }
 .modal-close:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
-/* -------- Doctor modal header: same layout language as the
-   service modal header (icon + tag row, title below), just
-   recolored to the brand blue used on the hero. -------- */
+/* Doctor modal header */
 .modal-header {
   flex-shrink: 0;
   z-index: 5;
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: white;
   padding: 26px 60px 46px 28px;
   border-radius: 24px 24px 0 0;
@@ -1112,10 +1059,7 @@ body {
   transition: all 0.2s;
 }
 .modal-book-btn:hover { background: var(--primary-dark); transform: translateY(-2px); }
-/* -------- Doctor modal body: same two-column, boxed-card
-   structure as the service modal, colors aligned to the hero
-   blue (--primary / --primary-dark) instead of the dark navy
-   used on the services grid. -------- */
+/* Doctor modal body */
 .doctor-modal-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -1131,7 +1075,7 @@ body {
   padding: 20px 22px;
 }
 .doctor-modal-box.dark {
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   border: none;
   color: white;
 }
@@ -1190,9 +1134,7 @@ body {
   .modal-body { padding: 22px 20px 0; }
   .doctor-modal-footer { padding: 16px 20px; }
 }
-/* ============================================
-   SERVICE MODAL
-   ============================================ */
+/* SERVICE MODAL */
 .service-modal {
   position: fixed;
   top: 0; left: 0;
@@ -1257,7 +1199,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: linear-gradient(135deg, var(--primary-dark), var(--gray-900));
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: white;
   padding: 28px 60px 24px 32px;
   border-radius: 24px 24px 0 0;
@@ -1332,7 +1274,7 @@ body {
   padding: 20px 22px;
 }
 .service-modal-box.dark {
-  background: linear-gradient(135deg, var(--primary-dark), var(--gray-900));
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   border: none;
   color: white;
 }
@@ -1464,7 +1406,7 @@ body {
 }
 .service-modal-btn.outline:hover { background: var(--primary); color: white; }
 .service-modal-btn.primary { background: var(--primary); color: white; }
-.service-modal-btn.primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15,103,179,0.3); }
+.service-modal-btn.primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(2, 45, 103,0.3); }
 .service-modal-btn i { font-size: 13px; margin-right: 8px; }
 @media (max-width: 700px) {
   .service-modal-grid { grid-template-columns: 1fr; }
@@ -1474,9 +1416,7 @@ body {
   .service-modal-footer-actions { justify-content: stretch; }
   .service-modal-btn { flex: 1; justify-content: center; }
 }
-/* ============================================
-   FILTER TABS (HOME DOCTORS)
-   ============================================ */
+/* FILTER TABS */
 .filter-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1507,15 +1447,13 @@ body {
   background: var(--primary);
   border-color: var(--primary);
   color: white;
-  box-shadow: 0 4px 12px rgba(15,103,179,0.25);
+  box-shadow: 0 4px 12px rgba(2, 45, 103,0.25);
 }
 .filter-tab.active:hover {
   background: var(--primary-dark);
   border-color: var(--primary-dark);
 }
-/* ============================================
-   DOCTOR SEARCH BAR (HOME DOCTORS)
-   ============================================ */
+/* DOCTOR SEARCH BAR */
 .doctor-search-wrap {
   position: relative;
   max-width: 100%;
@@ -1545,17 +1483,15 @@ body {
 .doctor-search-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(15,103,179,0.12);
+  box-shadow: 0 0 0 3px rgba(2, 45, 103,0.12);
 }
 .doctor-search-input::placeholder {
   color: var(--gray-500);
 }
-/* ============================================
-   LIVE FEEDBACK & REVIEWS
-   ============================================ */
+/* LIVE FEEDBACK & REVIEWS */
 .reviews-live-section {
   padding: 88px 40px;
-  background: var(--gray-900);
+  background: var(--primary);
   position: relative;
 }
 .reviews-live-header {
@@ -1568,7 +1504,7 @@ body {
 }
 .reviews-live-tag {
   display: inline-block;
-  background: rgba(15, 103, 179, 0.16);
+  background: rgba(2, 45, 103, 0.16);
   color: var(--primary);
   font-size: 12px;
   font-weight: 800;
@@ -1643,7 +1579,7 @@ body {
 .btn-submit-feedback:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(15, 103, 179, 0.35);
+  box-shadow: 0 10px 24px rgba(2, 45, 103, 0.35);
 }
 .reviews-live-divider {
   height: 1px;
@@ -1728,7 +1664,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(15, 103, 179, 0.18);
+  background: rgba(2, 45, 103, 0.18);
   color: var(--primary);
   font-weight: 800;
   font-size: 15px;
@@ -1791,9 +1727,7 @@ body {
   .reviews-live-grid { margin: 0 -20px; padding-left: 20px; padding-right: 20px; }
   .review-live-card { flex-basis: 82vw; }
 }
-/* ============================================
-   CTA BANNER (bigger box + bigger contents)
-   ============================================ */
+/* CTA BANNER */
 .cta-banner {
   padding: 40px 40px;
   background: var(--gray-50);
@@ -1815,6 +1749,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
 }
 .cta-banner-tag {
   font-size: 13px;
@@ -1859,7 +1794,8 @@ body {
   font-size: 16px;
 }
 .cta-info-label { display: block; font-size: 12px; color: var(--gray-500); font-weight: 500; }
-.cta-info-value { display: block; font-size: 15px; color: var(--gray-800); font-weight: 700; }
+.cta-info-value { display: block; font-size: 15px; color: var(--gray-800); font-weight: 700; text-wrap: balance; }
+.cta-banner-title, .cta-banner-desc { text-wrap: balance; }
 .btn-cta-banner {
   display: inline-flex;
   align-items: center;
@@ -1873,11 +1809,13 @@ body {
   text-decoration: none;
   transition: all 0.3s ease;
   width: fit-content;
+  max-width: 100%;
+  white-space: nowrap;
 }
 .btn-cta-banner:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(15, 103, 179, 0.3);
+  box-shadow: 0 8px 28px rgba(2, 45, 103, 0.3);
 }
 .btn-cta-banner i { transition: transform 0.3s ease; }
 .btn-cta-banner:hover i { transform: translateX(4px); }
@@ -1885,6 +1823,7 @@ body {
   border-radius: 16px;
   overflow: hidden;
   min-height: 300px;
+  min-width: 0;
   background: var(--gray-100);
 }
 .cta-banner-map iframe {
@@ -1893,17 +1832,17 @@ body {
   min-height: 300px;
   border: 0;
 }
-/* ============================================
-   RESPONSIVE - HOME
-   ============================================ */
+/* RESPONSIVE - HOME */
 @media (max-width: 992px) {
   .stats-modern-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-  .cta-banner-inner { grid-template-columns: 1fr; text-align: center; padding: 44px 36px; }
+  .cta-banner { padding: 32px 0; }
+  .cta-banner-content { align-items: center; }
+  .cta-banner-inner { grid-template-columns: minmax(0, 1fr); text-align: center; padding: 44px 36px; }
   .cta-banner-info { justify-content: center; }
   .cta-info-item { text-align: left; }
   .btn-cta-banner { margin: 0 auto; }
-  .cta-banner-map { min-height: 240px; }
-  .cta-banner-map iframe { min-height: 240px; }
+  .cta-banner-map { min-height: 280px; }
+  .cta-banner-map iframe { min-height: 280px; }
 }
 @media (max-width: 768px) {
   .hero-flutter-inner { flex-direction: column; }
@@ -1916,8 +1855,8 @@ body {
   .services-modern-section, .doctors-modern-section { padding: 48px 20px; }
   .services-modern-title, .doctors-modern-title { font-size: 30px; }
   .service-card-modern { padding: 32px 22px; }
-  .cta-banner { padding: 32px 20px; }
-  .cta-banner-inner { padding: 36px 28px; border-radius: 20px; }
+  .cta-banner { padding: 24px 0; }
+  .cta-banner-inner { padding: 32px 24px; border-radius: 20px; gap: 28px; }
   .cta-banner-title { font-size: 28px; }
   .filter-tabs { gap: 8px; }
   .filter-tab { font-size: 12px; padding: 6px 14px; }
@@ -1931,21 +1870,22 @@ body {
   .stat-modern-number { font-size: 26px; }
   .stat-modern-label { font-size: 14px; }
   .stat-modern-desc { font-size: 11px; }
+  .cta-banner { padding: 20px 0; }
+  .cta-banner-inner { padding: 28px 18px; gap: 24px; }
   .cta-banner-title { font-size: 24px; }
-  .cta-banner-info { flex-direction: column; gap: 18px; }
+  .cta-banner-desc { font-size: 15px; }
+  .cta-banner-info { flex-direction: column; align-items: center; gap: 18px; }
   .cta-info-item { flex-direction: column; justify-content: center; text-align: center; gap: 8px; }
-  .btn-cta-banner { width: 100%; justify-content: center; }
-  .cta-banner-map { min-height: 200px; }
-  .cta-banner-map iframe { min-height: 200px; }
+  .cta-info-value { font-size: 14px; }
+  .btn-cta-banner { width: 100%; justify-content: center; padding: 14px 20px; }
+  .cta-banner-map { min-height: 260px; }
+  .cta-banner-map iframe { min-height: 260px; }
   .service-grid-modern { grid-template-columns: 1fr; }
   .doctors-grid-modern > .doctor-card { flex-basis: 100%; }
   .filter-tabs { gap: 6px; padding: 0 5px; }
   .filter-tab { font-size: 11px; padding: 5px 12px; }
 }
-/* ============================================
-   MISSION / VISION - Vision icon uses accent green
-   (Home page only, to match the mockup's blue/green icon pairing)
-   ============================================ */
+/* MISSION / VISION */
 .vision-card .mv-icon-modern {
   background: var(--accent-light);
   color: var(--accent);
@@ -1962,7 +1902,7 @@ body {
 }
 
 .about-feature-card {
-  background: linear-gradient(155deg, var(--primary-dark), var(--primary));
+  background: linear-gradient(155deg, var(--primary), var(--primary-dark));
   border-radius: var(--radius-lg);
   padding: 40px 32px;
   color: var(--white);
@@ -2082,11 +2022,11 @@ body {
   .feature-card-footer { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
 
-/* ---- Doctor modal: certified tag ---- */
+/* Doctor modal: certified tag */
 .doctor-modal-tag.certified { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.14); }
 .doctor-modal-tag.certified i { color: #6FD3F7; }
 
-/* ---- Summary card that overlaps the header ---- */
+/* Summary card that overlaps the header */
 .doctor-modal-summary-card {
   background: var(--white);
   margin: -34px 20px 0;
@@ -2124,7 +2064,7 @@ body {
 .summary-stat-value { display: block; font-size: 15px; font-weight: 800; color: var(--primary); }
 .summary-stat-label { display: block; font-size: 10.5px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
 
-/* ---- Tab bar ---- */
+/* Tab bar */
 .doctor-modal-tabbar {
   display: flex; gap: 4px; padding: 22px 24px 0;
   border-bottom: 1px solid var(--gray-200);
@@ -2141,9 +2081,7 @@ body {
 .doctor-modal-tab:hover { color: var(--primary); }
 .doctor-modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 
-/* ---- Scrollable body: everything below the tabbar (the tab panels)
-   scrolls in its own area, while the header/summary/tabbar/footer
-   stay put. ---- */
+/* Scrollable body */
 .doctor-modal-scrollarea {
   flex: 1 1 auto;
   min-height: 0;
@@ -2157,7 +2095,7 @@ body {
 .doctor-modal-tabpanel.active { display: block; animation: doctorTabFadeIn 0.2s ease; }
 @keyframes doctorTabFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ---- Schedule & Clinic panel ---- */
+/* Schedule & Clinic panel */
 .doctor-modal-box.schedule-box { background: var(--gray-50); border: none; }
 .schedule-box-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .schedule-box-header h4 { font-size: 15px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px; }
@@ -2172,7 +2110,7 @@ body {
 .schedule-note { display: flex; align-items: center; gap: 10px; background: #FFF7E6; color: #8A6116; font-size: 12.5px; border-radius: 12px; padding: 12px 16px; margin-top: 6px; }
 .schedule-note i { color: #D9A441; }
 
-/* ---- Credentials & Affiliations panel ---- */
+/* Credentials & Affiliations panel */
 .credential-box { text-align: left; }
 .credential-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 14px; }
 .credential-icon.accent { background: var(--accent-light); color: var(--accent); }
@@ -2180,7 +2118,7 @@ body {
 .credential-highlight { font-size: 13.5px; color: var(--primary); font-weight: 700; margin-bottom: 2px; }
 .credential-sub { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
 
-/* ---- Overview panel extras ---- */
+/* Overview panel extras */
 .focus-tags { display: flex; flex-wrap: wrap; gap: 8px; }
 .focus-tag { background: var(--accent-light); color: var(--accent); font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 30px; }
 .sub-value-light { font-size: 13px; color: var(--gray-600); display: flex; align-items: center; gap: 6px; margin-top: 4px; }
@@ -2197,3 +2135,170 @@ body {
   .doctor-modal-summary-photo img,
   .doctor-modal-summary-photo .doctor-photo-fallback { width: 84px; height: 84px; min-width: 84px; font-size: 26px; }
 }
+
+/* BRAND TOKENS */
+:root {
+  --brand-navy: #022D67;          /* headings */
+  --brand-blue: #022D67;          /* Main blue */
+  --brand-blue-bright: #022D67;   /* same blue */
+  --brand-blue-soft: #E6ECF6;     /* pill / icon backgrounds */
+  --brand-blue-line: #C3CFE3;
+  --brand-green: #1E7B2E;         /* accent text, badges, vision */
+  --brand-green-soft: #E4F3E8;
+  --text-muted: #5F6F86;          /* paragraphs */
+  --border-soft: #DCE6F2;
+}
+
+/* SERVICES V2 */
+.services-modern-section.services-v2 {
+  font-family: 'Source Sans 3', 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
+  padding: 56px 40px 72px;
+  background: linear-gradient(180deg, #F3F8FE 0%, #FAFCFF 55%, #F1F7FE 100%);
+}
+/* Doctor banner, top-right, fading out */
+.services-modern-section.services-v2::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 58%;
+  height: 420px;
+  background: url('/images/services-banner.jpg') right top / cover no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 100%), linear-gradient(to right, transparent 0%, #000 45%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to bottom, #000 45%, transparent 100%), linear-gradient(to right, transparent 0%, #000 45%);
+  mask-composite: intersect;
+  pointer-events: none;
+  z-index: 0;
+}
+.services-v2 .container { position: relative; z-index: 1; max-width: 1140px; padding: 0; }
+
+.services-v2-cross { position: absolute; width: 100px; height: auto; top: 30px; left: 6%; pointer-events: none; z-index: 0; }
+.services-v2-leaves { position: absolute; height: auto; pointer-events: none; z-index: 0; }
+.services-v2-leaves-left  { width: 120px; left: -8px; top: 100px; }
+.services-v2-leaves-right { width: 130px; right: -8px; bottom: 20px; }
+
+.services-v2 .services-modern-header { max-width: 640px; margin-bottom: 34px; }
+.services-v2 .services-modern-tag {
+  background: var(--brand-blue-soft); color: var(--brand-blue); font-size: 12px; font-weight: 700;
+  letter-spacing: .8px; padding: 6px 18px;
+}
+.services-v2 .services-modern-title {
+  font-family: 'Merriweather Sans', 'Plus Jakarta Sans', sans-serif;
+  font-size: 32px; font-weight: 800; line-height: 1.22; color: var(--brand-navy); margin-bottom: 14px;
+}
+.services-v2 .services-title-accent { color: var(--brand-green); }
+.services-v2 .services-modern-subtitle { font-size: 16px; color: var(--text-muted); }
+
+.services-v2 .service-grid-modern { gap: 18px; align-items: stretch; }
+
+.services-v2 .service-card-modern {
+  display: flex; flex-direction: column;
+  padding: 6px 6px 18px;
+  border: none;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 22px rgba(15, 80, 150, 0.08);
+}
+.services-v2 .service-card-modern:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 14px 34px rgba(15, 80, 150, 0.15);
+}
+
+.service-card-img { border-radius: 11px; overflow: hidden; aspect-ratio: 317 / 128; background: #EAF2FB; }
+.service-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s ease; }
+.services-v2 .service-card-modern:hover .service-card-img img { transform: scale(1.04); }
+
+.service-card-body { display: flex; gap: 12px; padding: 16px 12px 0 14px; flex: 1; }
+.services-v2 .service-card-icon {
+  flex: 0 0 44px; width: 44px; height: 44px; margin: 0;
+  border-radius: 12px; font-size: 19px;
+}
+.service-card-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.services-v2 .service-card-modern h3 {
+  font-size: 15px; font-weight: 700; color: var(--brand-navy); margin: 2px 0 8px; line-height: 1.3;
+}
+.services-v2 .service-card-modern p {
+  font-size: 12.5px; line-height: 1.6; color: var(--text-muted); margin: 0 0 14px;
+}
+.service-learn-more {
+  margin-top: auto; align-self: flex-start;
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 700; color: var(--brand-blue-bright);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.service-learn-more i { font-size: 10px; transition: transform .25s ease; }
+.services-v2 .service-card-modern:hover .service-learn-more i { transform: translateX(4px); }
+
+@media (max-width: 1100px) {
+  .services-v2 .service-grid-modern { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .services-modern-section.services-v2 { padding: 44px 20px 56px; }
+  .services-v2 .services-modern-title { font-size: 26px; }
+  .services-v2 .service-grid-modern { grid-template-columns: 1fr; }
+  .services-v2-cross { width: 64px; left: 12px; top: 14px; }
+  .services-v2-leaves { display: none; }
+}
+
+
+/* DOCTORS V2 */
+.doctors-modern-section.doctors-v2 {
+  padding: 60px 40px 72px;
+  background: linear-gradient(180deg, #F7FAFE 0%, #F1F7FE 100%);
+  font-family: 'Source Sans 3', 'Inter', sans-serif;
+}
+.doctors-v2 .container { max-width: 1140px; padding: 0; }
+
+.doctors-v2 .doctors-modern-header { text-align: left; max-width: 640px; margin: 0 0 30px; }
+.doctors-v2 .doctors-modern-tag {
+  display: inline-block;
+  background: var(--brand-blue-soft); color: var(--brand-blue);
+  font-size: 12px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+  padding: 6px 18px; border-radius: 40px; margin-bottom: 16px;
+}
+.doctors-v2 .doctors-modern-title {
+  font-family: 'Merriweather Sans', 'Plus Jakarta Sans', sans-serif;
+  font-size: 32px; font-weight: 800; line-height: 1.22; color: var(--brand-navy); margin-bottom: 12px;
+}
+.doctors-v2 .doctors-title-accent { color: var(--brand-green); }
+.doctors-v2 .doctors-modern-subtitle { font-size: 16px; line-height: 1.55; color: var(--text-muted); }
+
+/* search */
+.doctors-v2 .doctor-search-wrap { margin: 0 0 18px; }
+.doctors-v2 .doctor-search-input {
+  padding: 15px 24px 15px 54px; font-size: 14.5px; font-family: inherit;
+  border: 1px solid var(--border-soft); border-radius: 40px; background: #fff;
+  box-shadow: 0 2px 8px rgba(15, 80, 150, 0.05);
+}
+.doctors-v2 .doctor-search-icon { left: 24px; font-size: 16px; color: var(--brand-blue); }
+
+/* filter pills */
+.doctors-v2 .filter-tabs { justify-content: flex-start; gap: 10px; padding: 0; margin-bottom: 26px; }
+.doctors-v2 .filter-tab {
+  font-family: inherit; font-size: 13px; font-weight: 500; color: var(--gray-600);
+  background: #fff; border: 1px solid var(--border-soft); padding: 8px 20px;
+}
+.doctors-v2 .filter-tab:hover { transform: none; background: #EEF5FD; border-color: var(--brand-blue-line); color: var(--brand-blue); }
+.doctors-v2 .filter-tab.active {
+  background: var(--brand-blue-bright); border-color: var(--brand-blue-bright); color: #fff; font-weight: 600;
+  box-shadow: 0 4px 12px rgba(15, 111, 214, 0.28);
+}
+
+@media (max-width: 640px) {
+  .doctors-modern-section.doctors-v2 { padding: 44px 20px 56px; }
+  .doctors-v2 .doctors-modern-title { font-size: 26px; }
+  .doctors-v2 .filter-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; }
+  .doctors-v2 .filter-tab { white-space: nowrap; }
+}
+
+
+/* VOICES + FOOTER */
+.reviews-live-tag { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.review-live-avatar { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.btn-submit-feedback { background: #fff; color: var(--primary); }
+.btn-submit-feedback:hover { background: var(--primary-light); color: var(--primary); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25); }
+.reviews-live-arrow:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
+.footer-modern-social a:hover { background: rgba(255, 255, 255, 0.22); }
+.footer-modern { border-top: 1px solid rgba(255, 255, 255, 0.06); }

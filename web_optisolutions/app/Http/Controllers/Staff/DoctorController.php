@@ -61,6 +61,7 @@ class DoctorController extends Controller
     {
         $doctor = Doctor::findOrFail($id);
         $doctor->available = $doctor->available ? 0 : 1;
+        $doctor->status    = $doctor->available ? 'Active' : 'Inactive'; // keep in sync sa admin
         $doctor->save();
 
         return response()->json(['success' => true, 'available' => $doctor->available]);

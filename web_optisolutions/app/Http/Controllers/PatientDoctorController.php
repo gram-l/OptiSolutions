@@ -3,20 +3,22 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use App\Support\PublicCatalog;
+use App\Support\ScheduleVisitCatalog;
 
 class PatientDoctorController extends Controller
 {
     // GET /api/doctors — used by the patient-facing website
     public function index()
     {
-        $doctors = DB::table('doctors')
-            ->where('available', 1)
+        $doctors = PublicCatalog::doctors()
             ->orderBy('doctor_name')
             ->get();
 
         $schedules = DB::table('doctor_schedules')->get()->groupBy('doctor_id');
+        $serviceMap = PublicCatalog::servicesForDoctors($doctors->pluck('doctor_id')->all());
 
-        $result = $doctors->map(function ($doctor) use ($schedules) {
+        $result = $doctors->map(function ($doctor) use ($schedules, $serviceMap) {
             $docSchedules = $schedules->get($doctor->doctor_id, collect())
                 ->map(fn ($s) => [
                     'day'        => $s->day,
@@ -28,6 +30,9 @@ class PatientDoctorController extends Controller
                 'doctor_id'        => $doctor->doctor_id,
                 'doctor_name'      => $doctor->doctor_name,
                 'specialty'        => $doctor->specialty,
+                'services'         => $serviceMap->get($doctor->doctor_id, collect())
+                                        ->map(fn ($sv) => ['service_key' => $sv->service_key, 'title' => $sv->title])
+                                        ->values(),
                 'gender'           => $doctor->gender,
                 'years_experience' => $doctor->years_experience,
                 'education'        => $doctor->education,
@@ -42,5 +47,12 @@ class PatientDoctorController extends Controller
         });
 
         return response()->json($result);
+    }
+
+    // GET /api/schedule-visit-catalog — live list for the chatbot's Schedule Visit form
+    public function scheduleVisitCatalog()
+    {
+        return response()->json(ScheduleVisitCatalog::build())
+            ->header('Cache-Control', 'no-store, max-age=0');
     }
 }

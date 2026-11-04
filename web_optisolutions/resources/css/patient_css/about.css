@@ -1,6 +1,4 @@
-/* ============================================
-   GLOBAL RESET & ROOT VARIABLES
-   ============================================ */
+/* GLOBAL RESET & ROOT VARIABLES */
 * {
   margin: 0;
   padding: 0;
@@ -8,9 +6,9 @@
 }
 
 :root {
-  --primary: #0F67B3;
-  --primary-dark: #0A4B82;
-  --primary-light: #EFF7FF;
+  --primary: #022D67;
+  --primary-dark: #01204C;
+  --primary-light: #EAF0F9;
   --accent: #2C9E7A;
   --accent-light: #E0F2EC;
   --gray-50: #FBFCFE;
@@ -50,17 +48,9 @@ body {
   padding: 0 32px;
 }
 
-/* ============================================
-   NAVBAR
-   (Styling and mobile behavior now live entirely in
-   resources/js/navbar-loader.js, which injects the nav markup
-   and its own <style> tag on every page. Keeping it in one place
-   avoids the nav rules here silently fighting the shared script.)
-   ============================================ */
+/* NAVBAR (styled in navbar-loader.js) */
 
-/* ============================================
-   SHARED SECTION STYLES
-   ============================================ */
+/* SHARED SECTION STYLES */
 .section {
   padding: 80px 40px;
 }
@@ -99,7 +89,7 @@ body {
 .btn-primary {
   background: var(--primary);
   color: white;
-  box-shadow: 0 4px 12px rgba(15,103,179,0.25);
+  box-shadow: 0 4px 12px rgba(2, 45, 103,0.25);
 }
 
 .btn-primary:hover {
@@ -125,11 +115,9 @@ body {
   flex-wrap: wrap;
 }
 
-/* ============================================
-   FOOTER - MODERN (shared with Home)
-   ============================================ */
+/* FOOTER */
 .footer-modern {
-  background: var(--gray-900);
+  background: var(--primary);
   color: #C9D9E8;
   padding: 56px 32px 0;
   margin-top: 60px;
@@ -149,11 +137,9 @@ body {
   gap: 12px;
 }
 .footer-modern-logo {
-  height: 40px;
+  height: 64px;
   width: auto;
   object-fit: contain;
-  filter: brightness(0) invert(1);
-  opacity: 0.95;
 }
 .footer-modern-brandname {
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -201,7 +187,7 @@ body {
   transition: all 0.2s ease;
 }
 .footer-modern-social a:hover {
-  background: var(--primary);
+  background: rgba(255, 255, 255, 0.22);
   transform: translateY(-2px);
 }
 .footer-modern-bottom {
@@ -219,17 +205,13 @@ body {
   .footer-modern-social { grid-column: 1 / -1; }
 }
 
-/* ============================================
-   MODAL ANIMATION
-   ============================================ */
+/* MODAL ANIMATION */
 @keyframes modalSlideIn {
   from { opacity: 0; transform: scale(0.95) translateY(-20px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* ============================================
-   RESPONSIVE - GLOBAL
-   ============================================ */
+/* RESPONSIVE - GLOBAL */
 @media (max-width: 768px) {
   .section { padding: 48px 20px; }
   .footer-modern-top { grid-template-columns: 1fr 1fr; text-align: left; }
@@ -240,10 +222,7 @@ body {
   .footer-modern-top { grid-template-columns: 1fr; }
 }
 
-/* ============================================
-   ABOUT PAGE STYLES
-   about.css — import after style.css
-   ============================================ */
+/* ABOUT PAGE STYLES */
 
 .about-section {
   padding-top: 36px;
@@ -385,7 +364,7 @@ body {
 .about-cta-btn:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(15, 103, 179, 0.3);
+  box-shadow: 0 8px 24px rgba(2, 45, 103, 0.3);
 }
 
 .about-cta-btn i {
@@ -426,7 +405,7 @@ body {
   right: -50%;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle, rgba(15, 103, 179, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(2, 45, 103, 0.05) 0%, transparent 70%);
   border-radius: 50%;
 }
 
@@ -465,9 +444,7 @@ body {
   z-index: 1;
 }
 
-/* ============================================
-   MISSION, VISION, VALUES
-   ============================================ */
+/* MISSION, VISION, VALUES */
 .mv-modern {
   display: flex;
   flex-direction: column;
@@ -538,7 +515,7 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* Mission / Vision cards: icon stacked above the heading, left-aligned */
+/* Mission / Vision cards */
 .mv-top-grid .mv-card-modern {
   flex-direction: column;
   align-items: flex-start;
@@ -635,9 +612,7 @@ body {
   margin: 0;
 }
 
-/* ============================================
-   RESPONSIVE - ABOUT
-   ============================================ */
+/* RESPONSIVE - ABOUT */
 @media (max-width: 992px) {
   .about-grid-modern { grid-template-columns: 1fr; gap: 32px; }
   .about-stats-modern { grid-template-columns: repeat(4, 1fr); }
@@ -678,4 +653,211 @@ body {
   .image-placeholder i { font-size: 48px; }
   .image-placeholder h3 { font-size: 18px; }
   .values-grid { grid-template-columns: 1fr; }
+}
+
+/* BRAND TOKENS */
+:root {
+  --brand-navy: #022D67;          /* headings */
+  --brand-blue: #022D67;          /* Main blue */
+  --brand-blue-bright: #022D67;   /* same blue */
+  --brand-blue-soft: #E6ECF6;     /* pill / icon backgrounds */
+  --brand-blue-line: #C3CFE3;
+  --brand-green: #1E7B2E;         /* accent text, badges, vision */
+  --brand-green-soft: #E4F3E8;
+  --text-muted: #5F6F86;          /* paragraphs */
+  --border-soft: #DCE6F2;
+}
+
+/* ABOUT V2 */
+.section.about-v2 {
+  position: relative;
+  padding: 0 0 80px;
+  overflow: hidden;
+  font-family: 'Source Sans 3', 'Inter', sans-serif;
+  background:
+    radial-gradient(ellipse 60% 40% at 100% 0%, #EEF5FD 0%, transparent 70%),
+    linear-gradient(180deg, #FFFFFF 0%, #F6FAFE 100%);
+}
+
+/* decorations */
+.about-v2-cross { position: absolute; pointer-events: none; z-index: 0; }
+.about-v2-cross-lg { width: 130px; height: auto; top: 50px; right: -20px; }
+.about-v2-cross-sm { width: 42px; height: auto; top: 176px; right: 92px; }
+.about-v2-leaves { position: absolute; width: 130px; height: auto; right: -10px; bottom: 120px; z-index: 0; pointer-events: none; }
+
+/* hero */
+.about-v2-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 47%) minmax(0, 1fr);
+  align-items: stretch;
+  z-index: 1;
+  padding-bottom: 64px;
+}
+
+.about-v2-photo-wrap {
+  position: relative;
+  min-height: 400px;
+}
+/* pale-blue ring behind the photo */
+.about-v2-photo-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: -4px; left: 0; right: -20px;
+  border-radius: 0 56% 22% 0 / 0 54% 24% 0;
+  background: linear-gradient(135deg, #D6E7FA 0%, #EAF3FD 100%);
+}
+.about-v2-photo {
+  position: absolute;
+  inset: 0 0 0 0;
+  border-radius: 0 56% 22% 0 / 0 54% 24% 0;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(15, 80, 150, 0.12);
+}
+.about-v2-photo img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: 35% center;
+  display: block;
+}
+
+/* text column */
+.about-v2-content {
+  position: relative;
+  z-index: 3;
+  max-width: 560px;
+  margin-left: 72px;
+  padding-top: 38px;
+  padding-bottom: 24px;
+  text-align: left;
+}
+.about-v2 .about-tag {
+  background: var(--brand-blue-soft);
+  color: var(--brand-blue);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  padding: 6px 16px;
+  margin-bottom: 16px;
+}
+.about-v2 .about-title {
+  font-family: 'Merriweather Sans', 'Plus Jakarta Sans', sans-serif;
+  text-align: left;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.22;
+  letter-spacing: -.2px;
+  color: var(--brand-navy);
+  margin-bottom: 18px;
+}
+.about-v2 .about-title-accent { color: var(--brand-green); }
+
+.about-v2-rule { display: flex; align-items: center; margin-bottom: 18px; }
+.about-v2-rule i { width: 36px; height: 3px; border-radius: 3px; background: var(--brand-blue); }
+.about-v2-rule b { width: 22px; height: 3px; border-radius: 3px; background: var(--brand-green); margin-left: 2px; }
+
+.about-v2 .about-subtitle {
+  font-size: 15px; line-height: 1.55; color: var(--text-muted); margin-bottom: 18px;
+}
+.about-v2 .about-text p {
+  font-size: 15px; line-height: 1.6; color: var(--text-muted); margin-bottom: 14px;
+}
+.about-v2 .about-text p strong { color: var(--brand-navy); font-weight: 700; }
+
+.about-v2 .trust-badges { gap: 10px; margin: 18px 0 0; flex-wrap: nowrap; }
+.about-v2 .trust-badge {
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  border: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 9px 16px 9px 10px;
+  gap: 8px;
+  white-space: nowrap;
+}
+.about-v2 .trust-badge i { font-size: 17px; color: var(--brand-green); }
+
+/* wave across bottom of hero */
+.about-v2-wave {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  width: 100%; height: 70px;
+  z-index: 2; pointer-events: none;
+}
+
+/* mission / vision / values */
+.about-v2-mv {
+  position: relative; z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+.about-v2-mv-item {
+  display: flex; align-items: flex-start; gap: 22px;
+  padding: 6px 34px;
+  border-left: 1px solid var(--border-soft);
+}
+.about-v2-mv-item:first-child { border-left: none; padding-left: 0; }
+.about-v2-mv-item:last-child { padding-right: 0; }
+
+.about-v2-icon {
+  position: relative;
+  flex: 0 0 68px; width: 68px; height: 68px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  color: var(--brand-blue);
+  background: var(--brand-blue-soft);
+}
+.about-v2-icon::before,
+.about-v2-icon::after {
+  content: ''; position: absolute; border-radius: 50%;
+  background: #CFE2F7; border: 1px solid #fff;
+}
+.about-v2-icon::after  { width: 16px; height: 16px; top: -4px; right: -8px; }
+.about-v2-icon::before { width: 14px; height: 14px; bottom: -4px; right: -2px; opacity: .8; }
+.about-v2-mv-item.vision .about-v2-icon { color: var(--brand-green); background: var(--brand-green-soft); }
+.about-v2-mv-item.vision .about-v2-icon::before,
+.about-v2-mv-item.vision .about-v2-icon::after { background: #CBE8D3; }
+.about-v2-mv-item.vision .about-v2-icon::after { display: none; }
+.about-v2-mv-item.vision .about-v2-icon::before { left: -4px; right: auto; }
+
+.about-v2-mv-body h3 {
+  font-family: 'Merriweather Sans', 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px; font-weight: 800; color: var(--brand-navy);
+  margin: 4px 0 0; padding-bottom: 10px; position: relative;
+}
+.about-v2-mv-body h3::after {
+  content: ''; position: absolute; left: 0; bottom: 0;
+  width: 36px; height: 2px; background: var(--brand-blue);
+}
+.about-v2-mv-item.vision h3::after { background: var(--brand-green); }
+.about-v2-mv-body p { font-size: 14.5px; line-height: 1.6; color: var(--text-muted); margin: 12px 0 0; }
+.about-v2-value {
+  display: inline-block; margin: 12px 6px 0 0;
+  background: var(--brand-blue-soft); color: var(--brand-blue);
+  font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 40px;
+}
+
+@media (max-width: 1100px) {
+  .about-v2-content { margin-left: 48px; padding-right: 24px; }
+  .about-v2 .trust-badges { flex-wrap: wrap; }
+}
+@media (max-width: 992px) {
+  .about-v2-hero { grid-template-columns: 1fr; }
+  .about-v2-photo-wrap { min-height: 300px; }
+  .about-v2-photo-wrap::before,
+  .about-v2-photo { border-radius: 0 0 50% 50% / 0 0 14% 14%; }
+  .about-v2-photo-wrap::before { right: 0; bottom: -10px; }
+  .about-v2-content { margin: 0 auto; padding: 32px 28px 0; }
+  .about-v2-mv { grid-template-columns: 1fr; gap: 24px; }
+  .about-v2-mv-item, .about-v2-mv-item:first-child, .about-v2-mv-item:last-child { border-left: none; padding: 0; }
+  .about-v2-cross-lg { top: 20px; width: 80px; }
+  .about-v2-cross-sm, .about-v2-leaves { display: none; }
+}
+@media (max-width: 480px) {
+  .about-v2 .about-title { font-size: 24px; }
+  .about-v2-content { padding: 26px 20px 0; }
+  .about-v2-mv { padding: 0 20px; }
+  .about-v2-icon { flex-basis: 56px; width: 56px; height: 56px; font-size: 22px; }
 }

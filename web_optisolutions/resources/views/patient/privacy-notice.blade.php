@@ -166,7 +166,7 @@
       <li><strong>Name</strong> &mdash; your full name (first and last name).</li>
       <li><strong>Contact number</strong> &mdash; your mobile or landline number.</li>
       <li><strong>Date of birth</strong> &mdash; used to help our staff and doctors identify and prepare for your visit.</li>
-      <li><strong>Email address</strong> &mdash; used to send your appointment confirmation and, if you request it, a copy of your conversation transcript.</li>
+      <li><strong>Email address</strong> &mdash; used to send your appointment confirmation and, if you request it, your visit confirmation.</li>
       <li><strong>Service and doctor selected</strong> &mdash; the type of consultation and specialist you choose to book with.</li>
       <li><strong>Complaint or feedback details</strong> &mdash; only if you choose to file a complaint or leave a review/rating through the chatbot after your appointment is scheduled.</li>
     </ul>
@@ -176,7 +176,7 @@
     <ul>
       <li>Schedule and confirm your appointment with the doctor and service you selected;</li>
       <li>Match you with an available specialist and time slot;</li>
-      <li>Send you an appointment confirmation and, if requested, a transcript of your scheduling conversation;</li>
+      <li>Send you an appointment confirmation by email, if requested;</li>
       <li>Record and respond to complaints or feedback you choose to submit; and</li>
       <li>Maintain accurate scheduling records for the clinic's internal operations.</li>
     </ul>

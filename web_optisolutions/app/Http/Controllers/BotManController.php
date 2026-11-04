@@ -210,6 +210,15 @@ class BotManController extends Controller
     {
         $text = trim($bot->getMessage()->getText());
 
+        // A schedule-visit form (or its Back button) used after its conversation expired.
+        // Never forward it to staff as an inquiry.
+        if (str_starts_with($text, AppointmentConversation::FORM_SUBMIT_PREFIX) || in_array($text, ['back_to_details', 'back_to_visit'], true)) {
+            Log::info('FALLBACK ignored (stale form submission)');
+            $bot->reply('That form has expired. Please tap "Schedule Visit" to start again.');
+            $this->sendGreeting($bot, false);
+            return;
+        }
+
         if (in_array(mb_strtolower($text), self::IGNORED_INQUIRY_TEXTS, true)) {
             Log::info('FALLBACK ignored (known command text): "' . $text . '"');
             return;

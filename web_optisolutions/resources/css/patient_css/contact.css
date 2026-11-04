@@ -1,6 +1,4 @@
-/* ============================================
-   GLOBAL RESET & ROOT VARIABLES
-   ============================================ */
+/* GLOBAL RESET & ROOT VARIABLES */
 * {
   margin: 0;
   padding: 0;
@@ -8,9 +6,9 @@
 }
 
 :root {
-  --primary: #0F67B3;
-  --primary-dark: #0A4B82;
-  --primary-light: #EFF7FF;
+  --primary: #022D67;
+  --primary-dark: #01204C;
+  --primary-light: #EAF0F9;
   --accent: #2C9E7A;
   --accent-light: #E0F2EC;
   --gray-50: #FBFCFE;
@@ -50,17 +48,9 @@ body {
   padding: 0 32px;
 }
 
-/* ============================================
-   NAVBAR
-   (Styling and mobile behavior now live entirely in
-   resources/js/navbar-loader.js, which injects the nav markup
-   and its own <style> tag on every page. Keeping it in one place
-   avoids the nav rules here silently fighting the shared script.)
-   ============================================ */
+/* NAVBAR (styled in navbar-loader.js) */
 
-/* ============================================
-   SHARED SECTION STYLES
-   ============================================ */
+/* SHARED SECTION STYLES */
 .section {
   padding: 80px 40px;
 }
@@ -99,7 +89,7 @@ body {
 .btn-primary {
   background: var(--primary);
   color: white;
-  box-shadow: 0 4px 12px rgba(15,103,179,0.25);
+  box-shadow: 0 4px 12px rgba(2, 45, 103,0.25);
 }
 
 .btn-primary:hover {
@@ -144,7 +134,7 @@ body {
 .btn-modern-primary:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(15, 103, 179, 0.3);
+  box-shadow: 0 8px 28px rgba(2, 45, 103, 0.3);
 }
 
 .btn-modern-primary i {
@@ -174,7 +164,7 @@ body {
   background: var(--primary);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(15, 103, 179, 0.2);
+  box-shadow: 0 8px 28px rgba(2, 45, 103, 0.2);
 }
 
 .btn-modern-outline i {
@@ -185,9 +175,7 @@ body {
   transform: translateX(4px);
 }
 
-/* ============================================
-   REVIEWS BANNER
-   ============================================ */
+/* REVIEWS BANNER */
 .reviews-banner-footer {
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   border-radius: 24px;
@@ -229,11 +217,9 @@ body {
   margin-top: 6px;
 }
 
-/* ============================================
-   FOOTER
-   ============================================ */
+/* FOOTER */
 .footer {
-  background: var(--gray-900);
+  background: var(--primary);
   color: #C9D9E8;
   padding: 48px 32px;
   text-align: center;
@@ -241,17 +227,13 @@ body {
   margin-top: 60px;
 }
 
-/* ============================================
-   MODAL ANIMATION
-   ============================================ */
+/* MODAL ANIMATION */
 @keyframes modalSlideIn {
   from { opacity: 0; transform: scale(0.95) translateY(-20px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* ============================================
-   RESPONSIVE - GLOBAL
-   ============================================ */
+/* RESPONSIVE - GLOBAL */
 @media (max-width: 768px) {
   .section { padding: 60px 20px; }
   .reviews-banner-footer { padding: 24px 20px; border-radius: 16px; }
@@ -261,10 +243,7 @@ body {
   .section-title { font-size: 28px; }
 }
 
-/* ============================================
-   CONTACT PAGE STYLES
-   contact.css — import after style.css
-   ============================================ */
+/* CONTACT PAGE STYLES */
 
 .contact-wrapper {
   display: grid;
@@ -328,9 +307,7 @@ body {
   border: 0;
 }
 
-/* ============================================
-   RESPONSIVE - CONTACT
-   ============================================ */
+/* RESPONSIVE - CONTACT */
 @media (max-width: 1024px) {
   .contact-wrapper { grid-template-columns: 1fr; }
 }

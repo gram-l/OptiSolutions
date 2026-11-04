@@ -16,8 +16,9 @@ class PatientDoctorController extends Controller
             ->get();
 
         $schedules = DB::table('doctor_schedules')->get()->groupBy('doctor_id');
+        $serviceMap = PublicCatalog::servicesForDoctors($doctors->pluck('doctor_id')->all());
 
-        $result = $doctors->map(function ($doctor) use ($schedules) {
+        $result = $doctors->map(function ($doctor) use ($schedules, $serviceMap) {
             $docSchedules = $schedules->get($doctor->doctor_id, collect())
                 ->map(fn ($s) => [
                     'day'        => $s->day,
@@ -29,6 +30,9 @@ class PatientDoctorController extends Controller
                 'doctor_id'        => $doctor->doctor_id,
                 'doctor_name'      => $doctor->doctor_name,
                 'specialty'        => $doctor->specialty,
+                'services'         => $serviceMap->get($doctor->doctor_id, collect())
+                                        ->map(fn ($sv) => ['service_key' => $sv->service_key, 'title' => $sv->title])
+                                        ->values(),
                 'gender'           => $doctor->gender,
                 'years_experience' => $doctor->years_experience,
                 'education'        => $doctor->education,
@@ -45,7 +49,7 @@ class PatientDoctorController extends Controller
         return response()->json($result);
     }
 
-    // GET /api/schedule-visit-catalog — live na listahan para sa Schedule Visit form ng chatbot
+    // GET /api/schedule-visit-catalog — live list for the chatbot's Schedule Visit form
     public function scheduleVisitCatalog()
     {
         return response()->json(ScheduleVisitCatalog::build())

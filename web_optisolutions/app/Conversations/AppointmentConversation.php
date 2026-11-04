@@ -1003,9 +1003,8 @@ class AppointmentConversation extends Conversation
 
                 $doc = null;
                 if ($svc && ctype_digit($doctorId)) {
-                    $doc = PublicCatalog::doctors()
-                        ->where('doctor_id', (int) $doctorId)
-                        ->where('specialty', $svc->title)
+                    $doc = PublicCatalog::doctorsForService((int) $svc->service_id)
+                        ->where('doctors.doctor_id', (int) $doctorId)
                         ->first();
                 }
                 if (!$doc) {

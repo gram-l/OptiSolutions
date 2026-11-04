@@ -25,11 +25,37 @@ function formatTime(t) {
 }
 
 // ============ FETCH: DOCTORS (doctors + doctor_schedules) ============
-let _doctorsSig = '';        // para malaman kung may nagbago sa listahan
+let _doctorsSig = '';        // to detect whether the list has changed
 let _doctorFiltersBound = false;
 
+function escapeFilterText(v) {
+  return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// The filter tabs are derived from the services of the displayed doctors (no longer hardcoded).
+function rebuildFilterTabs(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const current = (container.querySelector('.filter-tab.active') || { dataset: { filter: 'all' } }).dataset.filter;
+
+  const seen = new Map();
+  doctorsData.forEach(d => d.services.forEach(sv => seen.set(sv.service_key, sv.title)));
+  const entries = [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+
+  const active = current !== 'all' && seen.has(current) ? current : 'all';
+  container.innerHTML =
+    `<button class="filter-tab ${active === 'all' ? 'active' : ''}" data-filter="all">All</button>` +
+    entries.map(([key, title]) =>
+      `<button class="filter-tab ${key === active ? 'active' : ''}" data-filter="${escapeFilterText(key)}">${escapeFilterText(title)}</button>`
+    ).join('');
+}
+
 function rerenderDoctorGrids() {
-  // Restores the selected filter tab and search value.
+  rebuildFilterTabs('filterTabs');
+  rebuildFilterTabs('filterTabsHome');
+
+  // Restore the current filter tab and search so the user doesn't lose their selection
   [
     ['doctorsGrid', 'filterTabs', null],
     ['doctorsGridHome', 'filterTabsHome', 'doctorsSearchHome']
@@ -47,7 +73,7 @@ async function loadDoctorsData() {
     const res = await fetch('/api/doctors', { cache: 'no-store' });
     const raw = await res.json();
 
-    // Walang nagbago? Huwag nang i-render ulit.
+    // Nothing changed? Don't re-render.
     const sig = JSON.stringify(raw);
     if (sig === _doctorsSig) return;
     _doctorsSig = sig;
@@ -56,6 +82,7 @@ async function loadDoctorsData() {
       id: doc.doctor_id,
       name: doc.doctor_name,
       spec: doc.specialty,
+      services: doc.services || [],   // [{service_key, title}] from doctor_service
       icon: genderIcon(doc.gender),
       gender: doc.gender, // added this line to pass gender to handleDoctorPhotoError
       photo: doctorPhotoUrl(doc), //added this line to display the doctor photo 
@@ -74,7 +101,7 @@ async function loadDoctorsData() {
 
     rerenderDoctorGrids();
 
-    // Isang beses lang i-bind ang mga click/search listener
+    // Bind the click/search listeners only once
     if (!_doctorFiltersBound) {
       setupFilterTabs('filterTabs', 'doctorsGrid');
       setupFilterTabs('filterTabsHome', 'doctorsGridHome', 'doctorsSearchHome');
@@ -112,8 +139,8 @@ async function loadServicesData() {
       };
     });
 
-    renderServiceCards('servicesGrid');       // para sa services.blade.php
-    renderServiceCards('serviceCardsHome');   // para sa home.blade.php (kung meron)
+    renderServiceCards('servicesGrid');       // for services.blade.php
+    renderServiceCards('serviceCardsHome');   // for home.blade.php (if present)
   } catch (err) {
     console.error('Failed to load services:', err);
   }
@@ -167,13 +194,14 @@ function renderClinicInfo() {
 function renderDoctors(filter = 'all', containerId = 'doctorsGrid', searchTerm = '') {
   const grid = document.getElementById(containerId);
   if (!grid) return;
-  let filtered = filter === 'all' ? doctorsData : doctorsData.filter(doc => doc.spec === filter);
+  let filtered = filter === 'all' ? doctorsData : doctorsData.filter(doc => doc.services.some(sv => sv.service_key === filter));
 
   const term = searchTerm.trim().toLowerCase();
   if (term) {
     filtered = filtered.filter(doc =>
       doc.name.toLowerCase().includes(term) ||
-      doc.spec.toLowerCase().includes(term)
+      (doc.spec || '').toLowerCase().includes(term) ||
+      doc.services.some(sv => sv.title.toLowerCase().includes(term))
     );
   }
 
@@ -198,14 +226,14 @@ grid.innerHTML = filtered.map(doc => `
 function setupFilterTabs(containerId = 'filterTabs', gridId = 'doctorsGrid', searchInputId = null) {
   const tabsContainer = document.getElementById(containerId);
   if (!tabsContainer) return;
-  const tabs = tabsContainer.querySelectorAll('.filter-tab');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', function() {
-      tabs.forEach(t => t.classList.remove('active'));
-      this.classList.add('active');
-      const searchInput = searchInputId ? document.getElementById(searchInputId) : null;
-      renderDoctors(this.dataset.filter, gridId, searchInput ? searchInput.value : '');
-    });
+  // Event delegation: still works even when the tab buttons are rebuilt
+  tabsContainer.addEventListener('click', function (e) {
+    const tab = e.target.closest('.filter-tab');
+    if (!tab || !tabsContainer.contains(tab)) return;
+    tabsContainer.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const searchInput = searchInputId ? document.getElementById(searchInputId) : null;
+    renderDoctors(tab.dataset.filter, gridId, searchInput ? searchInput.value : '');
   });
 }
 
@@ -223,24 +251,14 @@ function setupDoctorSearch(searchInputId, tabsContainerId, gridId) {
 
 // ============ DOCTOR MODAL ============
 
-// Matches a doctor's specialty with the corresponding service data.
-const doctorSpecialtyToServiceKey = {
-  'Pediatrics': 'pediatrics',
-  'OB-Gyne': 'obgyne',
-  'Surgery': 'surgery',
-  'IM-Pulmonology': 'pulmonology',
-  'Ophthalmology': 'ophthalmology',
-  'IM-Cardiology': 'cardiology',
-  'General / Adult Medicine': 'adultmedicine',
-  'Medical Oncology': 'oncology'
-};
-
-function getClinicalFocusAreas(spec) {
-  const key = doctorSpecialtyToServiceKey[spec];
-  if (key && servicesData[key] && Array.isArray(servicesData[key].conditions)) {
-    return servicesData[key].conditions.slice(0, 6);
-  }
-  return [];
+// A doctor's "Clinical Focus Areas" = the conditions of their service(s), taken from
+// servicesData. No hardcoded mapping; just follow doctor_service.
+function getClinicalFocusAreas(doc) {
+  const conditions = (doc.services || []).flatMap(sv => {
+    const svc = servicesData[sv.service_key];
+    return svc && Array.isArray(svc.conditions) ? svc.conditions : [];
+  });
+  return [...new Set(conditions)].slice(0, 6);
 }
 
 function showDoctorDetails(id) {
@@ -249,7 +267,7 @@ function showDoctorDetails(id) {
 
   const phone = (clinicInfo && clinicInfo.contact_no) ? clinicInfo.contact_no : '0985 475 5511';
   const spec = doc.spec || 'General Practice';
-  const focusAreas = getClinicalFocusAreas(doc.spec);
+  const focusAreas = getClinicalFocusAreas(doc);
   const firstSchedule = doc.schedule[0];
 
   const subtitle = doc.fellowship
@@ -460,7 +478,12 @@ function openServiceModal(serviceKey) {
   lockBodyScroll();
 }
 
-// Prevents background scrolling while the modal is open.
+// ============ BODY SCROLL LOCK (modal open) ============
+// Plain `overflow:hidden` on body isn't enough on mobile: the page can still
+// rubber-band / the browser's address bar can collapse while you scroll or
+// switch tabs inside the modal, which resizes the viewport and makes the
+// fixed-position modal look like it "jumped" or got cut off at the top.
+// Locking body to position:fixed at the current scroll offset prevents that.
 let _scrollLockY = 0;
 let _scrollLockCount = 0;
 function lockBodyScroll() {
@@ -484,7 +507,13 @@ function unlockBodyScroll() {
     document.body.style.right = '';
     document.body.style.width = '';
     document.body.style.overflow = '';
-   // Restores the previous scroll position immediately without animation.
+    // Force an instant jump back, not an animated one. Several pages set
+    // `html { scroll-behavior: smooth }` for their own in-page anchor links,
+    // but that same CSS rule also hijacks *any* programmatic scroll —
+    // including this restore — turning what should be an invisible snap
+    // back to where the user was into a visible "dramatic" scroll down/up
+    // the page after closing a modal. Passing behavior: 'auto' explicitly
+    // overrides the CSS smooth-scroll setting for this one call only.
     window.scrollTo({ top: _scrollLockY, left: 0, behavior: 'auto' });
   }
 }
@@ -522,7 +551,10 @@ window.loadServicesData     = loadServicesData;
 window.loadDoctorsData      = loadDoctorsData;
 window.handleDoctorPhotoError = handleDoctorPhotoError;
 
-// Loads the required data automatically when the page is ready.
+// ============ AUTO-LOAD ON PAGE READY (THE FIX) ============
+// Without this, loadDoctorsData()/loadServicesData()/loadClinicInfo() are defined
+// but never called anywhere, so #doctorsGrid, #doctorsGridHome, #servicesGrid,
+// #serviceCardsHome, and clinic-info fields all stay empty on page load.
 document.addEventListener('DOMContentLoaded', function () {
   loadDoctorsData();
   loadServicesData();
@@ -530,7 +562,9 @@ document.addEventListener('DOMContentLoaded', function () {
   startLiveSync();
 });
 
-// LIVE SYNC (Auto Refresh in Doctors and Services Data)
+// ============ LIVE SYNC (no refresh needed) ============
+// When a doctor or service is activated/deactivated in admin/staff, the
+// Medical Team and Services sections update automatically within a few seconds.
 const LIVE_SYNC_MS = 8000;
 
 function startLiveSync() {
@@ -540,7 +574,7 @@ function startLiveSync() {
     loadServicesData();
   };
   setInterval(tick, LIVE_SYNC_MS);
-  // Return in tab 
+  // When returning to the tab (browsers throttle background tabs), check immediately
   document.addEventListener('visibilitychange', tick);
   window.addEventListener('focus', tick);
 }

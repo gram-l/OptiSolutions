@@ -4,7 +4,16 @@ namespace App\Support;
 
 use Illuminate\Support\Facades\DB;
 
-// Provides the available schedule visit options for the chatbot.
+/**
+ * Provides the catalog for the chatbot's Schedule Visit form.
+ * Patients select a service, then a doctor, then a date and time.
+ *
+ * AppointmentConversation loads the catalog when the form first opens.
+ * GET /api/schedule-visit-catalog refreshes it while the chat is open.
+ *
+ * Uses PublicCatalog to keep doctor visibility consistent with the
+ * website's Medical Team page.
+ */
 class ScheduleVisitCatalog
 {
     public static function build(): array
@@ -18,13 +27,21 @@ class ScheduleVisitCatalog
                 ->orderBy('doctor_id')->orderBy('schedule_id')
                 ->get()->groupBy('doctor_id');
 
+        // service_id => [doctor_id => true] mula sa doctor_service
+        $links = $doctors->isEmpty()
+            ? collect()
+            : DB::table('doctor_service')
+                ->whereIn('doctor_id', $doctors->pluck('doctor_id')->all())
+                ->get()->groupBy('service_id')
+                ->map(fn ($rows) => $rows->pluck('doctor_id')->flip());
+
         $serviceOptions = $doctorOptions = $slotOptions = [];
 
         foreach ($services as $svc) {
             $hasDoctor = false;
 
             foreach ($doctors as $d) {
-                if (mb_strtolower(trim((string) $d->specialty)) !== mb_strtolower(trim((string) $svc->title))) {
+                if (!isset($links->get($svc->service_id, collect())[$d->doctor_id])) {
                     continue;
                 }
 

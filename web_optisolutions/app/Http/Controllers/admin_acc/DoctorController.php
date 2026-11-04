@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\admin_models\Doctor;
 use App\Models\admin_models\DoctorSchedule;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Support\DoctorServices;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
@@ -17,8 +19,10 @@ class DoctorController extends Controller
     public function index()
     {
         $doctors = $this->doctorsForWeb();
+        // Services are the only list of departments that can be picked for a doctor
+        $serviceOptions = DB::table('services')->orderBy('title')->get(['service_id', 'title']);
 
-        return view('admin_acc.doctors', compact('doctors'));
+        return view('admin_acc.doctors', compact('doctors', 'serviceOptions'));
     }
 
     // GET /admin_acc/doctors/list — JSON refresh for the web admin grid.
@@ -34,7 +38,10 @@ class DoctorController extends Controller
 
     private function doctorsForWeb()
     {
-        return Doctor::with('schedules')->get()->map(function ($doctor) {
+        $all = Doctor::with('schedules')->get();
+        $serviceIds = DoctorServices::idsForDoctors($all->pluck('doctor_id')->all());
+
+        return $all->map(function ($doctor) use ($serviceIds) {
             return [
                 'id' => $doctor->doctor_id,
                 'name' => $doctor->doctor_name,
@@ -44,6 +51,7 @@ class DoctorController extends Controller
                 'license' => $doctor->license,
                 'fellowship' => $doctor->fellowship,
                 'specialty' => $doctor->specialty,
+                'service_ids' => $serviceIds[$doctor->doctor_id] ?? [],
                 'schedule' => $this->formatSchedule($doctor->schedules),
                 'schedule_sessions' => $this->sessionsForApi($doctor->schedules),
                 'description' => $doctor->description,
@@ -57,7 +65,11 @@ class DoctorController extends Controller
     // GET /api/doctors — used by Flutter
     public function apiIndex()
     {
-        $doctors = Doctor::with('schedules')->get()->map(function ($doctor) {
+        $all = Doctor::with('schedules')->get();
+        $serviceIds = DoctorServices::idsForDoctors($all->pluck('doctor_id')->all());
+
+        $doctors = $all->map(function ($doctor) use ($serviceIds) {
+            $doctor->service_ids = $serviceIds[$doctor->doctor_id] ?? [];
             // 'schedule' is a human-readable display string for the list card.
             $doctor->schedule = $this->formatSchedule($doctor->schedules);
             // 'schedule_sessions' is the structured source of truth the edit
@@ -78,7 +90,9 @@ class DoctorController extends Controller
     {
         $validated = $this->validateDoctorRequest($request);
 
-        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image'])->toArray();
+        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image', 'service_ids'])->toArray();
+        // `specialty` is display text derived from the selected services (no longer free text)
+        $doctorData['specialty'] = DoctorServices::label($validated['service_ids']);
         $doctorData['status'] = $doctorData['status'] ?? 'Active';
         // `available` is the column every patient-facing surface actually
         // filters on (chatbot, home page, doctors page, staff side) — keep
@@ -92,9 +106,11 @@ class DoctorController extends Controller
 
         $doctor = Doctor::create($doctorData);
 
+        DoctorServices::sync($doctor->doctor_id, $validated['service_ids']);
         $this->syncScheduleRows($doctor, $validated['schedule_sessions']);
 
         $doctor->load('schedules');
+        $doctor->service_ids = array_map('intval', $validated['service_ids']);
         $doctor->schedule = $this->formatSchedule($doctor->schedules);
         $doctor->schedule_sessions = $this->sessionsForApi($doctor->schedules);
         $doctor->profile_image_url = $this->profileImageUrl($doctor->profile_image);
@@ -119,7 +135,8 @@ class DoctorController extends Controller
         // would incorrectly flag itself as a duplicate).
         $validated = $this->validateDoctorRequest($request, $doctor->doctor_id);
 
-        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image'])->toArray();
+        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image', 'service_ids'])->toArray();
+        $doctorData['specialty'] = DoctorServices::label($validated['service_ids']);
 
         // Same reasoning as store(): if this edit touches `status`, keep
         // `available` (the field patient-facing pages/chatbot/home/staff
@@ -141,9 +158,11 @@ class DoctorController extends Controller
             Storage::disk('public')->delete($oldPhoto);
         }
 
+        DoctorServices::sync($doctor->doctor_id, $validated['service_ids']);
         $this->syncScheduleRows($doctor, $validated['schedule_sessions']);
 
         $doctor->load('schedules');
+        $doctor->service_ids = array_map('intval', $validated['service_ids']);
         $doctor->schedule = $this->formatSchedule($doctor->schedules);
         $doctor->schedule_sessions = $this->sessionsForApi($doctor->schedules);
         $doctor->profile_image_url = $this->profileImageUrl($doctor->profile_image);
@@ -232,6 +251,19 @@ class DoctorController extends Controller
             $request->merge(['schedule_sessions' => $input['schedule_sessions']]);
         }
 
+        // The department comes from `services` (service_ids). For the legacy
+        // Flutter app that still sends a `specialty` text, the matching
+        // service is looked up.
+        $serviceIds = $input['service_ids'] ?? [];
+        if (!is_array($serviceIds)) {
+            $serviceIds = [$serviceIds];
+        }
+        $serviceIds = array_values(array_filter($serviceIds, fn ($v) => $v !== '' && $v !== null));
+        if (empty($serviceIds)) {
+            $serviceIds = DoctorServices::idsFromSpecialtyText($input['specialty'] ?? null);
+        }
+        $input['service_ids'] = $serviceIds;
+
         $validator = Validator::make($input, [
             'doctor_name' => [
                 'required',
@@ -242,7 +274,9 @@ class DoctorController extends Controller
                 // case-insensitively, so this catches "Dr. Smith" vs "dr. smith" too.
                 Rule::unique('doctors', 'doctor_name')->ignore($doctorId, 'doctor_id'),
             ],
-            'specialty'       => 'required|string|max:100',
+            'specialty'       => 'nullable|string|max:255',
+            'service_ids'     => 'required|array|min:1',
+            'service_ids.*'   => 'integer|exists:services,service_id',
             'gender'          => 'sometimes|required|in:male,female',
             'years_experience' => 'nullable|integer|min:0|max:2147483647',
             'education'       => 'nullable|string|max:255',
@@ -262,7 +296,9 @@ class DoctorController extends Controller
             'doctor_name.unique' => 'A doctor with this name already exists.',
             'doctor_name.min' => 'Name is too short.',
             'doctor_name.max' => 'Name is too long (max 100 characters).',
-            'specialty.max' => 'Selected specialties must fit within 100 characters.',
+            'service_ids.required' => 'Choose at least one service.',
+            'service_ids.min' => 'Choose at least one service.',
+            'service_ids.*.exists' => 'One of the selected services no longer exists.',
             'description.max' => 'Description is too long (max 500 characters).',
             'contact_number.regex' => 'Enter a valid phone number (digits only, 7–15 digits).',
             'profile_image.image' => 'The photo must be an image file.',

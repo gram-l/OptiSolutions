@@ -17,8 +17,8 @@ class ServiceController extends Controller
         $conditions = DB::table('service_conditions')->get()->groupBy('service_id');
 
         $result = $services->map(function ($svc) use ($conditions) {
-            $doctorNames = PublicCatalog::doctors()
-                ->where('specialty', $svc->title)
+            $doctorNames = PublicCatalog::doctorsForService((int) $svc->service_id)
+                ->orderBy('doctor_name')
                 ->pluck('doctor_name');
 
             return [

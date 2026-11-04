@@ -96,51 +96,71 @@ class ClinicInfoService
         'never again', 'waste of time', 'wasted my time',
     ];
 
-    // Maps common specialty terms to the corresponding doctor specialty.
-    protected static array $specialtyAliases = [
-        'Pediatrics' => [
+    // Maps common terms to a service (by service_key, not by title/specialty text).
+    // The service itself (title, description, doctors) always comes from the database,
+    // so renaming a service in Admin never breaks matching.
+    protected static array $serviceAliases = [
+        'pediatrics' => [
             'pediatrics', 'pedia', 'pediatric', 'pediatrician',
             'bata', 'mga bata', 'child', 'children', 'baby', 'infant',
         ],
-        'OB-Gyne' => [
+        'obgyne' => [
             'ob-gyne', 'obgyne', 'ob gyne', 'ob-gynecology', 'obstetrics',
             'gynecology', 'gyne', 'pregnant', 'pregnancy', 'prenatal', 'buntis',
         ],
-        'Surgery' => [
+        'surgery' => [
             'surgery', 'surgical', 'surgeon', 'operahan', 'opera', 'operation',
         ],
-        'IM-Pulmonology' => [
+        'pulmonology' => [
             'pulmonology', 'pulmonologist', 'baga', 'lungs', 'lung',
             'hika', 'asthma', 'respiratory',
         ],
-        'General / Adult Medicine' => [
+        'cardiology' => [
+            'cardiology', 'cardiologist', 'heart', 'puso',
+        ],
+        'adultmedicine' => [
             'general medicine', 'adult medicine', 'general checkup',
             'checkup', 'general consult', 'general consultation',
         ],
-        'Internal Medicine' => [
+        'internalmedicine' => [
             'internal medicine',
         ],
-        'Medical Oncology' => [
+        'medicaloncology' => [
             'oncology', 'oncologist', 'cancer', 'kanser', 'tumor',
         ],
-        'Ophthalmology / General Medicine' => [
+        'ophthalmology' => [
             'ophthalmology', 'ophthalmologist', 'mata', 'eye', 'eyes',
+        ],
+        'ent' => [
+            'ent', 'ear nose throat', 'ear, nose and throat', 'otolaryngology',
+            'tenga', 'ilong', 'lalamunan', 'sinus', 'sinusitis',
+        ],
+        'dermatology' => [
+            'dermatology', 'dermatologist', 'skin', 'balat',
         ],
     ];
 
-    // Plain-English explanations for each specialty, used to answer
-    // "What is X? / Ano ang X?" style questions automatically instead
-    // of forwarding them to staff.
-    protected static array $specialtyDefinitions = [
-        'Pediatrics' => 'Pediatrics is the branch of medicine that focuses on the health, growth, and medical care of infants, children, and adolescents.',
-        'OB-Gyne' => "OB-Gyne (Obstetrics and Gynecology) is the branch of medicine that cares for women's reproductive health, including pregnancy, childbirth, and conditions of the female reproductive system.",
-        'Surgery' => 'Surgery is the branch of medicine that treats diseases, injuries, or deformities through operative procedures performed by a surgeon.',
-        'IM-Pulmonology' => 'Pulmonology is the branch of medicine that focuses on diagnosing and treating diseases of the respiratory system, including the lungs and airways.',
-        'General / Adult Medicine' => 'General/Adult Medicine covers routine checkups and the diagnosis and treatment of common illnesses and health concerns in adults.',
-        'Internal Medicine' => 'Internal Medicine is the branch of medicine focused on the prevention, diagnosis, and treatment of diseases in adults.',
-        'Medical Oncology' => 'Medical Oncology is the branch of medicine that focuses on diagnosing and treating cancer, mainly through medication-based therapies.',
-        'Ophthalmology / General Medicine' => 'Ophthalmology is the branch of medicine that deals with the diagnosis and treatment of eye diseases and vision conditions.',
-    ];
+    // Whole-word match (so "ent" does not match "appointment"); longer aliases may
+    // still match their plural/derived forms ("pediatricians", "surgeons").
+    protected static function aliasMatches(string $lower, string $alias): bool
+    {
+        $pattern = '/(?<![\p{L}\p{N}])' . preg_quote($alias, '/')
+            . (mb_strlen($alias) <= 4 ? '(?![\p{L}\p{N}])' : '') . '/u';
+
+        return preg_match($pattern, $lower) === 1;
+    }
+
+    // Returns the plain-English definition reply for a service, plus a
+    // call to action. The definition is the service's own description from the database.
+    public static function serviceDefinitionReply(object $service): string
+    {
+        $definition = trim((string) ($service->description ?? ''));
+        if ($definition === '') {
+            $definition = "{$service->title} is one of our medical services here at PolyClinic Lipa.";
+        }
+
+        return "{$definition}\n\nType \"Schedule Visit\" if you'd like to book a {$service->title} consultation, or \"General Information\" to see our full list of services.";
+    }
 
     // Phrases that signal the patient is asking for a definition/explanation
     // (English or Tagalog) rather than trying to book or list doctors.
@@ -160,16 +180,6 @@ class ClinicInfoService
             }
         }
         return false;
-    }
-
-    // Returns the plain-English definition reply for a specialty, plus a
-    // pointer to booking/general info.
-    public static function specialtyDefinitionReply(string $specialty): string
-    {
-        $definition = self::$specialtyDefinitions[$specialty]
-            ?? "{$specialty} is one of our medical specialties here at PolyClinic Lipa.";
-
-        return "{$definition}\n\nType \"Schedule Visit\" if you'd like to book a {$specialty} consultation, or \"General Information\" to see our full list of services.";
     }
 
     // GREETINGS / CONVERSATIONAL SMALL TALK
@@ -416,15 +426,21 @@ class ClinicInfoService
         return false;
     }
 
-    // Resolves free text to the matching doctor specialty, if any.
-    public static function detectSpecialty(string $text, bool $includeDbFallback = true): ?string
+    // Resolves free text to a visible service (service_id, service_key, title, description), if any.
+    // A service that is deactivated in Admin is never matched, so the chatbot only
+    // knows about what the website shows.
+    public static function detectService(string $text, bool $includeDbFallback = true): ?object
     {
         $lower = mb_strtolower($text);
+        $services = PublicCatalog::services()->get()->keyBy('service_key');
 
-        foreach (self::$specialtyAliases as $specialty => $aliases) {
+        foreach (self::$serviceAliases as $serviceKey => $aliases) {
+            if (!isset($services[$serviceKey])) {
+                continue;
+            }
             foreach ($aliases as $alias) {
-                if (str_contains($lower, $alias)) {
-                    return $specialty;
+                if (self::aliasMatches($lower, $alias)) {
+                    return $services[$serviceKey];
                 }
             }
         }
@@ -433,10 +449,11 @@ class ClinicInfoService
             return null;
         }
 
-        $distinctSpecialties = PublicCatalog::doctors()->distinct()->pluck('specialty');
-        foreach ($distinctSpecialties as $specialty) {
-            if ($specialty && str_contains($lower, mb_strtolower($specialty))) {
-                return $specialty;
+        // Services added in Admin that have no alias yet: match by title.
+        foreach ($services as $service) {
+            $title = mb_strtolower(trim((string) $service->title));
+            if ($title !== '' && str_contains($lower, $title)) {
+                return $service;
             }
         }
 
@@ -587,8 +604,7 @@ class ClinicInfoService
         // answered directly, before falling through to the doctor/service
         // keyword checks below.
         if (self::looksLikeDefinitionQuestion($text)) {
-            $specialty = self::detectSpecialty($text, false);
-            if ($specialty !== null && isset(self::$specialtyDefinitions[$specialty])) {
+            if (self::detectService($text, false) !== null) {
                 return 'specialty_definition';
             }
         }
@@ -614,8 +630,7 @@ class ClinicInfoService
 
         // Only run the specialty lookup when the message actually looks like a doctor question.
         if ($hasDoctorWord || $hasWhoWord) {
-            $specialty = self::detectSpecialty($text, true);
-            if ($specialty !== null) {
+            if (self::detectService($text, true) !== null) {
                 return 'doctors_for_specialty';
             }
         }
@@ -685,8 +700,8 @@ class ClinicInfoService
             return self::matchCustomCommand($text)?->reply_text;
         }
         if ($intent === 'specialty_definition') {
-            $specialty = self::detectSpecialty($text, false);
-            return self::specialtyDefinitionReply($specialty ?? '');
+            $service = self::detectService($text, false);
+            return $service !== null ? self::serviceDefinitionReply($service) : self::servicesListMessage();
         }
 
         if ($intent === 'doctor_specialty') {
@@ -694,9 +709,9 @@ class ClinicInfoService
         }
 
         if ($intent === 'doctors_for_specialty') {
-            $specialty = self::detectSpecialty($text, true);
-            return $specialty !== null
-                ? self::doctorsForSpecialtyMessage($specialty)
+            $service = self::detectService($text, true);
+            return $service !== null
+                ? self::doctorsForServiceMessage($service)
                 : self::doctorsListMessage();
         }
 
@@ -835,7 +850,6 @@ class ClinicInfoService
     public static function doctorsListMessage(): string
     {
         $doctors = PublicCatalog::doctors()
-            ->orderBy('specialty')
             ->orderBy('doctor_name')
             ->get();
 
@@ -843,11 +857,26 @@ class ClinicInfoService
             return "⚠️ Sorry, we couldn't load our list of doctors right now. Please try again later.";
         }
 
+        // Group by service (a doctor in two services is listed under both).
+        // A doctor with no service yet falls back to the display specialty text.
+        $serviceMap = PublicCatalog::servicesForDoctors($doctors->pluck('doctor_id')->all());
+        $groups = [];
+        foreach ($doctors as $doctor) {
+            $titles = $serviceMap->get($doctor->doctor_id, collect())->pluck('title')->all();
+            if (empty($titles)) {
+                $titles = [trim((string) $doctor->specialty) !== '' ? $doctor->specialty : 'Other'];
+            }
+            foreach ($titles as $title) {
+                $groups[$title][] = $doctor->doctor_name;
+            }
+        }
+        ksort($groups);
+
         $sections = [];
-        foreach ($doctors->groupBy('specialty') as $specialty => $group) {
+        foreach ($groups as $title => $names) {
             $sections[] = [
                 'rows' => [
-                    ['label' => $specialty, 'value' => $group->pluck('doctor_name')->all(), 'type' => 'multiline'],
+                    ['label' => $title, 'value' => $names, 'type' => 'multiline'],
                 ],
             ];
         }
@@ -909,14 +938,19 @@ class ClinicInfoService
                 : "We don't have experience details listed for {$doctor->doctor_name} yet.";
         }
 
-        // Default: specialty/department question.
-        return "{$doctor->doctor_name} is under {$doctor->specialty}.";
+        // Default: specialty/department question — answered from the doctor's services.
+        $titles = PublicCatalog::servicesForDoctors([$doctor->doctor_id])
+            ->get($doctor->doctor_id, collect())->pluck('title')->all();
+        $department = !empty($titles) ? implode(' and ', $titles) : $doctor->specialty;
+
+        return "{$doctor->doctor_name} is under {$department}.";
     }
 
-    public static function doctorsForSpecialtyMessage(string $specialty): string
+    public static function doctorsForServiceMessage(object $service): string
     {
-        $doctors = PublicCatalog::doctors()
-            ->where('specialty', $specialty)
+        $specialty = $service->title;
+
+        $doctors = PublicCatalog::doctorsForService((int) $service->service_id)
             ->orderBy('doctor_name')
             ->get();
 

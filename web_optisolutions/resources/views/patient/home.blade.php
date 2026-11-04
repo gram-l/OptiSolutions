@@ -400,17 +400,9 @@
       <input type="text" id="doctorsSearchHome" class="doctor-search-input" placeholder="Search doctors by name or specialty...">
     </div>
 
+    <!-- The tabs are built by script.js from the services of the displayed doctors -->
     <div class="filter-tabs" id="filterTabsHome">
       <button class="filter-tab active" data-filter="all">All</button>
-      <button class="filter-tab" data-filter="Pediatrics">Pediatrics</button>
-      <button class="filter-tab" data-filter="OB-Gyne">OB-Gyne</button>
-      <button class="filter-tab" data-filter="Surgery">Surgery</button>
-      <button class="filter-tab" data-filter="IM-Pulmonology">Pulmonology</button>
-      <button class="filter-tab" data-filter="Ophthalmology">Ophthalmology</button>
-      <button class="filter-tab" data-filter="IM-Cardiology">Cardiology</button>
-      <button class="filter-tab" data-filter="General / Adult Medicine">Adult Medicine</button>
-      <button class="filter-tab" data-filter="Internal Medicine">Internal Medicine</button>
-      <button class="filter-tab" data-filter="Medical Oncology">Medical Oncology</button>
     </div>
 
     <div class="doctors-grid-modern" id="doctorsGridHome"></div>

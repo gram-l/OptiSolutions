@@ -249,10 +249,10 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="docSpecialty">Specialties *</label>
+                        <label for="docSpecialty">Services / Departments *</label>
                         <select id="docSpecialty" aria-describedby="specialtyHelp"><option value="">Choose a specialty</option></select>
                         <div class="specialty-tags" id="specialtyTags" aria-live="polite"></div>
-                        <small id="specialtyHelp">Choose one or more specialties.</small>
+                        <small id="specialtyHelp">Choose one or more services. Add or rename services in the Services page.</small>
                         <div class="field-error" id="err-specialty"></div>
                     </div>
                     <div class="form-group">
@@ -364,39 +364,35 @@
     let selectedPhotoFile = null;
     let removePhoto = false;
     let existingPhotoUrl = null;
-    let selectedSpecialties = [];
-    const DEFAULT_SPECIALTIES = ['Pediatrics', 'OB-Gyne', 'Surgery', 'IM-Pulmonology', 'Ophthalmology', 'ENT', 'IM-Cardiology', 'General Medicine', 'Adult Medicine', 'Medical Oncology'];
+    // Ang mga service ang nag-iisang listahan ng department (galing sa services table)
+    let selectedServices = [];   // [{id, title}]
+    const SERVICE_OPTIONS = @json($serviceOptions->map(fn ($s) => ['id' => (int) $s->service_id, 'title' => $s->title])->values());
 
     function splitSpecialties(value) {
         return [...new Set((value || '').split(/\s*\/\s*|\s*,\s*/).map(s => s.trim()).filter(Boolean))];
     }
 
     function renderSpecialtyPicker() {
-        const options = [...new Set([...DEFAULT_SPECIALTIES, ...doctorsData.flatMap(d => splitSpecialties(d.specialty)), ...selectedSpecialties])].sort();
         const select = document.getElementById('docSpecialty');
-        select.innerHTML = '<option value="">Choose a specialty to add</option>' + options
-            .filter(s => !selectedSpecialties.some(selected => selected.toLowerCase() === s.toLowerCase()))
-            .map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-        document.getElementById('specialtyTags').innerHTML = selectedSpecialties.map((s, index) =>
-            `<span class="specialty-tag">${escapeHtml(s)}<button type="button" onclick="removeSpecialty(${index})" aria-label="Remove ${escapeHtml(s)}">&times;</button></span>`
+        select.innerHTML = '<option value="">Choose a service to add</option>' + SERVICE_OPTIONS
+            .filter(s => !selectedServices.some(selected => selected.id === s.id))
+            .map(s => `<option value="${s.id}">${escapeHtml(s.title)}</option>`).join('');
+        document.getElementById('specialtyTags').innerHTML = selectedServices.map((s, index) =>
+            `<span class="specialty-tag">${escapeHtml(s.title)}<button type="button" onclick="removeSpecialty(${index})" aria-label="Remove ${escapeHtml(s.title)}">&times;</button></span>`
         ).join('');
     }
 
     function removeSpecialty(index) {
-        selectedSpecialties.splice(index, 1);
+        selectedServices.splice(index, 1);
         clearFieldError('specialty');
         renderSpecialtyPicker();
     }
 
     document.getElementById('docSpecialty').addEventListener('change', (event) => {
-        const specialty = event.target.value;
-        if (!specialty) return;
-        if ([...selectedSpecialties, specialty].join(' / ').length > 100) {
-            setFieldError('specialty', 'Selected specialties must fit within 100 characters.');
-            event.target.value = '';
-            return;
-        }
-        selectedSpecialties.push(specialty);
+        const service = SERVICE_OPTIONS.find(s => String(s.id) === event.target.value);
+        event.target.value = '';
+        if (!service) return;
+        selectedServices.push(service);
         clearFieldError('specialty');
         renderSpecialtyPicker();
     });
@@ -710,7 +706,7 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         clearAllFieldErrors();
         document.getElementById('modalTitle').innerText = 'Add New Doctor';
         document.getElementById('doctorForm').reset();
-        selectedSpecialties = [];
+        selectedServices = [];
         renderSpecialtyPicker();
         document.getElementById('doctorId').value = '';
         renderSessions();
@@ -732,7 +728,7 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         document.getElementById('modalTitle').innerText = 'Edit Doctor Profile';
         document.getElementById('doctorId').value = doctor.id;
         document.getElementById('docName').value = doctor.name;
-        selectedSpecialties = splitSpecialties(doctor.specialty);
+        selectedServices = (doctor.service_ids || []).map(id => SERVICE_OPTIONS.find(s => s.id === id)).filter(Boolean);
         renderSpecialtyPicker();
         document.getElementById('docDescription').value = doctor.description || '';
         document.getElementById('docPhone').value = doctor.phone || '';
@@ -761,8 +757,7 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         else if (name.length < 2) { setFieldError('doctor_name', 'Name is too short.'); ok = false; }
         else if (name.length > 100) { setFieldError('doctor_name', 'Name is too long (max 100 characters).'); ok = false; }
 
-        if (!specialty) { setFieldError('specialty', 'Required'); ok = false; }
-        else if (specialty.length > 100) { setFieldError('specialty', 'Selected specialties must fit within 100 characters.'); ok = false; }
+        if (!specialty) { setFieldError('specialty', 'Choose at least one service.'); ok = false; }
 
         if (phone) {
             const phoneRe = /^\+?[0-9]{7,15}$/;
@@ -788,7 +783,7 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
         clearAllFieldErrors();
 
         const name = document.getElementById('docName').value.trim();
-        const specialty = selectedSpecialties.join(' / ');
+        const specialty = selectedServices.map(s => s.title).join(' / ');
         const description = document.getElementById('docDescription').value.trim();
         const phone = document.getElementById('docPhone').value.trim();
 
@@ -801,7 +796,7 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
 
         const formData = new FormData();
         formData.append('doctor_name', name);
-        formData.append('specialty', specialty);
+        selectedServices.forEach(s => formData.append('service_ids[]', s.id));
         formData.append('description', description);
         formData.append('contact_number', phone);
         formData.append('gender', document.getElementById('docGender').value);
@@ -861,6 +856,8 @@ ${doc.phone ? `<div class="schedule-text" style="margin-top: 0.5rem;"><i class="
                 setFieldError('schedule_sessions', message);
             } else if (key === 'profile_image') {
                 setFieldError('profile_image', message);
+            } else if (key === 'service_ids' || key.startsWith('service_ids.')) {
+                setFieldError('specialty', message);
             } else {
                 setFieldError(key, message);
             }

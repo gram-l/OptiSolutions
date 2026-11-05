@@ -1,24 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Schedule Visit Confirmed</title>
-</head>
-<body style="margin:0; padding:0; background-color:#f4f5f7; font-family:Arial, Helvetica, sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; padding:24px 0;">
-        <tr>
-            <td align="center">
-                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%; max-width:600px; background-color:#ffffff; border-radius:8px; overflow:hidden;">
-                    <tr>
-                        <td style="background-color:#022D67; padding:20px 24px;">
-                            <h1 style="color:#ffffff; font-size:18px; margin:0;">{{ $clinicName }}</h1>
-                            <p style="color:#c7d6ee; font-size:13px; margin:4px 0 0;">Schedule Visit Confirmation</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding:24px;">
-                            <p style="font-size:15px; color:#111827; margin:0 0 16px;">
+@extends('emails.layouts.notification')
+@section('category', 'Schedule confirmed')
+@section('title', 'Your schedule visit is confirmed')
+@section('content')
+<p style="font-size:15px; color:#111827; margin:0 0 16px;">
                                 Hi {{ $firstName }}, your schedule visit is confirmed.
                             </p>
 
@@ -78,16 +62,4 @@
                                     @endforeach
                                 </ul>
                             @endif
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="background-color:#f9fafb; padding:16px 24px; text-align:center;">
-                            <p style="font-size:11px; color:#9ca3af; margin:0;">© {{ date('Y') }} {{ $clinicName }}. All rights reserved.</p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>
+@endsection

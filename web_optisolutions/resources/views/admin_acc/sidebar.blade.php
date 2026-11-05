@@ -28,7 +28,7 @@
             <span>Chatbot Inquiries</span>
         </div>
         <div class="nav-item {{ request()->is('admin_acc/appointments*') ? 'active' : '' }}"
-             title="Appointments" data-label="Appointments"
+             title="Scheduled Visits" data-label="Scheduled Visits"
              onclick="window.location.href='/admin_acc/appointments'">
             <div class="nav-icon"><i class="fa-solid fa-book-medical"></i></div>
             <span>Scheduled Visits</span>

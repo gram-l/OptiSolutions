@@ -95,14 +95,34 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 }
 .add-command-btn:hover { background: #0b4f8a; transform: translateY(-2px); }
 
-.alert-success {
-    background: #e8f8f0;
-    color: var(--success);
-    border: 1px solid #cdebd9;
-    padding: 0.8rem 1.2rem;
+.command-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) translateY(10px);
+    background: #0E62AA;
+    color: #fff;
+    padding: 0.85rem 1.5rem;
     border-radius: 10px;
-    margin-bottom: 1.5rem;
+    font-size: 0.88rem;
     font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 2000;
+}
+.command-toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(0);
+}
+.command-toast::before {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    content: "\f00c";
 }
 
 .commands-table-container {

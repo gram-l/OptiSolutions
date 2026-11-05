@@ -197,11 +197,15 @@
                 </div>
             </div>
             <div class="profile-modal-badge">Clinic Staff</div>
+            <div id="profilePhotoStatus" role="status" aria-live="polite" hidden style="margin-top:8px;font-size:0.8rem;text-align:center;"></div>
+            @error('profile_photo')
+                <div role="alert" style="color:#c0392b;margin-top:8px;font-size:0.8rem;">{{ $message }}</div>
+            @enderror
         </div>
 
-        <form id="profilePhotoForm" method="POST" action="{{ route('staff.profile.photo') }}" enctype="multipart/form-data" style="display:none;">
+        <form id="profilePhotoForm" method="POST" action="{{ route('staff.profile.photo') }}" enctype="multipart/form-data" style="display:none;" data-profile-photo-form data-auto-upload="true">
             @csrf
-            <input type="file" id="profilePhotoInput" name="profile_photo" accept="image/*" onchange="document.getElementById('profilePhotoForm').submit();">
+            <input type="file" id="profilePhotoInput" name="profile_photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
         </form>
 
         <div class="profile-modal-section-title">Personal Information</div>
@@ -1028,6 +1032,24 @@
         setInterval(loadNotifications, 30000);
     </script>
 
+    {{-- Profile photo success toast (same style as the Doctors page toast) --}}
+    @if(session('profile_photo_success'))
+        <div class="toast toast-success" id="profilePhotoToast">
+            <span>{{ session('profile_photo_success') }}</span>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const t = document.getElementById('profilePhotoToast');
+                requestAnimationFrame(function () { t.classList.add('show'); });
+                setTimeout(function () { t.classList.remove('show'); }, 3000);
+            });
+        </script>
+    @endif
+
+    <script src="{{ asset('js/profile-photo.js') }}"></script>
+    @if($errors->has('profile_photo'))
+        <script>openProfileModal();</script>
+    @endif
     @vite(['resources/js/bootstrap.js'])
     @stack('scripts')
 @include('partials.account-settings', ['accountRole' => 'staff'])

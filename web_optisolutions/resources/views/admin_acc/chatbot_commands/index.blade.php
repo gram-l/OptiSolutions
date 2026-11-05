@@ -88,10 +88,6 @@
                    "insurance", "walk-ins", etc.</p>
             </div>
 
-            @if (session('success'))
-                <div class="alert-success">{{ session('success') }}</div>
-            @endif
-
             <div class="toolbar">
                 <input type="search" class="search-box commands-toolbar-search" id="commandsSearch" placeholder="Search label, trigger, or reply..." aria-label="Search chatbot commands">
                 <strong id="commandsCount" role="status">{{ min(7, $commands->count()) }} of {{ $commands->count() }} command(s)</strong>
@@ -220,6 +216,17 @@
             </form>
         </div>
     </div>
+
+    @if (session('success'))
+        <div id="commandSuccessToast" class="command-toast" role="status" aria-live="polite">{{ session('success') }}</div>
+        <script>
+            requestAnimationFrame(() => {
+                const toast = document.getElementById('commandSuccessToast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            });
+        </script>
+    @endif
 
     <script id="commands-list-script">
         (() => {

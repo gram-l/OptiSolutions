@@ -54,7 +54,7 @@ Route::get('/auth/reset-password',  [ForgotPasswordController::class, 'showReset
 Route::post('/auth/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.reset.update');
 
 //google login route
-Route::post('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'googleLogin'])
+Route::post('/auth/google', [GoogleAuthController::class, 'webLogin'])
     ->name('auth.google');
 
 // Public feedback intake (used by the patient-facing chatbot, not the admin panel)

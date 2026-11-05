@@ -57,7 +57,7 @@ class StaffController extends Controller
         $user->profile_photo = $path;
         $user->save();
 
-        return back()->with('success', 'Profile photo updated!');
+        return back()->with('profile_photo_success', 'Profile photo updated successfully!');
     }
 
     public function updatePassword(Request $request)

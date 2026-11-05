@@ -5,7 +5,7 @@
       <i class="bi bi-arrow-left"></i>
     </button>
 
-    <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data">
+    <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" data-profile-photo-form>
       @csrf
       <input type="hidden" name="_profile_form" value="1">
 
@@ -24,15 +24,11 @@
           </button>
         </div>
         <div class="profile-modal-badge">Clinic Admin</div>
-        <div class="profile-photo-hint" id="profilePhotoHint" hidden>New photo selected — click Save Changes to apply.</div>
+        <div class="profile-photo-hint" id="profilePhotoStatus" role="status" aria-live="polite" hidden></div>
         @error('profile_photo') <div class="profile-field-error">{{ $message }}</div> @enderror
 
         <input type="file" name="profile_photo" id="profilePhotoInput" accept=".jpg,.jpeg,.png" hidden>
       </div>
-
-      @if (session('profile_success'))
-        <div class="profile-alert-success">{{ session('profile_success') }}</div>
-      @endif
 
       <div class="profile-modal-section-title">Personal Information</div>
 
@@ -69,6 +65,11 @@
 
   </div>
 </div>
+
+{{-- Success toast — same look as the Doctors page toast --}}
+@if (session('profile_success'))
+  <div class="profile-toast profile-toast-success" id="profileToast">{{ session('profile_success') }}</div>
+@endif
 
 <style>
     :root {
@@ -200,15 +201,31 @@
         text-align: center;
     }
 
-    .profile-alert-success {
-        background: #e8f8f0;
-        color: var(--primary-main);
-        padding: 8px 12px;
-        border-radius: 8px;
-        margin-top: 12px;
-        font-size: 0.9rem;
+    /* Toast — identical to the Doctors page toast */
+    .profile-toast {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) translateY(10px);
+        background: #062744;
+        color: #fff;
+        padding: 0.85rem 1.5rem;
+        border-radius: 10px;
+        font-size: 0.88rem;
         font-weight: 500;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease, transform 0.25s ease;
+        z-index: 2000;
     }
+    .profile-toast.show { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+    .profile-toast-success { background: #0E62AA; }
+    .profile-toast::before { font-family: "Font Awesome 6 Free"; font-weight: 900; }
+    .profile-toast-success::before { content: "\f00c"; }
 
     /* "Personal Information" + icon-chip rows */
     .profile-modal-section-title {
@@ -288,6 +305,7 @@
     }
 </style>
 
+<script src="{{ asset('js/profile-photo.js') }}"></script>
 <script>
     const profileModalOverlay = document.getElementById('profileModalOverlay');
     const profileModalClose   = document.getElementById('profileModalClose');
@@ -312,19 +330,16 @@
     document.getElementById('profilePhotoBtn').addEventListener('click', () => {
         profilePhotoInput.click();
     });
-    profilePhotoInput.addEventListener('change', () => {
-        const file = profilePhotoInput.files[0];
-        if (!file) return;
-        const photoEl = document.getElementById('profileModalPhoto');
-        photoEl.innerHTML = '';
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        img.alt = 'Selected photo';
-        photoEl.appendChild(img);
-        document.getElementById('profilePhotoHint').hidden = false;
-    });
 
-    @if (session('profile_success') || (old('_profile_form') && $errors->any()))
+    // Success → close modal and show the toast; validation errors → reopen the modal.
+    @if (old('_profile_form') && $errors->any())
         openProfileModal();
     @endif
+
+    (function () {
+        const toast = document.getElementById('profileToast');
+        if (!toast) return;
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    })();
 </script>

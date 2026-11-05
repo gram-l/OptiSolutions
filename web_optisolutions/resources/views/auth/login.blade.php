@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PolyClinic Staff Login</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 @vite('resources/css/login.css')
 </head>
 <body class="staff-login">
@@ -47,14 +46,18 @@
                 {{-- Google login error (shown via JS) --}}
                 <div id="google-error" class="error-message" role="alert"></div>
 
+                @if(config('services.google.client_id'))
                 <div id="g_id_onload"
-                     data-client_id="1041975122502-tjr2cth2cnetpo53o75l4r6gu99tr63g.apps.googleusercontent.com"
+                     data-client_id="{{ config('services.google.client_id') }}"
                      data-auto_prompt="false"
                      data-callback="handleGoogleLogin">
                 </div>
                 <div class="google-button-wrap">
                     <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="signin_with" data-shape="rectangular" data-width="320"></div>
                 </div>
+                @else
+                <div class="error-message show" role="alert">Google sign-in is not configured. Please use your email and password.</div>
+                @endif
                 <div class="divider"><span>OR</span></div>
 
                 <form method="POST" action="/auth/login" autocomplete="on">
@@ -121,8 +124,13 @@ async function handleGoogleLogin(response) {
     errorBox.textContent = '';
 
     try {
-        const res = await fetch('{{ url("/auth/google") }}', {
+        if (!response || !response.credential) {
+            throw new Error('Google did not return a sign-in credential. Please try again.');
+        }
+        const res = await fetch('/auth/google', {
             method: 'POST',
+            credentials: 'same-origin',
+            signal: AbortSignal.timeout(20000),
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -131,20 +139,33 @@ async function handleGoogleLogin(response) {
             body: JSON.stringify({ id_token: response.credential })
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
-        if (res.ok) {
-            window.location.href = data.redirect || '/dashboard';
+        if (res.ok && data.redirect) {
+            window.location.href = data.redirect;
         } else {
-            errorBox.textContent = data.message || 'Google login failed. Please try again.';
+            errorBox.textContent = res.status === 419
+                ? 'Your login page expired. Please refresh the page and try again.'
+                : data.message || 'Google login failed. Please try again.';
             errorBox.classList.add('show');
         }
     } catch (err) {
-        errorBox.textContent = 'Something went wrong. Please try again.';
+        errorBox.textContent = err.name === 'TimeoutError'
+            ? 'Google sign-in timed out. Please try again.'
+            : 'Unable to complete Google sign-in. Please check your connection and try again.';
         errorBox.classList.add('show');
     }
 }
+
+function googleScriptFailed() {
+    const errorBox = document.getElementById('google-error');
+    errorBox.textContent = 'Google sign-in could not load. Please check your connection or use email and password.';
+    errorBox.classList.add('show');
+}
 </script>
+@if(config('services.google.client_id'))
+<script src="https://accounts.google.com/gsi/client" async onerror="googleScriptFailed()"></script>
+@endif
 
 </body>
 </html>

@@ -54,7 +54,7 @@
             >
                 <option value="">All Departments</option>
                 @php
-                    $specialties = $doctors->pluck('specialty')->unique()->sort()->values();
+                    $specialties = \App\Support\DoctorSpecialties::catalog();
                 @endphp
                 @foreach($specialties as $specialty)
                     <option value="{{ strtolower($specialty) }}">{{ $specialty }}</option>
@@ -300,7 +300,7 @@
             const rowSpecialty = row.getAttribute('data-specialty') || '';
 
             const matchesSearch = rowText.includes(searchFilter);
-            const matchesDepartment = departmentFilter === '' || rowSpecialty === departmentFilter;
+            const matchesDepartment = departmentFilter === '' || rowSpecialty.split('/').map(value => value.trim()).includes(departmentFilter);
 
             const isMatch = matchesSearch && matchesDepartment;
             row.style.display = isMatch ? '' : 'none';

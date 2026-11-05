@@ -16,16 +16,22 @@ class DoctorProfileTest extends TestCase
     {
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
-        foreach (['doctors', 'doctor_schedules'] as $table) {
+        foreach (['doctors', 'doctor_schedules', 'services'] as $table) {
             (require database_path("migrations/2026_01_01_000001_create_{$table}_table.php"))->up();
         }
+        (require database_path('migrations/2026_11_05_000001_create_doctor_service_table.php'))->up();
+        (require database_path('migrations/2026_11_06_000001_normalize_doctor_services.php'))->up();
+        \Illuminate\Support\Facades\DB::table('services')->insert([
+            ['service_id' => 1, 'title' => 'ENT', 'service_key' => 'ent', 'icon' => 'fa-hospital'],
+            ['service_id' => 2, 'title' => 'Pediatrics', 'service_key' => 'pediatrics', 'icon' => 'fa-child'],
+        ]);
         Storage::fake('public');
     }
 
     private function payload(array $changes = []): array
     {
         return array_replace([
-            'doctor_name' => 'Dr. Test Doctor', 'specialty' => 'Ophthalmology / General Medicine / ENT / Medical Oncology / Pediatrics',
+            'doctor_name' => 'Dr. Test Doctor', 'service_ids' => [1, 2],
             'gender' => 'female', 'years_experience' => 0,
             'education' => 'Medical school', 'license' => 'PRC-123', 'fellowship' => 'Eye Institute',
             'schedule_sessions' => [['day' => 'Monday', 'start_time' => '08:00', 'end_time' => '12:00']],
@@ -42,8 +48,11 @@ class DoctorProfileTest extends TestCase
         $doctor = Doctor::firstOrFail();
         $firstPhoto = $doctor->profile_image;
         Storage::disk('public')->assertExists($firstPhoto);
+        $this->assertSame('ENT / Pediatrics', $doctor->specialty);
+        $this->assertEquals([1, 2], $doctor->services->pluck('service_id')->all());
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('doctors', 'specialty'));
         $listed = $controller->listJson()->getData(true)['doctors'][0];
-        foreach (['specialty', 'gender', 'years_experience', 'education', 'license', 'fellowship'] as $field) {
+        foreach (['gender', 'years_experience', 'education', 'license', 'fellowship'] as $field) {
             $this->assertEquals($this->payload()[$field], $listed[$field]);
         }
 
@@ -64,12 +73,12 @@ class DoctorProfileTest extends TestCase
 
     public function test_negative_and_fractional_experience_and_invalid_gender_are_rejected(): void
     {
-        foreach ([['years_experience' => -1], ['years_experience' => 1.5], ['gender' => 'other'], ['specialty' => str_repeat('x', 101)], ['specialty' => '']] as $invalid) {
+        foreach ([['years_experience' => -1], ['years_experience' => 1.5], ['gender' => 'other'], ['service_ids' => [999]], ['service_ids' => []]] as $invalid) {
             try {
                 app(DoctorController::class)->store(Request::create('/', 'POST', $this->payload($invalid)));
                 $this->fail('Invalid doctor details were accepted.');
             } catch (ValidationException $exception) {
-                $this->assertArrayHasKey(array_key_first($invalid), $exception->errors());
+                $this->assertTrue(collect(array_keys($exception->errors()))->contains(fn ($key) => str_starts_with($key, array_key_first($invalid))));
             }
         }
         $this->assertEquals(0, Doctor::count());

@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class PatientDoctor extends Model
 {
+    use \App\Models\Concerns\HasDoctorServices;
+
+    protected $with = ['services'];
+    protected $appends = ['specialty'];
+
     protected $table = 'doctors';
 
     protected $primaryKey = 'doctor_id';
@@ -14,7 +19,6 @@ class PatientDoctor extends Model
 
     protected $fillable = [
         'doctor_name',
-        'specialty',
         'status',
         'description',
         'schedule',

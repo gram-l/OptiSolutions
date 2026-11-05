@@ -22,7 +22,7 @@ class AppointmentController extends Controller
                 'doctors.doctor_name as doctor_name',
                 'schedule_visit.visit_date',
                 'schedule_visit.service_type',
-                DB::raw('COALESCE(schedule_visit.service_type, doctors.specialty) as service'),
+                'schedule_visit.service_type as service',
                 'schedule_visit.notes',
                 'schedule_visit.visited',
                 'schedule_visit.review_pass_sent_at',
@@ -32,8 +32,12 @@ class AppointmentController extends Controller
             )
             ->orderBy('schedule_visit.visit_date')
             ->get();
+        \App\Support\DoctorServices::withLabels($appointments, 'doctor_specialty');
+        $appointments->each(function ($visit) { $visit->service ??= $visit->doctor_specialty; });
 
-        return view('staff.appointments.index', compact('appointments'));
+        $visitDoctors = \App\Support\DoctorServices::withLabels(DB::table('doctors')->orderBy('doctor_name')->get(['doctor_id', 'doctor_name']));
+        $visitServices = \App\Support\DoctorSpecialties::catalog();
+        return view('staff.appointments.index', compact('appointments', 'visitDoctors', 'visitServices'));
     }
 
     /**
@@ -65,16 +69,19 @@ class AppointmentController extends Controller
             ->leftJoin('patients', 'schedule_visit.patient_id', '=', 'patients.patient_id')
             ->select(
                 'schedule_visit.visit_id',
+                'schedule_visit.doctor_id',
                 'schedule_visit.visit_date',
                 'schedule_visit.visited',
                 'schedule_visit.notes',
                 'doctors.doctor_name as doctor_name',
-                DB::raw('COALESCE(schedule_visit.service_type, doctors.specialty) as service'),
+                'schedule_visit.service_type as service',
                 DB::raw("TRIM(CONCAT(patients.patient_fname, ' ', patients.patient_lname)) as patient_name")
             )
             ->orderBy('schedule_visit.visit_date')
             ->orderBy('schedule_visit.visit_id')
             ->get();
+        \App\Support\DoctorServices::withLabels($appointments, 'doctor_specialty');
+        $appointments->each(function ($visit) { $visit->service ??= $visit->doctor_specialty; });
 
         $appointments = $appointments->filter(function ($visit) use ($request) {
             $date = $request->query('date', '');
@@ -83,7 +90,7 @@ class AppointmentController extends Controller
             $search = mb_strtolower(trim($request->query('search', '')));
             return (!$date || Carbon::parse($visit->visit_date)->format('Y-m-d') === $date)
                 && (!$doctor || $visit->doctor_name === $doctor)
-                && (!$service || mb_strtolower($visit->service ?? '') === $service)
+                && (!$service || in_array($service, \App\Support\DoctorSpecialties::split($visit->doctor_specialty), true))
                 && str_contains(mb_strtolower(implode(' ', [$visit->patient_name, $visit->doctor_name, $visit->service, $visit->notes ?? ''])), $search);
         });
 

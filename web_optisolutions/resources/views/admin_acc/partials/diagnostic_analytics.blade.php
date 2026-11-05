@@ -102,6 +102,7 @@
     </style>
 </section>
 </dialog>
+<script src="{{ asset('js/doctor-specialties.js') }}"></script>
 <script>
 (() => {
     const modal = document.getElementById('diagnostic-modal');
@@ -154,7 +155,7 @@
 
     function renderDoctors() {
         const selected = doctorSelect.value;
-        const allowed = doctors.filter(doctor => !specialtySelect.value || doctor.specialty === specialtySelect.value);
+        const allowed = doctors.filter(doctor => !specialtySelect.value || doctorSpecialties(doctor.specialty).includes(specialtySelect.value));
         doctorSelect.replaceChildren(new Option('All doctors', ''),
             ...allowed.map(doctor => new Option(doctor.doctor_name, String(doctor.doctor_id))));
         doctorSelect.value = allowed.some(doctor => String(doctor.doctor_id) === selected) ? selected : '';
@@ -162,7 +163,7 @@
 
     function renderSpecialties(selected = specialtySelect.value) {
         const doctor = doctors.find(doctor => String(doctor.doctor_id) === doctorSelect.value);
-        const allowed = doctor ? (doctor.specialty ? [doctor.specialty] : []) : specialties;
+        const allowed = doctor ? doctorSpecialties(doctor.specialty).filter(s => specialties.includes(s)) : specialties;
         specialtySelect.replaceChildren(new Option('All specialties', ''),
             ...allowed.map(specialty => new Option(specialty, specialty)));
         specialtySelect.value = allowed.includes(selected) ? selected : '';
@@ -170,18 +171,18 @@
 
     doctorSelect.addEventListener('change', () => {
         const doctor = doctors.find(doctor => String(doctor.doctor_id) === doctorSelect.value);
-        renderSpecialties(doctor?.specialty || specialtySelect.value);
+        renderSpecialties(doctorSpecialties(doctor?.specialty).length === 1 ? doctorSpecialties(doctor.specialty)[0] : specialtySelect.value);
         renderDoctors();
     });
     specialtySelect.addEventListener('change', () => {
         const selected = specialtySelect.value;
         const doctor = doctors.find(doctor => String(doctor.doctor_id) === doctorSelect.value);
-        if (doctor && (!selected || doctor.specialty !== selected)) doctorSelect.value = '';
+        if (doctor && (!selected || !doctorSpecialties(doctor.specialty).includes(selected))) doctorSelect.value = '';
         renderDoctors();
         renderSpecialties(selected);
     });
     const initialDoctor = doctors.find(doctor => String(doctor.doctor_id) === doctorSelect.value);
-    renderSpecialties(initialDoctor?.specialty || specialtySelect.value);
+    renderSpecialties(doctorSpecialties(initialDoctor?.specialty).length === 1 ? doctorSpecialties(initialDoctor.specialty)[0] : specialtySelect.value);
     renderDoctors();
 
     function setLoading(loading) {

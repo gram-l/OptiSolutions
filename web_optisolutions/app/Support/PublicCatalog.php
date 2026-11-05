@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\DB;
 class PublicCatalog
 {
     /** Doctors eligible for display on the website and booking through the chatbot. */
-    public static function doctors(): Builder
+    public static function doctors(): \Illuminate\Database\Eloquent\Builder
     {
-        return DB::table('doctors')->where('doctors.available', 1);
+        return \App\Models\PatientDoctor::query()->where('doctors.available', 1);
     }
 
     /** Services eligible for display on the website and use in chatbot bookings. */
@@ -47,7 +47,7 @@ class PublicCatalog
     }
 
     /** Return visible doctors linked to the given service through doctor_service. */
-    public static function doctorsForService(int $serviceId): Builder
+    public static function doctorsForService(int $serviceId): \Illuminate\Database\Eloquent\Builder
     {
         return self::doctors()->whereIn('doctors.doctor_id', function ($q) use ($serviceId) {
             $q->select('doctor_id')->from('doctor_service')->where('service_id', $serviceId);

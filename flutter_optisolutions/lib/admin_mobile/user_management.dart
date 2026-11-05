@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'colors.dart';
@@ -7,14 +8,14 @@ import 'services/user_service.dart';
 import 'center_snackbar.dart';
 
 class UserModel {
-  final int    id;
+  final int id;
   final String name;
   final String email;
-  final String role;          // Admin | Staff
+  final String role; // Admin | Staff
   final String lastLogin;
-  final bool   isActive;
+  final bool isActive;
   final String avatarInitials;
-  final Color  avatarColor;
+  final Color avatarColor;
 
   const UserModel({
     required this.id,
@@ -39,8 +40,13 @@ class UserModel {
         .toUpperCase();
 
     const colors = [
-      Color(0xFF1565C0), Color(0xFF00897B), Color(0xFF6D4C41),
-      Color(0xFF5E35B1), Color(0xFF546E7A), Color(0xFF00838F), Color(0xFF558B2F),
+      Color(0xFF1565C0),
+      Color(0xFF00897B),
+      Color(0xFF6D4C41),
+      Color(0xFF5E35B1),
+      Color(0xFF546E7A),
+      Color(0xFF00838F),
+      Color(0xFF558B2F),
     ];
     final color = colors[(json['user_id'] ?? 0) % colors.length];
 
@@ -80,8 +86,7 @@ String? _validateName(String? value) {
 String? _validateEmail(String? value) {
   final v = (value ?? '').trim();
   if (v.isEmpty) return 'Email is required.';
-  if (!v.contains('@') ||
-      !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v)) {
+  if (!v.contains('@') || !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v)) {
     return 'Enter a valid email address.';
   }
   return null;
@@ -98,7 +103,9 @@ String? Function(String?) _passwordValidator(bool isEdit) {
       if (trimmed.length < 6) return 'Password must be at least 6 characters.';
       return null;
     }
-    if (raw.isEmpty) return null; // leaving it blank on edit = keep current password
+    if (raw.isEmpty) {
+      return null; // leaving it blank on edit = keep current password
+    }
     if (trimmed.isEmpty) return 'Password cannot be only spaces.';
     if (trimmed.length < 6) return 'Password must be at least 6 characters.';
     return null;
@@ -123,6 +130,186 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   List<UserModel> _users = [];
   bool _loading = true;
   String? _error;
+  DateTime? _accessUntil;
+  bool _verifyingAccess = false;
+  Timer? _accessTimer;
+
+  void _scheduleVerificationExpiry() {
+    _accessTimer?.cancel();
+    if (_accessUntil == null) return;
+    _accessTimer = Timer(_accessUntil!.difference(DateTime.now()), () {
+      _accessUntil = null;
+    });
+  }
+
+  @override
+  void dispose() {
+    _accessTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<bool> _ensureManagementAccess({bool checkServer = false}) async {
+    if (!checkServer &&
+        _accessUntil != null &&
+        DateTime.now().isBefore(_accessUntil!)) {
+      return true;
+    }
+    if (_verifyingAccess) return false;
+    _verifyingAccess = true;
+    try {
+      final status = await UserService.verificationStatus();
+      if (!mounted) return false;
+      if (status['success'] != true) {
+        _showSnack(
+          status['message'] ?? 'Could not check verification.',
+          isError: true,
+        );
+        return false;
+      }
+      if (status['verified'] == true) {
+        _accessUntil = DateTime.parse(status['expires_at']);
+        _scheduleVerificationExpiry();
+        return true;
+      }
+      _accessUntil = null;
+      final code = TextEditingController();
+      String? challenge;
+      String? error;
+      String? message;
+      DateTime? resendAt;
+      bool busy = false;
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialog) => AlertDialog(
+            title: const Text('Verify your identity'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Confirm that you are ${status['admin_name']}. A one-time code will be sent to ${status['masked_email']}.',
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Once verified, you can use all User Management actions for 24 hours in this sign-in session.',
+                  ),
+                  if (message != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(message!),
+                    ),
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  if (challenge != null)
+                    TextField(
+                      controller: code,
+                      keyboardType: TextInputType.number,
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: 'Email verification code',
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy
+                    ? null
+                    : () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        if (resendAt != null &&
+                            DateTime.now().isBefore(resendAt!)) {
+                          setDialog(
+                            () => error =
+                                'Please wait 60 seconds between code requests.',
+                          );
+                          return;
+                        }
+                        setDialog(() {
+                          busy = true;
+                          error = null;
+                        });
+                        final sent = await UserService.sendVerificationCode();
+                        if (!dialogContext.mounted) return;
+                        setDialog(() {
+                          busy = false;
+                          if (sent['success'] == true) {
+                            challenge = sent['challenge_id'];
+                            message = sent['message'];
+                            code.clear();
+                            resendAt = DateTime.now().add(
+                              Duration(seconds: sent['retry_after'] ?? 60),
+                            );
+                          } else {
+                            error = sent['message'] ?? 'Could not send code.';
+                          }
+                        });
+                      },
+                child: Text(challenge == null ? 'Send OTP' : 'Resend OTP'),
+              ),
+              if (challenge != null)
+                ElevatedButton(
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          if (!RegExp(r'^\d{6}$').hasMatch(code.text.trim())) {
+                            setDialog(() => error = 'Enter the 6-digit code.');
+                            return;
+                          }
+                          setDialog(() {
+                            busy = true;
+                            error = null;
+                          });
+                          final verified = await UserService.verifyAccess(
+                            challenge!,
+                            code.text.trim(),
+                          );
+                          if (!dialogContext.mounted) return;
+                          if (verified['success'] == true) {
+                            _accessUntil = DateTime.parse(
+                              verified['expires_at'],
+                            );
+                            _scheduleVerificationExpiry();
+                            Navigator.pop(dialogContext, true);
+                          } else {
+                            setDialog(() {
+                              busy = false;
+                              error =
+                                  verified['message'] ??
+                                  'Could not verify code.';
+                            });
+                          }
+                        },
+                  child: const Text('Verify & Continue'),
+                ),
+            ],
+          ),
+        ),
+      );
+      return result == true;
+    } finally {
+      _verifyingAccess = false;
+    }
+  }
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -159,33 +346,44 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   List<UserModel> get _filtered => _users.where((u) {
-        final matchSearch = u.name.toLowerCase().contains(_search.toLowerCase()) ||
-            u.email.toLowerCase().contains(_search.toLowerCase());
-        final matchRole = _roleFilter == 'All' || u.role == _roleFilter;
-        final matchStatus = _statusFilter == 'All' ||
-            (_statusFilter == 'Active' ? u.isActive : !u.isActive);
-        return matchSearch && matchRole && matchStatus;
-      }).toList();
+    final matchSearch =
+        u.name.toLowerCase().contains(_search.toLowerCase()) ||
+        u.email.toLowerCase().contains(_search.toLowerCase());
+    final matchRole = _roleFilter == 'All' || u.role == _roleFilter;
+    final matchStatus =
+        _statusFilter == 'All' ||
+        (_statusFilter == 'Active' ? u.isActive : !u.isActive);
+    return matchSearch && matchRole && matchStatus;
+  }).toList();
 
   Future<void> _toggleStatus(UserModel user) async {
+    if (!await _ensureManagementAccess() || !mounted) return;
     final result = await UserService.toggleStatus(user.id);
     if (!mounted) return;
     if (result['success'] == true) {
       _loadUsers();
       _showSnack(result['message']);
     } else {
+      if (result['verification_required'] == true) {
+        _accessUntil = null;
+        _loadUsers();
+      }
       _showSnack(result['message'] ?? 'Action failed.', isError: true);
     }
   }
 
   Future<void> _deleteUser(UserModel user) async {
+    if (!await _ensureManagementAccess() || !mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete user?'),
         content: Text('Are you sure you want to delete ${user.name}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -201,6 +399,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       _loadUsers();
       _showSnack(result['message']);
     } else {
+      if (result['verification_required'] == true) {
+        _accessUntil = null;
+        _loadUsers();
+      }
       _showSnack(result['message'] ?? 'Delete failed.', isError: true);
     }
   }
@@ -210,17 +412,30 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     showCenterSnackBar(context, msg, isError: isError);
   }
 
-  void _openAddDialog() => _openUserForm();
-  void _openEditDialog(UserModel user) => _openUserForm(user: user);
+  void _openAddDialog() {
+    _openUserForm();
+  }
+
+  void _openEditDialog(UserModel user) {
+    _openUserForm(user: user);
+  }
 
   // ── Add / Edit User dialog ──
-  void _openUserForm({UserModel? user}) {
+  Future<void> _openUserForm({
+    UserModel? user,
+    bool toggleStatus = false,
+  }) async {
+    if (!await _ensureManagementAccess() || !mounted) return;
     final isEdit = user != null;
     final nameCtrl = TextEditingController(text: user?.name ?? '');
     final emailCtrl = TextEditingController(text: user?.email ?? '');
     final passCtrl = TextEditingController();
-    String role = (user?.role == 'Admin' || user?.role == 'Staff') ? user!.role : 'Staff';
-    String status = _statusFromIsActive(user?.isActive ?? true);
+    String role = (user?.role == 'Admin' || user?.role == 'Staff')
+        ? user!.role
+        : 'Staff';
+    String status = _statusFromIsActive(
+      toggleStatus ? !user!.isActive : (user?.isActive ?? true),
+    );
     final formKey = GlobalKey<FormState>();
     bool saving = false;
     String? formError;
@@ -229,7 +444,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
           title: Text(
@@ -256,25 +473,26 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       ),
                       child: Text(
                         formError!,
-                        style: const TextStyle(color: Colors.red, fontSize: 12.5),
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12.5,
+                        ),
                       ),
                     ),
                   ],
                   TextFormField(
                     controller: nameCtrl,
-                    inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\d'))],
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name *',
-                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.deny(RegExp(r'\d')),
+                    ],
+                    decoration: const InputDecoration(labelText: 'Full Name *'),
                     validator: _validateName,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: emailCtrl,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email *',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Email *'),
                     validator: _validateEmail,
                   ),
                   const SizedBox(height: 12),
@@ -282,32 +500,32 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     controller: passCtrl,
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: isEdit ? 'New Password (optional)' : 'Password *',
+                      labelText: isEdit
+                          ? 'New Password (optional)'
+                          : 'Password *',
                     ),
                     validator: _passwordValidator(isEdit),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: role,
-                    decoration: const InputDecoration(
-                      labelText: 'Role *',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Role *'),
                     items: const ['Admin', 'Staff']
                         .map((r) => DropdownMenuItem(value: r, child: Text(r)))
                         .toList(),
-                    validator: (v) => (v == null || v.isEmpty) ? 'Role is required.' : null,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Role is required.' : null,
                     onChanged: (v) => setLocal(() => role = v!),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: status,
-                    decoration: const InputDecoration(
-                      labelText: 'Status *',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Status *'),
                     items: _statusOptions
                         .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                         .toList(),
-                    validator: (v) => (v == null || v.isEmpty) ? 'Status is required.' : null,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Status is required.' : null,
                     onChanged: (v) => setLocal(() => status = v!),
                   ),
                   const SizedBox(height: 4),
@@ -352,6 +570,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         );
                       }
 
+                      if (!ctx.mounted) return;
+                      if (result['verification_required'] == true) {
+                        _accessUntil = null;
+                        setLocal(() {
+                          saving = false;
+                          formError = result['message'];
+                        });
+                        await _ensureManagementAccess(checkServer: true);
+                        return;
+                      }
                       if (result['success'] == true) {
                         if (ctx.mounted) Navigator.pop(ctx);
                         _loadUsers();
@@ -359,14 +587,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       } else {
                         setLocal(() {
                           saving = false;
-                          formError = result['message'] ?? 'Something went wrong.';
+                          formError =
+                              result['message'] ?? 'Something went wrong.';
                         });
                       }
                     },
               child: saving
                   ? const SizedBox(
-                      width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Save'),
             ),
@@ -408,7 +641,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded, size: 36, color: AppColors.textGrey),
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 36,
+              color: AppColors.textGrey,
+            ),
             const SizedBox(height: 8),
             Text(_error!, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 8),
@@ -419,7 +656,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
     if (_filtered.isEmpty) {
       return const Center(
-        child: Text('No users found.', style: TextStyle(color: AppColors.textGrey)),
+        child: Text(
+          'No users found.',
+          style: TextStyle(color: AppColors.textGrey),
+        ),
       );
     }
     return RefreshIndicator(
@@ -447,11 +687,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppColors.iconColor),
+                icon: const Icon(
+                  Icons.menu_rounded,
+                  color: AppColors.iconColor,
+                ),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
               Container(
-                width: 30, height: 30,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -463,18 +707,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              const Text('User Management',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkNavy,
-                  )),
+              const Text(
+                'User Management',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkNavy,
+                ),
+              ),
             ],
           ),
           const Padding(
             padding: EdgeInsets.only(left: 48, top: 4),
-            child: Text('Manage staff accounts & roles',
-                style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+            child: Text(
+              'Manage staff accounts & roles',
+              style: TextStyle(color: AppColors.textGrey, fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -487,9 +735,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       child: Row(
         children: [
           Expanded(
-            child: _SearchField(
-              onChanged: (v) => setState(() => _search = v),
-            ),
+            child: _SearchField(onChanged: (v) => setState(() => _search = v)),
           ),
           const SizedBox(width: 8),
           _DropdownChip(
@@ -555,20 +801,35 @@ class _UserCard extends StatelessWidget {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: user.avatarColor,
-                child: Text(user.avatarInitials,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                child: Text(
+                  user.avatarInitials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text(
+                      user.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 1),
-                    Text(user.email,
-                        style: const TextStyle(fontSize: 11.5, color: AppColors.textGrey)),
+                    Text(
+                      user.email,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppColors.textGrey,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -580,28 +841,64 @@ class _UserCard extends StatelessWidget {
             children: [
               _RoleChip(role: user.role),
               const SizedBox(width: 10),
-              const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textGrey),
+              const Icon(
+                Icons.access_time_rounded,
+                size: 12,
+                color: AppColors.textGrey,
+              ),
               const SizedBox(width: 3),
-              Text('Last login: ${user.lastLogin}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+              Text(
+                'Last login: ${user.lastLogin}',
+                style: const TextStyle(fontSize: 11, color: AppColors.textGrey),
+              ),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: user.isActive
                 ? [
-                    _ActionBtn(label: 'Edit', icon: Icons.edit_outlined, color: AppColors.editBlue, onTap: onEdit),
+                    _ActionBtn(
+                      label: 'Edit',
+                      icon: Icons.edit_outlined,
+                      color: AppColors.editBlue,
+                      onTap: onEdit,
+                    ),
                     const SizedBox(width: 6),
-                    _ActionBtn(label: 'Deactivate', icon: Icons.block_outlined, color: AppColors.deactivateOrange, onTap: onToggle),
+                    _ActionBtn(
+                      label: 'Deactivate',
+                      icon: Icons.block_outlined,
+                      color: AppColors.deactivateOrange,
+                      onTap: onToggle,
+                    ),
                     const SizedBox(width: 6),
-                    _ActionBtn(label: 'Delete', icon: Icons.delete_outline_rounded, color: AppColors.deleteRed, onTap: onDelete),
+                    _ActionBtn(
+                      label: 'Delete',
+                      icon: Icons.delete_outline_rounded,
+                      color: AppColors.deleteRed,
+                      onTap: onDelete,
+                    ),
                   ]
                 : [
-                    _ActionBtn(label: 'Edit', icon: Icons.edit_outlined, color: AppColors.editBlue, onTap: onEdit),
+                    _ActionBtn(
+                      label: 'Edit',
+                      icon: Icons.edit_outlined,
+                      color: AppColors.editBlue,
+                      onTap: onEdit,
+                    ),
                     const SizedBox(width: 6),
-                    _ActionBtn(label: 'Activate', icon: Icons.check_circle_outline_rounded, color: AppColors.activateGreen, onTap: onToggle),
+                    _ActionBtn(
+                      label: 'Activate',
+                      icon: Icons.check_circle_outline_rounded,
+                      color: AppColors.activateGreen,
+                      onTap: onToggle,
+                    ),
                     const SizedBox(width: 6),
-                    _ActionBtn(label: 'Delete', icon: Icons.delete_outline_rounded, color: AppColors.deleteRed, onTap: onDelete),
+                    _ActionBtn(
+                      label: 'Delete',
+                      icon: Icons.delete_outline_rounded,
+                      color: AppColors.deleteRed,
+                      onTap: onDelete,
+                    ),
                   ],
           ),
         ],
@@ -676,7 +973,12 @@ class _ActionBtn extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  const _ActionBtn({required this.label, required this.icon, required this.color, required this.onTap});
+  const _ActionBtn({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -692,7 +994,14 @@ class _ActionBtn extends StatelessWidget {
             children: [
               Icon(icon, size: 13, color: color),
               const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -735,7 +1044,11 @@ class _DropdownChip extends StatelessWidget {
   final String value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
-  const _DropdownChip({required this.value, required this.items, required this.onChanged});
+  const _DropdownChip({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -750,10 +1063,21 @@ class _DropdownChip extends StatelessWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
-          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12)))).toList(),
+          items: items
+              .map(
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Text(e, style: const TextStyle(fontSize: 12)),
+                ),
+              )
+              .toList(),
           onChanged: onChanged,
           style: const TextStyle(fontSize: 12, color: AppColors.textDark),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textGrey),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 16,
+            color: AppColors.textGrey,
+          ),
         ),
       ),
     );
@@ -779,7 +1103,14 @@ class _AddButton extends StatelessWidget {
           children: [
             Icon(Icons.add, color: Colors.white, size: 16),
             SizedBox(width: 4),
-            Text('Add', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+            Text(
+              'Add',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),

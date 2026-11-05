@@ -95,6 +95,29 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 }
 .add-command-btn:hover { background: #0b4f8a; transform: translateY(-2px); }
 
+/* Match the doctor's delete confirmation dialog. */
+.modal .command-confirm-content {
+    max-width: 380px;
+    text-align: center;
+    padding: 2rem 1.75rem 1.75rem;
+}
+.command-confirm-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin: 0 auto 1rem;
+    color: #e74c3c;
+    background: #e74c3c1a;
+}
+.modal .command-confirm-content h3 { margin-bottom: 0.5rem; }
+.command-confirm-content p { color: #6b7280; font-size: 0.9rem; line-height: 1.5; }
+.modal .command-confirm-content .modal-buttons { justify-content: center; margin-top: 1.5rem; }
+.command-confirm-delete { background: #e74c3c; color: #fff; }
+
 .command-toast {
     position: fixed;
     top: 50%;

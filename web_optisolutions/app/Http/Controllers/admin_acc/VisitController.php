@@ -53,6 +53,7 @@ public function apiIndex(Request $request)
             ->whereDate('schedule_visit.visit_date', $date)
             ->select(
                 'schedule_visit.visit_id',
+                'schedule_visit.doctor_id',
                 'schedule_visit.service_type',
                 'schedule_visit.visit_date',
                 'schedule_visit.notes',
@@ -67,10 +68,14 @@ public function apiIndex(Request $request)
             ->orderBy('schedule_visit.scheduled_at')
             ->get();
 
+        \App\Support\DoctorServices::withLabels($visits, 'doctor_specialty');
+
         return response()->json([
             'success' => true,
             'date' => $date,
             'visits' => $visits,
+            'doctors' => \App\Support\DoctorServices::withLabels(DB::table('doctors')->orderBy('doctor_name')->get(['doctor_id', 'doctor_name'])),
+            'services' => \App\Support\DoctorSpecialties::catalog(),
         ]);
     }
 

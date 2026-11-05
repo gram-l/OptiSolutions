@@ -172,6 +172,9 @@ body > .container {
     box-shadow: 2px 0 8px var(--shadow);
     height: calc(100vh - 70px);
     position: sticky;
+    /* Keep collapsed navigation labels above page content, below overlays. */
+    z-index: 90;
+    overflow: visible;
     top: 70px;
     align-self: stretch;
     transition: width 0.25s ease, padding 0.25s ease;

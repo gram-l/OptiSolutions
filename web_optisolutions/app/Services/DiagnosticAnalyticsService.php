@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use App\Support\DoctorSpecialties;
 
 class DiagnosticAnalyticsService
 {
@@ -14,9 +15,8 @@ class DiagnosticAnalyticsService
     {
         $thisWeek = CarbonImmutable::now('Asia/Manila')->startOfWeek(CarbonImmutable::MONDAY);
         $latest = $thisWeek->subWeek();
-        $doctors = DB::table('doctors')->orderBy('doctor_name')->get(['doctor_id', 'doctor_name', 'specialty']);
-        $specialties = $doctors->pluck('specialty')->filter(fn ($value) => trim($value ?? '') !== '')
-            ->unique()->sort()->values();
+        $doctors = \App\Support\DoctorServices::withLabels(DB::table('doctors')->orderBy('doctor_name')->get(['doctor_id', 'doctor_name']));
+        $specialties = DoctorSpecialties::catalog();
         $filters = $request->validate([
             'diagnostic_week' => ['bail', 'nullable', 'date_format:Y-m-d', 'after_or_equal:1970-01-05', 'before:' . $thisWeek->format('Y-m-d'),
                 function ($attribute, $value, $fail) {
@@ -29,7 +29,7 @@ class DiagnosticAnalyticsService
         ]);
         $selectedDoctor = $doctors->firstWhere('doctor_id', $filters['diagnostic_doctor'] ?? null);
         if ($selectedDoctor && !empty($filters['diagnostic_specialty'])
-            && $selectedDoctor->specialty !== $filters['diagnostic_specialty']) {
+            && !in_array($filters['diagnostic_specialty'], DoctorSpecialties::split($selectedDoctor->specialty), true)) {
             throw ValidationException::withMessages([
                 'diagnostic_specialty' => 'Select the specialty registered for this doctor.',
             ]);
@@ -47,11 +47,12 @@ class DiagnosticAnalyticsService
             ->where('f.submitted_at', '<', $end->format('Y-m-d H:i:s'))
             ->orderBy('f.submitted_at')
             ->get(['f.feedback_id', 'f.feedback_text', 'f.submitted_at', 'sr.sentiment_label',
-                'v.doctor_id', 'd.specialty as doctor_specialty', 'd.doctor_name']);
+                'v.doctor_id', 'd.doctor_name']);
+        \App\Support\DoctorServices::withLabels($all, 'doctor_specialty');
         $unlinked = $all->filter(fn ($row) => !$row->doctor_id || !trim($row->doctor_specialty ?? ''))->count();
         $rows = $all->filter(fn ($row) =>
             (empty($filters['diagnostic_doctor']) || (string) $row->doctor_id === (string) $filters['diagnostic_doctor'])
-            && (empty($filters['diagnostic_specialty']) || $row->doctor_specialty === $filters['diagnostic_specialty']));
+            && (empty($filters['diagnostic_specialty']) || in_array($filters['diagnostic_specialty'], DoctorSpecialties::split($row->doctor_specialty), true)));
         $negative = $rows->filter(fn ($row) => trim($row->feedback_text ?? '') !== ''
             && strtolower($row->sentiment_label ?? '') === 'negative');
         $items = $negative->map(fn ($row) => [

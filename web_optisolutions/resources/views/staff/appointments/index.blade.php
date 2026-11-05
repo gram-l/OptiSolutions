@@ -266,21 +266,21 @@
     </div>
 
     @php
-        $services = $appointments->pluck('service')->filter()->unique()->sort()->values();
+        $services = $visitServices;
     @endphp
 
     <div class="visits-filter-bar">
         <input type="search" id="visitSearch" class="search-box visit-search" placeholder="Search patient, doctor or notes" aria-label="Search scheduled visits" oninput="filterVisitsTable()">
-        <select id="doctorFilter" aria-label="Filter by doctor" onchange="filterVisitsTable()">
+        <select id="doctorFilter" aria-label="Filter by doctor" onchange="syncVisitFilters('doctor')">
             <option value="">All Doctors</option>
-            @foreach($appointments->pluck('doctor_name')->filter()->unique()->sort() as $doctorName)
+            @foreach($visitDoctors->pluck('doctor_name')->unique() as $doctorName)
                 <option value="{{ $doctorName }}">{{ $doctorName }}</option>
             @endforeach
         </select>
-        <select id="serviceFilter" onchange="filterVisitsTable()">
+        <select id="serviceFilter" aria-label="Filter by doctor specialty" onchange="syncVisitFilters('service')">
             <option value="">All Services</option>
             @foreach($services as $service)
-                <option value="{{ strtolower($service) }}">{{ $service }}</option>
+                <option value="{{ $service }}">{{ $service }}</option>
             @endforeach
         </select>
 
@@ -381,6 +381,10 @@
                 @endforeach
             </tbody>
         </table>
+        <div class="visits-list-footer">
+            <span id="visitsVisibleCount" role="status" aria-live="polite"></span>
+            <button type="button" class="visits-see-more-btn" id="visitsSeeMore" aria-controls="visitsTable" hidden onclick="visibleVisitCount += 7; filterVisitsTable(false);">See more</button>
+        </div>
         <p id="noResultsMsg" style="display: none; padding: 2rem; text-align: center; background: white; border-radius: 20px;">No visits scheduled for this day.</p>
     @else
         <p style="padding: 2rem; text-align: center; background: white; border-radius: 20px;">No appointments found.</p>
@@ -399,7 +403,39 @@
     </div>
 </div>
 
+<script src="{{ asset('js/doctor-specialties.js') }}"></script>
+<style>
+    .visits-list-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.75rem 1.5rem; padding:1rem; }
+    #visitsVisibleCount { color:#64748b; font-size:.85rem; }
+    .visits-see-more-btn { border:1px solid #9dbcd4; border-radius:999px; background:transparent; color:#0e62aa; padding:.5rem 1.25rem; font:inherit; font-size:.85rem; font-weight:600; cursor:pointer; }
+    .visits-see-more-btn:hover { background:#eef5fc; }
+    .visits-see-more-btn:focus-visible { outline:2px solid #0e62aa; outline-offset:3px; }
+</style>
 <script>
+    const visitDoctors = @json($visitDoctors);
+    const visitServices = @json($visitServices);
+    let visibleVisitCount = 7;
+
+    function syncVisitFilters(changed) {
+        const doctorSelect = document.getElementById('doctorFilter');
+        const serviceSelect = document.getElementById('serviceFilter');
+        let doctor = visitDoctors.find(d => d.doctor_name === doctorSelect.value);
+        let selected = serviceSelect.value;
+        if (changed === 'service' && doctor && (!selected || !doctorSpecialties(doctor.specialty).includes(selected))) {
+            doctorSelect.value = '';
+            doctor = null;
+        }
+        const services = doctor ? doctorSpecialties(doctor.specialty).filter(s => visitServices.includes(s))
+            : visitServices;
+        if (changed === 'doctor' && doctor && services.length === 1) selected = services[0];
+        serviceSelect.replaceChildren(new Option('All Services', ''), ...services.map(s => new Option(s, s)));
+        serviceSelect.value = services.includes(selected) ? selected : '';
+        const currentDoctor = doctorSelect.value;
+        const allowed = visitDoctors.filter(d => !serviceSelect.value || doctorSpecialties(d.specialty).includes(serviceSelect.value));
+        doctorSelect.replaceChildren(new Option('All Doctors', ''), ...allowed.map(d => new Option(d.doctor_name, d.doctor_name)));
+        doctorSelect.value = allowed.some(d => d.doctor_name === currentDoctor) ? currentDoctor : '';
+        filterVisitsTable();
+    }
     // --- Notes edit modal ---
     let currentNotesVisitId = null;
 
@@ -583,6 +619,7 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         document.getElementById('serviceFilter').value = '';
         document.getElementById('doctorFilter').value = '';
         document.getElementById('visitSearch').value = '';
+        syncVisitFilters('service');
         handleDateInputChange();
     }
 
@@ -601,7 +638,8 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         filterVisitsTable();
     }
 
-    function filterVisitsTable() {
+    function filterVisitsTable(reset = true) {
+        if (reset) visibleVisitCount = 7;
         const selectedDate = document.getElementById('visitDate').value;
         const serviceFilter = document.getElementById('serviceFilter').value;
         const doctor = document.getElementById('doctorFilter').value;
@@ -621,17 +659,23 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             const rowDate = row.getAttribute('data-date');
-            const rowService = row.getAttribute('data-service') || '';
 
 
             const matchesDate = !selectedDate || rowDate === selectedDate;
-            const matchesService = serviceFilter === '' || rowService === serviceFilter;
+            const rowDoctor = visitDoctors.find(d => d.doctor_name === row.dataset.doctor);
+            const matchesService = serviceFilter === '' || doctorSpecialties(rowDoctor?.specialty).includes(serviceFilter);
 
             const isMatch = matchesDate && matchesService && (!doctor || row.dataset.doctor === doctor)
                 && (row.dataset.search || '').includes(search);
-            row.style.display = isMatch ? '' : 'none';
+            row.style.display = isMatch && visibleCount < visibleVisitCount ? '' : 'none';
             if (isMatch) visibleCount++;
         }
+
+        document.getElementById('visitsVisibleCount').textContent = `${Math.min(visibleVisitCount, visibleCount)} of ${visibleCount} visit(s)`;
+        const more = document.getElementById('visitsSeeMore');
+        const remaining = Math.max(0, visibleCount - visibleVisitCount);
+        more.hidden = remaining === 0;
+        more.textContent = `See more (${remaining} more)`;
 
         const noResultsMsg = document.getElementById('noResultsMsg');
         if (noResultsMsg) {

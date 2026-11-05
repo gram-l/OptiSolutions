@@ -15,7 +15,7 @@
     <div class="container">
         @include('admin_acc.sidebar')
 
-        <div style="flex: 1; min-width: 0;">
+        <div id="userManagementContent" style="flex: 1; min-width: 0;">
 
             <div class="page-header">
                 <h2><span><i class="fa-solid fa-users"></i></span> User Management</h2>
@@ -130,6 +130,7 @@
         // Seeded from PHP — uses actual column names
         let usersData = @json($users);
         const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+        let accountBusy = false;
 
         let toastTimer;
         function showToast(msg, isError = false) {
@@ -249,6 +250,8 @@
         }
 
         function openAddModal() {
+            if (!window.userManagementAccess.ensure()) return;
+            if (accountBusy) return;
             document.getElementById('modalTitle').innerText     = 'Add New Staff Account';
             document.getElementById('userForm').reset();
             document.getElementById('userId').value            = '';
@@ -260,6 +263,8 @@
         }
 
         function openEditModal(user_id) {
+            if (!window.userManagementAccess.ensure()) return;
+            if (accountBusy) return;
             const u = usersData.find(u => u.user_id === user_id);
             if (!u) return;
 
@@ -278,6 +283,7 @@
         }
 
         function closeModal() {
+            if (accountBusy) return;
             document.getElementById('userModal').style.display  = 'none';
             document.getElementById('modalError').style.display = 'none';
         }
@@ -288,99 +294,68 @@
             el.style.display = 'block';
         }
 
-        // Save (Add or Edit)
+        // Save after the page-level identity check.
         document.getElementById('userForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-
-            const user_id  = document.getElementById('userId').value;
-            const name     = document.getElementById('userName').value.trim();
-            const email    = document.getElementById('userEmail').value.trim();
-            const user_role = document.getElementById('userRole').value;
-            const status   = document.getElementById('userStatus').value;
+            if (accountBusy) return;
+            if (!window.userManagementAccess.ensure(() => document.getElementById('userForm').requestSubmit())) return;
+            const id = document.getElementById('userId').value;
             const password = document.getElementById('userPassword').value;
-
-            const saveBtn = document.getElementById('saveBtn');
-            saveBtn.disabled    = true;
-            saveBtn.textContent = 'Saving...';
-
-            const isEdit = !!user_id;
-            const url    = isEdit ? `/admin_acc/user_management/${user_id}` : '/admin_acc/user_management';
-            const body   = { name, email, user_role, status, _token: CSRF };
-            if (!isEdit || password) body.password = password;
-            if (isEdit) body._method = 'PUT';
-
+            const body = {
+                name: document.getElementById('userName').value.trim(),
+                email: document.getElementById('userEmail').value.trim(),
+                user_role: document.getElementById('userRole').value,
+                status: document.getElementById('userStatus').value,
+            };
+            if (!id || password) body.password = password;
+            if (id) body._method = 'PUT';
+            const button = document.getElementById('saveBtn');
+            accountBusy = true; button.disabled = true; button.textContent = 'Saving...';
+            document.getElementById('modalError').style.display = 'none';
             try {
-                const res  = await fetch(url, {
-                    method:  'POST',
+                const response = await fetch(id ? '/admin_acc/user_management/' + id : '/admin_acc/user_management', {
+                    method: 'POST', credentials: 'same-origin', signal: AbortSignal.timeout(20000),
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
-                    body:    JSON.stringify(body),
+                    body: JSON.stringify(body),
                 });
-                const data = await res.json();
-
-                if (!res.ok || !data.success) {
-                    const firstError = data.errors
-                        ? Object.values(data.errors)[0][0]
-                        : (data.message || 'Something went wrong.');
-                    showModalError(firstError);
+                const data = await response.json().catch(() => ({}));
+                if (data.verification_required) { window.userManagementAccess.lock(); return; }
+                if (!response.ok || !data.success) {
+                    showModalError(Object.values(data.errors || {}).flat()[0] || data.message || 'Could not save the account.');
                     return;
                 }
-
-                if (isEdit) {
-                    const idx = usersData.findIndex(u => u.user_id == user_id);
-                    if (idx !== -1) usersData[idx] = data.user;
-                } else {
-                    usersData.push(data.user);
-                }
-
-                closeModal();
-                renderUsers();
-                showToast(data.message);
-
-            } catch (err) {
-                showModalError('Network error. Please try again.');
+                if (id) usersData = usersData.map(user => user.user_id == id ? data.user : user);
+                else usersData.push(data.user);
+                accountBusy = false; closeModal(); renderUsers(); showToast(data.message);
+            } catch (_) {
+                showModalError('Could not reach the server. Please try again.');
             } finally {
-                saveBtn.disabled    = false;
-                saveBtn.textContent = 'Save Account';
+                accountBusy = false; button.disabled = false; button.textContent = 'Save Account';
             }
         });
 
-        // Toggle Active / Inactive
         async function toggleStatus(user_id) {
+            if (!window.userManagementAccess.ensure()) return;
             const user = usersData.find(u => u.user_id === user_id);
             if (!user) return;
-            const willDeactivate = user.status === 'active';
-            const confirmed = await confirmUserAction({
-                title: willDeactivate ? 'Deactivate account?' : 'Activate account?',
-                message: willDeactivate
-                    ? `Are you sure you want to deactivate ${user.name}'s account? They will no longer be able to sign in until the account is activated again.`
-                    : `Are you sure you want to activate ${user.name}'s account? They will be able to sign in again.`,
-                variant: willDeactivate ? 'warning' : 'primary',
-                action: willDeactivate ? 'Deactivate' : 'Activate',
-                icon: willDeactivate ? 'fa-lock' : 'fa-unlock',
-            });
-            if (!confirmed) return;
-
+            const deactivating = user.status === 'active';
+            if (!await confirmUserAction({ title: deactivating ? 'Deactivate account?' : 'Activate account?',
+                message: 'Change the account status for ' + user.name + '?', variant: 'warning',
+                action: deactivating ? 'Deactivate' : 'Activate', icon: 'fa-lock' })) return;
             try {
-                const res  = await fetch(`/admin_acc/user_management/${user_id}/toggle`, {
-                    method:  'PATCH',
-                    headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+                const response = await fetch('/admin_acc/user_management/' + user_id + '/toggle', {
+                    method: 'PATCH', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
                 });
-                const data = await res.json();
-
-                if (!data.success) { showToast(data.message, true); return; }
-
-                const u = usersData.find(u => u.user_id === user_id);
-                if (u) u.status = data.new_status;
-
-                renderUsers();
-                showToast(data.message);
-            } catch {
-                showToast('Network error. Please try again.', true);
-            }
+                const data = await response.json();
+                if (data.verification_required) { window.userManagementAccess.lock(); return; }
+                if (!response.ok || !data.success) { showToast(data.message || 'Could not change status.', true); return; }
+                user.status = data.new_status; renderUsers(); showToast(data.message);
+            } catch (_) { showToast('Could not reach the server.', true); }
         }
 
         // Delete
         async function deleteUser(user_id) {
+            if (!window.userManagementAccess.ensure()) return;
             const u = usersData.find(u => u.user_id === user_id);
             if (!u) return;
 
@@ -397,6 +372,7 @@
                     headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
                 });
                 const data = await res.json();
+                if (data.verification_required) { window.userManagementAccess.lock(); return; }
 
                 if (!data.success) { showToast(data.message, true); return; }
 
@@ -417,7 +393,10 @@
             if (e.target === document.getElementById('userModal')) closeModal();
         });
 
+        window.addEventListener('user-management-unlocked', event => { usersData = event.detail.users; renderUsers(); });
         renderUsers();
     </script>
+    @include('admin_acc.partials.user-management-verification')
+    <script src="{{ asset('js/user-management-access.js') }}"></script>
 </body>
 </html>

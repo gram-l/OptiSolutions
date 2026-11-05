@@ -70,7 +70,7 @@ const context = {
         options.signal.addEventListener('abort', () => reject(new Error('Aborted')));
     }),
 };
-vm.runInNewContext(script, context);
+vm.runInNewContext(fs.readFileSync('public/js/doctor-specialties.js', 'utf8') + script, context);
 const submit = () => form.fire('submit', { preventDefault() {} });
 const values = select => select.options.map(o => o.value);
 

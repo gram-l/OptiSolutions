@@ -25,6 +25,9 @@ class VisitCompletionTest extends TestCase
         DB::table('patients')->insert(['patient_id' => 1, 'patient_fname' => 'Test', 'patient_lname' => 'Patient', 'patient_email' => 'patient@example.com']);
         DB::table('doctors')->insert(['doctor_id' => 1, 'doctor_name' => 'Dr. Test', 'specialty' => 'Ophthalmology']);
         DB::table('schedule_visit')->insert(['visit_id' => 1, 'patient_id' => 1, 'doctor_id' => 1, 'service_type' => 'Eye examination', 'visit_date' => now()->toDateString()]);
+        (require database_path('migrations/2026_01_01_000001_create_services_table.php'))->up();
+        (require database_path('migrations/2026_11_05_000001_create_doctor_service_table.php'))->up();
+        (require database_path('migrations/2026_11_06_000001_normalize_doctor_services.php'))->up();
         Mail::fake();
     }
 
@@ -36,7 +39,7 @@ class VisitCompletionTest extends TestCase
     public function test_both_roles_can_only_reschedule_to_their_doctors_future_schedule_and_email_details(): void
     {
         DB::table('doctor_schedules')->insert(['schedule_id' => 1, 'doctor_id' => 1, 'day' => 'Monday', 'start_time' => '09:00:00', 'end_time' => '12:00:00']);
-        DB::table('doctors')->insert(['doctor_id' => 2, 'doctor_name' => 'Other doctor', 'specialty' => 'Surgery']);
+        DB::table('doctors')->insert(['doctor_id' => 2, 'doctor_name' => 'Other doctor']);
         DB::table('doctor_schedules')->insert(['schedule_id' => 2, 'doctor_id' => 2, 'day' => 'Monday', 'start_time' => '09:00:00', 'end_time' => '12:00:00']);
         $date = now('Asia/Manila')->next('Monday')->toDateString();
         foreach (['Admin' => 'admin_acc', 'Staff' => 'staff'] as $role => $prefix) {
@@ -131,11 +134,11 @@ class VisitCompletionTest extends TestCase
         $this->loginAs('Staff');
         DB::connection()->getPdo()->sqliteCreateFunction('CONCAT', fn (...$parts) => implode('', $parts));
         DB::table('schedule_visit')->where('visit_id', 1)->update(['notes' => 'Follow-up check']);
-        DB::table('doctors')->insert(['doctor_id' => 2, 'doctor_name' => 'Dr. Other', 'specialty' => 'Surgery']);
+        DB::table('doctors')->insert(['doctor_id' => 2, 'doctor_name' => 'Dr. Other']);
         DB::table('schedule_visit')->insert(['visit_id' => 2, 'patient_id' => 1, 'doctor_id' => 2, 'service_type' => 'Surgery', 'visit_date' => now()->toDateString()]);
         $response = $this->get(route('staff.visits.export', [
             'format' => 'csv', 'date' => now()->toDateString(), 'doctor' => 'Dr. Test',
-            'service' => 'eye examination', 'search' => 'follow-up',
+            'service' => 'Ophthalmology', 'search' => 'follow-up',
         ]))->assertOk();
         $csv = $response->streamedContent();
         $this->assertStringContainsString('Dr. Test', $csv);

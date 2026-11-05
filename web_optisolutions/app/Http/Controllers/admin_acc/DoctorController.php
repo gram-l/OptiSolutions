@@ -90,9 +90,7 @@ class DoctorController extends Controller
     {
         $validated = $this->validateDoctorRequest($request);
 
-        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image', 'service_ids'])->toArray();
-        // `specialty` is display text derived from the selected services (no longer free text)
-        $doctorData['specialty'] = DoctorServices::label($validated['service_ids']);
+        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image', 'service_ids', 'specialty'])->toArray();
         $doctorData['status'] = $doctorData['status'] ?? 'Active';
         // `available` is the column every patient-facing surface actually
         // filters on (chatbot, home page, doctors page, staff side) — keep
@@ -104,12 +102,14 @@ class DoctorController extends Controller
             $doctorData['profile_image'] = $request->file('profile_image')->store('doctors', 'public');
         }
 
-        $doctor = Doctor::create($doctorData);
+        $doctor = DB::transaction(function () use ($doctorData, $validated) {
+            $doctor = Doctor::create($doctorData);
+            DoctorServices::sync($doctor->doctor_id, $validated['service_ids']);
+            $this->syncScheduleRows($doctor, $validated['schedule_sessions']);
+            return $doctor;
+        });
 
-        DoctorServices::sync($doctor->doctor_id, $validated['service_ids']);
-        $this->syncScheduleRows($doctor, $validated['schedule_sessions']);
-
-        $doctor->load('schedules');
+        $doctor->load(['schedules', 'services']);
         $doctor->service_ids = array_map('intval', $validated['service_ids']);
         $doctor->schedule = $this->formatSchedule($doctor->schedules);
         $doctor->schedule_sessions = $this->sessionsForApi($doctor->schedules);
@@ -135,8 +135,7 @@ class DoctorController extends Controller
         // would incorrectly flag itself as a duplicate).
         $validated = $this->validateDoctorRequest($request, $doctor->doctor_id);
 
-        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image', 'service_ids'])->toArray();
-        $doctorData['specialty'] = DoctorServices::label($validated['service_ids']);
+        $doctorData = collect($validated)->except(['schedule_sessions', 'profile_image', 'remove_profile_image', 'service_ids', 'specialty'])->toArray();
 
         // Same reasoning as store(): if this edit touches `status`, keep
         // `available` (the field patient-facing pages/chatbot/home/staff
@@ -153,15 +152,16 @@ class DoctorController extends Controller
             $doctorData['profile_image'] = null;
         }
 
-        $doctor->update($doctorData);
+        DB::transaction(function () use ($doctor, $doctorData, $validated) {
+            $doctor->update($doctorData);
+            DoctorServices::sync($doctor->doctor_id, $validated['service_ids']);
+            $this->syncScheduleRows($doctor, $validated['schedule_sessions']);
+        });
         if (array_key_exists('profile_image', $doctorData) && $oldPhoto) {
             Storage::disk('public')->delete($oldPhoto);
         }
 
-        DoctorServices::sync($doctor->doctor_id, $validated['service_ids']);
-        $this->syncScheduleRows($doctor, $validated['schedule_sessions']);
-
-        $doctor->load('schedules');
+        $doctor->load(['schedules', 'services']);
         $doctor->service_ids = array_map('intval', $validated['service_ids']);
         $doctor->schedule = $this->formatSchedule($doctor->schedules);
         $doctor->schedule_sessions = $this->sessionsForApi($doctor->schedules);
@@ -214,6 +214,7 @@ class DoctorController extends Controller
         }
 
         DoctorSchedule::where('doctor_id', $doctor->doctor_id)->delete();
+        DoctorServices::sync($doctor->doctor_id, []);
         $doctor->delete();
 
         return response()->json([
@@ -259,7 +260,7 @@ class DoctorController extends Controller
             $serviceIds = [$serviceIds];
         }
         $serviceIds = array_values(array_filter($serviceIds, fn ($v) => $v !== '' && $v !== null));
-        if (empty($serviceIds)) {
+        if (!array_key_exists('service_ids', $input)) {
             $serviceIds = DoctorServices::idsFromSpecialtyText($input['specialty'] ?? null);
         }
         $input['service_ids'] = $serviceIds;

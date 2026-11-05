@@ -206,7 +206,7 @@
             <div class="filter-group">
                 <input type="search" class="search-box visit-search" id="visitSearch" placeholder="Search patient, doctor or notes" aria-label="Search scheduled visits">
                 <select class="filter-select" id="doctorFilter" aria-label="Filter by doctor"><option value="all">All Doctors</option></select>
-                <select class="filter-select" id="serviceFilter">
+                <select class="filter-select" id="serviceFilter" aria-label="Filter by doctor specialty">
                     <option value="all">All Services</option>
                 </select>
             </div>
@@ -264,12 +264,15 @@
         </div>
     </div>
 
+    <script src="{{ asset('js/doctor-specialties.js') }}"></script>
     <script>
         const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const DAY_URL = '/admin_acc/appointments/day';
         const VISIT_BASE = '/admin_acc/appointments';
 
         let visitsData = [];
+        let visitDoctors = [];
+        let visitServices = [];
 
         // Formats a Date object as a local YYYY-MM-DD string. Deliberately
         // avoids toISOString() here — that converts to UTC first, which in
@@ -372,7 +375,10 @@
                     return;
                 }
                 visitsData = data.visits;
-                populateServiceFilter();
+                visitDoctors = data.doctors;
+                visitServices = data.services;
+                const doctor = visitDoctors.find(d => String(d.doctor_id) === document.getElementById('doctorFilter').value);
+                populateServiceFilter(doctorSpecialties(doctor?.specialty).length === 1 ? doctorSpecialties(doctor.specialty)[0] : document.getElementById('serviceFilter').value);
                 populateDoctorFilter();
                 renderDay();
             } catch (e) {
@@ -380,29 +386,30 @@
             }
         }
 
-        function populateServiceFilter() {
+        function populateServiceFilter(selected = document.getElementById('serviceFilter').value) {
             const select = document.getElementById('serviceFilter');
-            const current = select.value;
-            const services = [...new Set(visitsData.map(v => v.service_type).filter(Boolean))].sort();
-            select.innerHTML = '<option value="all">All Services</option>' +
-                services.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-            if (services.includes(current)) select.value = current;
+            const doctor = visitDoctors.find(d => String(d.doctor_id) === document.getElementById('doctorFilter').value);
+            const services = doctor ? doctorSpecialties(doctor.specialty).filter(s => visitServices.includes(s))
+                : visitServices;
+            select.replaceChildren(new Option('All Services', 'all'), ...services.map(s => new Option(s, s)));
+            select.value = services.includes(selected) ? selected : 'all';
         }
 
         function populateDoctorFilter() {
             const select = document.getElementById('doctorFilter');
             const current = select.value;
-            const doctors = [...new Set(visitsData.map(v => v.doctor_name).filter(Boolean))].sort();
-            select.replaceChildren(new Option('All Doctors', 'all'), ...doctors.map(name => new Option(name, name)));
-            select.value = doctors.includes(current) ? current : 'all';
+            const specialty = document.getElementById('serviceFilter').value;
+            const doctors = visitDoctors.filter(d => specialty === 'all' || doctorSpecialties(d.specialty).includes(specialty));
+            select.replaceChildren(new Option('All Doctors', 'all'), ...doctors.map(d => new Option(d.doctor_name, String(d.doctor_id))));
+            select.value = doctors.some(d => String(d.doctor_id) === current) ? current : 'all';
         }
 
         function getFiltered() {
             const serviceFilter = document.getElementById('serviceFilter').value;
             const doctor = document.getElementById('doctorFilter').value;
             const search = document.getElementById('visitSearch').value.trim().toLowerCase();
-            return visitsData.filter(v => (serviceFilter === 'all' || v.service_type === serviceFilter)
-                && (doctor === 'all' || v.doctor_name === doctor)
+            return visitsData.filter(v => (serviceFilter === 'all' || doctorSpecialties(v.doctor_specialty).includes(serviceFilter))
+                && (doctor === 'all' || String(v.doctor_id) === doctor)
                 && [v.patient_name, v.doctor_name, v.service_type, v.notes].some(value => String(value || '').toLowerCase().includes(search)));
         }
 
@@ -759,8 +766,21 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
             }
         });
 
-        document.getElementById('serviceFilter').addEventListener('change', () => renderDay());
-        document.getElementById('doctorFilter').addEventListener('change', () => renderDay());
+        document.getElementById('serviceFilter').addEventListener('change', () => {
+            const specialty = document.getElementById('serviceFilter').value;
+            const doctorSelect = document.getElementById('doctorFilter');
+            const doctor = visitDoctors.find(d => String(d.doctor_id) === doctorSelect.value);
+            if (doctor && (specialty === 'all' || !doctorSpecialties(doctor.specialty).includes(specialty))) doctorSelect.value = 'all';
+            populateDoctorFilter();
+            populateServiceFilter(specialty);
+            renderDay();
+        });
+        document.getElementById('doctorFilter').addEventListener('change', () => {
+            const doctor = visitDoctors.find(d => String(d.doctor_id) === document.getElementById('doctorFilter').value);
+            populateServiceFilter(doctorSpecialties(doctor?.specialty).length === 1 ? doctorSpecialties(doctor.specialty)[0] : document.getElementById('serviceFilter').value);
+            populateDoctorFilter();
+            renderDay();
+        });
         document.getElementById('visitSearch').addEventListener('input', () => renderDay());
         let attendanceDate = philippineDate();
         setInterval(() => {

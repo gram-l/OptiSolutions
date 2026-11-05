@@ -59,13 +59,8 @@ Route::middleware('auth')->group(function () {
 
    
 
-    Route::get('/admin_acc/user_management', [UserManagementController::class, 'index']);
-
-    //user management routes
-    Route::post('/admin_acc/user_management',              [UserManagementController::class, 'store']);
-    Route::put('/admin_acc/user_management/{id}',          [UserManagementController::class, 'update']);
-    Route::patch('/admin_acc/user_management/{id}/toggle', [UserManagementController::class, 'toggleStatus']);
-    Route::delete('/admin_acc/user_management/{id}',       [UserManagementController::class, 'destroy']);
+    // User Management routes are defined once in admin_acc/web.php,
+    // including the active-admin and email-verification middleware.
 });
 
 //sample email route

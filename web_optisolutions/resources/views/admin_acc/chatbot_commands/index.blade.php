@@ -200,18 +200,19 @@
     </div>
 
     {{-- Delete Confirmation Modal --}}
-    <div class="modal" id="deleteModal">
-        <div class="modal-content" style="max-width:400px;">
-            <h3>Delete Command?</h3>
-            <p style="font-size:0.85rem; color:#7f8c8d; margin-bottom:1.2rem;">
-                Are you sure you want to delete "<strong id="deleteCommandLabel"></strong>"? This can't be undone.
+    <div class="modal" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="deleteCommandTitle" aria-describedby="deleteCommandMessage">
+        <div class="modal-content command-confirm-content">
+            <div class="command-confirm-icon" aria-hidden="true"><i class="fa-solid fa-trash"></i></div>
+            <h3 id="deleteCommandTitle">Delete Command?</h3>
+            <p id="deleteCommandMessage">
+                Are you sure you want to delete "<span id="deleteCommandLabel"></span>"? This can't be undone.
             </p>
             <form id="deleteForm" method="POST">
                 @csrf
                 @method('DELETE')
                 <div class="modal-buttons">
                     <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-                    <button type="submit" class="btn-icon" style="background:var(--danger); color:#fff;">Delete</button>
+                    <button type="submit" class="command-confirm-delete">Delete</button>
                 </div>
             </form>
         </div>

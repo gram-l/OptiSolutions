@@ -36,14 +36,29 @@ class DoctorServices
         });
     }
 
-    /** "Ophthalmology / ENT" — display text for `doctors.specialty` (derived from services). */
+    /** Attach service-derived display fields to query-builder results in one query. */
+    public static function withLabels($rows, string $field = 'specialty')
+    {
+        $titles = DB::table('doctor_service')
+            ->join('services', 'services.service_id', '=', 'doctor_service.service_id')
+            ->whereIn('doctor_service.doctor_id', $rows->pluck('doctor_id')->filter()->unique()->all())
+            ->orderBy('services.title')
+            ->get(['doctor_service.doctor_id', 'services.title'])
+            ->groupBy('doctor_id');
+
+        return $rows->each(function ($row) use ($titles, $field) {
+            $row->{$field} = $titles->get($row->doctor_id, collect())->pluck('title')->implode(' / ');
+        });
+    }
+
+    /** Display text derived from services, without a database column or length limit. */
     public static function label(array $serviceIds): string
     {
         if (empty($serviceIds)) return '';
 
         $titles = DB::table('services')->whereIn('service_id', $serviceIds)->orderBy('title')->pluck('title')->all();
 
-        return mb_substr(implode(' / ', $titles), 0, 100);
+        return implode(' / ', $titles);
     }
 
     /**

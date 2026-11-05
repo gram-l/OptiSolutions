@@ -14,4 +14,9 @@ class Service extends Model
     ];
 
     protected $casts = ['available' => 'boolean'];
+
+    public function doctors(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Doctor::class, 'doctor_service', 'service_id', 'doctor_id');
+    }
 }

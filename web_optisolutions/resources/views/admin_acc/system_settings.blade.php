@@ -225,86 +225,34 @@
         {{-- SERVICES --}}
         <div class="tab-panel" id="tab-services">
 
-            <div class="patients-table-container">
-                <table class="patients-table">
-                    <thead>
-                        <tr>
-                            <th>Service</th>
-                            <th>Room</th>
-                            <th>Schedule</th>
-                            <th>Description</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($services as $service)
-                            <tr>
-                                <td>
-                                    <div style="display:flex; align-items:center; gap:0.6rem;">
-                                        <i class="{{ $service->icon }}"></i> {{ $service->title }}
-                                    </div>
-                                </td>
-                                <td>{{ $service->room ?? '—' }}</td>
-                                <td>{{ $service->schedule ?? '—' }}</td>
-                                <td>{{ \Illuminate\Support\Str::limit($service->description, 60) }}</td>
-                                <td>
-                                    <span class="status-badge {{ $service->available ? 'status-active' : 'status-inactive' }}">
-                                        {{ $service->available ? 'Available' : 'Unavailable' }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button type="button" class="btn-icon btn-edit" onclick='openServiceModal(@json($service))'>Edit</button>
-
-                                        <form action="{{ route('system_settings.services.destroy', $service->service_id) }}" method="POST"
-                                              style="display:inline" onsubmit="return confirm('Delete this service?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn-icon" style="background:var(--danger); color:#fff;">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="6" class="empty-state">No services added yet.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
+            <div class="patients-table-container" id="servicesTableContainer">
+                @include('admin_acc.partials.services-table')
             </div>
         </div>
 
         {{-- Service Add/Edit Modal (scoped .ss-modal — see <style> above) --}}
-        <div class="ss-modal" id="serviceModal">
+        <div class="ss-modal" id="serviceModal" role="dialog" aria-modal="true" aria-labelledby="serviceModalTitle">
             <div class="ss-modal-content">
                 <h3 id="serviceModalTitle">Add Service</h3>
                 <form id="serviceForm" method="POST">
+                    <p id="serviceFormError" role="alert" hidden style="color:#c0392b;margin:.75rem 0;"></p>
                     @csrf
                     <input type="hidden" name="_method" id="serviceMethod" value="POST">
 
                     <div class="form-group">
                         <label>Title</label>
-                        <input type="text" name="title" id="serviceTitle" required>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Icon (Font Awesome class)</label>
-                            <input type="text" name="icon" id="serviceIcon" placeholder="fa-child">
-                        </div>
-                        <div class="form-group">
-                            <label>Room</label>
-                            <input type="text" name="room" id="serviceRoom" placeholder="Room 201">
-                        </div>
+                        <input type="text" name="title" id="serviceTitle" required maxlength="100">
                     </div>
                     <div class="form-group">
-                        <label>Schedule</label>
-                        <input type="text" name="schedule" id="serviceSchedule" placeholder="Monday - Saturday: 10am - 3pm">
+                        <label for="serviceRoom">Room</label>
+                        <input type="text" name="room" id="serviceRoom" placeholder="Room 201" maxlength="50">
                     </div>
                     <div class="form-group">
                         <label>Description</label>
                         <textarea name="description" id="serviceDescription" rows="3"></textarea>
                     </div>
-                    <div class="form-group" id="serviceAvailableWrap" style="display:none">
+                    <div class="form-group" id="serviceAvailableWrap">
+                        <input type="hidden" name="available" value="0">
                         <label>
                             <input type="checkbox" name="available" id="serviceAvailable" value="1" style="width:auto;">
                             Available
@@ -320,16 +268,17 @@
         </div>
 
 <script>
-    // Tabs
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-            document.getElementById('addServiceBtn').style.display = btn.dataset.tab === 'services' ? 'flex' : 'none';
-        });
-    });
+    function activateSettingsTab(tab) {
+        if (!['hours', 'about', 'contact', 'services'].includes(tab)) tab = 'hours';
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.toggle('active', panel.id === 'tab-' + tab));
+        document.getElementById('addServiceBtn').style.display = tab === 'services' ? 'flex' : 'none';
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tab);
+        history.replaceState(null, '', url);
+    }
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => activateSettingsTab(btn.dataset.tab)));
+    activateSettingsTab(new URL(window.location.href).searchParams.get('tab') || 'hours');
 
     // Core values dynamic rows
     function addCoreValueRow() {
@@ -347,16 +296,16 @@
     // shared with any other modal on the page)
     const serviceModal = document.getElementById('serviceModal');
     const serviceForm   = document.getElementById('serviceForm');
+    let savingService = false;
 
     function openServiceModal(service = null) {
-        document.getElementById('serviceAvailableWrap').style.display = service ? 'block' : 'none';
+        if (savingService) return;
+        document.getElementById('serviceFormError').hidden = true;
 
         if (service) {
             document.getElementById('serviceModalTitle').textContent = 'Edit Service';
             document.getElementById('serviceTitle').value = service.title;
-            document.getElementById('serviceIcon').value = service.icon ?? '';
             document.getElementById('serviceRoom').value = service.room ?? '';
-            document.getElementById('serviceSchedule').value = service.schedule ?? '';
             document.getElementById('serviceDescription').value = service.description ?? '';
             document.getElementById('serviceAvailable').checked = !!service.available;
             document.getElementById('serviceMethod').value = 'PUT';
@@ -364,16 +313,62 @@
         } else {
             document.getElementById('serviceModalTitle').textContent = 'Add Service';
             serviceForm.reset();
+            document.getElementById('serviceAvailable').checked = true;
             document.getElementById('serviceMethod').value = 'POST';
             serviceForm.action = `/admin_acc/system_settings/services`;
         }
 
         serviceModal.classList.add('open');
+        document.getElementById('serviceTitle').focus();
     }
 
     function closeServiceModal() {
+        if (savingService) return;
         serviceModal.classList.remove('open');
     }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeServiceModal(); });
+
+    async function submitService(form, deleting = false) {
+        if (savingService) return;
+        if (deleting && !confirm('Delete this service? It will also be removed from linked doctors.')) return;
+        const body = new FormData(form);
+        savingService = true;
+        const buttons = [...document.querySelectorAll('#serviceForm button, #servicesTableContainer button, #addServiceBtn')];
+        buttons.forEach(button => button.disabled = true);
+        const errorBox = document.getElementById('serviceFormError');
+        errorBox.hidden = true;
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST', body, credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(20000),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.html) {
+                const message = response.status === 419 ? 'Your session expired. Refresh this page and sign in again.'
+                    : Object.values(data.errors || {}).flat().join(' ') || data.message || 'Could not save your changes. Please try again.';
+                throw new Error(message);
+            }
+            document.getElementById('servicesTableContainer').innerHTML = data.html;
+            serviceModal.classList.remove('open');
+            activateSettingsTab('services');
+            document.getElementById('addServiceBtn').focus();
+            ssShowToast('success', 'Saved', data.message);
+        } catch (error) {
+            const message = error.name === 'TimeoutError' ? 'The request timed out. Please try again.' : error.message;
+            if (deleting) ssShowToast('error', 'Unsuccessful', message);
+            else { errorBox.textContent = message; errorBox.hidden = false; }
+        } finally {
+            savingService = false;
+            buttons.forEach(button => button.disabled = false);
+        }
+    }
+    serviceForm.addEventListener('submit', event => { event.preventDefault(); submitService(serviceForm); });
+    document.getElementById('servicesTableContainer').addEventListener('submit', event => {
+        if (!event.target.matches('[data-service-delete]')) return;
+        event.preventDefault();
+        submitService(event.target, true);
+    });
 
     serviceModal.addEventListener('click', (e) => {
         if (e.target === serviceModal) closeServiceModal();
@@ -389,11 +384,13 @@
         toast.innerHTML = `
             <i class="bi ${icon} ss-toast-icon"></i>
             <div class="ss-toast-body">
-                <div class="ss-toast-title">${title}</div>
-                <div class="ss-toast-message">${message}</div>
+                <div class="ss-toast-title"></div>
+                <div class="ss-toast-message"></div>
             </div>
             <button type="button" class="ss-toast-close" aria-label="Close">&times;</button>
         `;
+        toast.querySelector('.ss-toast-title').textContent = title;
+        toast.querySelector('.ss-toast-message').textContent = message;
 
         const remove = () => {
             toast.classList.add('ss-toast-hide');

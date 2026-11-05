@@ -6,6 +6,9 @@
     box-shadow: 2px 0 8px var(--shadow);
     height: calc(100vh - 70px);
     position: sticky;
+    /* Raise the whole tooltip stacking context above page cards and tables. */
+    z-index: 90;
+    overflow: visible;
     top: 70px;
     align-self: stretch;
     transition: width 0.25s ease, padding 0.25s ease;

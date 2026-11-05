@@ -14,6 +14,19 @@ use Tests\TestCase;
 
 class DiagnosticAnalyticsTest extends TestCase
 {
+    public function test_combined_specialties_are_separate_filters_that_match_the_same_doctor(): void
+    {
+        DB::table('services')->where('service_id', 1)->update(['title' => 'General / Adult Medicine']);
+        DB::table('services')->where('service_id', 2)->update(['title' => 'Ophthalmology / General Medicine']);
+        $this->review('2026-10-20 12:00:00', 'negative');
+        foreach (['General', 'Adult Medicine'] as $specialty) {
+            $data = $this->data(['diagnostic_doctor' => 1, 'diagnostic_specialty' => $specialty]);
+            $this->assertSame(1, $data['periods']['current']['negative']);
+            $this->assertSame(['Adult Medicine', 'General', 'General Medicine', 'Ophthalmology'], $data['specialties']->all());
+        }
+        $this->assertSame(0, $this->data(['diagnostic_specialty' => 'General Medicine'])['periods']['current']['negative']);
+    }
+
     public function test_both_dashboard_addresses_supply_diagnostic_data_and_keep_admin_middleware(): void
     {
         $this->withoutVite();
@@ -38,15 +51,19 @@ class DiagnosticAnalyticsTest extends TestCase
         view()->share('errors', new \Illuminate\Support\ViewErrorBag());
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-26', 'Asia/Manila'));
-        Schema::create('doctors', function (Blueprint $t) { $t->increments('doctor_id'); $t->string('doctor_name'); $t->string('specialty'); });
+        Schema::create('doctors', function (Blueprint $t) { $t->increments('doctor_id'); $t->string('doctor_name'); });
+        Schema::create('services', function (Blueprint $t) { $t->increments('service_id'); $t->string('title'); });
+        DB::table('services')->insert([['service_id' => 1, 'title' => 'Consultation'], ['service_id' => 2, 'title' => 'Pediatrics']]);
         Schema::create('schedule_visit', function (Blueprint $t) { $t->increments('visit_id'); $t->integer('doctor_id')->nullable(); $t->string('service_type')->nullable(); });
         Schema::create('feedback', function (Blueprint $t) { $t->increments('feedback_id'); $t->integer('visit_id')->nullable(); $t->text('feedback_text')->nullable(); $t->integer('star_rating')->default(3); $t->dateTime('submitted_at'); });
         Schema::create('complaints', function (Blueprint $t) { $t->increments('complaint_id'); $t->text('complaint_text'); $t->string('category')->nullable(); $t->dateTime('created_at'); });
         Schema::create('sentiment_results', function (Blueprint $t) { $t->integer('feedback_id')->unique(); $t->string('sentiment_label'); });
         DB::table('doctors')->insert([
-            ['doctor_id' => 1, 'doctor_name' => 'Doctor A', 'specialty' => 'Consultation'],
-            ['doctor_id' => 2, 'doctor_name' => 'Doctor B', 'specialty' => 'Pediatrics'],
+            ['doctor_id' => 1, 'doctor_name' => 'Doctor A'],
+            ['doctor_id' => 2, 'doctor_name' => 'Doctor B'],
         ]);
+        (require database_path('migrations/2026_11_05_000001_create_doctor_service_table.php'))->up();
+        DB::table('doctor_service')->insert([['doctor_id' => 1, 'service_id' => 1], ['doctor_id' => 2, 'service_id' => 2]]);
         DB::table('schedule_visit')->insert(['visit_id' => 1, 'doctor_id' => 1, 'service_type' => 'Consultation']);
         Http::fake(fn ($request) => Http::response(['details' => array_map(fn ($item) => [
             'id' => $item['id'], 'source' => $item['source'],

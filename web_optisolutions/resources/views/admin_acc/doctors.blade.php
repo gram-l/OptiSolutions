@@ -465,7 +465,7 @@
     function populateDepartmentFilter() {
         const select = document.getElementById('departmentFilter');
         const current = select.value;
-        const departments = [...new Set(doctorsData.flatMap(d => splitSpecialties(d.specialty)))].sort();
+        const departments = [...new Set(SERVICE_OPTIONS.flatMap(service => splitSpecialties(service.title)))].sort();
         select.innerHTML = '<option value="all">All Departments</option>' +
             departments.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
         if (departments.includes(current)) select.value = current;

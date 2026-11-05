@@ -9,12 +9,17 @@ use Carbon\Carbon;
 
 class Doctor extends Model
 {
+    use \App\Models\Concerns\HasDoctorServices;
+
+    protected $with = ['services'];
+    protected $appends = ['specialty'];
+
     protected $table = 'doctors';
     protected $primaryKey = 'doctor_id';
     public $timestamps = false;
 
     protected $fillable = [
-        'doctor_name', 'gender', 'specialty', 'years_experience', 'education',
+        'doctor_name', 'gender', 'years_experience', 'education',
         'license', 'clinic_room', 'fellowship', 'description', 'profile_image', 'available', 'status',
     ];
 

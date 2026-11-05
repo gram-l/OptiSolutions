@@ -20,11 +20,18 @@ Route::prefix('admin')->group(function () {
 
  
 // ── User management ──
+Route::middleware(['auth:sanctum', \App\Http\Middleware\RequireActiveAdmin::class])->group(function () {
+Route::post('/users/verification-code', [UserManagementController::class, 'sendVerificationCode'])->middleware('throttle:20,1');
+Route::get('/users/verification-status', [UserManagementController::class, 'verificationStatus']);
+Route::post('/users/verify-access', [UserManagementController::class, 'verifyAccess'])->middleware('throttle:30,1');
 Route::get('/users',                    [UserManagementController::class, 'getUsers']);
+Route::middleware(\App\Http\Middleware\RequireUserManagementVerification::class)->group(function () {
 Route::post('/users',                   [UserManagementController::class, 'store']);
 Route::put('/users/{id}',               [UserManagementController::class, 'update']);
 Route::patch('/users/{id}/toggle',      [UserManagementController::class, 'toggleStatus']);
 Route::delete('/users/{id}',            [UserManagementController::class, 'destroy']);
+});
+});
 
 // forgot pass in dart
 Route::post('/forgot-password/send-otp',   [ApiForgotPasswordController::class, 'sendOtp']);

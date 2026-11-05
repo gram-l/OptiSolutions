@@ -92,13 +92,21 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
         return view('admin_acc.patients');
     });
 
+    Route::middleware(\App\Http\Middleware\RequireActiveAdmin::class)->group(function () {
     Route::get('/admin_acc/user_management', [UserManagementController::class, 'index']);
+    Route::get('/admin_acc/user_management/verification-status', [UserManagementController::class, 'verificationStatus']);
+    Route::post('/admin_acc/user_management/verify-access', [UserManagementController::class, 'verifyAccess'])->middleware('throttle:30,1');
+    Route::post('/admin_acc/user_management/verification-code', [UserManagementController::class, 'sendVerificationCode'])->middleware('throttle:20,1');
 
     //user management routes
+    Route::get('/admin_acc/user_management/accounts', [UserManagementController::class, 'getUsers']);
+    Route::middleware(\App\Http\Middleware\RequireUserManagementVerification::class)->group(function () {
     Route::post('/admin_acc/user_management',              [UserManagementController::class, 'store']);
     Route::put('/admin_acc/user_management/{id}',          [UserManagementController::class, 'update']);
     Route::patch('/admin_acc/user_management/{id}/toggle', [UserManagementController::class, 'toggleStatus']);
     Route::delete('/admin_acc/user_management/{id}',       [UserManagementController::class, 'destroy']);
+    });
+    });
 
     //admin profile routes
     Route::get('/admin_acc/profile', [ProfileController::class, 'show'])->name('profile.show');

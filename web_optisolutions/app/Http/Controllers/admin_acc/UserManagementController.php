@@ -7,11 +7,38 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\Controller;
+use App\Services\AdminAccountVerification;
 class UserManagementController extends Controller
 {
-    // GET /admin_acc/users
-    public function index()
+    private function accountData(Request $request, ?int $id = null): array
     {
+        return Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($id, 'user_id')],
+            'user_role' => 'required|in:Admin,Staff',
+            'status' => 'required|in:active,inactive',
+            'password' => $id ? 'sometimes|nullable|string|min:6' : 'required|string|min:6',
+        ])->validate();
+    }
+
+    public function verificationStatus(Request $request)
+    {
+        return response()->json(['success' => true] + app(AdminAccountVerification::class)->status($request));
+    }
+
+    public function sendVerificationCode(Request $request)
+    {
+        return app(AdminAccountVerification::class)->send($request);
+    }
+
+    public function verifyAccess(Request $request)
+    {
+        return app(AdminAccountVerification::class)->verify($request);
+    }
+    // GET /admin_acc/users
+    public function index(Request $request)
+    {
+        $verification = app(AdminAccountVerification::class)->status($request);
         $users = DB::table('users')
             ->select('user_id', 'name', 'email', 'user_role', 'status', 'last_login_at', 'profile_photo')
             ->orderBy('name')
@@ -23,24 +50,13 @@ class UserManagementController extends Controller
             'admins' => $users->where('user_role', 'Admin')->count(),
         ];
 
-        return view('admin_acc.user_management', compact('users', 'stats'));
+        return view('admin_acc.user_management', compact('users', 'stats', 'verification'));
     }
 
     // POST /admin_acc/users
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name'      => 'required|string|max:255',
-            'email'     => 'required|email|unique:users,email',
-            'user_role' => 'required|in:Admin,Staff',
-            'password'  => 'required|string|min:6',
-            'status'    => 'required|in:active,inactive',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-        }
-
+        $data = $this->accountData($request);
         $user_id = DB::table('users')->insertGetId([
             'name'       => $request->name,
             'email'      => $request->email,
@@ -56,7 +72,7 @@ class UserManagementController extends Controller
             ->where('user_id', $user_id)
             ->first();
 
-        return response()->json(['success' => true, 'message' => "Staff account for {$user->name} has been created.", 'user' => $user]);
+        return response()->json(['success' => true, 'message' => "Account for {$user->name} has been created.", 'user' => $user]);
     }
 
     // PUT /admin_acc/users/{user_id}
@@ -65,17 +81,7 @@ class UserManagementController extends Controller
         $user = DB::table('users')->where('user_id', $user_id)->first();
         if (!$user) return response()->json(['success' => false, 'message' => 'User not found.'], 404);
 
-        $rules = [
-            'name'      => 'required|string|max:255',
-            'email'     => "required|email|unique:users,email,{$user_id},user_id",
-            'user_role' => 'required|in:Admin,Staff',
-            'status'    => 'required|in:active,inactive',
-        ];
-        if ($request->filled('password')) $rules['password'] = 'string|min:6';
-
-        $validator = Validator::make($request->all(), $rules);
-        if ($validator->fails()) return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-
+        $validated = $this->accountData($request, (int) $user_id);
         $data = [
             'name'       => $request->name,
             'email'      => $request->email,
@@ -100,12 +106,9 @@ class UserManagementController extends Controller
     {
         $user = DB::table('users')->where('user_id', $user_id)->first();
         if (!$user) return response()->json(['success' => false, 'message' => 'User not found.'], 404);
-
-        $newStatus = $user->status === 'active' ? 'inactive' : 'active';
-        DB::table('users')->where('user_id', $user_id)->update(['status' => $newStatus, 'updated_at' => now()]);
-        $action = $newStatus === 'active' ? 'activated' : 'deactivated';
-
-        return response()->json(['success' => true, 'message' => "{$user->name}'s account has been {$action}.", 'new_status' => $newStatus]);
+        $status = $user->status === 'active' ? 'inactive' : 'active';
+        DB::table('users')->where('user_id', $user_id)->update(['status' => $status, 'updated_at' => now()]);
+        return response()->json(['success' => true, 'message' => 'Account status updated.', 'new_status' => $status]);
     }
 
     // DELETE /admin_acc/users/{user_id}
@@ -114,7 +117,7 @@ class UserManagementController extends Controller
         $user = DB::table('users')->where('user_id', $user_id)->first();
         if (!$user) return response()->json(['success' => false, 'message' => 'User not found.'], 404);
 
-        if (session('user_id') == $user_id) {
+        if (auth()->id() == $user_id) {
             return response()->json(['success' => false, 'message' => 'You cannot delete your own account.'], 403);
         }
 

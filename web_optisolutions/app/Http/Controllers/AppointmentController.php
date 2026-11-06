@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Patient;
-use App\Models\ScheduleVisit;
+use App\Services\PatientBookingService;
 use Illuminate\Http\Request;
 
 class AppointmentController extends Controller
@@ -22,19 +21,16 @@ class AppointmentController extends Controller
             'notes'        => 'nullable|string',
         ]);
 
-        $patient = Patient::create($validated['patient']);
-
-        $visit = ScheduleVisit::create([
+        $booking = app(PatientBookingService::class)->book($validated['patient'], [
             'doctor_id'    => $validated['doctor_id'],
-            'patient_id'   => $patient->patient_id,
             'service_type' => $validated['service_type'],
             'visit_date'   => $validated['visit_date'],
             'notes'        => $validated['notes'] ?? null,
         ]);
 
         return response()->json([
-            'patient_id' => $patient->patient_id,
-            'visit_id'   => $visit->visit_id,
+            'patient_id' => $booking['patient']->patient_id,
+            'visit_id'   => $booking['visit']->visit_id,
         ], 201);
     }
 }

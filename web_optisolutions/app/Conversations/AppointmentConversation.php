@@ -15,6 +15,8 @@ use App\Support\ScheduleVisitCatalog;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
+use App\Services\PatientBookingService;
+use Illuminate\Validation\ValidationException;
 use App\Models\Notification;
 
 use Closure;
@@ -1188,24 +1190,21 @@ class AppointmentConversation extends Conversation
         // removed as soon as it finishes (see sendMessage() in
         // chatbot-widget.blade.php). It is intentionally NOT a bot message.
         try {
-            $patientId = DB::table('patients')->insertGetId([
+            $visitDate = $this->getNextAvailableISODate($this->scheduleDay);
+            $booking = app(PatientBookingService::class)->book([
                 'patient_fname'     => $this->fname,
                 'patient_lname'     => $this->lname,
                 'patient_birthdate' => $this->normalizeDOB($this->dob),
                 'patient_email'     => $this->email,
                 'patient_contact'   => $this->phone,
-            ]);
-
-            $visitDate = $this->getNextAvailableISODate($this->scheduleDay);
-
-            $visitId = DB::table('schedule_visit')->insertGetId([
+            ], [
                 'doctor_id'    => $this->doctorId,
-                'patient_id'   => $patientId,
                 'service_type' => $this->service,
                 'visit_date'   => $visitDate,
                 'notes'        => $this->scheduleSuggestion,
-                'scheduled_at' => now(),
             ]);
+            $patientId = $booking['patient']->patient_id;
+            $visitId = $booking['visit']->visit_id;
 
             // Notification failures should not affect the saved appointment.
             // Uses NotificationService so the row gets the required `type`
@@ -1263,6 +1262,8 @@ class AppointmentConversation extends Conversation
             }
 
             $this->askPostAppointment(); // → move to the final step
+        } catch (ValidationException $e) {
+            $this->sayLogged(collect($e->errors())->flatten()->first());
         } catch (\Throwable $e) {
             Log::error('Failed to save schedule visit: ' . $e->getMessage(), [
                 'exception' => $e,

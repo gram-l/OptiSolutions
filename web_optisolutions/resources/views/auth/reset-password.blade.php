@@ -5,33 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reset Password – PolyClinic</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet"
-href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 @vite('resources/css/login.css')
 </head>
-<body>
+<body class="staff-login password-recovery">
 
 <div class="login-container">
 
-    <!-- LEFT SIDE: clinic photo -->
-    <div class="left-panel">
-        <img src="{{ asset('images/Polyclinic.jpg') }}" alt="PolyClinic building">
-        <div class="photo-caption"><strong>Create New Password</strong><span>Choose a strong password to keep your account secure.</span></div>
-    </div>
+    @include('auth.partials.clinic-brand')
 
     <!-- RIGHT SIDE -->
     <div class="right-panel">
-
-        <header class="branding">
-            <img src="{{ asset('images/polyclinic_logo.png') }}"
-                 class="logo"
-                 alt="PolyClinic Logo"
-                 onerror="this.onerror=null; this.style.display='none';">
-            <div>
-                <h2>PolyClinic</h2>
-                <p>Inquiry System · Smart Care</p>
-            </div>
-        </header>
 
         <main class="form-wrap">
             <div class="form-box">
@@ -49,12 +32,13 @@ href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.m
 
                     <div class="field">
                         <label for="password">New Password</label>
-                        <div class="password-wrapper">
+                        <div class="input-wrap">
+                            <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg>
                             <input type="password" name="password" id="password"
                                    placeholder="At least 8 characters"
                                    autocomplete="new-password" required>
-                            <button type="button" class="toggle-eye" aria-label="Show password" onclick="togglePw('password', this)">
-                                <i class="bi bi-eye"></i>
+                            <button type="button" class="toggle" aria-label="Show password" onclick="togglePw('password', this)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
                             </button>
                         </div>
                         <div class="strength-bar"><div class="strength-bar-fill" id="strength-fill"></div></div>
@@ -63,12 +47,13 @@ href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.m
 
                     <div class="field">
                         <label for="password_confirmation">Confirm New Password</label>
-                        <div class="password-wrapper">
+                        <div class="input-wrap">
+                            <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg>
                             <input type="password" name="password_confirmation" id="password_confirmation"
                                    placeholder="Repeat your password"
                                    autocomplete="new-password" required>
-                            <button type="button" class="toggle-eye" aria-label="Show password" onclick="togglePw('password_confirmation', this)">
-                                <i class="bi bi-eye"></i>
+                            <button type="button" class="toggle" aria-label="Show password" onclick="togglePw('password_confirmation', this)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
                             </button>
                         </div>
                         <div id="match-msg" class="match-msg"></div>
@@ -76,6 +61,7 @@ href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.m
 
                     <button type="submit" class="btn-login">Update Password →</button>
                 </form>
+                @include('auth.partials.portal-note')
             </div>
         </main>
 
@@ -85,18 +71,11 @@ href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.m
 
 <script>
 function togglePw(id, btn) {
-    
     const input = document.getElementById(id);
-    const icon = btn.querySelector("i");
-
-    if (input.type === "password") {
-        input.type = "text";
-        icon.classList.replace("bi-eye", "bi-eye-slash");
-    } else {
-        input.type = "password";
-        icon.classList.replace("bi-eye-slash", "bi-eye");
-    
-}
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    btn.classList.toggle('on', show);
 }
 
 /*At least 8 characters	+1

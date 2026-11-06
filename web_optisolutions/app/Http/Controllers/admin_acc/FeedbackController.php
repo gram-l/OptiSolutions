@@ -77,7 +77,7 @@ public function store(Request $request, SentimentAnalysisService $sentimentServi
         'transaction_code' => 'required|string|max:80',
         'log_id' => 'nullable|integer',
         'patient_id' => 'nullable|integer',
-        'feedback_text' => 'nullable|string',
+        'feedback_text' => 'nullable|string|max:'.\App\Support\AnalysisLimits::MAX_TEXT_LENGTH,
         'star_rating' => 'required|integer|min:1|max:5',
     ]);
 

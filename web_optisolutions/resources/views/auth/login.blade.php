@@ -11,15 +11,7 @@
 
 <div class="login-container">
 
-    <aside class="left-panel">
-        <div class="clinic-brand">
-            <img class="clinic-mark" src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic logo">
-            <h2>PolyClinic</h2>
-            <p class="clinic-location">– LIPA –</p>
-            <p class="clinic-tagline">Healthier Community. Brighter Tomorrow.</p>
-        </div>
-        <div class="clinic-photo"><img src="{{ asset('images/Polyclinic.jpg') }}" alt="PolyClinic Lipa building"></div>
-    </aside>
+    @include('auth.partials.clinic-brand')
 
     <!-- RIGHT SIDE -->
     <div class="right-panel">
@@ -98,10 +90,7 @@
                     <button type="submit" class="btn-login">Log In →</button>
                 </form>
 
-                <div class="portal-note">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 8 3v6c0 5-4 9-8 11-4-2-8-6-8-11V5l8-3Z"/><path d="m8 12 3 3 5-6"/></svg>
-                    <div><strong>Authorized personnel only</strong><span>Staff &amp; Administration Portal</span></div>
-                </div>
+                @include('auth.partials.portal-note')
             </div>
         </main>
 

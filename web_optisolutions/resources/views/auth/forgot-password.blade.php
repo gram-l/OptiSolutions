@@ -7,29 +7,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 @vite('resources/css/login.css')
 </head>
-<body>
+<body class="staff-login password-recovery">
 
 <div class="login-container">
 
-    <!-- LEFT SIDE: clinic photo -->
-    <div class="left-panel">
-        <img src="{{ asset('images/Polyclinic.jpg') }}" alt="PolyClinic building">
-        <div class="photo-caption"><strong>Reset Your Password</strong><span>Enter your institutional email and we'll send you a verification code.</span></div>
-    </div>
+    @include('auth.partials.clinic-brand')
 
     <!-- RIGHT SIDE -->
     <div class="right-panel">
-
-        <header class="branding">
-            <img src="{{ asset('images/polyclinic_logo.png') }}"
-                 class="logo"
-                 alt="PolyClinic Logo"
-                 onerror="this.onerror=null; this.style.display='none';">
-            <div>
-                <h2>PolyClinic</h2>
-                <p>Inquiry System · Smart Care</p>
-            </div>
-        </header>
 
         <main class="form-wrap">
             <div class="form-box">
@@ -52,6 +37,7 @@
                     @csrf
 
                     <div class="field">
+                        <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></svg>
                         <input type="email"
                                name="email"
                                placeholder="Enter your institutional email"
@@ -68,6 +54,7 @@
                     Remember your password?
                     <a href="/auth/login">Back to Sign In</a>
                 </p>
+                @include('auth.partials.portal-note')
             </div>
         </main>
 

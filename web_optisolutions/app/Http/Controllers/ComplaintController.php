@@ -12,7 +12,7 @@ class ComplaintController extends Controller
         $validated = $request->validate([
             'patient_id'     => 'nullable|integer|exists:patients,patient_id',
             'log_id'         => 'nullable|integer|exists:chatbot_logs,log_id',
-            'complaint_text' => 'required|string|min:10',
+            'complaint_text' => 'required|string|min:10|max:'.\App\Support\AnalysisLimits::MAX_TEXT_LENGTH,
         ]);
 
         $complaint = Complaint::create([

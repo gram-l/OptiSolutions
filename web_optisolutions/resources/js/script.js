@@ -2,7 +2,6 @@
 
 let doctorsData = [];
 let servicesData = Object.create(null);   // keyed by service_key
-let clinicInfo = null;
 
 function genderIcon(gender) {
   return gender === 'female'
@@ -193,35 +192,6 @@ function renderServiceCards(containerId = 'servicesGrid') {
   });
 }
 
-// ============ FETCH: CLINIC INFO ============
-async function loadClinicInfo() {
-  try {
-    const res = await fetch('/api/clinic-info');
-    const raw = await res.json();
-    clinicInfo = Array.isArray(raw) ? raw[0] : raw;
-    renderClinicInfo();
-  } catch (err) {
-    console.error('Failed to load clinic info:', err);
-  }
-}
-
-function renderClinicInfo() {
-  if (!clinicInfo) return;
-  const map = {
-    clinicName: clinicInfo.clinic_name,
-    clinicAddress: clinicInfo.address,
-    clinicContact: clinicInfo.contact_no,
-    clinicEmail: clinicInfo.email,
-    clinicHours: clinicInfo.operating_hours,
-    clinicAbout: clinicInfo.about_us,
-    clinicFacebook: clinicInfo.facebook_link
-  };
-  Object.entries(map).forEach(([id, value]) => {
-    const el = document.getElementById(id);
-    if (el && value) el.textContent = value;
-  });
-}
-
 // ============ RENDER DOCTORS ============
 function renderDoctors(filter = 'all', containerId = 'doctorsGrid', searchTerm = '') {
   const grid = document.getElementById(containerId);
@@ -298,7 +268,6 @@ function showDoctorDetails(id) {
   const doc = doctorsData.find(d => d.id === id);
   if (!doc) return;
 
-  const phone = (clinicInfo && clinicInfo.contact_no) ? clinicInfo.contact_no : '0985 475 5511';
   const spec = doc.spec || 'General Practice';
   const focusAreas = getClinicalFocusAreas(doc);
   const firstSchedule = doc.schedule[0];
@@ -450,7 +419,6 @@ function openServiceModal(serviceKey) {
   if (!service) return;
 
   const deptLabel = serviceDepartmentLabels[serviceKey] || `Department of ${service.title}`;
-  const phone = (clinicInfo && clinicInfo.contact_no) ? clinicInfo.contact_no : '0985 475 5511';
 
   document.getElementById('serviceModalBody').innerHTML = `
     <div class="service-modal-header">
@@ -584,13 +552,12 @@ window.loadDoctorsData      = loadDoctorsData;
 window.handleDoctorPhotoError = handleDoctorPhotoError;
 
 // ============ AUTO-LOAD ON PAGE READY (THE FIX) ============
-// Without this, loadDoctorsData()/loadServicesData()/loadClinicInfo() are defined
+// Without this, loadDoctorsData()/loadServicesData() are defined
 // but never called anywhere, so #doctorsGrid, #doctorsGridHome, #servicesGrid,
 // #serviceCardsHome, and clinic-info fields all stay empty on page load.
 document.addEventListener('DOMContentLoaded', function () {
   loadDoctorsData();
   loadServicesData();
-  loadClinicInfo();
   startLiveSync();
 });
 

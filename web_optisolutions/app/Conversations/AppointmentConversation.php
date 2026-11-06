@@ -949,7 +949,7 @@ class AppointmentConversation extends Conversation
         $catalog = $this->buildScheduleVisitCatalog();
 
         if (empty($catalog['services'])) {
-            $this->sayLogged("We couldn't find any available doctors right now. Please try again later, or contact us directly at 0985 475 5511.");
+            $this->sayLogged("We couldn't find any available doctors right now. Please try again later. " . \App\Support\PublicClinicDetails::contactHelp());
             return;
         }
 
@@ -1272,7 +1272,7 @@ class AppointmentConversation extends Conversation
                 'doctor_id' => $this->doctorId,
                 'service' => $this->service,
             ]);
-            $this->sayLogged("We couldn't save your schedule visit right now. Please try again, or contact us directly at 0985 475 5511.");
+            $this->sayLogged("We couldn't save your schedule visit right now. Please try again. " . \App\Support\PublicClinicDetails::contactHelp());
         }
     }
 
@@ -1297,7 +1297,7 @@ class AppointmentConversation extends Conversation
                 'exception' => $e,
                 'email' => $this->email,
             ]);
-            $this->sayLogged("Sorry, we couldn't send the confirmation email right now. Your visit is still saved, so please take a screenshot of the confirmation above, or contact us at 0985 475 5511.");
+            $this->sayLogged("Sorry, we couldn't send the confirmation email right now. Your visit is still saved, so please take a screenshot of the confirmation above. " . \App\Support\PublicClinicDetails::contactHelp());
         }
     }
 

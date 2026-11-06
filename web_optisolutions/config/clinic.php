@@ -10,8 +10,8 @@ return [
 
     // Used only when the clinic_info table has no value for the field.
     'fallback' => [
-        'address'         => 'TM Kalaw St., Lipa City, Batangas 4217',
-        'contact_no'      => '0985 475 5511',
+        'address'         => '',
+        'contact_no'      => '',
         'operating_hours' => '',
     ],
 ];

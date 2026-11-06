@@ -208,7 +208,7 @@ class InquiryConversation extends Conversation
                 'inquiry_type' => $this->inquiryType,
                 'message' => $this->message,
             ]);
-            $this->say("⚠️ We couldn't submit your inquiry right now. Please try again, or contact us directly at 0985 475 5511.");
+            $this->say("⚠️ We couldn't submit your inquiry right now. Please try again. " . \App\Support\PublicClinicDetails::contactHelp());
         }
 
         $this->resumeAppointmentIfNeeded();

@@ -281,9 +281,9 @@
       Data Privacy Act of 2012, you may contact PolyClinic through:
     </p>
     <ul class="privacy-page-contact">
-      <li><strong>Clinic Address:</strong> TM Kalaw St., Lipa City, Batangas 4217</li>
-      <li><strong>Phone:</strong> 0985 475 5511</li>
-      <li><strong>Email:</strong> [insert your official data privacy / DPO email here]</li>
+      <li><strong>Clinic Address:</strong> <span data-clinic-field="address" data-clinic-empty="Address has not been set yet.">{{ $publicClinic['address'] ?: 'Address has not been set yet.' }}</span></li>
+      <li><strong>Phone:</strong> <span data-clinic-field="contact_no" data-clinic-empty="Phone number has not been set yet.">{{ $publicClinic['contact_no'] ?: 'Phone number has not been set yet.' }}</span></li>
+      <li data-clinic-visible="email" @if ($publicClinic['email'] === '') hidden style="display:none" @endif><strong>Email:</strong> <span data-clinic-field="email">{{ $publicClinic['email'] }}</span></li>
     </ul>
     <p>
       You may also file a complaint with the
@@ -295,10 +295,10 @@
 </section>
 
 <footer class="footer" style="text-align:center; padding:24px; color:#64748B; font-size:13px;">
-  <p>&copy; 2026 PolyClinic Lipa &middot; TM Kalaw St., Lipa City, Batangas 4217</p>
+  <p>&copy; {{ date('Y') }} <span data-clinic-field="clinic_name" data-clinic-empty="Clinic">{{ $publicClinic['clinic_name'] ?: 'Clinic' }}</span><span data-clinic-visible="address" @if ($publicClinic['address'] === '') hidden style="display:none" @endif> &middot; <span data-clinic-field="address">{{ $publicClinic['address'] }}</span></span></p>
 </footer>
 
-@vite(['resources/js/script.js', 'resources/js/navbar-loader.js'])
+@vite(['resources/js/script.js', 'resources/js/clinic-info.js', 'resources/js/navbar-loader.js'])
 
 </body>
 </html>

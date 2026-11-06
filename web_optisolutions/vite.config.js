@@ -36,6 +36,7 @@ export default defineConfig({
                 'resources/js/navbar-loader.js',
                 'resources/js/privacy-notice.js',
                 'resources/js/script.js',
+                'resources/js/clinic-info.js',
             ],
             refresh: true,
         }),

@@ -6,6 +6,7 @@ use App\Models\SiteSetting;
 use App\Models\admin_models\ClinicInfo;
 use Illuminate\Support\Facades\DB;
 use App\Support\PublicCatalog;
+use App\Support\PublicClinicDetails;
 
 class PolyclinicController extends Controller
 {
@@ -14,6 +15,7 @@ class PolyclinicController extends Controller
         $heroImage = SiteSetting::get('hero_image', 'images/doctors_pic.png');
 
         $clinicInfo = ClinicInfo::first();
+        $publicClinic = PublicClinicDetails::from($clinicInfo);
         $specialistsCount = PublicCatalog::doctors()->count();
 
         $avgRating = DB::table('feedback')->avg('star_rating');
@@ -44,7 +46,7 @@ class PolyclinicController extends Controller
             ]);
 
         return view('patient.home', compact(
-            'heroImage', 'clinicInfo', 'specialistsCount', 'avgRating',
+            'heroImage', 'clinicInfo', 'publicClinic', 'specialistsCount', 'avgRating',
             'yearsOfExcellence', 'happyPatientsCount', 'recentFeedback'
         ));
     }
@@ -62,6 +64,11 @@ class PolyclinicController extends Controller
         $avgRating = $avgRating ? round($avgRating, 1) : null;
 
         return view('patient.about', compact('clinicInfo', 'specialistsCount', 'avgRating'));
+    }
+
+    public function privacyNotice()
+    {
+        return view('patient.privacy-notice', ['publicClinic' => PublicClinicDetails::from(ClinicInfo::first())]);
     }
 
     public function services()

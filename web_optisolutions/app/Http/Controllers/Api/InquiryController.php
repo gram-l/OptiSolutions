@@ -164,10 +164,42 @@ class InquiryController extends Controller
         // returned synchronously, so they never need a fake typing delay.
         $staffTyping = TypingStatusService::isTyping('staff', $conversationId);
 
+        // A schedule visit that was paused because the patient asked something
+        // mid-form. The widget uses this, once an inquiry gets resolved, to show
+        // Continue / Start Over / Cancel instead of the generic "anything else"
+        // prompt -- but only when no other inquiry is still waiting on staff.
+        $schedulePaused = \App\Conversations\AppointmentConversation::hasPendingSchedule($conversationId);
+        $hasOpenInquiry = $inquiries->contains(fn ($i) => $i->resolved_status !== 'Resolved');
+
+        // Auto-release: the schedule visit is paused, an inquiry is still open,
+        // but nothing (patient message or staff reply) happened for N minutes.
+        // lastActivityAt doubles as an id so the widget offers it only once
+        // per quiet period.
+        $scheduleRelease = false;
+        $lastActivityAt  = null;
+        if ($schedulePaused && $hasOpenInquiry) {
+            $pending = \App\Conversations\AppointmentConversation::getPendingSchedule($conversationId);
+            $lastActivityAt = (int) ($pending['saved_at'] ?? 0);
+            foreach ($inquiries as $inquiry) {
+                foreach ($inquiry->replies as $reply) {
+                    if ($reply->created_at) {
+                        $lastActivityAt = max($lastActivityAt, $reply->created_at->timestamp);
+                    }
+                }
+            }
+            $scheduleRelease = $lastActivityAt > 0
+                && (now()->timestamp - $lastActivityAt)
+                    >= \App\Conversations\AppointmentConversation::PENDING_SCHEDULE_RELEASE_MINUTES * 60;
+        }
+
         return response()->json([
             'updates'            => $updates,
             'resolvedInquiryIds' => $resolvedInquiryIds,
             'staffTyping'        => $staffTyping,
+            'schedulePaused'     => $schedulePaused,
+            'hasOpenInquiry'     => $hasOpenInquiry,
+            'scheduleRelease'    => $scheduleRelease,
+            'lastActivityAt'     => $lastActivityAt,
         ]);
     }
 }

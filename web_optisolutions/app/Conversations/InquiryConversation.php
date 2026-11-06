@@ -12,6 +12,7 @@ use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
+use App\Services\ClinicInfoService;
 use App\Models\Notification;
 
 class InquiryConversation extends Conversation
@@ -62,10 +63,6 @@ class InquiryConversation extends Conversation
     {
         $this->patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
         $this->patientName = $this->bot->userStorage()->find()['patient_name'] ?? null;
-
-        if ($this->resumeStepKey) {
-            $this->say("No worries, let's sort this out first — we'll pick your schedule visit right back up after.");
-        }
 
         // If we already have the patient's original message (they typed
         // it while browsing the site / mid-schedule-visit, and got
@@ -125,6 +122,13 @@ class InquiryConversation extends Conversation
                 return $this->askMessage('⚠️ Message cannot be empty. Please type your question or concern:');
             }
 
+            // "/", "hn", "asdf" etc. aren't a question or concern: ask again
+            // instead of sending junk to staff.
+            if (ClinicInfoService::looksLikeNonInquiry($text)) {
+                $this->say(ClinicInfoService::nonInquiryReply($text));
+                return $this->askMessage($prompt);
+            }
+
             $this->message = $text;
             $this->submitInquiry();
         });
@@ -132,6 +136,14 @@ class InquiryConversation extends Conversation
 
     protected function submitInquiry()
     {
+        // Last safety net: whatever path got us here, a non-inquiry message
+        // ("/", "hn", "???") must never reach Admin/Staff.
+        if (ClinicInfoService::looksLikeNonInquiry((string) $this->message)) {
+            $this->say(ClinicInfoService::nonInquiryReply((string) $this->message));
+            $this->resumeAppointmentIfNeeded();
+            return;
+        }
+
         // Higher threshold than Review/Complaint (6 vs 3 per 10 min):
         // this step can be auto-triggered multiple times in one
         // legitimate visit (each off-topic detour mid-schedule-visit
@@ -148,11 +160,14 @@ class InquiryConversation extends Conversation
         // instead of continuing this one.
         $conversationId = $this->bot->getMessage()->getSender();
 
-        // Best-effort guest name: not collected in the standalone
-        // "what's your inquiry about" flow, but available if this
-        // inquiry was routed here mid-schedule-visit (resumeState
-        // carries whatever name the patient had already typed).
-        $guestName = trim(($this->resumeState['fname'] ?? '') . ' ' . ($this->resumeState['lname'] ?? '')) ?: null;
+        // PRIVACY: a name typed during a schedule visit that is not yet
+        // confirmed is NOT passed to Admin/Staff. The inquiry stays anonymous
+        // ("Guest") until the schedule visit is confirmed -- at that point
+        // AppointmentConversation::submitAppointment() links this chat's
+        // inquiries to the patient record.
+        $guestName = null;
+
+        $submitted = false;
 
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
@@ -189,6 +204,7 @@ class InquiryConversation extends Conversation
             ]);*/
 
             $this->say(self::FORWARDED_TEXT);
+            $submitted = true;
         } catch (\Throwable $e) {
             // IMPORTANT: this used to fail silently (no logging), so the
             // ONLY symptom was the generic "couldn't submit" message to
@@ -211,6 +227,21 @@ class InquiryConversation extends Conversation
             $this->say("⚠️ We couldn't submit your inquiry right now. Please try again, or contact us directly at 0985 475 5511.");
         }
 
+        // Inquiry reached Admin/Staff: keep the schedule visit PAUSED instead
+        // of showing the form again. It comes back (Continue / Start Over /
+        // Cancel) once the inquiry is resolved -- see the widget's polling and
+        // BotManController's continue_schedule / restart_schedule / cancel_schedule.
+        if ($submitted && $this->resumeStepKey && $this->resumeState) {
+            AppointmentConversation::savePendingSchedule(
+                (string) $conversationId,
+                (string) $this->resumeStepKey,
+                (array) $this->resumeState
+            );
+            return;
+        }
+
+        // Nothing was forwarded (error / cooldown): there is nothing to wait
+        // for, so bring the schedule visit straight back.
         $this->resumeAppointmentIfNeeded();
     }
 

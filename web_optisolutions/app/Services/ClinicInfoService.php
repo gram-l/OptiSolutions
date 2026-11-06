@@ -346,6 +346,139 @@ class ClinicInfoService
         return self::$acknowledgmentReplies[array_rand(self::$acknowledgmentReplies)];
     }
 
+    // NON-INQUIRY DETECTION
+    //
+    // Messages that are not a question or request at all: a stray "/",
+    // "???", an emoji, "hn", "asdfgh", "hahaha", a bare number, etc.
+    // These must NEVER be forwarded to Admin/Staff. The bot just asks the
+    // patient what they need instead.
+
+    // Short real words/abbreviations a patient might legitimately type on
+    // their own. Never treated as gibberish.
+    protected static array $shortRealWords = [
+        'ob', 'er', 'tb', 'bp', 'ct', 'id', 'hmo', 'pwd', 'ecg', 'ekg',
+        'cbc', 'mri', 'ent', 'eye', 'ear', 'fee', 'fees', 'xray', 'x-ray',
+    ];
+
+    // Reactions / filler that carry no request.
+    protected static array $reactionWords = [
+        'lol', 'lmao', 'lmfao', 'rofl', 'omg', 'wtf', 'wow', 'hmm', 'hmmm', 'hm', 'hmmmm',
+        'uhm', 'uhh', 'um', 'umm', 'uh', 'ah', 'ahh', 'oh', 'ohh', 'eh', 'huh', 'hay', 'ay', 'ayy',
+        'haha', 'hahaha', 'hehe', 'hihi', 'huhu', 'wkwk', 'xd', 'test', 'testing', 'p', 'a',
+    ];
+
+    // True when a single token looks like a typo / random keys / filler.
+    protected static function isGibberishToken(string $token, bool $strict = false): bool
+    {
+        $t = mb_strtolower(trim($token));
+        $t = trim(preg_replace('/[^\p{L}\p{N}-]+/u', '', $t), '-');
+        if ($t === '') {
+            return true;
+        }
+
+        if (in_array($t, self::$shortRealWords, true)) {
+            return false;
+        }
+        if (in_array($t, self::$reactionWords, true)) {
+            return true;
+        }
+
+        // Digits only ("123", "0917"): not a question.
+        if (preg_match('/^\p{N}+$/u', $t)) {
+            return true;
+        }
+
+        $len = mb_strlen($t);
+
+        // One or two letters on their own ("hn", "k", "x").
+        if (!$strict && $len <= 2) {
+            return true;
+        }
+
+        // Same short chunk repeated: "aaaa", "hahaha", "wkwkwk".
+        if ($len >= 3 && preg_match('/^(\p{L}{1,3})\1+$/u', $t)) {
+            return true;
+        }
+
+        // Keyboard mashing: "asdfgh", "qwerty", "zxcv", "hjkl".
+        foreach (['asdf', 'sdfg', 'dfgh', 'fghj', 'ghjk', 'hjkl', 'qwer', 'wert', 'erty', 'rtyu', 'tyui', 'zxcv', 'xcvb', 'cvbn', 'vbnm'] as $mash) {
+            if (str_contains($t, $mash)) {
+                return true;
+            }
+        }
+
+        // No vowels in a letters-only word of 3+ characters ("hjk", "sdfk").
+        if ($len >= 3 && preg_match('/^\p{L}+$/u', $t) && !preg_match('/[aeiouyAEIOUY]/', $t)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // True when the text is not a question or request and should NOT be
+    // forwarded to Admin/Staff.
+    public static function looksLikeNonInquiry(string $text): bool
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', $text));
+
+        if ($text === '') {
+            return true;
+        }
+
+        // Review transaction codes are free text a patient may legitimately
+        // type; never treat them as gibberish.
+        $code = strtoupper(preg_replace('/\s+/', '', $text));
+        if (preg_match(\App\Services\VisitReviewService::CODE_PATTERN, $code)) {
+            return false;
+        }
+
+        $nonInquiry = false;
+
+        if (!preg_match('/[\p{L}\p{N}]/u', $text)) {
+            // Only symbols / punctuation / emoji: "/", "?", "...", "👍".
+            $nonInquiry = true;
+        } else {
+            $tokens = preg_split('/\s+/u', $text);
+            if (count($tokens) === 1) {
+                $nonInquiry = self::isGibberishToken($tokens[0]);
+            } elseif (count($tokens) <= 4) {
+                // Several tokens: only when EVERY one is junk ("asdf asdf").
+                $nonInquiry = collect($tokens)->every(fn($tk) => self::isGibberishToken($tk, true));
+            }
+        }
+
+        if (!$nonInquiry) {
+            return false;
+        }
+
+        // An admin-defined trigger phrase (Chatbot Commands) always wins,
+        // even if it happens to be very short.
+        try {
+            if (self::matchCustomCommand($text) !== null) {
+                return false;
+            }
+        } catch (\Throwable $e) {
+            // If the lookup fails, fall through and treat it as non-inquiry.
+        }
+
+        return true;
+    }
+
+    // Friendly reply for a non-inquiry message. Never forwarded to staff.
+    public static function nonInquiryReply(string $text = ''): string
+    {
+        $help = 'I can help you schedule a visit, share general clinic information, or take a review or complaint. What would you like to do?';
+        $clean = trim(preg_replace('/\s+/u', ' ', strip_tags($text)));
+
+        if ($clean === '' || !preg_match('/[\p{L}\p{N}]/u', $clean)) {
+            return "It looks like your message didn't come through properly — I didn't catch a question or request there.\n\n" . $help;
+        }
+
+        $clean = str_replace(['*', '`', '_'], '', mb_substr($clean, 0, 30));
+
+        return "I'm not sure what “{$clean}” refers to — it may have been sent by accident. Could you retype what you'd like help with?\n\n" . $help;
+    }
+
     // Splits a doctor's full name into lowercase name tokens.
     protected static function normalizeDoctorTokens(string $doctorName): array
     {

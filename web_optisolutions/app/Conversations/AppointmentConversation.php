@@ -14,6 +14,7 @@ use App\Support\PublicCatalog;
 use App\Support\ScheduleVisitCatalog;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use App\Services\NotificationService;
 use App\Models\Notification;
 
@@ -48,6 +49,56 @@ class AppointmentConversation extends Conversation
     // Step/state to resume after a detour into InquiryConversation.
     protected $pendingResumeStepKey;
     protected $pendingResumeState;
+
+    // PAUSED SCHEDULE VISIT
+    // When the patient asks something mid-form that has to go to Admin/Staff,
+    // the schedule visit is NOT resumed right away. Its step + state are kept
+    // here (keyed by the chat's conversation id) until the inquiry is resolved
+    // and the patient picks Continue / Start Over / Cancel.
+    public const PENDING_SCHEDULE_TTL_HOURS = 6;
+
+    // If an inquiry is still open but nobody has said anything for this many
+    // minutes, the patient is offered Continue / Start Over / Cancel anyway,
+    // so a forgotten "Resolve" can never leave the form locked forever.
+    public const PENDING_SCHEDULE_RELEASE_MINUTES = 10;
+
+    public static function pendingScheduleKey(string $conversationId): string
+    {
+        return 'pending_schedule:' . $conversationId;
+    }
+
+    public static function savePendingSchedule(string $conversationId, string $stepKey, array $state): void
+    {
+        if ($conversationId === '') {
+            return;
+        }
+        Cache::put(
+            self::pendingScheduleKey($conversationId),
+            ['step' => $stepKey, 'state' => $state, 'saved_at' => now()->timestamp],
+            now()->addHours(self::PENDING_SCHEDULE_TTL_HOURS)
+        );
+    }
+
+    public static function getPendingSchedule(string $conversationId): ?array
+    {
+        if ($conversationId === '') {
+            return null;
+        }
+        $pending = Cache::get(self::pendingScheduleKey($conversationId));
+        return is_array($pending) ? $pending : null;
+    }
+
+    public static function hasPendingSchedule(string $conversationId): bool
+    {
+        return self::getPendingSchedule($conversationId) !== null;
+    }
+
+    public static function clearPendingSchedule(string $conversationId): void
+    {
+        if ($conversationId !== '') {
+            Cache::forget(self::pendingScheduleKey($conversationId));
+        }
+    }
 
     public function __construct($resumeStepKey = null, $resumeState = null)
     {
@@ -391,6 +442,18 @@ class AppointmentConversation extends Conversation
             return true;
         }
 
+        // Not a question or request ("/", "hn", "???", "asdf"): never forwarded
+        // to staff. Say so and re-show the current step.
+        if (!$isButtonTap) {
+            $junk = trim($answer->getText());
+            if ($junk !== '' && ClinicInfoService::looksLikeNonInquiry($junk)) {
+                $this->logMessage('You', $junk);
+                $this->sayLogged(ClinicInfoService::nonInquiryReply($junk));
+                $this->resumeStep($stepKey);
+                return true;
+            }
+        }
+
         if (!$this->looksLikeInquiry($answer)) {
             return false;
         }
@@ -414,7 +477,7 @@ class AppointmentConversation extends Conversation
     protected function routeToInquiry(Answer $answer, string $stepKey)
     {
         $this->logMessage('You', $answer->getText() ?: '[Attachment]');
-        $this->sayLogged("Got it — let me send that to our staff so a real person can take a look. We'll pick your schedule visit right back up after.");
+        $this->sayLogged("Got it — let me send that to our staff so a real person can take a look. Your schedule visit is on hold for now, and you'll be able to continue it as soon as your question is answered.");
 
         $state = [
             'fname' => $this->fname, 'lname' => $this->lname, 'phone' => $this->phone,
@@ -1228,6 +1291,21 @@ class AppointmentConversation extends Conversation
                 'patient_id' => $patientId,
                 'patient_name' => "{$this->fname} {$this->lname}",
             ]);
+
+            // The schedule visit is now confirmed: only from here may Admin/Staff
+            // see who is behind the inquiries this patient sent mid-form, so
+            // link them (and the chat's earlier inquiries) to the patient record.
+            try {
+                $conversationId = (string) $this->bot->getMessage()->getSender();
+                if ($conversationId !== '' && $patientId) {
+                    DB::table('inquiries')
+                        ->where('conversation_id', $conversationId)
+                        ->whereNull('patient_id')
+                        ->update(['patient_id' => $patientId]);
+                }
+            } catch (\Throwable $linkError) {
+                Log::error('Failed to link inquiries to patient after confirmation: ' . $linkError->getMessage());
+            }
 
             // Confirmation card: title + screenshot note, patient/service/schedule sections.
             $card = [

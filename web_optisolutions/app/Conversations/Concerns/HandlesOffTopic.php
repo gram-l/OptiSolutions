@@ -120,6 +120,18 @@ trait HandlesOffTopic
             return true;
         }
 
+        // Not a question or request ("/", "hn", "asdfgh", "???"): never goes
+        // to staff. Say so and put the current step back on screen.
+        if (!$isButtonTap) {
+            $typedText = trim($answer->getText());
+            if ($typedText !== '' && !preg_match('/^[1-5]$/', $typedText)
+                && ClinicInfoService::looksLikeNonInquiry($typedText)) {
+                $this->say(ClinicInfoService::nonInquiryReply($typedText));
+                $resumeCurrentStep();
+                return true;
+            }
+        }
+
         if (!$this->looksLikeInquiry($answer)) {
             // Anything else typed (not a button tap, not a bare 1-5 rating)
             // is something the bot can't answer, so it goes to staff too.

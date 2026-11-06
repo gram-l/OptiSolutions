@@ -176,6 +176,13 @@ class AnythingElseConversation extends Conversation
                     return $this->showMenu();
                 }
 
+                // "/", "hn", "???", "asdf" etc. are not inquiries: never
+                // forward them to staff, just ask what they need.
+                if (\App\Services\ClinicInfoService::looksLikeNonInquiry($typed)) {
+                    $this->say(\App\Services\ClinicInfoService::nonInquiryReply($typed));
+                    return $this->showMenu();
+                }
+
                 return $this->routeToInquiry($answer);
             }
 

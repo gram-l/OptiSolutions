@@ -1176,3 +1176,43 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Schedule visit form paused while an inquiry is being answered */
+.chat-form-card.is-paused { opacity: .75; }
+.chat-form-paused {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  background: var(--primary-light);
+  border-radius: 12px;
+  padding: 10px 14px;
+  text-align: center;
+  margin-bottom: 16px !important;
+}
+
+.chat-form-paused { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.chat-form-paused-cancel {
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #b91c1c;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.chat-form-paused-cancel:hover { background: #fee2e2; }
+
+.chat-continue-anyway-btn {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.chat-continue-anyway-btn:hover { color: var(--primary-dark); }

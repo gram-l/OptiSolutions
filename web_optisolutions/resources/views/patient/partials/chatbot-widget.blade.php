@@ -682,6 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function removeActiveForm() {
     if (!activeForm) return;
     if (activeForm.timer) clearInterval(activeForm.timer);
+    removeContinueAnywayLinks();
     activeForm.el.remove();
     if (activeForm.entry) {
       const i = session.history.indexOf(activeForm.entry);
@@ -689,6 +690,107 @@ document.addEventListener('DOMContentLoaded', () => {
       persistSession();
     }
     activeForm = null;
+  }
+
+  // PAUSED SCHEDULE VISIT FORM
+  // While the patient's question is being answered (by the bot or by
+  // Admin/Staff) the form stays on screen but locked. Whatever was already
+  // typed is kept in pausedSnapshot and put back when the form returns.
+  let pausedSnapshot = null;
+
+  // Choosing any of these leaves the paused state (form is replaced/removed).
+  const PAUSE_EXIT_TEXTS = new Set([
+    'continue_schedule', 'restart_schedule', 'cancel_schedule', 'cancel',
+    'menu', 'schedule visit', 'general information',
+    'complaint', 'submit complaint', 'review', 'submit review/rating',
+  ]);
+
+  const CONTINUE_BUTTONS = [
+    { text: 'Continue Schedule Visit', value: 'continue_schedule' },
+    { text: 'Start Over',              value: 'restart_schedule' },
+    { text: 'Cancel',                  value: 'cancel_schedule' },
+  ];
+
+  function renderPausedBanner(card, form, reason) {
+    let banner = card.querySelector('.chat-form-paused');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.className = 'chat-form-paused';
+      card.insertBefore(banner, form);
+    }
+    const forStaff = reason === 'staff';
+    if (banner.dataset.reason === (forStaff ? 'staff' : 'bot')) return;
+    banner.dataset.reason = forStaff ? 'staff' : 'bot';
+    banner.innerHTML = '';
+
+    const msg = document.createElement('span');
+    msg.textContent = forStaff
+      ? "We've passed your question to our staff. Your schedule visit is on hold until they reply. You can cancel it anytime if you'd rather not wait."
+      : 'Schedule visit is on hold while we answer your question.';
+    banner.appendChild(msg);
+
+    // Cancel is always within reach while the visit is on hold for staff.
+    if (forStaff) {
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'chat-form-paused-cancel';
+      cancel.textContent = 'Cancel schedule visit';
+      cancel.addEventListener('click', () => {
+        if (isSending) return;
+        sendMessage('cancel_schedule', 'Cancel');
+      });
+      banner.appendChild(cancel);
+    }
+  }
+
+  function pauseActiveForm(reason) {
+    if (!activeForm) return;
+    const card = activeForm.el.querySelector('.chat-form-card');
+    const form = activeForm.el.querySelector('form');
+    if (!card || !form) return;
+
+    if (!activeForm.paused) {
+      const values = {};
+      form.querySelectorAll('input, select').forEach(el => {
+        if (!el.name) return;
+        values[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+      });
+      pausedSnapshot = { step: activeForm.step, values };
+
+      activeForm.paused = true;
+      if (activeForm.timer) { clearInterval(activeForm.timer); activeForm.timer = null; }
+      card.classList.add('is-paused');
+      form.querySelectorAll('input, select, button').forEach(el => { el.disabled = true; });
+    }
+
+    renderPausedBanner(card, form, reason);
+    scrollToBottom();
+  }
+
+  // Small link under a staff reply: lets the patient carry on with the
+  // schedule visit without waiting for staff to press "Resolve".
+  function removeContinueAnywayLinks() {
+    document.querySelectorAll('.chat-continue-anyway').forEach(el => el.remove());
+  }
+
+  function addContinueAnywayLink() {
+    if (!activeForm || !activeForm.paused) return;
+    removeContinueAnywayLinks();
+
+    const wrap = document.createElement('div');
+    wrap.className = 'chat-message bot chat-continue-anyway';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chat-continue-anyway-btn';
+    btn.textContent = 'Continue schedule visit anyway';
+    btn.addEventListener('click', () => {
+      if (isSending) return;
+      removeContinueAnywayLinks();
+      sendMessage('continue_schedule', 'Continue Schedule Visit');
+    });
+    wrap.appendChild(btn);
+    messagesEl.appendChild(wrap);
+    scrollToBottom();
   }
 
   function addFormCard(data, persist = true) {
@@ -851,6 +953,25 @@ document.addEventListener('DOMContentLoaded', () => {
       form.appendChild(group);
     });
 
+    // Coming back from a paused form: put back what the patient had typed.
+    if (pausedSnapshot) {
+      const snap = pausedSnapshot;
+      pausedSnapshot = null;
+      if (snap.step === (data.step || data.title)) {
+        Object.keys(controls).forEach(name => {
+          if (!(name in snap.values)) return;
+          const el = controls[name];
+          if (el.tagName === 'SELECT') {
+            if (!el.dataset.initial) el.dataset.initial = snap.values[name] || '';
+          } else if (el.type === 'checkbox') {
+            el.checked = !!snap.values[name];
+          } else if (!el.value) {
+            el.value = snap.values[name] || '';
+          }
+        });
+      }
+    }
+
     // Populate the selects (roots first; fillSelect cascades to the rest).
     Object.keys(selectDefs)
       .filter(n => !selectDefs[n].depends_on)
@@ -960,7 +1081,7 @@ document.addEventListener('DOMContentLoaded', () => {
       persistSession();
     }
 
-    activeForm = { el: messageWrap, entry };
+    activeForm = { el: messageWrap, entry, step: data.step || data.title };
 
     // Updates the available schedule visit options while the form is open.
     if (selectDefs.service && selectDefs.doctor && selectDefs.slot) {
@@ -1136,6 +1257,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setSendingState(true);
 
+    // Leaving the paused schedule visit (other than Continue) discards
+    // whatever was typed in the locked form.
+    const sentKey = text.trim().toLowerCase();
+    if (sentKey !== 'continue_schedule' && PAUSE_EXIT_TEXTS.has(sentKey)) {
+      pausedSnapshot = null;
+    }
+    if (PAUSE_EXIT_TEXTS.has(sentKey)) removeContinueAnywayLinks();
+
     if (!opts.skipUserBubble) {
       addBubble(displayText ?? text, 'user');
     }
@@ -1182,6 +1311,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const messages = Array.isArray(data) ? data : (data.messages || []);
       let hadButtons = false;
       let hadForm = false;
+      let offersContinue = false;
+      let forwardedToStaff = false;
 
       messages.forEach(msg => {
         if (msg.text) {
@@ -1215,16 +1346,26 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
+        if (msg.text && FALLBACK_TEXTS.has(msg.text)) forwardedToStaff = true;
+
         const buttons = msg.actions || (msg.attachment && msg.attachment.buttons);
         if (buttons && buttons.length) {
           addButtons(buttons);
           hadButtons = true;
+          if (buttons.some(b => b.value === 'continue_schedule')) offersContinue = true;
         }
       });
 
-      // Removes the outdated form when the conversation moves to another step.
+      // The form is paused (not removed) while the patient's question is
+      // being handled: forwarded to staff, or answered by the bot with the
+      // Continue / Start Over / Cancel buttons. Any other step removes it.
       if (!hadForm) {
-        removeActiveForm();
+        const leaving = PAUSE_EXIT_TEXTS.has(sentKey);
+        if (activeForm && !leaving && (forwardedToStaff || offersContinue || activeForm.paused)) {
+          pauseActiveForm(forwardedToStaff ? 'staff' : undefined);
+        } else {
+          removeActiveForm();
+        }
       }
 
       // Clears the pinned buttons when the current step has no options.
@@ -1348,6 +1489,16 @@ document.addEventListener('DOMContentLoaded', () => {
         hideTyping();
       }
 
+      // Auto-release: inquiry still open but quiet for a while -> offer the
+      // Continue / Start Over / Cancel buttons (once per quiet period).
+      if (data.scheduleRelease && data.lastActivityAt && session.releasedAt !== data.lastActivityAt) {
+        session.releasedAt = data.lastActivityAt;
+        removeContinueAnywayLinks();
+        addBubble("Our staff is taking a little longer than usual to reply. Would you like to continue your schedule visit, start over, or cancel? You can still get their answer here later.", 'bot');
+        addButtons(CONTINUE_BUTTONS);
+        persistSession();
+      }
+
       if (newOnes.length === 0 && newlyResolved.length === 0) return;
 
       if (newOnes.length > 0) {
@@ -1358,6 +1509,9 @@ document.addEventListener('DOMContentLoaded', () => {
           shownReplyIds.add(u.replyId);
         });
 
+        // Staff answered, but hasn't resolved yet: offer a way to carry on.
+        addContinueAnywayLink();
+
         session.shownReplyIds = Array.from(shownReplyIds);
       }
 
@@ -1365,6 +1519,25 @@ document.addEventListener('DOMContentLoaded', () => {
       if (newlyResolved.length > 0) {
         newlyResolved.forEach(id => shownResolvedIds.add(id));
         session.shownResolvedIds = Array.from(shownResolvedIds);
+
+        if (data.schedulePaused) {
+          // Schedule visit on hold: bring back Continue / Start Over / Cancel
+          // (only once no other inquiry is still waiting on Admin/Staff).
+          if (!data.hasOpenInquiry) {
+            removeContinueAnywayLinks();
+            addBubble('Your inquiry has been resolved. Would you like to continue your schedule visit, start over, or cancel?', 'bot');
+            addButtons(CONTINUE_BUTTONS);
+          }
+          persistSession();
+          return;
+        }
+
+        // Patient already continued the schedule visit (form is live): don't
+        // interrupt them with the "anything else?" prompt.
+        if (activeForm && !activeForm.paused) {
+          persistSession();
+          return;
+        }
 
         // Shows the scheduling thank-you message after the inquiry is resolved.
         const fromSchedule = newlyResolved.some(id => resolvedTypeById[id] === 'Schedule Visit Follow-up');

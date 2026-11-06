@@ -86,29 +86,65 @@ class BotManController extends Controller
 
             $botman->hears('schedule visit', function ($bot) {
                 Log::info('MATCHED: schedule visit');
+                // A brand-new schedule visit replaces any paused one.
+                $this->clearPendingSchedule($bot);
                 $bot->startConversation(new AppointmentConversation());
+            });
+
+            // Buttons shown after a paused schedule visit's inquiry is answered
+            // or resolved. No conversation is waiting for these on the server
+            // (the old one ended when the inquiry was forwarded), so they are
+            // handled here from the state saved in the cache.
+            $botman->hears(['continue_schedule', 'continue schedule visit'], function ($bot) {
+                Log::info('MATCHED: continue_schedule');
+                $pending = $this->takePendingSchedule($bot);
+                if ($pending === null) {
+                    $this->replyScheduleExpired($bot);
+                    return;
+                }
+                $bot->reply("Welcome back! Let's continue your schedule visit.");
+                $bot->startConversation(new AppointmentConversation($pending['step'], $pending['state']));
+            });
+
+            $botman->hears(['restart_schedule', 'start over'], function ($bot) {
+                Log::info('MATCHED: restart_schedule');
+                $this->clearPendingSchedule($bot);
+                $bot->reply('Okay! Restarting your schedule visit from the beginning.');
+                $bot->startConversation(new AppointmentConversation());
+            });
+
+            $botman->hears('cancel_schedule', function ($bot) {
+                Log::info('MATCHED: cancel_schedule');
+                $this->clearPendingSchedule($bot);
+                $bot->reply('Okay, your schedule visit has been cancelled. Type "Menu" anytime to start again.');
             });
 
             $botman->hears('general information', function ($bot) {
                 Log::info('MATCHED: general information');
                 $bot->reply(ClinicInfoService::infoCardMessage());
-                // Re-show the menu so the buttons don't disappear.
-                $this->sendGreeting($bot, false);
+                // A paused schedule visit gets its Continue / Start Over / Cancel
+                // buttons; otherwise re-show the menu so the buttons don't disappear.
+                if (!$this->offerScheduleContinuation($bot)) {
+                    $this->sendGreeting($bot, false);
+                }
             });
 
             // Long-form and short-form phrasing both need to be recognized.
             $botman->hears('complaint', function ($bot) {
                 Log::info('MATCHED: complaint');
+                $this->clearPendingSchedule($bot);
                 $bot->startConversation(new ComplaintConversation());
             });
 
             $botman->hears('submit complaint', function ($bot) {
                 Log::info('MATCHED: submit complaint');
+                $this->clearPendingSchedule($bot);
                 $bot->startConversation(new ComplaintConversation());
             });
 
             $botman->hears('review', function ($bot) {
                 Log::info('MATCHED: review');
+                $this->clearPendingSchedule($bot);
                 $stored = $bot->userStorage()->find() ?: [];
                 $bot->startConversation(new ReviewConversation(
                     $stored['patient_id'] ?? null,
@@ -118,6 +154,7 @@ class BotManController extends Controller
 
             $reviewCommand = $botman->hears('submit review/rating', function ($bot) {
                 Log::info('MATCHED: submit review/rating');
+                $this->clearPendingSchedule($bot);
                 $stored = $bot->userStorage()->find() ?: [];
                 $bot->startConversation(new ReviewConversation(
                     $stored['patient_id'] ?? null,
@@ -157,6 +194,7 @@ class BotManController extends Controller
 
             $botman->hears('menu', function ($bot) {
                 Log::info('MATCHED: menu');
+                $this->clearPendingSchedule($bot);
                 $this->sendGreeting($bot);
             });
 
@@ -228,6 +266,7 @@ class BotManController extends Controller
         if (ClinicInfoService::looksLikeAcknowledgment($text)) {
             Log::info('FALLBACK answered as acknowledgment: "' . $text . '"');
             $bot->reply(ClinicInfoService::acknowledgmentReply());
+            $this->offerScheduleContinuation($bot);
             return;
         }
 
@@ -235,7 +274,9 @@ class BotManController extends Controller
         if (ClinicInfoService::looksLikeGreeting($text)) {
             Log::info('FALLBACK answered as greeting: "' . $text . '"');
             $bot->reply(ClinicInfoService::greetingReply());
-            $this->sendGreeting($bot, false);
+            if (!$this->offerScheduleContinuation($bot)) {
+                $this->sendGreeting($bot, false);
+            }
             return;
         }
 
@@ -243,6 +284,25 @@ class BotManController extends Controller
         if (ClinicInfoService::looksLikeAskingPermission($text)) {
             Log::info('FALLBACK answered as asking-permission: "' . $text . '"');
             $bot->reply(ClinicInfoService::askingPermissionReply());
+            $this->offerScheduleContinuation($bot);
+            return;
+        }
+
+        // Not a question or request at all (e.g. "/", "???", "hn", "asdfgh",
+        // "hahaha", a bare number). Ask what they need instead; this is
+        // NEVER forwarded to Admin/Staff and never creates an inquiry.
+        if (ClinicInfoService::looksLikeNonInquiry($text)) {
+            Log::info('FALLBACK ignored (not an inquiry): "' . $text . '"');
+            $bot->reply(ClinicInfoService::nonInquiryReply($text));
+            $conversationId = (string) $bot->getMessage()->getSender();
+            $hasOpenInquiry = $conversationId !== '' && Inquiry::where('conversation_id', $conversationId)
+                ->where('resolved_status', '!=', 'Resolved')
+                ->exists();
+            // A paused schedule visit takes priority over the menu. Otherwise,
+            // don't push the menu on someone mid-chat with staff.
+            if (!$this->offerScheduleContinuation($bot) && !$hasOpenInquiry) {
+                $this->sendGreeting($bot, false);
+            }
             return;
         }
 
@@ -251,6 +311,9 @@ class BotManController extends Controller
         if ($infoReply !== null) {
             Log::info('FALLBACK answered from ClinicInfoService: "' . $text . '"');
             $bot->reply($infoReply);
+            // Answered by the bot -> if a schedule visit is paused, offer
+            // Continue / Start Over / Cancel right away.
+            $this->offerScheduleContinuation($bot);
             return;
         }
 
@@ -304,7 +367,10 @@ class BotManController extends Controller
 
     protected function recordInquiry(string $conversationId, string $userMessage, ChatbotLog $log, $botman)
     {
-        $this->recordInquiryReply($conversationId, $userMessage, $log);
+        // patient_id is only in storage once a schedule visit was confirmed;
+        // before that the inquiry stays anonymous to Admin/Staff.
+        $patientId = $botman->userStorage()->find()['patient_id'] ?? null;
+        $this->recordInquiryReply($conversationId, $userMessage, $log, null, null, $patientId);
     }
 
     protected function recordInquiryReply(
@@ -312,7 +378,8 @@ class BotManController extends Controller
         string $userMessage,
         ChatbotLog $log,
         ?string $attachmentPath = null,
-        ?string $attachmentName = null
+        ?string $attachmentName = null,
+        $patientId = null
     ) {
         try {
             $openInquiry = Inquiry::where('conversation_id', $conversationId)
@@ -321,8 +388,16 @@ class BotManController extends Controller
                 ->first();
 
             if (!$openInquiry) {
+                // Attachments have no bot/storage here: reuse the patient this
+                // chat was already linked to by a confirmed schedule visit.
+                if (!$patientId && $conversationId !== '') {
+                    $patientId = Inquiry::where('conversation_id', $conversationId)
+                        ->whereNotNull('patient_id')
+                        ->value('patient_id');
+                }
+
                 $openInquiry = Inquiry::create([
-                    'patient_id'      => null,
+                    'patient_id'      => $patientId ?: null,
                     'guest_name'      => null,
                     'log_id'          => $log->log_id,
                     'conversation_id' => $conversationId !== '' ? $conversationId : null,
@@ -389,6 +464,69 @@ class BotManController extends Controller
                 'error'   => 'Something went wrong uploading the attachment. Please try again.',
             ], 500);
         }
+    }
+
+    // PAUSED SCHEDULE VISIT HELPERS
+
+    protected function conversationIdOf($bot): string
+    {
+        return (string) $bot->getMessage()->getSender();
+    }
+
+    protected function clearPendingSchedule($bot): void
+    {
+        AppointmentConversation::clearPendingSchedule($this->conversationIdOf($bot));
+    }
+
+    // Returns the paused schedule visit (and removes it) or null if none/expired.
+    protected function takePendingSchedule($bot): ?array
+    {
+        $conversationId = $this->conversationIdOf($bot);
+        $pending = AppointmentConversation::getPendingSchedule($conversationId);
+        if ($pending !== null) {
+            AppointmentConversation::clearPendingSchedule($conversationId);
+        }
+        return $pending;
+    }
+
+    protected function replyScheduleExpired($bot): void
+    {
+        $bot->reply('That schedule visit has expired. Please tap "Schedule Visit" to start again.');
+        $this->sendGreeting($bot, false);
+    }
+
+    /**
+     * If this chat has a paused schedule visit, show Continue / Start Over /
+     * Cancel -- but only once no inquiry is still waiting on Admin/Staff
+     * (in that case the widget shows them when the inquiry gets resolved).
+     *
+     * Returns true when a schedule visit is paused (whether or not the buttons
+     * were shown right now), so callers know not to push the main menu.
+     */
+    protected function offerScheduleContinuation($bot): bool
+    {
+        $conversationId = $this->conversationIdOf($bot);
+        if (!AppointmentConversation::hasPendingSchedule($conversationId)) {
+            return false;
+        }
+
+        $hasOpenInquiry = Inquiry::where('conversation_id', $conversationId)
+            ->where('resolved_status', '!=', 'Resolved')
+            ->exists();
+
+        if (!$hasOpenInquiry) {
+            $bot->reply(
+                Question::create('Would you like to continue your schedule visit, start over, or cancel?')
+                    ->fallback('Please choose an option from the buttons above.')
+                    ->addButtons([
+                        Button::create('Continue Schedule Visit')->value('continue_schedule'),
+                        Button::create('Start Over')->value('restart_schedule'),
+                        Button::create('Cancel')->value('cancel_schedule'),
+                    ])
+            );
+        }
+
+        return true;
     }
 
     protected function sendGreeting($bot, bool $showGreeting = true)

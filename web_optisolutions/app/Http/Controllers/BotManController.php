@@ -20,6 +20,8 @@ use App\Models\Staff\AppNotification;
 use App\Middleware\CaptureReplyMiddleware;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class BotManController extends Controller
 {
@@ -362,27 +364,40 @@ class BotManController extends Controller
         $conversationId = (string) $request->input('userId', '');
         $caption = trim((string) $request->input('caption', ''));
 
+        $privateFile = null;
         try {
             $file = $request->file('attachment');
-            $storedPath = $file->store('chat-attachments', 'public');
+            $privateFile = $file->store('', 'chat_attachments');
+            $storedPath = 'chat-attachments/'.$privateFile;
             $originalName = $file->getClientOriginalName();
 
             $displayMessage = $caption !== '' ? $caption : '(Sent an attachment)';
 
-            $log = ChatbotLog::create([
-                'conversation_id' => $conversationId !== '' ? $conversationId : null,
-                'user_message'    => $displayMessage,
-                'bot_message'     => '(no reply)',
-            ]);
+            $reply = DB::transaction(function () use ($conversationId, $displayMessage, $storedPath, $originalName) {
+                $log = ChatbotLog::create([
+                    'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                    'user_message'    => $displayMessage,
+                    'bot_message'     => '(no reply)',
+                ]);
 
-            $this->recordInquiryReply($conversationId, $displayMessage, $log, $storedPath, $originalName);
+                $inquiry = $this->recordInquiryReply($conversationId, $displayMessage, $log, $storedPath, $originalName);
+                if (!$inquiry) throw new \RuntimeException('The attachment could not be linked to an inquiry.');
+                return $inquiry->replies()->where('attachment_path', $storedPath)->firstOrFail();
+            });
+            $ids = $request->session()->get('chat_attachment_ids', []);
+            $ids[] = (int) $reply->reply_id;
+            $request->session()->put('chat_attachment_ids', array_values(array_unique($ids)));
 
             return response()->json([
                 'success'        => true,
-                'attachmentUrl'  => asset('storage/' . $storedPath),
+                'attachmentUrl'  => route('chatbot.attachments.show', $reply->reply_id),
                 'attachmentName' => $originalName,
             ]);
         } catch (\Throwable $e) {
+            if ($privateFile) {
+                try { Storage::disk('chat_attachments')->delete($privateFile); }
+                catch (\Throwable $cleanupError) { report($cleanupError); }
+            }
             Log::error('Failed to save chatbot attachment: ' . $e->getMessage());
             return response()->json([
                 'success' => false,

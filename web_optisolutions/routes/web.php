@@ -97,6 +97,8 @@ Route::post('/botman', [BotManController::class, 'handle'])
 Route::post('/chatbot/attachment', [BotManController::class, 'attachment'])
     ->middleware('throttle:40,1')
     ->name('chatbot.attachment');
+Route::get('/chatbot/attachments/{reply}', [\App\Http\Controllers\ChatAttachmentController::class, 'show'])
+    ->whereNumber('reply')->name('chatbot.attachments.show');
 
 // Serve CSS files directly from resources/css/{folder} (no Vite needed)
 Route::get('/patient-css/{file}', function ($file) {

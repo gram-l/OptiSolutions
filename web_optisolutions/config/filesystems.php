@@ -30,6 +30,14 @@ return [
 
     'disks' => [
 
+        'chat_attachments' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/chat-attachments'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

@@ -36,9 +36,9 @@ class AdminPatientNotesTest extends TestCase
             ['visit_id' => 2, 'patient_id' => 1, 'visit_date' => '2026-10-19', 'notes' => 'Current note'],
             ['visit_id' => 3, 'patient_id' => 2, 'visit_date' => '2026-10-19', 'notes' => 'Other patient note'],
         ]);
-        $this->actingAs(new \App\Models\admin_models\User([
+        $this->actingAs((new \App\Models\admin_models\User([
             'name' => 'Admin', 'email' => 'admin@example.test', 'user_role' => 'Admin',
-        ]));
+        ]))->forceFill(['status' => 'active']));
     }
 
     public function test_admin_can_save_and_clear_latest_visit_notes(): void

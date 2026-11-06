@@ -33,7 +33,7 @@ class VisitCompletionTest extends TestCase
 
     private function loginAs(string $role): void
     {
-        $this->actingAs(User::create(['name' => 'Test User', 'email' => strtolower($role) . '@example.com', 'password' => 'test-password', 'user_role' => $role]));
+        $this->actingAs(User::create(['name' => 'Test User', 'email' => strtolower($role) . '@example.com', 'password' => 'test-password', 'user_role' => $role])->refresh());
     }
 
     public function test_both_roles_can_only_reschedule_to_their_doctors_future_schedule_and_email_details(): void

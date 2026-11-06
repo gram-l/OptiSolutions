@@ -30,9 +30,9 @@ class DiagnosticAnalyticsTest extends TestCase
     public function test_both_dashboard_addresses_supply_diagnostic_data_and_keep_admin_middleware(): void
     {
         $this->withoutVite();
-        $this->actingAs(new \App\Models\admin_models\User([
+        $this->actingAs((new \App\Models\admin_models\User([
             'name' => 'Test Admin', 'email' => 'admin@example.test', 'user_role' => 'Admin',
-        ]));
+        ]))->forceFill(['status' => 'active']));
         $this->partialMock(\App\Http\Controllers\admin_acc\AdminDashboardController::class,
             fn ($mock) => $mock->shouldReceive('getDashboardData')->twice()->andReturn([]));
 
@@ -209,9 +209,9 @@ class DiagnosticAnalyticsTest extends TestCase
     public function test_rejected_week_selection_returns_visible_modal_errors(): void
     {
         $this->withoutVite();
-        $this->actingAs(new \App\Models\admin_models\User([
+        $this->actingAs((new \App\Models\admin_models\User([
             'name' => 'Test Admin', 'email' => 'admin@example.test', 'user_role' => 'Admin',
-        ]));
+        ]))->forceFill(['status' => 'active']));
         $this->partialMock(\App\Http\Controllers\admin_acc\AdminDashboardController::class,
             fn ($mock) => $mock->shouldReceive('getDashboardData')->andReturn([]));
         $this->from('/admin_acc/dashboard')->get('/admin/dashboard?diagnostic_week=2026-10-20')
@@ -258,9 +258,9 @@ class DiagnosticAnalyticsTest extends TestCase
 
     public function test_compare_endpoint_returns_only_results_and_validates_filter_pairs(): void
     {
-        $this->actingAs(new \App\Models\admin_models\User([
+        $this->actingAs((new \App\Models\admin_models\User([
             'name' => 'Test Admin', 'email' => 'admin@example.test', 'user_role' => 'Admin',
-        ]));
+        ]))->forceFill(['status' => 'active']));
         $this->review('2026-10-20', 'Negative');
         $response = $this->getJson('/admin/dashboard/diagnostics?diagnostic_week=2026-10-19&diagnostic_doctor=1&diagnostic_specialty=Consultation');
         $response->assertOk()->assertJsonStructure(['html']);
@@ -284,9 +284,9 @@ class DiagnosticAnalyticsTest extends TestCase
     public function test_staff_dashboard_renders_shared_modal_with_staff_comparison_routes(): void
     {
         $this->withoutVite();
-        $staff = new \App\Models\admin_models\User([
+        $staff = (new \App\Models\admin_models\User([
             'name' => 'Test Staff', 'email' => 'staff@example.test', 'user_role' => 'Staff',
-        ]);
+        ]))->forceFill(['status' => 'active']);
         $staff->user_id = 123;
         $this->actingAs($staff);
         $html = view('staff.dashboard', ['diagnostic' => $this->data()])->render();
@@ -302,13 +302,13 @@ class DiagnosticAnalyticsTest extends TestCase
     public function test_staff_comparison_endpoint_returns_filtered_results_and_rejects_other_roles(): void
     {
         $this->getJson('/staff/dashboard/diagnostics')->assertUnauthorized();
-        $this->actingAs(new \App\Models\admin_models\User([
+        $this->actingAs((new \App\Models\admin_models\User([
             'name' => 'Test Admin', 'email' => 'admin@example.test', 'user_role' => 'Admin',
-        ]));
+        ]))->forceFill(['status' => 'active']));
         $this->getJson('/staff/dashboard/diagnostics')->assertForbidden();
-        $this->actingAs(new \App\Models\admin_models\User([
+        $this->actingAs((new \App\Models\admin_models\User([
             'name' => 'Test Staff', 'email' => 'staff@example.test', 'user_role' => 'Staff',
-        ]));
+        ]))->forceFill(['status' => 'active']));
         $this->review('2026-10-20', 'Negative', 'wait');
         $response = $this->getJson('/staff/dashboard/diagnostics?diagnostic_doctor=1&diagnostic_specialty=Consultation');
         $response->assertOk()->assertJsonStructure(['html']);

@@ -75,7 +75,8 @@ class PrivateChatAttachmentTest extends TestCase
     {
         $url = $this->upload();
         $this->withSession(['chat_attachment_ids' => []]);
-        $this->actingAs($this->account('Staff', 'inactive'))->get($url)->assertForbidden();
+        $this->actingAs($this->account('Staff', 'inactive'))->get($url)->assertRedirect('/auth/login');
+        $this->assertGuest();
         $this->actingAs($this->account('Patient'))->get($url)->assertForbidden();
     }
 

@@ -54,7 +54,7 @@ class AccountSettingsTest extends TestCase
     private function account(string $role = 'Admin'): User
     {
         return User::create(['name' => 'Clinic User', 'email' => strtolower($role).'@example.com',
-            'password' => 'old-password', 'user_role' => $role]);
+            'password' => 'old-password', 'user_role' => $role])->refresh();
     }
 
     #[DataProvider('roles')]

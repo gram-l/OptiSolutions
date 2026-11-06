@@ -8,6 +8,7 @@ use App\Models\Staff\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use App\Services\ProfilePhotoService;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -48,15 +49,7 @@ class AuthController extends Controller
 
         $user = $request->user();
 
-        // Delete old photo if it exists
-        if ($user->profile_photo) {
-            Storage::disk('public')->delete($user->profile_photo);
-        }
-
-        $path = $request->file('photo')->store('profile_photos', 'public');
-
-        $user->profile_photo = $path;
-        $user->save();
+        $path = app(ProfilePhotoService::class)->replace($user, $request->file('photo'));
 
         return response()->json([
             'profile_photo' => Storage::url($path),

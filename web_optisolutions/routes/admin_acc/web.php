@@ -57,8 +57,9 @@ Route::post('/auth/reset-password', [ForgotPasswordController::class, 'resetPass
 Route::post('/auth/google', [GoogleAuthController::class, 'webLogin'])
     ->name('auth.google');
 
-// Public feedback intake (used by the patient-facing chatbot, not the admin panel)
-Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
+// This legacy URL returns the admin review list, not public feedback intake.
+Route::get('/feedback', [FeedbackController::class, 'apiIndex'])
+    ->middleware(['auth:sanctum', \App\Http\Middleware\RequireActiveAdmin::class]);
 
 // ── Everything below this line is admin-only ──────────────────────────
 

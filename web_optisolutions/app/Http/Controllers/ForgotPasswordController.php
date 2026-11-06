@@ -19,6 +19,9 @@ class ForgotPasswordController extends Controller
     // ── STEP 1: Send OTP to email ─────────────────────────────────────────────
     public function sendOtp(Request $request)
     {
+        // Starting any new reset request invalidates the previous approval,
+        // even if the new email fails validation or delivery fails.
+        $this->clearResetApproval(true);
         $request->validate([
             'email' => 'required|email|exists:users,email',
         ], [
@@ -63,37 +66,45 @@ class ForgotPasswordController extends Controller
     // ── STEP 2: Verify OTP ────────────────────────────────────────────────────
     public function verifyOtp(Request $request)
     {
+        $this->clearResetApproval();
         $request->validate([
             'otp' => 'required|digits:6',
         ]);
 
         $email = session('reset_email');
 
-        $record = DB::table('password_reset_tokens')
-                    ->where('email', $email)
-                    ->where('token', $request->otp)
-                    ->first();
+        return DB::transaction(function () use ($email, $request) {
+            $record = DB::table('password_reset_tokens')
+                        ->where('email', $email)
+                        ->where('token', $request->otp)
+                        ->lockForUpdate()
+                        ->first();
 
-        if (!$record) {
-            return back()->withErrors(['otp' => 'Invalid code. Please try again.']);
-        }
+            if (!$record) {
+                return back()->withErrors(['otp' => 'Invalid code. Please try again.']);
+            }
 
-        // Check if OTP has expired (10 minutes)
-        if (Carbon::parse($record->created_at)->addMinutes(10)->isPast()) {
-            DB::table('password_reset_tokens')->where('email', $email)->delete();
-            return back()->withErrors(['otp' => 'This code has expired. Please request a new one.']);
-        }
+            // Check if OTP has expired (10 minutes)
+            if (!$record->created_at || Carbon::parse($record->created_at)->addMinutes(10)->lte(now())) {
+                DB::table('password_reset_tokens')->where('email', $email)->delete();
+                return back()->withErrors(['otp' => 'This code has expired. Please request a new one.']);
+            }
 
-        // OTP valid — allow access to reset form
-        session(['otp_verified' => true]);
+            // Consume the OTP and replace it with a single-use approval tied
+            // to this email, this reset record, and this browser session.
+            $proof = bin2hex(random_bytes(32));
+            DB::table('password_reset_tokens')->where('email', $email)->where('token', $request->otp)->update(['token' => $proof]);
+            session(['reset_verified_email' => $email, 'reset_verified_token' => $proof]);
 
-        return redirect()->route('password.reset.form');
+            return redirect()->route('password.reset.form');
+        });
     }
 
     // ── STEP 3: Show new password form ────────────────────────────────────────
     public function showResetForm()
     {
-        if (!session('reset_email') || !session('otp_verified')) {
+        if (!$this->verifiedResetRecord()) {
+            $this->clearResetApproval(true);
             return redirect()->route('password.forgot');
         }
         return view('auth.reset-password');
@@ -109,28 +120,32 @@ class ForgotPasswordController extends Controller
             'password.min'       => 'Password must be at least 8 characters.',
         ]);
 
-        $email = session('reset_email');
+        return DB::transaction(function () use ($request) {
+            $record = $this->verifiedResetRecord(true);
+            if (!$record) {
+                $this->clearResetApproval(true);
+                return redirect()->route('password.forgot');
+            }
+            $email = $record->email;
 
-        if (!$email || !session('otp_verified')) {
-            return redirect()->route('password.forgot');
-        }
+            // Update password
+            DB::table('users')
+              ->where('email', $email)
+              ->update(['password' => Hash::make($request->password)]);
 
-        // Update password
-        DB::table('users')
-          ->where('email', $email)
-          ->update(['password' => Hash::make($request->password)]);
+            // Clean up
+            DB::table('password_reset_tokens')->where('email', $email)->where('token', $record->token)->delete();
+            $this->clearResetApproval(true);
 
-        // Clean up
-        DB::table('password_reset_tokens')->where('email', $email)->delete();
-        session()->forget(['reset_email', 'otp_verified']);
-
-        return redirect('/auth/login')
-               ->with('success', 'Password updated successfully. Please sign in.');
+            return redirect('/auth/login')
+                   ->with('success', 'Password updated successfully. Please sign in.');
+        });
     }
 
     // ── Resend OTP ────────────────────────────────────────────────────────────
     public function resendOtp()
     {
+        $this->clearResetApproval();
         $email = session('reset_email');
 
         if (!$email) {
@@ -152,5 +167,22 @@ class ForgotPasswordController extends Controller
         });
 
         return back()->with('success', 'A new code has been sent to ' . $email);
+    }
+
+    private function clearResetApproval(bool $forgetEmail = false): void
+    {
+        session()->forget(['otp_verified', 'reset_verified_email', 'reset_verified_token']);
+        if ($forgetEmail) session()->forget('reset_email');
+    }
+
+    private function verifiedResetRecord(bool $lock = false): ?object
+    {
+        $email = session('reset_email');
+        $proof = session('reset_verified_token');
+        if (!is_string($email) || $email !== session('reset_verified_email') || !is_string($proof) || strlen($proof) !== 64) return null;
+        $query = DB::table('password_reset_tokens')->where('email', $email)->where('token', $proof)
+            ->where('created_at', '>', now()->subMinutes(10));
+        if ($lock) $query->lockForUpdate();
+        return $query->first();
     }
 }

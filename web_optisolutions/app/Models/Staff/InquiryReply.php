@@ -75,7 +75,7 @@ class InquiryReply extends Model
 
     public function getAttachmentUrlAttribute(): ?string
     {
-        return $this->attachment_path ? asset('storage/' . $this->attachment_path) : null;
+        return $this->attachment_path ? route('chatbot.attachments.show', $this->reply_id) : null;
     }
 
     public function toApiArray(): array

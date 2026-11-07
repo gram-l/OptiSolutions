@@ -30,10 +30,12 @@ Route::patch('/users/{id}/toggle',      [UserManagementController::class, 'toggl
 Route::delete('/users/{id}',            [UserManagementController::class, 'destroy']);*/
 
 // ── Forgot password (mobile/dart) ──
-Route::post('/forgot-password/send-otp',   [ApiForgotPasswordController::class, 'sendOtp']);
-Route::post('/forgot-password/verify-otp', [ApiForgotPasswordController::class, 'verifyOtp']);
-Route::post('/forgot-password/resend-otp', [ApiForgotPasswordController::class, 'resendOtp']);
-Route::post('/forgot-password/reset',      [ApiForgotPasswordController::class, 'resetPassword']);
+Route::prefix('forgot-password')->middleware('throttle:10,1')->group(function () {
+    Route::post('/send-otp', [ApiForgotPasswordController::class, 'sendOtp']);
+    Route::post('/verify-otp', [ApiForgotPasswordController::class, 'verifyOtp']);
+    Route::post('/resend-otp', [ApiForgotPasswordController::class, 'resendOtp']);
+    Route::post('/reset', [ApiForgotPasswordController::class, 'resetPassword']);
+});
 
 // ── Google login ──
 Route::post('/auth/google', [GoogleAuthController::class, 'googleLogin'])->name('api.auth.google');

@@ -49,7 +49,8 @@ class VisitReviewService
 
     public function submit(string $code, int $rating, ?string $comment, ?int $logId = null, bool $createLog = false): Feedback
     {
-        Validator::make(['transaction_code' => self::normalizeCode($code), 'star_rating' => $rating], [
+        Validator::make(['transaction_code' => self::normalizeCode($code), 'star_rating' => $rating, 'feedback_text' => $comment], [
+            'feedback_text' => 'nullable|string|max:'.\App\Support\AnalysisLimits::MAX_TEXT_LENGTH,
             'transaction_code' => ['required', 'regex:' . self::CODE_PATTERN], 'star_rating' => 'required|integer|min:1|max:5',
         ])->validate();
 

@@ -22,7 +22,7 @@ class ServiceSettingsTest extends TestCase
         Schema::create('doctors', function (Blueprint $table) {
             $table->increments('doctor_id'); $table->string('doctor_name');
         });
-        $this->actingAs(User::create(['name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'test-password', 'user_role' => 'Admin']));
+        $this->actingAs(User::create(['name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'test-password', 'user_role' => 'Admin'])->refresh());
     }
 
     private function service(string $title = 'Pediatrics'): Service

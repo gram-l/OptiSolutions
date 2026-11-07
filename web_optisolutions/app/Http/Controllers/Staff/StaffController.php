@@ -11,7 +11,7 @@ use App\Models\Staff\AppNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
+use App\Services\ProfilePhotoService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
@@ -47,15 +47,7 @@ class StaffController extends Controller
 
         $user = Auth::user();
 
-        // burahin lumang photo kung meron
-        if ($user->profile_photo) {
-            Storage::disk('public')->delete($user->profile_photo);
-        }
-
-        $path = $request->file('profile_photo')->store('profile_photos', 'public');
-
-        $user->profile_photo = $path;
-        $user->save();
+        app(ProfilePhotoService::class)->replace($user, $request->file('profile_photo'));
 
         return back()->with('profile_photo_success', 'Profile photo updated successfully!');
     }

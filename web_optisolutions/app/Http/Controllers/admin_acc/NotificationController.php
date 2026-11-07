@@ -5,6 +5,7 @@ namespace App\Http\Controllers\admin_acc;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\NotificationReadService;
 
 class NotificationController extends Controller
 {
@@ -23,9 +24,8 @@ class NotificationController extends Controller
     // ── Web view: /admin_acc/notifications ──────────────────────
     public function index(Request $request)
     {
-        $notifications = DB::table('app_notifications')
-            ->whereIn('type', \App\Services\NotificationPreferences::visibleTypes($request->user()->user_id))
-            ->orderBy('created_at', 'desc')
+        $notifications = NotificationReadService::visibleTo($request->user())
+            ->orderBy('n.created_at', 'desc')
             ->get();
 
         $notifications = $notifications->map(function ($notification) {
@@ -72,9 +72,8 @@ class NotificationController extends Controller
 
     public function apiIndex(Request $request)
     {
-        $notifications = DB::table('app_notifications')
-            ->whereIn('type', \App\Services\NotificationPreferences::visibleTypes($request->user()->user_id))
-            ->orderBy('created_at', 'desc')
+        $notifications = NotificationReadService::visibleTo($request->user())
+            ->orderBy('n.created_at', 'desc')
             ->limit(50)
             ->get();
 
@@ -91,7 +90,7 @@ class NotificationController extends Controller
             return $notification;
         });
 
-        $unreadCount = DB::table('app_notifications')->whereIn('type', \App\Services\NotificationPreferences::visibleTypes($request->user()->user_id))->where('is_read', 0)->count();
+        $unreadCount = NotificationReadService::visibleTo($request->user())->whereNull('nr.user_id')->count();
 
         return response()->json([
             'success'       => true,
@@ -100,15 +99,15 @@ class NotificationController extends Controller
         ]);
     }
 
-    public function markRead($id)
+    public function markRead(Request $request, $id)
     {
-        DB::table('app_notifications')->where('notification_id', $id)->update(['is_read' => 1]);
+        NotificationReadService::markRead($request->user(), $id);
         return response()->json(['success' => true]);
     }
 
-    public function markAllRead()
+    public function markAllRead(Request $request)
     {
-        DB::table('app_notifications')->where('is_read', 0)->update(['is_read' => 1]);
+        NotificationReadService::markAllRead($request->user());
         return response()->json(['success' => true]);
     }
 }

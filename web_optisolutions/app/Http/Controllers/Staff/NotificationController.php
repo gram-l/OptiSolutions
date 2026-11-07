@@ -3,8 +3,7 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
-use App\Models\Staff\AppNotification;
-use App\Services\NotificationService;
+use App\Services\NotificationReadService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,23 +25,12 @@ class NotificationController extends Controller
     //(mika) excluded complaint and feedback notifications from staff 
     public function index()
     {
-        $userId = Auth::user()->user_id;
-        $visibleTypes = array_intersect(NotificationService::visibleTypesFor(strtolower(trim(Auth::user()->user_role ?? ''))), NotificationPreferences::visibleTypes($userId));
- 
-        $notifications = AppNotification::where(function ($q) use ($userId) {
-                $q->where('user_id', $userId)->orWhereNull('user_id');
-            })
-            ->whereIn('type', $visibleTypes)
-            ->orderByDesc('created_at')
+        $notifications = NotificationReadService::visibleTo(Auth::user())
+            ->orderByDesc('n.created_at')
             ->limit(20)
             ->get();
  
-        $unreadCount = AppNotification::where(function ($q) use ($userId) {
-                $q->where('user_id', $userId)->orWhereNull('user_id');
-            })
-            ->whereIn('type', $visibleTypes)
-            ->where('is_read', 0)
-            ->count();
+        $unreadCount = NotificationReadService::visibleTo(Auth::user())->whereNull('nr.user_id')->count();
  
         return response()->json([
             'notifications' => $notifications,
@@ -52,21 +40,14 @@ class NotificationController extends Controller
 
     public function markAsRead($id)
     {
-        $notification = AppNotification::findOrFail($id);
-        $notification->is_read = 1;
-        $notification->save();
+        NotificationReadService::markRead(Auth::user(), $id);
 
         return response()->json(['success' => true]);
     }
 
     public function markAllAsRead()
     {
-        $userId = Auth::user()->user_id;
-
-        AppNotification::where(function ($q) use ($userId) {
-                $q->where('user_id', $userId)->orWhereNull('user_id');
-            })
-            ->update(['is_read' => 1]);
+        NotificationReadService::markAllRead(Auth::user());
 
         return response()->json(['success' => true]);
     }

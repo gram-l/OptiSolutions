@@ -5,7 +5,7 @@ namespace App\Http\Controllers\admin_acc;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
+use App\Services\ProfilePhotoService;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
 
@@ -33,14 +33,12 @@ class ProfileController extends Controller
             'profile_photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
+        unset($validated['profile_photo']);
         if ($request->hasFile('profile_photo')) {
-            if ($user->profile_photo && Storage::disk('public')->exists($user->profile_photo)) {
-                Storage::disk('public')->delete($user->profile_photo);
-            }
-            $validated['profile_photo'] = $request->file('profile_photo')->store('profile_photos', 'public');
+            app(ProfilePhotoService::class)->replace($user, $request->file('profile_photo'), $validated);
+        } else {
+            $user->forceFill($validated)->save();
         }
-
-        $user->forceFill($validated)->save();
 
         return redirect()->back()->with('profile_success', 'Profile updated successfully.');
     }

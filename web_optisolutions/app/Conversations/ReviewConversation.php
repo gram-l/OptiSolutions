@@ -183,6 +183,10 @@ class ReviewConversation extends Conversation
             $text = trim($answer->getText());
             $normalized = strtolower($text);
 
+            if (mb_strlen($text) > \App\Support\AnalysisLimits::MAX_TEXT_LENGTH) {
+                return $this->askFeedbackText('Please keep your comments to 5,000 characters or fewer, or type "skip" to continue without comments.');
+            }
+
             $skipWords = ['skip', 'no', 'none', 'n/a', 'wala', 'hindi'];
             $yesWords  = ['yes', 'yep', 'yeah', 'sure', 'oo', 'opo', 'sige'];
 

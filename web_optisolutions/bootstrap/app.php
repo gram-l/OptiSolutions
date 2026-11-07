@@ -12,7 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [\App\Http\Middleware\AccountInactivity::class]);
+        $middleware->web(append: [
+            \App\Http\Middleware\EnsureActiveWebAccount::class,
+            \App\Http\Middleware\AccountInactivity::class,
+        ]);
         $middleware->validateCsrfTokens(except: [
             'botman',
         ]);

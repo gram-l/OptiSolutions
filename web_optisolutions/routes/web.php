@@ -3,9 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\EmailController;
-use App\Http\Controllers\admin_acc\DoctorController;
 use App\Http\Controllers\ForgotPasswordController;
-use App\Http\Controllers\admin_acc\UserManagementController;
 use App\Http\Controllers\ApiAuthController;
 use App\Http\Controllers\PolyclinicController;
 use App\Http\Controllers\ServiceController;
@@ -34,34 +32,8 @@ Route::get('/auth/login', function () {
 Route::post('/auth/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-// ===== Protected admin routes =====
-Route::middleware('auth')->group(function () {
-    // NOTE: Ang /admin_acc/chatbot_logs ay INALIS na dito — dating static
-    // closure ito (return view() lang, walang data), at dahil dalawang
-    // beses na-register ang parehong URL, ito (bilang huling na-load) ang
-    // laging nananalo kaysa sa tamang controller-backed na route sa
-    // routes/admin_acc/web.php. Ang route na iyon na lang (na tumatawag sa
-    // ChatbotInquiryController) ang gumagana ngayon para sa page na ito.
-
-    Route::get('/admin_acc/sidebar', function () {
-        return view('admin_acc.sidebar');
-    });
-
-    Route::get('/admin_acc/appointments', function () {
-        return view('admin_acc.appointments');
-    });
-
-    Route::get('/admin_acc/doctors', [DoctorController::class, 'index']);
-
-    Route::get('/admin_acc/patients', function () {
-        return view('admin_acc.patients');
-    });
-
-   
-
-    // User Management routes are defined once in admin_acc/web.php,
-    // including the active-admin and email-verification middleware.
-});
+// Admin pages and actions are defined only in admin_acc/web.php so their
+// auth and Admin role middleware cannot be replaced by weaker duplicates.
 
 //sample email route
 use Illuminate\Support\Facades\Mail;
@@ -107,9 +79,7 @@ Route::redirect('/contact',  '/#contact')->name('contact');
 Route::get('/chatbot',  [PolyclinicController::class, 'chatbot'])->name('chatbot');
 
 // General Privacy Notice page (linked from the privacy consent modal)
-Route::get('/privacy-notice', function () {
-    return view('patient.privacy-notice');
-})->name('privacy-notice');
+Route::get('/privacy-notice', [PolyclinicController::class, 'privacyNotice'])->name('privacy-notice');
 
 // ===== BotMan route =====
 // Receives messages from the chat widget (script.js) and returns BotMan's reply
@@ -125,6 +95,8 @@ Route::post('/botman', [BotManController::class, 'handle'])
 Route::post('/chatbot/attachment', [BotManController::class, 'attachment'])
     ->middleware('throttle:40,1')
     ->name('chatbot.attachment');
+Route::get('/chatbot/attachments/{reply}', [\App\Http\Controllers\ChatAttachmentController::class, 'show'])
+    ->whereNumber('reply')->name('chatbot.attachments.show');
 
 // Serve CSS files directly from resources/css/{folder} (no Vite needed)
 Route::get('/patient-css/{file}', function ($file) {

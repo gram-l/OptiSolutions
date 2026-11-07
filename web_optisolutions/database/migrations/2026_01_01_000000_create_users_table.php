@@ -7,7 +7,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::dropIfExists('users');
+        if (Schema::hasTable('users')) {
+            throw new \RuntimeException(
+                'The users table already exists, but this migration is not recorded. '
+                .'Verify the existing migration history; use --path to run only new migrations. '
+                .'Existing accounts have not been changed.'
+            );
+        }
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');

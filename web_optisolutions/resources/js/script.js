@@ -1,8 +1,7 @@
 // ============ DOCTORS / SERVICES / CLINIC INFO DATA LOADING (UNCHANGED FROM ORIGINAL) ============
 
 let doctorsData = [];
-let servicesData = {};   // keyed by service_key, mirrors old `serviceDetails`
-let clinicInfo = null;
+let servicesData = Object.create(null);   // keyed by service_key
 
 function genderIcon(gender) {
   return gender === 'female'
@@ -12,7 +11,40 @@ function genderIcon(gender) {
 
 function doctorPhotoUrl(doc) {
   if (!doc.profile_image) return null;
-  return /^https?:\/\//.test(doc.profile_image) ? doc.profile_image : `/storage/${doc.profile_image}`;
+  const image = String(doc.profile_image);
+  if (/^[a-z][a-z0-9+.-]*:/i.test(image) && !/^https?:\/\//i.test(image)) return null;
+  return safeImageUrl(/^https?:\/\//i.test(image) ? image : `/storage/${image}`);
+}
+
+function safeImageUrl(value) {
+  if (!value) return null;
+  try {
+    const url = new URL(String(value), window.location.href);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+// Escape database and search text at the HTML boundary, including attributes.
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
+function doctorPhotoMarkup(doc) {
+  const photo = safeImageUrl(doc.photo);
+  return photo
+    ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(doc.name)}" loading="lazy" data-doctor-photo data-gender="${escapeHtml(doc.gender)}">`
+    : `<div class="doctor-photo-fallback">${genderIcon(doc.gender)}</div>`;
+}
+
+function bindDoctorPhotoErrors(container) {
+  container.querySelectorAll('[data-doctor-photo]').forEach(img => {
+    img.addEventListener('error', () => handleDoctorPhotoError(img, img.dataset.gender), { once: true });
+    if (img.complete && img.naturalWidth === 0) handleDoctorPhotoError(img, img.dataset.gender);
+  });
 }
 
 function formatTime(t) {
@@ -27,10 +59,6 @@ function formatTime(t) {
 // ============ FETCH: DOCTORS (doctors + doctor_schedules) ============
 let _doctorsSig = '';        // to detect whether the list has changed
 let _doctorFiltersBound = false;
-
-function escapeFilterText(v) {
-  return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 // The filter tabs are derived from the services of the displayed doctors (no longer hardcoded).
 function rebuildFilterTabs(containerId) {
@@ -47,7 +75,7 @@ function rebuildFilterTabs(containerId) {
   container.innerHTML =
     `<button class="filter-tab ${active === 'all' ? 'active' : ''}" data-filter="all">All</button>` +
     entries.map(([key, title]) =>
-      `<button class="filter-tab ${key === active ? 'active' : ''}" data-filter="${escapeFilterText(key)}">${escapeFilterText(title)}</button>`
+      `<button class="filter-tab ${key === active ? 'active' : ''}" data-filter="${escapeHtml(key)}">${escapeHtml(title)}</button>`
     ).join('');
 }
 
@@ -125,7 +153,7 @@ async function loadServicesData() {
     if (sig === _servicesSig) return;
     _servicesSig = sig;
 
-    servicesData = {};
+    servicesData = Object.create(null);
     raw.filter(svc => svc.available !== 0).forEach(svc => {
       servicesData[svc.service_key] = {
         id: svc.service_id,
@@ -152,41 +180,15 @@ function renderServiceCards(containerId = 'servicesGrid') {
   grid.innerHTML = Object.keys(servicesData).map(key => {
     const svc = servicesData[key];
     return `
-      <div class="service-page-card" onclick="openServiceModal('${key}')">
-        <div class="service-page-icon"><i class="fas ${svc.icon}"></i></div>
-        <h3>${svc.title}</h3>
-        <p>${svc.description}</p>
+      <div class="service-page-card" data-service-key="${escapeHtml(key)}">
+        <div class="service-page-icon"><i class="fas ${escapeHtml(svc.icon)}"></i></div>
+        <h3>${escapeHtml(svc.title)}</h3>
+        <p>${escapeHtml(svc.description)}</p>
         <span class="service-page-link">Learn More →</span>
       </div>`;
   }).join('');
-}
-
-// ============ FETCH: CLINIC INFO ============
-async function loadClinicInfo() {
-  try {
-    const res = await fetch('/api/clinic-info');
-    const raw = await res.json();
-    clinicInfo = Array.isArray(raw) ? raw[0] : raw;
-    renderClinicInfo();
-  } catch (err) {
-    console.error('Failed to load clinic info:', err);
-  }
-}
-
-function renderClinicInfo() {
-  if (!clinicInfo) return;
-  const map = {
-    clinicName: clinicInfo.clinic_name,
-    clinicAddress: clinicInfo.address,
-    clinicContact: clinicInfo.contact_no,
-    clinicEmail: clinicInfo.email,
-    clinicHours: clinicInfo.operating_hours,
-    clinicAbout: clinicInfo.about_us,
-    clinicFacebook: clinicInfo.facebook_link
-  };
-  Object.entries(map).forEach(([id, value]) => {
-    const el = document.getElementById(id);
-    if (el && value) el.textContent = value;
+  grid.querySelectorAll('.service-page-card').forEach(card => {
+    card.addEventListener('click', () => openServiceModal(card.dataset.serviceKey));
   });
 }
 
@@ -206,21 +208,22 @@ function renderDoctors(filter = 'all', containerId = 'doctorsGrid', searchTerm =
   }
 
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="no-doctors">No doctors found${term ? ` matching "${searchTerm}"` : ' for this specialty'}.</div>`;
+    grid.innerHTML = `<div class="no-doctors">No doctors found${term ? ` matching "${escapeHtml(searchTerm)}"` : ' for this specialty'}.</div>`;
     return;
   }
 grid.innerHTML = filtered.map(doc => `
-  <div class="doctor-card" onclick="showDoctorDetails(${doc.id})">
+  <div class="doctor-card">
     <div class="doctor-card-photo">
-      ${doc.photo 
-      
-  ? `<img src="${doc.photo}" alt="${doc.name}" loading="lazy" onerror="handleDoctorPhotoError(this,'${doc.gender}')">`
-  : `<div class="doctor-photo-fallback">${doc.icon}</div>`}
+      ${doctorPhotoMarkup(doc)}
     </div>
-    <h3>${doc.name}</h3>
-    <span class="doctor-spec">${doc.spec}</span>
-    <p>${doc.yearsExp} years of experience</p>
+    <h3>${escapeHtml(doc.name)}</h3>
+    <span class="doctor-spec">${escapeHtml(doc.spec)}</span>
+    <p>${escapeHtml(doc.yearsExp)} years of experience</p>
   </div>`).join('');
+  grid.querySelectorAll('.doctor-card').forEach((card, index) => {
+    card.addEventListener('click', () => showDoctorDetails(filtered[index].id));
+  });
+  bindDoctorPhotoErrors(grid);
 }
 
 function setupFilterTabs(containerId = 'filterTabs', gridId = 'doctorsGrid', searchInputId = null) {
@@ -265,7 +268,6 @@ function showDoctorDetails(id) {
   const doc = doctorsData.find(d => d.id === id);
   if (!doc) return;
 
-  const phone = (clinicInfo && clinicInfo.contact_no) ? clinicInfo.contact_no : '0985 475 5511';
   const spec = doc.spec || 'General Practice';
   const focusAreas = getClinicalFocusAreas(doc);
   const firstSchedule = doc.schedule[0];
@@ -277,39 +279,37 @@ function showDoctorDetails(id) {
   const scheduleRows = doc.schedule.length
     ? doc.schedule.map(s => `
         <div class="schedule-row-card">
-          <span class="schedule-day-badge">${s.day.slice(0, 3).toUpperCase()}</span>
+          <span class="schedule-day-badge">${escapeHtml(s.day.slice(0, 3).toUpperCase())}</span>
           <div class="schedule-row-info">
-            <strong>${s.day} Schedule</strong>
+            <strong>${escapeHtml(s.day)} Schedule</strong>
             <span>Outpatient Consultation</span>
           </div>
-          <span class="schedule-row-time">${s.time}</span>
+          <span class="schedule-row-time">${escapeHtml(s.time)}</span>
         </div>`).join('')
     : `<p class="bio-text">No fixed clinic schedule listed yet — please call to confirm availability.</p>`;
 
   document.getElementById('modalContent').innerHTML = `
     <div class="modal-header">
       <div class="doctor-modal-tags">
-        <span class="doctor-modal-tag">${spec.toUpperCase()}</span>
+        <span class="doctor-modal-tag">${escapeHtml(spec.toUpperCase())}</span>
         ${doc.license ? `<span class="doctor-modal-tag certified"><i class="fas fa-check-circle"></i> Board Certified</span>` : ''}
       </div>
-      <h2>${doc.name}</h2>
+      <h2>${escapeHtml(doc.name)}</h2>
     </div>
 
     <div class="doctor-modal-summary-card">
       <div class="doctor-modal-summary-photo">
-        ${doc.photo
-          ? `<img src="${doc.photo}" alt="${doc.name}" onerror="handleDoctorPhotoError(this,'${doc.gender}')">`
-          : `<div class="doctor-photo-fallback">${doc.icon}</div>`}
+        ${doctorPhotoMarkup(doc)}
         ${doc.license ? `<span class="doctor-modal-verified-badge"><i class="fas fa-check"></i></span>` : ''}
       </div>
       <div class="doctor-modal-summary-info">
-        <h3>${doc.name}</h3>
-        <p>${subtitle}</p>
+        <h3>${escapeHtml(doc.name)}</h3>
+        <p>${escapeHtml(subtitle)}</p>
       </div>
       <div class="doctor-modal-summary-stats">
-        <div class="summary-stat"><span class="summary-stat-value">${doc.yearsExp ? doc.yearsExp + '+ Yrs' : '—'}</span><span class="summary-stat-label">Experience</span></div>
-        <div class="summary-stat"><span class="summary-stat-value">${doc.fellowship || '—'}</span><span class="summary-stat-label">Fellowship</span></div>
-        <div class="summary-stat"><span class="summary-stat-value">${doc.license || '—'}</span><span class="summary-stat-label">License No.</span></div>
+        <div class="summary-stat"><span class="summary-stat-value">${escapeHtml(doc.yearsExp ? doc.yearsExp + '+ Yrs' : '—')}</span><span class="summary-stat-label">Experience</span></div>
+        <div class="summary-stat"><span class="summary-stat-value">${escapeHtml(doc.fellowship || '—')}</span><span class="summary-stat-label">Fellowship</span></div>
+        <div class="summary-stat"><span class="summary-stat-value">${escapeHtml(doc.license || '—')}</span><span class="summary-stat-label">License No.</span></div>
       </div>
     </div>
 
@@ -322,20 +322,20 @@ function showDoctorDetails(id) {
     <div class="doctor-modal-scrollarea">
     <div class="doctor-modal-tabpanels">
       <div class="doctor-modal-tabpanel active" data-panel="overview">
-        <p class="bio-text">${orNA(doc.bio)}</p>
+        <p class="bio-text">${escapeHtml(orNA(doc.bio))}</p>
         <div class="doctor-modal-grid">
           <div class="doctor-modal-box">
             <div class="doctor-modal-box-label"><i class="fas fa-hospital"></i> Primary Consultation</div>
             <div class="info-item-value" style="margin-bottom:6px;">PolyClinic Lipa</div>
-            <div class="sub-value-light"><i class="fas fa-door-open"></i> ${doc.clinic ? 'Room ' + doc.clinic : 'Room TBA'}</div>
-            ${firstSchedule ? `<div class="sub-value-light"><i class="fas fa-clock"></i> ${firstSchedule.day}: ${firstSchedule.time}</div>` : ''}
+            <div class="sub-value-light"><i class="fas fa-door-open"></i> ${escapeHtml(doc.clinic ? 'Room ' + doc.clinic : 'Room TBA')}</div>
+            ${firstSchedule ? `<div class="sub-value-light"><i class="fas fa-clock"></i> ${escapeHtml(firstSchedule.day)}: ${escapeHtml(firstSchedule.time)}</div>` : ''}
           </div>
           <div class="doctor-modal-box">
             <div class="doctor-modal-box-label"><i class="fas fa-stethoscope"></i> Clinical Focus Areas</div>
             <div class="focus-tags">
               ${focusAreas.length
-                ? focusAreas.map(c => `<span class="focus-tag">${c}</span>`).join('')
-                : `<span class="focus-tag">${spec}</span>`}
+                ? focusAreas.map(c => `<span class="focus-tag">${escapeHtml(c)}</span>`).join('')
+                : `<span class="focus-tag">${escapeHtml(spec)}</span>`}
             </div>
           </div>
         </div>
@@ -348,7 +348,7 @@ function showDoctorDetails(id) {
               <h4>Clinic Availability</h4>
               <p>Direct consultation schedule for PolyClinic Lipa</p>
             </div>
-            <span class="room-pill">${doc.clinic ? 'Room ' + doc.clinic : 'Room TBA'}</span>
+            <span class="room-pill">${escapeHtml(doc.clinic ? 'Room ' + doc.clinic : 'Room TBA')}</span>
           </div>
           ${scheduleRows}
           <div class="schedule-note"><i class="fas fa-circle-info"></i> For urgent concerns, please contact the main clinic desk.</div>
@@ -360,19 +360,20 @@ function showDoctorDetails(id) {
           <div class="doctor-modal-box credential-box">
             <div class="credential-icon"><i class="fas fa-graduation-cap"></i></div>
             <h4>Medical Education</h4>
-            <p class="credential-highlight">${orNA(doc.education)}</p>
+            <p class="credential-highlight">${escapeHtml(orNA(doc.education))}</p>
           </div>
           <div class="doctor-modal-box credential-box">
             <div class="credential-icon accent"><i class="fas fa-award"></i></div>
             <h4>Fellowship &amp; Certification</h4>
-            <p class="credential-highlight">${orNA(doc.fellowship)}</p>
-            ${doc.license ? `<p class="credential-sub">License No. ${doc.license}</p>` : ''}
+            <p class="credential-highlight">${escapeHtml(orNA(doc.fellowship))}</p>
+            ${doc.license ? `<p class="credential-sub">License No. ${escapeHtml(doc.license)}</p>` : ''}
           </div>
         </div>
       </div>
     </div>
     </div>`;
 
+  bindDoctorPhotoErrors(document.getElementById('modalContent'));
   setupDoctorModalTabs();
   document.getElementById('doctorModal').classList.add('active');
   lockBodyScroll();
@@ -418,31 +419,30 @@ function openServiceModal(serviceKey) {
   if (!service) return;
 
   const deptLabel = serviceDepartmentLabels[serviceKey] || `Department of ${service.title}`;
-  const phone = (clinicInfo && clinicInfo.contact_no) ? clinicInfo.contact_no : '0985 475 5511';
 
   document.getElementById('serviceModalBody').innerHTML = `
     <div class="service-modal-header">
       <button class="service-modal-close" onclick="closeServiceModal()"><i class="fas fa-times"></i></button>
       <div class="service-modal-header-top">
-        <div class="service-modal-icon"><i class="fas ${service.icon}"></i></div>
+        <div class="service-modal-icon"><i class="fas ${escapeHtml(service.icon)}"></i></div>
         <div class="service-modal-tags">
-          <span class="service-modal-tag dept">${deptLabel}</span>
+          <span class="service-modal-tag dept">${escapeHtml(deptLabel)}</span>
           <span class="service-modal-tag accredited">DOH Accredited</span>
         </div>
       </div>
-      <h2>${service.title}</h2>
+      <h2>${escapeHtml(service.title)}</h2>
     </div>
     <div class="service-modal-body">
       <div class="service-modal-grid">
         <div class="service-modal-col">
           <div class="service-modal-box">
             <div class="service-modal-box-label"><i class="fas fa-circle-info"></i> Clinical Scope &amp; Overview</div>
-            <p class="service-modal-desc">${service.description}</p>
+            <p class="service-modal-desc">${escapeHtml(service.description)}</p>
           </div>
           <div class="service-modal-box">
             <div class="service-modal-box-label"><i class="fas fa-list-check"></i> Common Conditions &amp; Procedures</div>
             <ul class="service-modal-list">
-              ${service.conditions.map(c => `<li>${c}</li>`).join('')}
+              ${service.conditions.map(c => `<li>${escapeHtml(c)}</li>`).join('')}
             </ul>
           </div>
         </div>
@@ -451,11 +451,11 @@ function openServiceModal(serviceKey) {
             <div class="service-modal-box-label"><i class="fas fa-clock"></i> Schedule &amp; Location</div>
             <div class="service-modal-schedule-row">
               <div class="sub-label"><i class="fas fa-map-marker-alt"></i> Consultation Room</div>
-              <div class="sub-value">${service.room}, PolyClinic Lipa</div>
+              <div class="sub-value">${escapeHtml(service.room)}, PolyClinic Lipa</div>
             </div>
             <div class="service-modal-schedule-row">
               <div class="sub-label"><i class="fas fa-calendar-week"></i> Clinic Schedule</div>
-              <div class="sub-value">${service.schedule}</div>
+              <div class="sub-value">${escapeHtml(service.schedule)}</div>
             </div>
           </div>
           <div class="service-modal-box">
@@ -465,8 +465,8 @@ function openServiceModal(serviceKey) {
                 <div class="service-modal-doctor-tag">
                   <div class="service-modal-doctor-avatar"><i class="fas fa-user-doctor"></i></div>
                   <div class="service-modal-doctor-info">
-                    <span class="service-modal-doctor-name">${d}</span>
-                    <span class="service-modal-doctor-role">${service.title} Specialist</span>
+                    <span class="service-modal-doctor-name">${escapeHtml(d)}</span>
+                    <span class="service-modal-doctor-role">${escapeHtml(service.title)} Specialist</span>
                   </div>
                 </div>`).join('')}
             </div>
@@ -532,7 +532,7 @@ document.addEventListener('keydown', function(event) {
   if (event.key === 'Escape') closeServiceModal();
 });
 
-// New global helper — called from onerror instead of building HTML inline
+// Image failures use event listeners so database values never become JavaScript.
 function handleDoctorPhotoError(imgEl, gender) {
   const fallback = document.createElement('div');
   fallback.className = 'doctor-photo-fallback';
@@ -552,13 +552,12 @@ window.loadDoctorsData      = loadDoctorsData;
 window.handleDoctorPhotoError = handleDoctorPhotoError;
 
 // ============ AUTO-LOAD ON PAGE READY (THE FIX) ============
-// Without this, loadDoctorsData()/loadServicesData()/loadClinicInfo() are defined
+// Without this, loadDoctorsData()/loadServicesData() are defined
 // but never called anywhere, so #doctorsGrid, #doctorsGridHome, #servicesGrid,
 // #serviceCardsHome, and clinic-info fields all stay empty on page load.
 document.addEventListener('DOMContentLoaded', function () {
   loadDoctorsData();
   loadServicesData();
-  loadClinicInfo();
   startLiveSync();
 });
 

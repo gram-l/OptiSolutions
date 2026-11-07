@@ -1,3 +1,5 @@
+@import '../shared/dark-mode-components.css';
+
 /* ===== HEADER ===== */
 
 /* Global mobile safety net: any <img> without more specific sizing
@@ -511,7 +513,7 @@ body.dark-mode :is(.btn-edit, .btn-view, .btn-reschedule, .notes-modal-btn-cance
     .page-btn, .back-to-list-btn, .settings-mobile-back, .btn-today, .btn-clear) {
     background: #263e5e !important; color: #b6dbff !important; border-color: #45556e !important;
 }
-body.dark-mode :is(.btn-remove, .btn-delete, .btn-cancel, .selection-delete-btn) { background: #4a2831 !important; color: #ffb9c1 !important; }
+body.dark-mode :is(.btn-remove, .btn-delete, .selection-delete-btn) { background: #4a2831 !important; color: #ffb9c1 !important; }
 body.dark-mode :is(.btn-deactivate, .status-pending) { background: #443826 !important; color: #ffd98b !important; }
 body.dark-mode :is(.status-active, .status-available, .resolve-btn-modern) { background: #1d4039 !important; color: #8ce3ba !important; }
 body.dark-mode :is(.sentiment-positive,.sentiment-neutral,.sentiment-negative) { background: #263e5e !important; color: #b6dbff !important; }

@@ -1,0 +1,84 @@
+/* Shared corrections for admin and staff components. Light mode is unchanged. */
+body.dark-mode {
+    --icon-color: #afbdce;
+    --primary-text: #8bc9ff;
+    --dm-surface: #1a2232;
+    --dm-raised: #222d3e;
+    --dm-border: #45556e;
+    --dm-text: #e7edf5;
+    --dm-muted: #afbdce;
+    --dm-link: #8bc9ff;
+    --dm-danger: #ffb9c1;
+    --dm-success: #8ce3ba;
+}
+
+/* Native dialogs bypass the usual .modal-content wrapper. */
+body.dark-mode :is(#userManagementGate, .um-confirm, .diagnostic-modal,
+    .diagnostic-panel, .diagnostic-modal-header, .commands-table-container,
+    .ss-modal-content, .logout-modal) {
+    background: var(--dm-surface) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+body.dark-mode :is(#userManagementGate, .um-confirm, .diagnostic-modal)::backdrop {
+    background: rgba(3, 8, 16, .75);
+}
+body.dark-mode :is(.visit-message-overlay, .um-confirm-overlay, .ss-modal, .logout-modal-overlay) {
+    background: rgba(3, 8, 16, .75);
+}
+body.dark-mode :is(#userManagementGate p, .um-confirm p, .command-confirm-content p,
+    .confirm-modal-content p, .form-hint, .add-session-row label,
+    .diagnostic-table caption, .diagnostic-note, .diagnostic-comment-meta,
+    .logout-modal p, .ss-toast-message) {
+    color: var(--dm-muted) !important;
+}
+body.dark-mode :is(#userManagementGateError, .field-error, .form-error,
+    .schedule-error-banner, .session-row button, #serviceFormError) { color: var(--dm-danger) !important; }
+
+/* Neutral dismissal controls should not look like destructive actions. */
+body.dark-mode :is(.btn-cancel, .um-confirm-cancel, .um-gate-back,
+    .diagnostic-close, .diagnostic-banner-dismiss, .logout-modal-btn.cancel) {
+    background: #293b53 !important;
+    color: #c8d5e5 !important;
+    border-color: var(--dm-border) !important;
+}
+body.dark-mode :is(.btn-cancel, .um-confirm-cancel, .um-gate-back,
+    .diagnostic-close, .diagnostic-banner-dismiss, .logout-modal-btn.cancel):hover { background: #354c68 !important; }
+body.dark-mode .logout-modal-btn.confirm { color: #fff !important; }
+
+body.dark-mode :is(.diagnostic-banner, .diagnostic-overview, .diagnostic-comment, .specialty-tag,
+    .session-row, .photo-preview, .trigger-tag-box) {
+    background: var(--dm-raised) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+body.dark-mode :is(.diagnostic-banner p, .diagnostic-banner strong,
+    #diagnostic-results) { color: var(--dm-text) !important; }
+body.dark-mode :is(.diagnostic-finding summary, #diagnostic-results a,
+    .commands-see-more-btn, .dropdown-footer a) { color: var(--dm-link) !important; }
+body.dark-mode :is(.dropdown-label, .profile-name) { color: var(--dm-text) !important; }
+body.dark-mode .commands-see-more-btn:hover { background: #25344a !important; }
+body.dark-mode .diagnostic-comment .diagnostic-evidence { color: #d2b5ff !important; }
+body.dark-mode #diagnostic-results .diagnostic-increase { color: var(--dm-danger) !important; }
+body.dark-mode #diagnostic-results .diagnostic-decrease { color: var(--dm-success) !important; }
+body.dark-mode #diagnostic-results .diagnostic-unchanged { color: var(--dm-muted) !important; }
+
+/* Cover body cells and hover states, not just table headings. */
+body.dark-mode :is(.commands-table, .diagnostic-table) :is(tbody, tr, td) {
+    background: var(--dm-surface) !important;
+    color: var(--dm-text) !important;
+    border-color: var(--dm-border) !important;
+}
+body.dark-mode .commands-table tbody tr:hover > td { background: #25344a !important; }
+body.dark-mode .commands-table code { background: #293548 !important; color: var(--dm-text) !important; }
+
+body.dark-mode :is(.command-confirm-icon, .um-confirm-icon, .logout-modal-icon) { background: #4a2831 !important; color: var(--dm-danger) !important; }
+body.dark-mode .um-confirm[data-variant="warning"] .um-confirm-icon { background: #443826 !important; color: #ffd98b !important; }
+body.dark-mode .um-confirm[data-variant="primary"] .um-confirm-icon { background: #263e5e !important; color: var(--dm-link) !important; }
+body.dark-mode :is(.confirm-icon, .visit-message-icon) { background: #263e5e !important; color: var(--dm-link) !important; }
+body.dark-mode .confirm-icon:has(.fa-trash) { background: #4a2831 !important; color: var(--dm-danger) !important; }
+body.dark-mode .confirm-icon:has(.fa-lock) { background: #443826 !important; color: #ffd98b !important; }
+body.dark-mode .visit-message-overlay[data-variant="warning"] .visit-message-icon { background: #443826 !important; color: #ffd98b !important; }
+body.dark-mode .visit-message-overlay[data-variant="error"] .visit-message-icon { background: #4a2831 !important; color: var(--dm-danger) !important; }
+
+body.dark-mode :is(button:disabled, input:disabled, select:disabled) { opacity: .6; }

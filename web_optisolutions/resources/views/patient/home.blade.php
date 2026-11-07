@@ -8,7 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Merriweather+Sans:wght@700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
-  @vite(['resources/css/patient_css/home.css', 'resources/css/patient_css/about.css', 'resources/css/patient_css/contact.css', 'resources/js/script.js', 'resources/js/navbar-loader.js', 'resources/js/privacy-notice.js'])
+  @vite(['resources/css/patient_css/home.css', 'resources/css/patient_css/about.css', 'resources/css/patient_css/contact.css', 'resources/js/script.js', 'resources/js/clinic-info.js', 'resources/js/navbar-loader.js', 'resources/js/privacy-notice.js'])
 
   <style>
     .reviews-banner-footer { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
@@ -213,21 +213,18 @@
   <div class="about-v2-hero">
     <div class="about-v2-photo-wrap">
       <div class="about-v2-photo">
-        <img src="/images/Polyclinic.jpg" alt="PolyClinic Lipa building" loading="lazy">
+        <img src="/images/Polyclinic.jpg" alt="Clinic building" loading="lazy">
       </div>
     </div>
 
     <div class="about-v2-content">
-      <span class="about-tag">About PolyClinic</span>
-      <h2 class="about-title">Compassionate Care for Every<br><span class="about-title-accent">Filipino Family</span></h2>
+      <span class="about-tag">About Our Clinic</span>
+      <h2 class="about-title">Welcome to<br><span class="about-title-accent" data-clinic-field="clinic_name" data-clinic-empty="Our Clinic">{{ $publicClinic['clinic_name'] ?: 'Our Clinic' }}</span></h2>
       <div class="about-v2-rule"><i></i><b></b></div>
-      <p class="about-subtitle">We are a multi-specialty clinic dedicated to providing accessible, high-quality healthcare to the Lipa community and beyond.</p>
+      <p class="about-subtitle" data-clinic-field="address" data-clinic-empty="Address has not been set yet.">{{ $publicClinic['address'] ?: 'Address has not been set yet.' }}</p>
 
       <div class="about-text">
-        <p><strong>{{ $clinicInfo->clinic_name ?? 'PolyClinic' }}</strong> is a multi-specialty clinic located at <strong>{{ $clinicInfo->address ?? 'TM Kalaw St., Lipa City' }}</strong>. We are committed to providing comprehensive and compassionate healthcare to the Lipa community and surrounding areas.</p>
-        @if (!empty($clinicInfo->about_us))
-          <p>{{ $clinicInfo->about_us }}</p>
-        @endif
+        <p data-clinic-field="about_us" data-clinic-empty="Clinic information has not been set yet.">{{ $publicClinic['about_us'] ?: 'Clinic information has not been set yet.' }}</p>
       </div>
 
       <div class="trust-badges">
@@ -248,11 +245,7 @@
       <div class="about-v2-icon"><i class="fas fa-bullseye"></i></div>
       <div class="about-v2-mv-body">
         <h3>Our Mission</h3>
-        @if (!empty($clinicInfo->mission))
-          <p>{{ $clinicInfo->mission }}</p>
-        @else
-          <p class="values-empty">Mission has not been set yet.</p>
-        @endif
+        <p data-clinic-field="mission" data-clinic-empty="Mission has not been set yet." data-clinic-placeholder class="{{ $publicClinic['mission'] === '' ? 'values-empty' : '' }}">{{ $publicClinic['mission'] ?: 'Mission has not been set yet.' }}</p>
       </div>
     </div>
 
@@ -260,11 +253,7 @@
       <div class="about-v2-icon"><i class="fas fa-eye"></i></div>
       <div class="about-v2-mv-body">
         <h3>Our Vision</h3>
-        @if (!empty($clinicInfo->vision))
-          <p>{{ $clinicInfo->vision }}</p>
-        @else
-          <p class="values-empty">Vision has not been set yet.</p>
-        @endif
+        <p data-clinic-field="vision" data-clinic-empty="Vision has not been set yet." data-clinic-placeholder class="{{ $publicClinic['vision'] === '' ? 'values-empty' : '' }}">{{ $publicClinic['vision'] ?: 'Vision has not been set yet.' }}</p>
       </div>
     </div>
 
@@ -272,11 +261,13 @@
       <div class="about-v2-icon"><i class="fas fa-hand-holding-heart"></i></div>
       <div class="about-v2-mv-body">
         <h3>Our Core Values</h3>
-        @forelse (($clinicInfo->core_values ?? []) as $value)
+        <div data-clinic-values>
+        @forelse ($publicClinic['core_values'] as $value)
           <span class="about-v2-value">{{ $value }}</span>
         @empty
           <p class="values-empty">Core values have not been set yet.</p>
         @endforelse
+        </div>
       </div>
     </div>
   </div>
@@ -510,29 +501,29 @@
   <div class="container">
     <div class="cta-banner-inner">
       <div class="cta-banner-content">
-        <span class="cta-banner-tag">📍 Lipa City, Batangas</span>
+        <span class="cta-banner-tag">📍 Clinic Location</span>
         <h2 class="cta-banner-title">Visit Our Clinic Today</h2>
-        <p class="cta-banner-desc">We're conveniently located at {{ $clinicInfo->address ?? 'TM Kalaw St., Lipa City' }}. Walk-ins are welcome!</p>
+        <p class="cta-banner-desc" data-clinic-field="address" data-clinic-empty="Address has not been set yet.">{{ $publicClinic['address'] ?: 'Address has not been set yet.' }}</p>
         <div class="cta-banner-info">
           <div class="cta-info-item">
             <i class="fas fa-phone-alt"></i>
             <div>
               <span class="cta-info-label">Call Us</span>
-              <span class="cta-info-value">{{ $clinicInfo->contact_no ?? '0985 475 5511' }}</span>
+              <span class="cta-info-value" data-clinic-field="contact_no" data-clinic-empty="Phone number has not been set yet.">{{ $publicClinic['contact_no'] ?: 'Phone number has not been set yet.' }}</span>
             </div>
           </div>
           <div class="cta-info-item">
             <i class="fas fa-clock"></i>
             <div>
               <span class="cta-info-label">Clinic Hours</span>
-              <span class="cta-info-value">{{ $clinicInfo->operating_hours ?? 'Mon-Fri 8AM-6PM · Sat 9AM-1PM' }}</span>
+              <span class="cta-info-value" data-clinic-field="operating_hours" data-clinic-empty="Clinic hours have not been set yet.">{{ $publicClinic['operating_hours'] ?: 'Clinic hours have not been set yet.' }}</span>
             </div>
           </div>
         </div>
-        <a href="https://www.google.com/maps/dir/?api=1&destination=PolyClinic+Lipa,+41+TM+Kalaw+St,+Lipa+City,+4217+Batangas" target="_blank" rel="noopener noreferrer" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
+        <a href="{{ $publicClinic['directions_url'] }}" data-clinic-directions @if ($publicClinic['directions_url'] === '') hidden style="display:none" @endif target="_blank" rel="noopener noreferrer" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
       </div>
-      <div class="cta-banner-map">
-        <iframe src="https://www.google.com/maps?q=PolyClinic+Lipa,+41+TM+Kalaw+St,+Lipa+City,+4217+Batangas&output=embed" allowfullscreen loading="lazy"></iframe>
+      <div class="cta-banner-map" data-clinic-visible="address" @if ($publicClinic['address'] === '') hidden style="display:none" @endif>
+        <iframe @if ($publicClinic['map_url'] !== '') src="{{ $publicClinic['map_url'] }}" @endif data-clinic-map title="Clinic location" allowfullscreen loading="lazy"></iframe>
       </div>
     </div>
   </div>

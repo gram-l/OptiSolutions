@@ -44,6 +44,10 @@ class ComplaintConversation extends Conversation
 
             $text = trim($answer->getText());
 
+            if (mb_strlen($text) > \App\Support\AnalysisLimits::MAX_TEXT_LENGTH) {
+                return $this->askComplaint('Please keep your complaint to 5,000 characters or fewer so we can analyze it.');
+            }
+
             if (mb_strlen($text) < 10) {
                 return $this->askComplaint('Please share a bit more detail about your concern (at least a full sentence) so we can better understand and address it:');
             }

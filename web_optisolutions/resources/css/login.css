@@ -477,7 +477,7 @@ input:focus{
 @media (prefers-reduced-motion:reduce){
     *{ transition:none !important; }
 }
-/* Staff login redesign is scoped so recovery pages keep their existing layout. */
+/* Shared staff sign-in and password recovery design. */
 body.staff-login { min-height:100vh; height:auto; overflow-x:hidden; overflow-y:auto; color:#083e50; background:#f3f8fb; }
 .staff-login .login-container { min-height:100vh; height:auto; display:grid; grid-template-columns:1fr 1fr; }
 .staff-login .left-panel { width:auto; min-height:100vh; height:auto; background:#fcfdfb; display:flex; flex-direction:column; isolation:isolate; }
@@ -513,3 +513,22 @@ body.staff-login { min-height:100vh; height:auto; overflow-x:hidden; overflow-y:
 @media(max-width:1000px) { .staff-login .form-box { padding:30px 24px; } .staff-login .right-panel { padding:35px 24px 20px; } }
 @media(max-width:760px) { .staff-login .login-container { grid-template-columns:1fr; } .staff-login .left-panel { min-height:0; } .staff-login .clinic-brand { padding:26px 20px; } .staff-login .left-panel .clinic-mark { width:72px; height:72px; margin-bottom:6px; } .staff-login .clinic-brand h2 { font-size:36px; letter-spacing:-1px; } .staff-login .clinic-location { font-size:14px; margin:0 0 8px; } .staff-login .clinic-photo { display:none; } .staff-login .right-panel { padding:20px 16px; } .staff-login .form-box { max-width:520px; padding:28px 24px; } }
 @media(max-width:380px) { .staff-login .form-box { padding:24px 16px; } .staff-login .right-panel { padding:16px 8px; } .staff-login .google-button-wrap { overflow:hidden; } }
+
+/* Recovery uses the same card and fields, with six compact code inputs. */
+.password-recovery .subtitle { overflow-wrap:anywhere; }
+.password-recovery .otp-inputs { gap:clamp(5px,1vw,11px); }
+.password-recovery .otp-inputs input {
+    flex:1;
+    min-width:0;
+    max-width:53px;
+    height:58px;
+    padding:0;
+    text-align:center;
+    font-size:24px;
+}
+.password-recovery .resend-row { line-height:1.8; }
+.password-recovery .back-link a:focus-visible,
+.password-recovery .resend-row button:focus-visible {
+    outline:3px solid rgba(11,85,116,.35);
+    outline-offset:3px;
+}

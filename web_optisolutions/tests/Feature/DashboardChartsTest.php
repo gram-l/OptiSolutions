@@ -39,9 +39,9 @@ class DashboardChartsTest extends TestCase
 
     private function chartData(string $role, string $url): array
     {
-        $this->actingAs(new \App\Models\admin_models\User([
+        $this->actingAs((new \App\Models\admin_models\User([
             'name' => $role, 'email' => strtolower($role).'@example.test', 'user_role' => $role,
-        ]));
+        ]))->forceFill(['status' => 'active']));
         return $this->withSession(['account_last_activity' => now()->timestamp])->getJson($url)->assertOk()->json();
     }
 

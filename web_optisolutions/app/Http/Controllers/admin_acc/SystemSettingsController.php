@@ -32,7 +32,7 @@ class SystemSettingsController extends Controller
         abort_unless(isset($fieldsByGroup[$group]), 404);
 
         $rules = [
-            'operating_hours' => 'sometimes|string|max:255',
+            'operating_hours' => 'sometimes|nullable|string|max:255',
             'about_us'        => 'sometimes|nullable|string',
             'mission'         => 'sometimes|nullable|string',
             'vision'          => 'sometimes|nullable|string',

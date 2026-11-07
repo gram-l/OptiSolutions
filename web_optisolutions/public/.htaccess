@@ -5,6 +5,9 @@
 
     RewriteEngine On
 
+    # Never serve legacy patient chat files through the public storage link.
+    RewriteRule ^storage/chat-attachments(?:/|$) - [R=404,L,NC]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

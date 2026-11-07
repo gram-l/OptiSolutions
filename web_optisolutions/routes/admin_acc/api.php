@@ -16,11 +16,18 @@ use App\Http\Controllers\admin_acc\NotificationController;
 use App\Http\Controllers\admin_acc\ComplaintController;
 use App\Http\Controllers\Api\InquiryController;
 
-Route::prefix('admin')->group(function () {
+// Recovery stays available before sign-in, with bounded attempts.
+Route::prefix('admin/forgot-password')->middleware('throttle:10,1')->group(function () {
+    Route::post('/send-otp', [ApiForgotPasswordController::class, 'sendOtp']);
+    Route::post('/verify-otp', [ApiForgotPasswordController::class, 'verifyOtp']);
+    Route::post('/resend-otp', [ApiForgotPasswordController::class, 'resendOtp']);
+    Route::post('/reset', [ApiForgotPasswordController::class, 'resetPassword']);
+});
+
+Route::prefix('admin')->middleware(['auth:sanctum', \App\Http\Middleware\RequireActiveAdmin::class])->group(function () {
 
  
 // ── User management ──
-Route::middleware(['auth:sanctum', \App\Http\Middleware\RequireActiveAdmin::class])->group(function () {
 Route::post('/users/verification-code', [UserManagementController::class, 'sendVerificationCode'])->middleware('throttle:20,1');
 Route::get('/users/verification-status', [UserManagementController::class, 'verificationStatus']);
 Route::post('/users/verify-access', [UserManagementController::class, 'verifyAccess'])->middleware('throttle:30,1');
@@ -31,13 +38,6 @@ Route::put('/users/{id}',               [UserManagementController::class, 'updat
 Route::patch('/users/{id}/toggle',      [UserManagementController::class, 'toggleStatus']);
 Route::delete('/users/{id}',            [UserManagementController::class, 'destroy']);
 });
-});
-
-// forgot pass in dart
-Route::post('/forgot-password/send-otp',   [ApiForgotPasswordController::class, 'sendOtp']);
-Route::post('/forgot-password/verify-otp', [ApiForgotPasswordController::class, 'verifyOtp']);
-Route::post('/forgot-password/resend-otp', [ApiForgotPasswordController::class, 'resendOtp']);
-Route::post('/forgot-password/reset',      [ApiForgotPasswordController::class, 'resetPassword']);
 
 //doctors
 Route::get('/doctors', [DoctorController::class, 'apiIndex']);
@@ -49,8 +49,8 @@ Route::delete('/doctors/{id}', [DoctorController::class, 'destroy']);
 Route::get('/dashboard-data', [AdminDashboardController::class, 'data']);
 
 //mobile profile
-Route::middleware('auth:sanctum')->get('/me', [ApiProfileController::class, 'show']);
-Route::middleware('auth:sanctum')->post('/profile/photo', [ApiProfileController::class, 'updatePhoto']);
+Route::get('/me', [ApiProfileController::class, 'show']);
+Route::post('/profile/photo', [ApiProfileController::class, 'updatePhoto']);
 
 //feedback list
 Route::get('/feedback', [FeedbackController::class, 'apiIndex']);
@@ -76,11 +76,9 @@ Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRe
 Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 
 // ── Chatbot Inquiries (patient messages the bot couldn't handle) ──
-Route::middleware('auth:sanctum')->group(function () {
     Route::get('/inquiries', [InquiryController::class, 'index']);
     Route::get('/inquiries/{inquiry}', [InquiryController::class, 'show']);
     Route::get('/inquiries/{inquiry}/messages', [InquiryController::class, 'messages']);
     Route::post('/inquiries/{inquiry}/messages', [InquiryController::class, 'sendMessage']);
     Route::post('/inquiries/{inquiry}/resolve', [InquiryController::class, 'resolve']);
-});
 });

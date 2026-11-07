@@ -33,6 +33,7 @@ class AccountSettingsTest extends TestCase
     {
         (require database_path('migrations/2026_10_13_000002_add_notification_preferences_to_users.php'))->up();
         (require database_path('migrations/2026_01_01_000001_create_app_notifications_table.php'))->up();
+        (require database_path('migrations/2026_11_06_000002_create_notification_reads_table.php'))->up();
         $staff = $this->account('Staff');
         $staff->forceFill(['status' => 'active'])->save();
         $other = User::create(['name' => 'Other Staff', 'email' => 'other@example.com', 'password' => 'old-password', 'user_role' => 'Staff']);
@@ -54,7 +55,7 @@ class AccountSettingsTest extends TestCase
     private function account(string $role = 'Admin'): User
     {
         return User::create(['name' => 'Clinic User', 'email' => strtolower($role).'@example.com',
-            'password' => 'old-password', 'user_role' => $role]);
+            'password' => 'old-password', 'user_role' => $role])->refresh();
     }
 
     #[DataProvider('roles')]

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\admin_acc;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use App\Services\ProfilePhotoService;
 
 class ApiProfileController extends Controller
 {
@@ -29,13 +29,7 @@ class ApiProfileController extends Controller
             'photo' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        if ($user->profile_photo && Storage::disk('public')->exists($user->profile_photo)) {
-            Storage::disk('public')->delete($user->profile_photo);
-        }
-
-        $path = $request->file('photo')->store('profile_photos', 'public');
-        $user->profile_photo = $path;
-        $user->save();
+        app(ProfilePhotoService::class)->replace($user, $request->file('photo'));
 
         return response()->json([
             'message' => 'Profile photo updated.',

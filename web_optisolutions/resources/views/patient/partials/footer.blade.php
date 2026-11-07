@@ -1,14 +1,15 @@
 <!-- ========== FOOTER ========== -->
+@php($publicClinic = $publicClinic ?? \App\Support\PublicClinicDetails::from($clinicInfo ?? null))
 <footer class="footer-modern">
   <div class="container footer-modern-inner">
     <div class="footer-modern-top">
       <div class="footer-modern-brand">
         <div class="footer-modern-brandrow">
           <img src="/images/polyclinic_logo_dark.png" alt="PolyClinic Logo" class="footer-modern-logo">
-          <span class="footer-modern-brandname">{{ $clinicInfo->clinic_name ?? 'PolyClinic' }}</span>
+          <span class="footer-modern-brandname" data-clinic-field="clinic_name" data-clinic-empty="Clinic">{{ $publicClinic['clinic_name'] ?: 'Clinic' }}</span>
         </div>
-        <div class="footer-modern-social">
-          <a href="https://www.facebook.com/polyclinicLipa" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+        <div class="footer-modern-social" data-clinic-visible="facebook_url" @if ($publicClinic['facebook_url'] === '') hidden style="display:none" @endif>
+          <a href="{{ $publicClinic['facebook_url'] }}" data-clinic-facebook target="_blank" rel="noopener noreferrer" aria-label="Facebook">
             <i class="fab fa-facebook"></i>
           </a>
         </div>
@@ -39,13 +40,13 @@
         <h4>Clinic</h4>
         <a href="#contact">Visit Us</a>
         <a href="#contact">Clinic Hours</a>
-        <a href="https://www.google.com/maps/dir/?api=1&destination=PolyClinic+Lipa,+41+TM+Kalaw+St,+Lipa+City,+4217+Batangas" target="_blank" rel="noopener noreferrer">Get Directions</a>
+        <a href="{{ $publicClinic['directions_url'] }}" data-clinic-directions @if ($publicClinic['directions_url'] === '') hidden style="display:none" @endif target="_blank" rel="noopener noreferrer">Get Directions</a>
         <a href="#" onclick="openChatForSchedule(); return false;">Schedule Visit</a>
       </div>
 
       <div class="footer-modern-col">
         <h4>Contact Us</h4>
-        <a href="tel:{{ preg_replace('/\s+/', '', $clinicInfo->contact_no ?? '09854755511') }}">{{ $clinicInfo->contact_no ?? '0985 475 5511' }}</a>
+        <a href="{{ $publicClinic['phone_url'] }}" data-clinic-phone @if ($publicClinic['phone_url'] === '') hidden style="display:none" @endif><span data-clinic-field="contact_no">{{ $publicClinic['contact_no'] }}</span></a>
         <a href="#" onclick="openFaqModal(); return false;">FAQs</a>
         <a href="#" onclick="openChatForReview(); return false;">Leave Feedback</a>
         <a href="#doctors">Find Your Specialist</a>
@@ -53,7 +54,7 @@
     </div>
 
     <div class="footer-modern-bottom">
-      <p>© {{ date('Y') }} {{ $clinicInfo->clinic_name ?? 'PolyClinic Lipa' }} · {{ $clinicInfo->address ?? 'TM Kalaw St., Lipa City, Batangas 4217' }}</p>
+      <p>© {{ date('Y') }} <span data-clinic-field="clinic_name" data-clinic-empty="Clinic">{{ $publicClinic['clinic_name'] ?: 'Clinic' }}</span><span data-clinic-visible="address" @if ($publicClinic['address'] === '') hidden style="display:none" @endif> · <span data-clinic-field="address">{{ $publicClinic['address'] }}</span></span></p>
       <a href="{{ route('privacy-notice') }}">Privacy Notice</a>
     </div>
   </div>
@@ -72,7 +73,7 @@
           <i class="fas fa-chevron-down"></i>
         </button>
         <div class="faq-answer">
-          <p>We're open Monday to Friday, 8:00 AM – 6:00 PM, and Saturday, 9:00 AM – 1:00 PM. We're closed on Sundays.</p>
+          <p data-clinic-field="operating_hours" data-clinic-empty="Clinic hours have not been set yet.">{{ $publicClinic['operating_hours'] ?: 'Clinic hours have not been set yet.' }}</p>
         </div>
       </div>
 
@@ -112,7 +113,7 @@
           <i class="fas fa-chevron-down"></i>
         </button>
         <div class="faq-answer">
-          <p>We're at TM Kalaw St., Lipa City, Batangas 4217. You can check the map or tap "Get Directions" on our contact section.</p>
+          <p><span data-clinic-field="address" data-clinic-empty="Address has not been set yet.">{{ $publicClinic['address'] ?: 'Address has not been set yet.' }}</span> <span data-clinic-visible="address" @if ($publicClinic['address'] === '') hidden style="display:none" @endif>You can check the map or tap "Get Directions" in our contact section.</span></p>
         </div>
       </div>
 
@@ -122,7 +123,7 @@
           <i class="fas fa-chevron-down"></i>
         </button>
         <div class="faq-answer">
-          <p>Call or text us at 0985 475 5511, or message us anytime through the chat widget — our assistant can answer most questions right away.</p>
+          <p><span data-clinic-visible="contact_no" @if ($publicClinic['contact_no'] === '') hidden style="display:none" @endif>Call or text us at <span data-clinic-field="contact_no">{{ $publicClinic['contact_no'] }}</span>. </span>You can also message us through the chat widget.</p>
         </div>
       </div>
 

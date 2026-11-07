@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Models\admin_models\User;
+use App\Services\ProfilePhotoService;
 
 class ApiAuthController extends Controller
 {
@@ -73,13 +74,7 @@ class ApiAuthController extends Controller
             'photo' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        if ($user->profile_photo && Storage::disk('public')->exists($user->profile_photo)) {
-            Storage::disk('public')->delete($user->profile_photo);
-        }
-
-        $path = $request->file('photo')->store('profile_photos', 'public');
-        $user->profile_photo = $path;
-        $user->save();
+        app(ProfilePhotoService::class)->replace($user, $request->file('photo'));
 
         return response()->json([
             'message' => 'Profile photo updated.',

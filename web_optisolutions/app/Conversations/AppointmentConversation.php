@@ -18,6 +18,8 @@ use App\Services\NotificationService;
 use App\Services\InquiryThread;
 use App\Services\ScheduleVisitHold;
 use App\Models\Staff\Inquiry;
+use App\Services\PatientBookingService;
+use Illuminate\Validation\ValidationException;
 use App\Models\Notification;
 
 use Closure;
@@ -1039,7 +1041,7 @@ class AppointmentConversation extends Conversation
         $catalog = $this->buildScheduleVisitCatalog();
 
         if (empty($catalog['services'])) {
-            $this->sayLogged("We couldn't find any available doctors right now. Please try again later, or contact us directly at 0985 475 5511.");
+            $this->sayLogged("We couldn't find any available doctors right now. Please try again later. " . \App\Support\PublicClinicDetails::contactHelp());
             return;
         }
 
@@ -1280,13 +1282,22 @@ class AppointmentConversation extends Conversation
         // removed as soon as it finishes (see sendMessage() in
         // chatbot-widget.blade.php). It is intentionally NOT a bot message.
         try {
-            $patientId = DB::table('patients')->insertGetId([
+            $visitDate = $this->getNextAvailableISODate($this->scheduleDay);
+
+            $booking = app(PatientBookingService::class)->book([
                 'patient_fname'     => $this->fname,
                 'patient_lname'     => $this->lname,
                 'patient_birthdate' => $this->normalizeDOB($this->dob),
                 'patient_email'     => $this->email,
                 'patient_contact'   => $this->phone,
+            ], [
+                'doctor_id'    => $this->doctorId,
+                'service_type' => $this->service,
+                'visit_date'   => $visitDate,
+                'notes'        => $this->scheduleSuggestion,
             ]);
+            $patientId = $booking['patient']->patient_id;
+            $visitId = $booking['visit']->visit_id;
 
             // The visit is confirmed, so any inquiry this chat opened while the visit
             // was still being filled in (and was kept anonymous until now) can be
@@ -1299,17 +1310,6 @@ class AppointmentConversation extends Conversation
             } catch (\Throwable $linkError) {
                 Log::error('Failed to link inquiry to patient after visit confirmation: ' . $linkError->getMessage());
             }
-
-            $visitDate = $this->getNextAvailableISODate($this->scheduleDay);
-
-            $visitId = DB::table('schedule_visit')->insertGetId([
-                'doctor_id'    => $this->doctorId,
-                'patient_id'   => $patientId,
-                'service_type' => $this->service,
-                'visit_date'   => $visitDate,
-                'notes'        => $this->scheduleSuggestion,
-                'scheduled_at' => now(),
-            ]);
 
             // Notification failures should not affect the saved appointment.
             // Uses NotificationService so the row gets the required `type`
@@ -1367,6 +1367,8 @@ class AppointmentConversation extends Conversation
             }
 
             $this->askPostAppointment(); // → move to the final step
+        } catch (ValidationException $e) {
+            $this->sayLogged(collect($e->errors())->flatten()->first());
         } catch (\Throwable $e) {
             Log::error('Failed to save schedule visit: ' . $e->getMessage(), [
                 'exception' => $e,
@@ -1375,7 +1377,7 @@ class AppointmentConversation extends Conversation
                 'doctor_id' => $this->doctorId,
                 'service' => $this->service,
             ]);
-            $this->sayLogged("We couldn't save your schedule visit right now. Please try again, or contact us directly at 0985 475 5511.");
+            $this->sayLogged("We couldn't save your schedule visit right now. Please try again. " . \App\Support\PublicClinicDetails::contactHelp());
         }
     }
 
@@ -1400,7 +1402,7 @@ class AppointmentConversation extends Conversation
                 'exception' => $e,
                 'email' => $this->email,
             ]);
-            $this->sayLogged("Sorry, we couldn't send the confirmation email right now. Your visit is still saved, so please take a screenshot of the confirmation above, or contact us at 0985 475 5511.");
+            $this->sayLogged("Sorry, we couldn't send the confirmation email right now. Your visit is still saved, so please take a screenshot of the confirmation above. " . \App\Support\PublicClinicDetails::contactHelp());
         }
     }
 

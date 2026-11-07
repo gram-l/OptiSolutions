@@ -14,7 +14,7 @@ class FeedbackController extends Controller
             'transaction_code' => 'required|string|max:80',
             'patient_id'    => 'nullable|integer|exists:patients,patient_id',
             'log_id'        => 'nullable|integer|exists:chatbot_logs,log_id',
-            'feedback_text' => 'nullable|string',
+            'feedback_text' => 'nullable|string|max:'.\App\Support\AnalysisLimits::MAX_TEXT_LENGTH,
             'star_rating'   => 'required|integer|min:1|max:5',
         ]);
 

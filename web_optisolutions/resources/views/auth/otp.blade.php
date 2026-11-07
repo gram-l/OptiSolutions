@@ -7,29 +7,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 @vite('resources/css/login.css')
 </head>
-<body>
+<body class="staff-login password-recovery">
 
 <div class="login-container">
 
-    <!-- LEFT SIDE: clinic photo -->
-    <div class="left-panel">
-        <img src="{{ asset('images/Polyclinic.jpg') }}" alt="PolyClinic building">
-        <div class="photo-caption"><strong>Check Your Email</strong><span>We've sent a 6-digit verification code to your email address.</span></div>
-    </div>
+    @include('auth.partials.clinic-brand')
 
     <!-- RIGHT SIDE -->
     <div class="right-panel">
-
-        <header class="branding">
-            <img src="{{ asset('images/polyclinic_logo.png') }}"
-                 class="logo"
-                 alt="PolyClinic Logo"
-                 onerror="this.onerror=null; this.style.display='none';">
-            <div>
-                <h2>PolyClinic</h2>
-                <p>Inquiry System · Smart Care</p>
-            </div>
-        </header>
 
         <main class="form-wrap">
             <div class="form-box">
@@ -79,6 +64,7 @@
                 <p class="back-link">
                     <a href="{{ route('password.forgot') }}">← Use a different email</a>
                 </p>
+                @include('auth.partials.portal-note')
             </div>
         </main>
 

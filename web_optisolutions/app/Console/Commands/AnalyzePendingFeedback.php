@@ -28,6 +28,9 @@ class AnalyzePendingFeedback extends Command
 
             $this->line("Analyzing feedback #{$feedback->feedback_id}...");
             try {
+                if (mb_strlen($text) > \App\Support\AnalysisLimits::MAX_TEXT_LENGTH) {
+                    throw new \LengthException('Review exceeds the analysis text limit; left pending without truncation.');
+                }
                 $response = Http::timeout(30)->post($url, ['feedback_text' => $text]);
                 if (! $response->successful()) {
                     throw new \RuntimeException("Sentiment API returned HTTP {$response->status()}");

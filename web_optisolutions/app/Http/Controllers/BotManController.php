@@ -11,6 +11,9 @@ use App\Conversations\AppointmentConversation;
 use App\Conversations\AnythingElseConversation;
 use App\Conversations\ComplaintConversation;
 use App\Conversations\ReviewConversation;
+use App\Conversations\InquiryConversation;
+use App\Services\InquiryThread;
+use App\Services\ScheduleVisitHold;
 use App\Services\ClinicInfoService;
 use App\Models\ChatbotLog;
 use App\Models\ChatbotCommand;
@@ -26,6 +29,11 @@ use Illuminate\Support\Facades\Storage;
 class BotManController extends Controller
 {
     protected bool $isUnhandledInquiry = false;
+
+    // Set when a message was already logged/recorded while it was being handled
+    // (the schedule visit hold needs the inquiry to exist before the reply goes
+    // out), so logExchange() must not log it a second time.
+    protected bool $skipExchangeLog = false;
 
     // All button values used anywhere in the bot. These should never be
     // treated as an inquiry and forwarded to Admin/Staff.
@@ -44,6 +52,10 @@ class BotManController extends Controller
         'continue schedule visit', 'continue_schedule',
         'start over', 'restart_schedule',
         'cancel_schedule',
+
+        // Hidden message the widget sends after an attachment upload while the
+        // schedule visit form is open (puts the form on hold).
+        'hold_schedule_for_inquiry',
 
         // Schedule visit: confirm suggested date & time
         'yes, confirm', 'confirm_yes',
@@ -72,45 +84,76 @@ class BotManController extends Controller
         $incomingText = (string) $request->input('message', '');
         $conversationId = (string) $request->input('userId', '');
 
+        // A schedule visit that is on hold (paused for an inquiry) for this chat.
+        $onHold = ScheduleVisitHold::has($conversationId);
+
         // Normalize free-typed command variants before BotMan reads the request.
-        $canonicalCommand = $this->canonicalizeCommand($incomingText);
+        $canonicalCommand = $this->canonicalizeCommand($incomingText, $onHold);
         if ($canonicalCommand !== null) {
             $request->request->set('message', $canonicalCommand);
         }
 
         CaptureReplyMiddleware::reset();
         $this->isUnhandledInquiry = false;
+        $this->skipExchangeLog = false;
 
         try {
             DriverManager::loadDriver(WebDriver::class);
             $botman = BotManFactory::create(config('botman'), new LaravelCache(), $request);
             $botman->middleware->sending(new CaptureReplyMiddleware());
 
+            // Continue / Start Over / Cancel for a schedule visit that is on hold.
+            // While a visit is on hold these win over any conversation still
+            // waiting on the server, so a click is never swallowed.
+            foreach ([
+                ScheduleVisitHold::CONTINUE => fn ($bot) => $this->continueHeldSchedule($bot),
+                ScheduleVisitHold::RESTART  => fn ($bot) => $this->restartHeldSchedule($bot),
+                ScheduleVisitHold::CANCEL   => fn ($bot) => $this->cancelHeldSchedule($bot),
+            ] as $command => $callback) {
+                $hears = $botman->hears($command, $callback);
+                if ($onHold) {
+                    $hears->stopsConversation();
+                }
+            }
+
+            // Sent by the widget after an attachment upload while a form is open.
+            // (When the form's conversation is still active it handles this itself;
+            // this only covers a visit that is already on hold.)
+            $botman->hears(ScheduleVisitHold::FOR_INQUIRY_TOKEN, function ($bot) {
+                $this->holdForUploadedAttachment($bot);
+            });
+
             $botman->hears('schedule visit', function ($bot) {
                 Log::info('MATCHED: schedule visit');
+                // A new schedule visit replaces one that was on hold
+                // (AppointmentConversation::run() clears the hold).
                 $bot->startConversation(new AppointmentConversation());
             });
 
             $botman->hears('general information', function ($bot) {
                 Log::info('MATCHED: general information');
                 $bot->reply(ClinicInfoService::infoCardMessage());
-                // Re-show the menu so the buttons don't disappear.
-                $this->sendGreeting($bot, false);
+                // Re-show the menu so the buttons don't disappear (or, if a
+                // schedule visit is on hold, the Continue / Start Over / Cancel buttons).
+                $this->afterBotAnswer($bot, true);
             });
 
             // Long-form and short-form phrasing both need to be recognized.
             $botman->hears('complaint', function ($bot) {
                 Log::info('MATCHED: complaint');
+                $this->dropHeldSchedule($bot);
                 $bot->startConversation(new ComplaintConversation());
             });
 
             $botman->hears('submit complaint', function ($bot) {
                 Log::info('MATCHED: submit complaint');
+                $this->dropHeldSchedule($bot);
                 $bot->startConversation(new ComplaintConversation());
             });
 
             $botman->hears('review', function ($bot) {
                 Log::info('MATCHED: review');
+                $this->dropHeldSchedule($bot);
                 $stored = $bot->userStorage()->find() ?: [];
                 $bot->startConversation(new ReviewConversation(
                     $stored['patient_id'] ?? null,
@@ -120,6 +163,7 @@ class BotManController extends Controller
 
             $reviewCommand = $botman->hears('submit review/rating', function ($bot) {
                 Log::info('MATCHED: submit review/rating');
+                $this->dropHeldSchedule($bot);
                 $stored = $bot->userStorage()->find() ?: [];
                 $bot->startConversation(new ReviewConversation(
                     $stored['patient_id'] ?? null,
@@ -159,6 +203,9 @@ class BotManController extends Controller
 
             $botman->hears('menu', function ($bot) {
                 Log::info('MATCHED: menu');
+                if ($this->dropHeldSchedule($bot)) {
+                    $bot->reply('Okay, cancelling this schedule visit.');
+                }
                 $this->sendGreeting($bot);
             });
 
@@ -183,12 +230,25 @@ class BotManController extends Controller
     }
 
     // Maps a free-typed message onto its canonical command text.
-    protected function canonicalizeCommand(string $text): ?string
+    protected function canonicalizeCommand(string $text, bool $onHold = false): ?string
     {
         $normalized = mb_strtolower(trim($text));
         $normalized = rtrim($normalized, ".!? \t\n\r");
         $normalized = preg_replace('/\s+/', ' ', $normalized);
         $normalized = preg_replace('/\s*\/\s*/', '/', $normalized);
+
+        // While a schedule visit is on hold, typing the choice works like the buttons.
+        if ($onHold) {
+            if (preg_match('/^(continue|resume)( (my |the )?(schedule visit|schedule|visit|booking))?$/', $normalized)) {
+                return ScheduleVisitHold::CONTINUE;
+            }
+            if (preg_match('/^(start over|restart|start again)$/', $normalized)) {
+                return ScheduleVisitHold::RESTART;
+            }
+            if (preg_match('/^cancel( (my |the )?(schedule visit|schedule|visit|booking))?$/', $normalized)) {
+                return ScheduleVisitHold::CANCEL;
+            }
+        }
 
         // Review/rating variants.
         if (preg_match('/^(submit\s+)?(review|reviews|rating|ratings|review\/rating|review\/ratings)$/', $normalized)) {
@@ -211,11 +271,19 @@ class BotManController extends Controller
     protected function handleFallback($bot)
     {
         $text = trim($bot->getMessage()->getText());
+        $conversationId = (string) $bot->getMessage()->getSender();
+        $onHold = $conversationId !== '' && ScheduleVisitHold::has($conversationId);
 
         // A schedule-visit form (or its Back button) used after its conversation expired.
         // Never forward it to staff as an inquiry.
         if (str_starts_with($text, AppointmentConversation::FORM_SUBMIT_PREFIX) || in_array($text, ['back_to_details', 'back_to_visit'], true)) {
             Log::info('FALLBACK ignored (stale form submission)');
+            if ($onHold) {
+                // The form is locked in the widget; this can only be a stale tab.
+                $bot->reply('Your schedule visit is on hold right now.');
+                $this->afterBotAnswer($bot, false);
+                return;
+            }
             $bot->reply('That form has expired. Please tap "Schedule Visit" to start again.');
             $this->sendGreeting($bot, false);
             return;
@@ -229,22 +297,32 @@ class BotManController extends Controller
         // Friendly acknowledgment, e.g. "ok", "thanks", "salamat".
         if (ClinicInfoService::looksLikeAcknowledgment($text)) {
             Log::info('FALLBACK answered as acknowledgment: "' . $text . '"');
-            $bot->reply(ClinicInfoService::acknowledgmentReply());
+            $reply = ClinicInfoService::acknowledgmentReply();
+            $bot->reply($reply);
+            $this->recordBotAnswer($conversationId, $text, $reply);
+            $this->afterBotAnswer($bot, false);
+            $this->sendMenuHint($bot, $onHold);
             return;
         }
 
         // Plain greeting, e.g. "Hi", "Hello", "Kumusta".
         if (ClinicInfoService::looksLikeGreeting($text)) {
             Log::info('FALLBACK answered as greeting: "' . $text . '"');
-            $bot->reply(ClinicInfoService::greetingReply());
-            $this->sendGreeting($bot, false);
+            $reply = ClinicInfoService::greetingReply();
+            $bot->reply($reply);
+            $this->recordBotAnswer($conversationId, $text, $reply);
+            $this->afterBotAnswer($bot, true);
             return;
         }
 
         // Patient asking permission to ask, e.g. "Pwede mag tanong?".
         if (ClinicInfoService::looksLikeAskingPermission($text)) {
             Log::info('FALLBACK answered as asking-permission: "' . $text . '"');
-            $bot->reply(ClinicInfoService::askingPermissionReply());
+            $reply = ClinicInfoService::askingPermissionReply();
+            $bot->reply($reply);
+            $this->recordBotAnswer($conversationId, $text, $reply);
+            $this->afterBotAnswer($bot, false);
+            $this->sendMenuHint($bot, $onHold);
             return;
         }
 
@@ -253,6 +331,9 @@ class BotManController extends Controller
         if ($infoReply !== null) {
             Log::info('FALLBACK answered from ClinicInfoService: "' . $text . '"');
             $bot->reply($infoReply);
+            $this->recordBotAnswer($conversationId, $text, $infoReply);
+            $this->afterBotAnswer($bot, false);
+            $this->sendMenuHint($bot, $onHold);
             return;
         }
 
@@ -265,10 +346,16 @@ class BotManController extends Controller
         // inquiry's thread below (via recordInquiry/recordInquiryReply),
         // so Admin/Staff still sees it — the patient just isn't shown
         // the ack bubble more than once per open inquiry.
-        $conversationId = (string) $bot->getMessage()->getSender();
         $hasOpenInquiry = $conversationId !== '' && Inquiry::where('conversation_id', $conversationId)
             ->where('resolved_status', '!=', 'Resolved')
             ->exists();
+
+        // The patient's schedule visit is on hold and the bot can't answer this:
+        // it goes to staff, and the visit now waits for them (not for a button).
+        if ($onHold) {
+            $this->forwardToStaffWhileHeld($bot, $text, $conversationId, $hasOpenInquiry);
+            return;
+        }
 
         $this->isUnhandledInquiry = true;
 
@@ -277,8 +364,157 @@ class BotManController extends Controller
         }
     }
 
+    // CONTINUE / START OVER / CANCEL for a schedule visit that is on hold
+
+    // Back to the exact step the patient left, with what they had typed.
+    protected function continueHeldSchedule($bot)
+    {
+        $hold = ScheduleVisitHold::take((string) $bot->getMessage()->getSender());
+
+        if ($hold === null) {
+            $this->noHeldSchedule($bot);
+            return;
+        }
+
+        $bot->startConversation(new AppointmentConversation(
+            $hold['step'] ?? 'patient_form',
+            $hold['state'] ?? [],
+            $hold['draft'] ?? null
+        ));
+    }
+
+    // Same schedule visit, from the very beginning.
+    protected function restartHeldSchedule($bot)
+    {
+        $hold = ScheduleVisitHold::take((string) $bot->getMessage()->getSender());
+
+        if ($hold === null) {
+            $this->noHeldSchedule($bot);
+            return;
+        }
+
+        $bot->reply('Okay! Restarting your schedule visit from the beginning.');
+        $bot->startConversation(new AppointmentConversation());
+    }
+
+    protected function cancelHeldSchedule($bot)
+    {
+        $hold = ScheduleVisitHold::take((string) $bot->getMessage()->getSender());
+
+        if ($hold === null) {
+            $this->noHeldSchedule($bot);
+            return;
+        }
+
+        $bot->reply('Okay, your schedule visit has been cancelled. Type "Menu" anytime to start again.');
+        $this->sendGreeting($bot, false);
+    }
+
+    // A stale Continue / Start Over / Cancel button (the visit is no longer on hold).
+    protected function noHeldSchedule($bot)
+    {
+        $bot->reply('That schedule visit is no longer active. Please tap "Schedule Visit" to start again.');
+        $this->sendGreeting($bot, false);
+    }
+
+    // The patient moved on to another flow: the paused visit is dropped.
+    protected function dropHeldSchedule($bot): bool
+    {
+        return ScheduleVisitHold::forget((string) $bot->getMessage()->getSender());
+    }
+
+    // If this chat has an open inquiry, the patient's message and the bot's answer
+    // (a "thank you" and "you're welcome", a greeting, clinic info...) are also
+    // written into that inquiry's thread, so Admin/Staff can read the whole
+    // conversation and see that the patient is already satisfied.
+    protected function recordBotAnswer(string $conversationId, string $patientText, string $botText): void
+    {
+        InquiryThread::recordBotExchange($conversationId, $patientText, $botText);
+    }
+
+    // The bot answered but no menu buttons came with the answer (the quick-reply
+    // buttons disappear after any message without buttons), so remind the patient
+    // how to bring them back. Not needed while a schedule visit is on hold: the
+    // Continue / Start Over / Cancel buttons (or the staff wait) are on screen.
+    protected function sendMenuHint($bot, bool $onHold): void
+    {
+        if (!$onHold) {
+            $bot->reply(InquiryConversation::MENU_HINT);
+        }
+    }
+
+    // After the bot answers something. With a schedule visit on hold and the
+    // buttons due (bot-answered, resolved, or idle auto-release), the Continue /
+    // Start Over / Cancel buttons come back; while still waiting on staff nothing
+    // is added. With nothing on hold, the main menu returns when asked for.
+    protected function afterBotAnswer($bot, bool $showMenu)
+    {
+        $conversationId = (string) $bot->getMessage()->getSender();
+
+        if (!ScheduleVisitHold::has($conversationId)) {
+            if ($showMenu) {
+                $this->sendGreeting($bot, false);
+            }
+            return;
+        }
+
+        $status = ScheduleVisitHold::status($conversationId);
+        if (!empty($status['ready'])) {
+            $bot->reply(ScheduleVisitHold::choicesQuestion());
+        }
+    }
+
+    // A free-typed message the bot can't answer, while the visit is on hold:
+    // record it in the open thread (or start one), and make the visit wait for staff.
+    protected function forwardToStaffWhileHeld($bot, string $text, string $conversationId, bool $hadOpenInquiry)
+    {
+        try {
+            $log = ChatbotLog::create([
+                'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                'user_message'    => $text !== '' ? $text : '(no text)',
+                'bot_message'     => $hadOpenInquiry ? '(no reply)' : InquiryConversation::FORWARDED_TEXT,
+            ]);
+
+            $inquiry = $this->recordInquiryReply($conversationId, $text, $log);
+            $this->skipExchangeLog = true;
+        } catch (\Throwable $e) {
+            Log::error('Failed to forward message while schedule visit on hold: ' . $e->getMessage());
+            $inquiry = null;
+        }
+
+        $hold = $inquiry ? ScheduleVisitHold::linkInquiry($conversationId, (int) $inquiry->inquiry_id) : null;
+        if ($hold) {
+            $bot->reply(ScheduleVisitHold::marker($hold));
+        }
+
+        if (!$hadOpenInquiry) {
+            $this->sendInquiryAck($bot);
+        }
+    }
+
+    // Attachment uploaded while a visit is already on hold: it now waits for staff.
+    protected function holdForUploadedAttachment($bot)
+    {
+        $conversationId = (string) $bot->getMessage()->getSender();
+        $inquiryId = ScheduleVisitHold::openInquiryId($conversationId);
+
+        if ($inquiryId === null) {
+            return;
+        }
+
+        $hold = ScheduleVisitHold::linkInquiry($conversationId, $inquiryId);
+        if ($hold) {
+            $bot->reply(ScheduleVisitHold::marker($hold));
+        }
+    }
+
     protected function logExchange(string $conversationId, string $userMessage, array $capturedReplies, $botman)
     {
+        // Already logged while the message was handled (see forwardToStaffWhileHeld).
+        if ($this->skipExchangeLog) {
+            return;
+        }
+
         // Review passes are private bearer codes, not inquiry text.
         if (preg_match(\App\Services\VisitReviewService::CODE_PATTERN, \App\Services\VisitReviewService::normalizeCode($userMessage))) {
             $userMessage = '[Review transaction code entered]';
@@ -317,10 +553,11 @@ class BotManController extends Controller
         ?string $attachmentName = null
     ) {
         try {
-            $openInquiry = Inquiry::where('conversation_id', $conversationId)
-                ->where('resolved_status', '!=', 'Resolved')
-                ->orderByDesc('inquiry_id')
-                ->first();
+            // Same chat = same inquiry, Resolved man o hindi. Kapag Resolved na
+            // at nag-message ulit ang patient, ibabalik lang sa Pending ang
+            // dating inquiry (hindi gagawa ng bago).
+            $openInquiry = Inquiry::latestForConversation($conversationId);
+            $openInquiry?->reopenIfResolved();
 
             if (!$openInquiry) {
                 $openInquiry = Inquiry::create([
@@ -421,6 +658,6 @@ class BotManController extends Controller
 
     protected function sendInquiryAck($bot)
     {
-        $bot->reply("Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.");
+        $bot->reply(InquiryConversation::FORWARDED_TEXT);
     }
 }

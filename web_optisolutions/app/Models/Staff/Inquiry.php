@@ -43,6 +43,40 @@ class Inquiry extends Model
         });
     }
 
+    /**
+     * Ang pinakahuling inquiry ng chat na ito, Resolved man o hindi.
+     * Dito dapat bumalik ang patient kapag nag-inquire ulit: iisang inquiry
+     * per chat, para hindi lumabas bilang bagong inquiry ang follow-up.
+     */
+    public static function latestForConversation(?string $conversationId): ?self
+    {
+        if ($conversationId === null || $conversationId === '') {
+            return null;
+        }
+
+        return static::where('conversation_id', $conversationId)
+            ->orderByDesc('inquiry_id')
+            ->first();
+    }
+
+    /**
+     * Kapag Resolved na ang inquiry at nag-message ulit ang patient, ibabalik
+     * ito sa "Pending" (kailangan ulit ng atensyon ng staff). Walang bagong
+     * inquiry na nagagawa. Ang resolve/unresolve ng Admin/Staff ay para sa
+     * inquiry na ito mismo.
+     */
+    public function reopenIfResolved(): bool
+    {
+        if ($this->resolved_status !== 'Resolved') {
+            return false;
+        }
+
+        $this->resolved_status = 'Pending';
+        $this->save();
+
+        return true;
+    }
+
     public function log()
     {
         return $this->belongsTo(ChatbotLog::class, 'log_id', 'log_id');
@@ -50,8 +84,11 @@ class Inquiry extends Model
 
     public function replies()
     {
+        // reply_id as a tie-breaker: a patient message and the chatbot's answer
+        // are saved in the same second and must stay in the right order.
         return $this->hasMany(InquiryReply::class, 'inquiry_id', 'inquiry_id')
-            ->orderBy('created_at', 'asc');
+            ->orderBy('created_at', 'asc')
+            ->orderBy('reply_id', 'asc');
     }
 
     public function toApiArray()

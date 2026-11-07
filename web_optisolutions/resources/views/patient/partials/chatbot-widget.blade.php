@@ -44,7 +44,7 @@
 
   <div class="chat-input-area">
     <button class="attach-btn" id="attachBtn"><i class="fa-solid fa-paperclip"></i></button>
-    <input type="text" class="chat-input" id="chatInput" placeholder="Type a message...">
+    <input type="text" class="chat-input" id="chatInput" placeholder='Type a message or "Menu"...'>
     <button class="chat-send" id="chatSend"><i class="fa-solid fa-paper-plane"></i></button>
     <input type="file" class="file-input" id="fileInput">
   </div>
@@ -75,6 +75,31 @@ document.addEventListener('DOMContentLoaded', () => {
   const INFO_CARD_PREFIX = 'INFO_CARD::';
   const FORM_CARD_PREFIX = 'FORM_CARD::';
   const FORM_SUBMIT_PREFIX = 'FORM_SUBMIT::';
+
+  // SCHEDULE VISIT "ON HOLD" (see App\Services\ScheduleVisitHold)
+  // While the patient has a chat inquiry open, the schedule visit form is locked
+  // (what they typed stays in it) until they pick Continue / Start Over / Cancel.
+  const HOLD_PREFIX = 'HOLD::';                       // bot -> widget: lock the form
+  const HOLD_FOR_INQUIRY_TOKEN = 'hold_schedule_for_inquiry'; // widget -> bot, after an attachment upload
+  const HOLD_CHOICE_QUESTION = 'What would you like to do with your schedule visit?';
+  const HOLD_CHOICES = [
+    { text: 'Continue Schedule Visit', value: 'continue_schedule' },
+    { text: 'Start Over',              value: 'restart_schedule' },
+    { text: 'Cancel',                  value: 'cancel_schedule' },
+  ];
+  const HOLD_CHOICE_VALUES = HOLD_CHOICES.map(c => c.value);
+  const HOLD_STAFF_TEXT = 'We\'ve passed your question to our staff. Your schedule visit is on hold until they reply. You can cancel it anytime if you\'d rather not wait, or type "Menu" to cancel it and bring back the main options.';
+  const HOLD_CHOOSE_TEXT = 'Your schedule visit is on hold. Please choose an option below to continue.';
+
+  // Tells the patient how to bring the 4 main buttons back. Must match
+  // InquiryConversation::MENU_HINT on the server.
+  const MENU_HINT = 'You can type "Menu" anytime to see the main options.';
+  const FORWARDED_MESSAGE_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
+  const FORWARDED_ATTACHMENT_TEXT = "Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
+
+  // Bumped whenever a message is sent, so a poll that was already in flight
+  // (and may not know about the hold yet) can't unlock or drop the form.
+  let holdSyncToken = 0;
 
   // Guards against overlapping requests — rapid clicking a quick-reply
   // button or mashing Enter before the first response comes back used
@@ -272,7 +297,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // off more messages while we're still waiting on this one (avoids
     // spamming the bot/admin/staff). No typing dots here — this reply
     // is generated immediately, it isn't a human composing a message.
+    holdSyncToken++;
     setSendingState(true);
+    let uploaded = false;
     try {
       const formData = new FormData();
       formData.append('attachment', file);
@@ -295,12 +322,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      addBubble("Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.", 'bot');
+      addBubble(FORWARDED_ATTACHMENT_TEXT + ' ' + MENU_HINT, 'bot');
+      uploaded = true;
     } catch (e) {
       console.error('Failed to upload attachment:', e);
       addErrorBubble('Something went wrong uploading the attachment. Please try again.');
     } finally {
+      holdSyncToken++;
       setSendingState(false);
+    }
+
+    // An attachment is an inquiry for staff, so an open schedule visit form is put on hold too.
+    if (uploaded && activeForm) {
+      await sendMessage(HOLD_FOR_INQUIRY_TOKEN, '', { skipUserBubble: true });
     }
   }
 
@@ -352,9 +386,9 @@ document.addEventListener('DOMContentLoaded', () => {
     el.innerHTML = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   }
 
-  function addBubble(text, sender = 'bot', persist = true) {
+  function addBubble(text, sender = 'bot', persist = true, opts = {}) {
     const messageWrap = document.createElement('div');
-    messageWrap.className = `chat-message ${sender}`;
+    messageWrap.className = `chat-message ${sender}` + (opts.holdQuestion ? ' hold-question' : '');
     messageWrap.style.display = 'flex';
     messageWrap.style.flexDirection = 'column';
 
@@ -365,15 +399,39 @@ document.addEventListener('DOMContentLoaded', () => {
     messageWrap.appendChild(bubble);
     // Sends the original text for translation without formatting markers.
     attachTranslateControls(messageWrap, () => text);
+    if (opts.holdLink) addHoldContinueLink(messageWrap);
     messagesEl.appendChild(messageWrap);
     scrollToBottom();
 
     if (persist) {
-      session.history.push({ kind: 'bubble', text, sender });
+      session.history.push({ kind: 'bubble', text, sender, holdLink: !!opts.holdLink, holdQuestion: !!opts.holdQuestion });
       persistSession();
     }
 
     return bubble;
+  }
+
+  // Small link under a staff reply (while the visit is on hold and the inquiry
+  // is still open): lets the patient go on with the schedule visit anyway.
+  function addHoldContinueLink(messageWrap) {
+    const link = document.createElement('button');
+    link.type = 'button';
+    link.className = 'hold-continue-link';
+    link.textContent = 'Continue schedule visit anyway';
+    link.addEventListener('click', () => {
+      if (isSending) return;
+      sendMessage('continue_schedule', 'Continue schedule visit anyway');
+    });
+    messageWrap.appendChild(link);
+  }
+
+  function removeHoldLinks() {
+    document.querySelectorAll('.hold-continue-link').forEach(el => el.remove());
+    let changed = false;
+    session.history.forEach(item => {
+      if (item.kind === 'bubble' && item.holdLink) { item.holdLink = false; changed = true; }
+    });
+    if (changed) persistSession();
   }
 
   // Displays an error message with a refresh option.
@@ -521,9 +579,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Displays inline options and prevents previously answered choices from being selected again.
-  function addInlineButtons(buttons) {
+  function addInlineButtons(buttons, extraClass = '') {
     const messageWrap = document.createElement('div');
-    messageWrap.className = 'chat-message bot';
+    messageWrap.className = 'chat-message bot' + (extraClass ? ' ' + extraClass : '');
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble inline-buttons-bubble';
@@ -540,6 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // next reply shows a fresh (and sometimes near-identical) set
         // of options, e.g. the post-appointment menu followed by a
         // Complaint/Review conversation's own main menu.
+        if (messageWrap.classList.contains('hold-choices')) settleHoldQuestions();
         messageWrap.remove();
         sendMessage(btn.value ?? btn.text, btn.text);
       });
@@ -551,13 +610,80 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
   }
 
+  function isHoldChoiceButtons(buttons) {
+    return Array.isArray(buttons) && buttons.some(b => HOLD_CHOICE_VALUES.includes(String(b.value)));
+  }
+
+  // Removes the Continue / Start Over / Cancel buttons (screen and saved history).
+  // Kasama rin nitong binubura ang tanong ("What would you like to do...?") na
+  // nakalabas pa at walang buttons, para hindi maiwang mag-isa ang tanong.
+  // keepQuestion = true kapag papalitan lang ng bagong set ng buttons.
+  function clearHoldChoices(keepQuestion = false) {
+    document.querySelectorAll('.hold-choices').forEach(el => el.remove());
+    if (!keepQuestion) document.querySelectorAll('.hold-question').forEach(el => el.remove());
+    const before = session.history.length;
+    session.history = session.history.filter(item => {
+      if (item.kind === 'buttons' && isHoldChoiceButtons(item.buttons)) return false;
+      if (!keepQuestion && item.kind === 'bubble' && item.holdQuestion) return false;
+      return true;
+    });
+    if (session.history.length !== before) persistSession();
+  }
+
+  // Ang tanong na galing mismo sa server (kasama ng buttons sa iisang sagot ng bot):
+  // minamarkahan din para mabura kasabay ng buttons kung bawiin ang mga ito.
+  function flagTrailingHoldQuestion() {
+    const msgs = messagesEl.querySelectorAll('.chat-message');
+    const last = msgs[msgs.length - 1];
+    if (!last || !last.classList.contains('bot') || last.classList.contains('hold-question')) return;
+    const text = (last.querySelector('.chat-bubble')?.textContent || '').trim();
+    if (!text.endsWith(HOLD_CHOICE_QUESTION)) return;
+    last.classList.add('hold-question');
+    for (let i = session.history.length - 1; i >= 0; i--) {
+      const item = session.history[i];
+      if (item.kind === 'bubble') { item.holdQuestion = true; persistSession(); break; }
+      if (item.kind === 'buttons') break;
+    }
+  }
+
+  // Nasagot na ng patient ang tanong: ordinaryong bubble na lang ito (hindi na buburahin).
+  function settleHoldQuestions() {
+    document.querySelectorAll('.hold-question').forEach(el => el.classList.remove('hold-question'));
+    let changed = false;
+    session.history.forEach(item => {
+      if (item.kind === 'bubble' && item.holdQuestion) { item.holdQuestion = false; changed = true; }
+    });
+    if (changed) persistSession();
+  }
+
+  // Shows the three buttons (once) when the server says they're due.
+  function ensureHoldChoices(h) {
+    if (document.querySelector('.hold-choices')) return;
+    // May naiwang tanong na walang buttons (hal. nabalik mula sa saved history)?
+    // Buburahin muna para laging magkasama ang tanong at ang buttons.
+    clearHoldChoices();
+    const lead = h.readyReason === 'resolved'
+      ? 'Your inquiry has been resolved. '
+      : h.readyReason === 'idle'
+        ? 'Our staff is still working on your question. '
+        : '';
+    addBubble(lead + HOLD_CHOICE_QUESTION, 'bot', true, { holdQuestion: true });
+    addButtons(HOLD_CHOICES);
+  }
+
   function addButtons(buttons, persist = true) {
     if (isRatingButtons(buttons)) {
       addStarRating(buttons, persist);
       return;
     }
 
-    if (isMainMenuButtons(buttons)) {
+    if (isHoldChoiceButtons(buttons)) {
+      // Only one Continue / Start Over / Cancel set on screen at a time.
+      clearHoldChoices(true);
+      clearQuickReplies();
+      flagTrailingHoldQuestion();
+      addInlineButtons(buttons, 'hold-choices');
+    } else if (isMainMenuButtons(buttons)) {
       renderQuickReplies(buttons);
     } else {
       clearQuickReplies();
@@ -907,6 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
         b.textContent = btn.label;
         b.addEventListener('click', () => {
           if (isSending) return;
+          if (activeForm && activeForm.el === messageWrap && activeForm.hold) return;
           sendMessage(btn.value, '', { skipUserBubble: true });
         });
         row.appendChild(b);
@@ -919,6 +1046,8 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isSending) return;
+      // Locked while the schedule visit is on hold.
+      if (activeForm && activeForm.el === messageWrap && activeForm.hold) return;
 
       const values = {};
       Object.keys(controls).forEach(k => {
@@ -934,7 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
         skipUserBubble: true,
         showSaving: !!data.saving,
       });
-      if (!ok && activeForm && activeForm.el === messageWrap) {
+      if (!ok && activeForm && activeForm.el === messageWrap && !activeForm.hold) {
         // Request failed: let the patient try again.
         form.querySelectorAll('input, select, button').forEach(el => { el.disabled = false; });
       }
@@ -960,7 +1089,7 @@ document.addEventListener('DOMContentLoaded', () => {
       persistSession();
     }
 
-    activeForm = { el: messageWrap, entry };
+    activeForm = { el: messageWrap, entry, card, form, controls, data, hold: null };
 
     // Updates the available schedule visit options while the form is open.
     if (selectDefs.service && selectDefs.doctor && selectDefs.slot) {
@@ -978,7 +1107,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       const refreshCatalog = async () => {
-        if (document.hidden || activeForm !== thisForm || submit.disabled || isSending) return;
+        if (document.hidden || activeForm !== thisForm || thisForm.hold || submit.disabled || isSending) return;
         try {
           const res = await fetch('/api/schedule-visit-catalog', { cache: 'no-store', headers: { 'Accept': 'application/json' } });
           if (!res.ok) return;
@@ -1012,6 +1141,123 @@ document.addEventListener('DOMContentLoaded', () => {
     if (firstBad && panel.classList.contains('open')) {
       setTimeout(() => firstBad.focus({ preventScroll: true }), 50);
     }
+  }
+
+  // SCHEDULE VISIT FORM: ON HOLD
+
+  // What the patient has typed into the open form (sent with each chat message so
+  // the server can give it back when they continue).
+  function collectFormDraft() {
+    if (!activeForm || activeForm.hold || !activeForm.controls) return null;
+    const values = {};
+    Object.keys(activeForm.controls).forEach(k => {
+      const el = activeForm.controls[k];
+      values[k] = el.type === 'checkbox' ? el.checked : (el.value || '');
+    });
+    return values;
+  }
+
+  // Remembers the typed values inside the saved form entry, so a page refresh
+  // while on hold still shows them.
+  function snapshotDraftIntoEntry(af) {
+    if (!af.entry || !af.entry.data || !Array.isArray(af.entry.data.fields)) return;
+    af.entry.data.fields.forEach(f => {
+      const el = af.controls[f.name];
+      if (!el) return;
+      f.value = el.type === 'checkbox' ? el.checked : (el.value || '');
+      f.error = null;
+    });
+  }
+
+  function renderHoldBanner(af) {
+    let banner = af.card.querySelector('.chat-form-hold');
+    if (banner) banner.remove();
+
+    banner = document.createElement('div');
+    banner.className = 'chat-form-hold';
+    banner.setAttribute('role', 'status');
+
+    const label = document.createElement('div');
+    label.className = 'chat-form-hold-label';
+    label.textContent = 'On hold';
+    banner.appendChild(label);
+
+    const text = document.createElement('p');
+    text.className = 'chat-form-hold-text';
+    text.textContent = af.hold.waiting ? HOLD_STAFF_TEXT : HOLD_CHOOSE_TEXT;
+    banner.appendChild(text);
+
+    // While waiting on staff the patient can always walk away.
+    if (af.hold.waiting) {
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'chat-form-hold-cancel';
+      cancel.textContent = 'Cancel schedule visit';
+      cancel.addEventListener('click', () => {
+        if (isSending) return;
+        sendMessage('cancel_schedule', 'Cancel schedule visit');
+      });
+      banner.appendChild(cancel);
+    }
+
+    // Right under the title/notice, above the (locked) fields.
+    af.card.insertBefore(banner, af.form);
+  }
+
+  // Locks the open form and shows the banner. Safe to call repeatedly: nothing is
+  // redrawn unless the kind of hold changed. info = { mode, inquiryId, ready }.
+  function applyHold(info, persist = true) {
+    const af = activeForm;
+    if (!af) return;
+
+    const waiting = info.mode === 'staff' && !info.ready;
+    const changed = !af.hold || af.hold.waiting !== waiting || af.hold.inquiryId !== (info.inquiryId ?? null);
+
+    if (!af.hold) {
+      snapshotDraftIntoEntry(af);
+      af.form.querySelectorAll('input, select, button').forEach(el => { el.disabled = true; });
+      af.form.setAttribute('aria-disabled', 'true');
+      af.card.classList.add('is-held');
+    }
+
+    af.hold = { mode: info.mode === 'staff' ? 'staff' : 'bot', inquiryId: info.inquiryId ?? null, waiting };
+
+    if (!changed) return;
+    renderHoldBanner(af);
+
+    if (persist && af.entry) {
+      af.entry.held = true;
+      af.entry.hold = af.hold;
+      persistSession();
+    }
+  }
+
+  // The server says the visit is no longer on hold (e.g. it expired): don't leave
+  // a locked form behind.
+  function dropStaleHeldForm() {
+    removeActiveForm();
+    addBubble('Your schedule visit is no longer on hold. Tap \"Schedule Visit\" to start again.', 'bot');
+    showMainMenu();
+  }
+
+  // Reconciles the screen with what the server says (from the 3-second poll).
+  function reconcileHold(h) {
+    if (h && h.active) {
+      if (activeForm) applyHold({ mode: h.mode, inquiryId: h.inquiryId, ready: !!h.ready });
+
+      if (h.ready) {
+        ensureHoldChoices(h);
+      } else if (h.mode === 'staff') {
+        clearHoldChoices();          // a new quiet period: buttons only come back when due
+      }
+
+      if (h.mode !== 'staff' || h.readyReason === 'resolved') removeHoldLinks();
+      return;
+    }
+
+    removeHoldLinks();
+    clearHoldChoices();
+    if (activeForm && activeForm.hold) dropStaleHeldForm();
   }
 
   function addAttachmentBubble(fileName, dataUrl, sender = 'user', persist = true, caption = null) {
@@ -1075,7 +1321,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const isLast = idx === session.history.length - 1;
 
       if (item.kind === 'bubble') {
-        addBubble(item.text, item.sender, false);
+        addBubble(item.text, item.sender, false, { holdLink: item.holdLink, holdQuestion: item.holdQuestion });
       } else if (item.kind === 'buttons') {
         // Restores only the latest unanswered quick-reply options.
         if (isLast) {
@@ -1088,10 +1334,16 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (item.kind === 'info_card') {
         addInfoCard(item.data, false);
       } else if (item.kind === 'form') {
-        // Only an unanswered form (the latest item) is worth restoring.
-        if (isLast) {
+        // Only an unanswered form (the latest item) -- or one that is on hold,
+        // which stays on screen (locked) while chat goes on below it -- is restored.
+        if (isLast || item.held) {
           addFormCard(item.data, false);
-          if (activeForm) activeForm.entry = item;
+          if (activeForm) {
+            activeForm.entry = item;
+            if (item.held && item.hold) {
+              applyHold({ mode: item.hold.mode, inquiryId: item.hold.inquiryId, ready: !item.hold.waiting }, false);
+            }
+          }
         }
       } else if (item.kind === 'attachment') {
         addAttachmentBubble(item.fileName, item.dataUrl, item.sender, false, item.caption);
@@ -1134,7 +1386,12 @@ document.addEventListener('DOMContentLoaded', () => {
     text = typeof text === 'string' ? text : String(text ?? '');
     if (!text.trim() || isSending) return false;
 
+    holdSyncToken++;
     setSendingState(true);
+
+    // What is typed in the open form travels with the message, so it can be put
+    // back if the visit is put on hold and later continued.
+    const formDraft = text.startsWith(FORM_SUBMIT_PREFIX) ? null : collectFormDraft();
 
     if (!opts.skipUserBubble) {
       addBubble(displayText ?? text, 'user');
@@ -1164,6 +1421,7 @@ document.addEventListener('DOMContentLoaded', () => {
           message: text,
           userId: session.clientId,
           startReviewFromPass: opts.startReviewFromPass === true,
+          ...(formDraft ? { formDraft } : {}),
         }),
       });
 
@@ -1182,6 +1440,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const messages = Array.isArray(data) ? data : (data.messages || []);
       let hadButtons = false;
       let hadForm = false;
+      let hadHold = false;
 
       messages.forEach(msg => {
         if (msg.text) {
@@ -1201,6 +1460,17 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
               console.error('Failed to parse form payload:', e);
               addBubble('Sorry, the form could not be loaded. Please try again.', 'bot');
+            }
+          } else if (msg.text.startsWith(HOLD_PREFIX)) {
+            // The schedule visit form is now on hold (not a chat bubble).
+            try {
+              const info = JSON.parse(msg.text.slice(HOLD_PREFIX.length));
+              hadHold = true;
+              // Waiting on staff now: the Continue / Start Over / Cancel buttons are not due yet.
+              if (info.mode === 'staff') clearHoldChoices();
+              applyHold({ mode: info.mode, inquiryId: info.inquiryId, ready: info.mode !== 'staff' });
+            } catch (e) {
+              console.error('Failed to parse hold payload:', e);
             }
           } else if (msg.text.startsWith(INFO_CARD_PREFIX)) {
             try {
@@ -1222,8 +1492,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // Removes the outdated form when the conversation moves to another step.
-      if (!hadForm) {
+      // Removes the outdated form when the conversation moves to another step
+      // (but not a form that was just put on hold).
+      if (!hadForm && !hadHold) {
         removeActiveForm();
       }
 
@@ -1241,6 +1512,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return false;
     } finally {
       removeSaving();
+      holdSyncToken++;
       setSendingState(false);
     }
   }
@@ -1294,9 +1566,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // Removes the pending message placeholders after an Admin/Staff reply arrives.
+  // (Both the new wording with the Menu hint and the older wording, so bubbles
+  // saved in a patient's earlier session are still removed.)
   const FALLBACK_TEXTS = new Set([
-    "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
-    "Thanks for the attachment! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.",
+    FORWARDED_MESSAGE_TEXT + ' ' + MENU_HINT,
+    FORWARDED_ATTACHMENT_TEXT + ' ' + MENU_HINT,
+    FORWARDED_MESSAGE_TEXT,
+    FORWARDED_ATTACHMENT_TEXT,
   ]);
   let shownReplyIds = new Set(session.shownReplyIds || []);
   let shownResolvedIds = new Set(session.shownResolvedIds || []);
@@ -1329,6 +1605,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function pollForReplies() {
     if (isPolling) return;
     isPolling = true;
+    const pollToken = holdSyncToken;
     try {
       const res = await fetch(`/api/chat/${session.clientId}/updates`);
       if (!res.ok) return;
@@ -1348,13 +1625,29 @@ document.addEventListener('DOMContentLoaded', () => {
         hideTyping();
       }
 
+      // Schedule visit on hold: lock/unlock the form and show the 3 buttons when
+      // they're due. Skipped if a message was sent while this poll was in flight
+      // (the poll may predate the hold).
+      const hold = data.scheduleHold || { active: false };
+      const holdFresh = !isSending && pollToken === holdSyncToken;
+      if (holdFresh) reconcileHold(hold);
+
+      // Is the patient's visit waiting on staff? (decides the "Continue anyway" link)
+      const waitingOnStaff = holdFresh
+        ? (hold.active && hold.mode === 'staff' && hold.readyReason !== 'resolved')
+        : !!(activeForm && activeForm.hold && activeForm.hold.mode === 'staff');
+
       if (newOnes.length === 0 && newlyResolved.length === 0) return;
 
       if (newOnes.length > 0) {
         removeFallbackBubbles();
 
         newOnes.forEach(u => {
-          addBubble(u.message, 'bot');
+          // Under each staff reply that doesn't resolve the inquiry yet: a small
+          // link to carry on with the schedule visit without waiting any longer.
+          const holdLink = waitingOnStaff && u.status !== 'Resolved' &&
+            (hold.inquiryId == null || hold.inquiryId === u.inquiryId);
+          addBubble(u.message, 'bot', true, { holdLink });
           shownReplyIds.add(u.replyId);
         });
 
@@ -1366,16 +1659,30 @@ document.addEventListener('DOMContentLoaded', () => {
         newlyResolved.forEach(id => shownResolvedIds.add(id));
         session.shownResolvedIds = Array.from(shownResolvedIds);
 
-        // Shows the scheduling thank-you message after the inquiry is resolved.
-        const fromSchedule = newlyResolved.some(id => resolvedTypeById[id] === 'Schedule Visit Follow-up');
-        // Combines the resolved notice and follow-up prompt into one message.
-        addBubble((fromSchedule
-          ? "Thank you for scheduling your visit with us."
-          : "Your inquiry has been resolved.") + " Is there anything else you need?", 'bot');
-        addButtons([
-          { text: "Yes, I need help", value: 'anything_else_yes' },
-          { text: "No, I'm all set",  value: 'anything_else_no' },
-        ]);
+        // The inquiry a schedule visit is on hold for: the "Would you like to
+        // continue your schedule visit, start over, or cancel?" buttons (shown by
+        // reconcileHold) replace the usual "anything else?" prompt.
+        const heldInquiryResolved = hold.active && hold.readyReason === 'resolved' &&
+          newlyResolved.includes(hold.inquiryId);
+
+        if (heldInquiryResolved) {
+          // nothing more to add here
+        } else if (activeForm) {
+          // The patient is in the middle of a schedule visit form (they chose to
+          // continue anyway): just say so, don't throw a menu in their way.
+          addBubble('Your inquiry has been resolved.', 'bot');
+        } else {
+          // Shows the scheduling thank-you message after the inquiry is resolved.
+          const fromSchedule = newlyResolved.some(id => resolvedTypeById[id] === 'Schedule Visit Follow-up');
+          // Combines the resolved notice and follow-up prompt into one message.
+          addBubble((fromSchedule
+            ? "Thank you for scheduling your visit with us."
+            : "Your inquiry has been resolved.") + " Is there anything else you need?", 'bot');
+          addButtons([
+            { text: "Yes, I need help", value: 'anything_else_yes' },
+            { text: "No, I'm all set",  value: 'anything_else_no' },
+          ]);
+        }
       }
 
       persistSession();

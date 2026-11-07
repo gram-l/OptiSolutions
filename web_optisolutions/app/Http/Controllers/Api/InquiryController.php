@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ChatbotLog;
 use App\Models\Staff\Inquiry;
 use App\Models\Staff\InquiryReply;
+use App\Services\InquiryThread;
+use App\Services\ScheduleVisitHold;
 use App\Services\TypingStatusService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -140,7 +142,14 @@ class InquiryController extends Controller
         $resolvedInquiryIds = [];
 
         foreach ($inquiries as $inquiry) {
-            foreach ($inquiry->replies->where('is_staff', true) as $reply) {
+            // Only real Admin/Staff replies go to the patient's widget. The chatbot's
+            // own answers (sender "Chatbot") are saved in the thread so staff can
+            // read them, but the patient already saw them in the chat.
+            $staffReplies = $inquiry->replies
+                ->where('is_staff', true)
+                ->where('sender', '!=', InquiryThread::BOT_SENDER);
+
+            foreach ($staffReplies as $reply) {
                 $updates[] = [
                     'replyId'   => $reply->reply_id,
                     'inquiryId' => $inquiry->inquiry_id,
@@ -168,6 +177,11 @@ class InquiryController extends Controller
             'updates'            => $updates,
             'resolvedInquiryIds' => $resolvedInquiryIds,
             'staffTyping'        => $staffTyping,
+            // Is the patient's schedule visit form on hold for an inquiry, and
+            // should the Continue / Start Over / Cancel buttons be on screen yet?
+            // (bot-answered, staff resolved it, or 10 quiet minutes). The widget
+            // uses this to lock/unlock the form and to show the buttons.
+            'scheduleHold'       => ScheduleVisitHold::status($conversationId),
         ]);
     }
 }

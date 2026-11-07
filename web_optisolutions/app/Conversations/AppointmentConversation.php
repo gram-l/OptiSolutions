@@ -15,6 +15,9 @@ use App\Support\ScheduleVisitCatalog;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
+use App\Services\InquiryThread;
+use App\Services\ScheduleVisitHold;
+use App\Models\Staff\Inquiry;
 use App\Models\Notification;
 
 use Closure;
@@ -45,14 +48,24 @@ class AppointmentConversation extends Conversation
     // value => label map for the buttons on the most recent question.
     protected $pendingButtonLabels = [];
 
-    // Step/state to resume after a detour into InquiryConversation.
+    // Step/state to resume after the schedule visit was put on hold for an
+    // inquiry (see ScheduleVisitHold), plus whatever the patient had already
+    // typed into that step's form so it isn't lost.
     protected $pendingResumeStepKey;
     protected $pendingResumeState;
+    protected $pendingResumeDraft;
 
-    public function __construct($resumeStepKey = null, $resumeState = null)
+    public function __construct($resumeStepKey = null, $resumeState = null, $resumeDraft = null)
     {
         $this->pendingResumeStepKey = $resumeStepKey;
         $this->pendingResumeState = $resumeState;
+        $this->pendingResumeDraft = $resumeDraft;
+    }
+
+    // The chat session id (same id the widget polls /api/chat/{id}/updates with).
+    protected function conversationId(): string
+    {
+        return (string) $this->bot->getMessage()->getSender();
     }
 
     // sayLogged()/askLogged() wrap BotMan's say()/ask() and also log to $transcript.
@@ -117,6 +130,11 @@ class AppointmentConversation extends Conversation
         $raw = (string) $answer->getText();
         if (str_starts_with($raw, self::FORM_SUBMIT_PREFIX)) {
             return $this->summarizeFormSubmission($this->decodeFormSubmission($raw) ?? []);
+        }
+
+        // Hidden control message the widget sends after an attachment upload.
+        if (trim($raw) === ScheduleVisitHold::FOR_INQUIRY_TOKEN) {
+            return '[Sent an attachment]';
         }
 
         $value = (string) ($answer->getValue() ?: $answer->getText());
@@ -354,33 +372,55 @@ class AppointmentConversation extends Conversation
     }
 
     // Entry point every step calls before its own validation.
+    //
+    // Anything the patient types in the chat box while a schedule-visit form is
+    // on screen is answered either by the bot or by Admin/Staff, and the form is
+    // put on hold (locked, nothing typed is lost) until they pick Continue /
+    // Start Over / Cancel:
+    //   - the bot can answer it (hello, thanks, clinic info)  -> answer + the 3
+    //     buttons right away (holdAfterBotAnswer)
+    //   - the bot can't                                          -> forwarded to
+    //     Admin/Staff and the form stays on hold until they resolve it
+    //     (routeToInquiry -> InquiryConversation -> ScheduleVisitHold)
     protected function handleOffTopicIfAny(Answer $answer, string $stepKey): bool
     {
-        // Acknowledgment — reply and re-ask the same step.
+        $freeText = trim((string) $answer->getText());
+
+        // Hidden message the widget sends right after an attachment was uploaded
+        // (the upload itself already reached staff): put the form on hold.
+        if ($freeText === ScheduleVisitHold::FOR_INQUIRY_TOKEN) {
+            return $this->holdForOpenInquiry($stepKey);
+        }
+
+        // Acknowledgment ("ok", "thanks", "salamat"): the bot answers.
         if ($this->looksLikeAcknowledgment($answer)) {
             $this->logMessage('You', $answer->getText());
-            $this->sayLogged(ClinicInfoService::acknowledgmentReply());
-            $this->resumeStep($stepKey);
+            $reply = ClinicInfoService::acknowledgmentReply();
+            $this->sayLogged($reply);
+            $this->recordBotAnswer((string) $answer->getText(), $reply);
+            $this->holdAfterBotAnswer($stepKey);
             return true;
         }
 
-        // Plain greeting ("Hi", "Hello", "Kumusta") — answered directly,
-        // never forwarded to Admin/Staff.
+        // Plain greeting ("Hi", "Hello", "Kumusta") and "pwede mag tanong?":
+        // answered directly, never forwarded to Admin/Staff.
         $isButtonTap = method_exists($answer, 'isInteractiveMessageReply') && $answer->isInteractiveMessageReply();
         if (!$isButtonTap) {
-            $freeText = trim($answer->getText());
-
             if (ClinicInfoService::looksLikeGreeting($freeText)) {
                 $this->logMessage('You', $freeText);
-                $this->sayLogged(ClinicInfoService::greetingReply());
-                $this->resumeStep($stepKey);
+                $reply = ClinicInfoService::greetingReply();
+                $this->sayLogged($reply);
+                $this->recordBotAnswer($freeText, $reply);
+                $this->holdAfterBotAnswer($stepKey);
                 return true;
             }
 
             if (ClinicInfoService::looksLikeAskingPermission($freeText)) {
                 $this->logMessage('You', $freeText);
-                $this->sayLogged(ClinicInfoService::askingPermissionReply());
-                $this->resumeStep($stepKey);
+                $reply = ClinicInfoService::askingPermissionReply();
+                $this->sayLogged($reply);
+                $this->recordBotAnswer($freeText, $reply);
+                $this->holdAfterBotAnswer($stepKey);
                 return true;
             }
         }
@@ -391,32 +431,46 @@ class AppointmentConversation extends Conversation
             return true;
         }
 
-        if (!$this->looksLikeInquiry($answer)) {
+        // Button taps that aren't handled by the step itself, and empty text,
+        // are not chat messages.
+        if ($isButtonTap || $freeText === '') {
             return false;
         }
 
-        $text = trim($answer->getText());
-
-        // Known info request — answer it directly.
-        if ($this->looksLikeInfoRequest($text)) {
-            $this->logMessage('You', $text);
-            $this->sayLogged(ClinicInfoService::answerForText($text) ?? ClinicInfoService::infoCardMessage());
-            $this->askContinueOrRestart($stepKey);
+        // Asking to edit / reschedule / cancel something: only staff can do that,
+        // even when the sentence also contains an info keyword.
+        if (ClinicInfoService::looksLikeChangeRequest($freeText)) {
+            $this->routeToInquiry($answer, $stepKey);
             return true;
         }
 
-        // Anything else — route to staff.
+        // Known info request: the bot answers it directly.
+        if ($this->looksLikeInfoRequest($freeText)) {
+            $this->logMessage('You', $freeText);
+            $reply = ClinicInfoService::answerForText($freeText) ?? ClinicInfoService::infoCardMessage();
+            $this->sayLogged($reply);
+            $this->recordBotAnswer($freeText, $reply);
+            $this->holdAfterBotAnswer($stepKey);
+            return true;
+        }
+
+        // Anything else the bot can't answer goes to staff.
         $this->routeToInquiry($answer, $stepKey);
         return true;
     }
 
-    // Routes an off-topic message to staff and stashes progress to resume later.
-    protected function routeToInquiry(Answer $answer, string $stepKey)
+    // If this chat already has an open inquiry, the patient's message and the bot's
+    // answer (e.g. "thank you" -> "you're welcome") are also written into that
+    // inquiry's thread so Admin/Staff can read the whole conversation.
+    protected function recordBotAnswer(string $patientText, string $botText): void
     {
-        $this->logMessage('You', $answer->getText() ?: '[Attachment]');
-        $this->sayLogged("Got it — let me send that to our staff so a real person can take a look. We'll pick your schedule visit right back up after.");
+        InquiryThread::recordBotExchange($this->conversationId(), $patientText, $botText);
+    }
 
-        $state = [
+    // Everything AppointmentConversation needs to pick the visit back up later.
+    protected function snapshotState(): array
+    {
+        return [
             'fname' => $this->fname, 'lname' => $this->lname, 'phone' => $this->phone,
             'dob' => $this->dob, 'email' => $this->email,
             'service' => $this->service, 'serviceKey' => $this->serviceKey, 'serviceId' => $this->serviceId,
@@ -426,8 +480,66 @@ class AppointmentConversation extends Conversation
             'scheduleSuggestion' => $this->scheduleSuggestion,
             'transcript' => $this->transcript,
         ];
+    }
 
-        $this->bot->startConversation(new InquiryConversation($answer->getText(), $stepKey, $state));
+    // The bot just answered something: pause the form and show Continue / Start
+    // Over / Cancel right away. The form stays locked until one is chosen.
+    protected function holdAfterBotAnswer(string $stepKey)
+    {
+        $choices = ScheduleVisitHold::choicesQuestion();
+        $this->logMessage('Bot', $choices);
+
+        $hold = ScheduleVisitHold::begin(
+            $this->conversationId(),
+            $stepKey,
+            $this->snapshotState(),
+            ScheduleVisitHold::draftFromRequest($stepKey),
+            ScheduleVisitHold::MODE_BOT
+        );
+
+        $this->say(ScheduleVisitHold::marker($hold));
+        $this->say($choices);
+    }
+
+    // Routes a message the bot can't answer to staff. The form is put on hold
+    // by InquiryConversation once the inquiry is saved.
+    protected function routeToInquiry(Answer $answer, string $stepKey)
+    {
+        $this->logMessage('You', $answer->getText() ?: '[Attachment]');
+
+        $this->bot->startConversation(new InquiryConversation(
+            $answer->getText(),
+            $stepKey,
+            $this->snapshotState(),
+            ScheduleVisitHold::draftFromRequest($stepKey)
+        ));
+    }
+
+    // An attachment was already forwarded to staff by the upload endpoint: hold
+    // the form until that inquiry is resolved.
+    protected function holdForOpenInquiry(string $stepKey): bool
+    {
+        $conversationId = $this->conversationId();
+        $draft = ScheduleVisitHold::draftFromRequest($stepKey);
+        $inquiryId = ScheduleVisitHold::openInquiryId($conversationId);
+
+        if ($inquiryId === null) {
+            // Nothing to wait for: put the form back exactly as it was.
+            $this->resumeStep($stepKey, $draft);
+            return true;
+        }
+
+        $hold = ScheduleVisitHold::begin(
+            $conversationId,
+            $stepKey,
+            $this->snapshotState(),
+            $draft,
+            ScheduleVisitHold::MODE_STAFF,
+            $inquiryId
+        );
+
+        $this->say(ScheduleVisitHold::marker($hold));
+        return true;
     }
 
     protected function resetState()
@@ -454,19 +566,23 @@ class AppointmentConversation extends Conversation
         }
     }
 
-    // Dispatches to the correct step for a given step key.
-    protected function resumeStep(string $stepKey)
+    // Dispatches to the correct step for a given step key. $draft is whatever the
+    // patient had typed into that step's form before it was put on hold; it is
+    // put back so nothing is lost.
+    protected function resumeStep(string $stepKey, ?array $draft = null)
     {
+        $notice = !empty($draft) ? 'Your schedule visit is back on. What you typed has been kept.' : null;
+
         switch ($stepKey) {
             case 'name':
             case 'phone':
             case 'dob':
             case 'email':
-            case 'patient_form':     $this->askPatientForm(); break;
+            case 'patient_form':     $this->askPatientForm([], $draft ?: null, $notice); break;
             case 'service':
             case 'doctor':
             case 'schedule':
-            case 'visit_form':       $this->askVisitForm(); break;
+            case 'visit_form':       $this->askVisitForm([], $draft ?: null, $notice); break;
             case 'review':           $this->askReview(); break;
             case 'transcript_email': $this->askPostAppointment(); break;
             case 'post':             $this->askPostAppointment(); break;
@@ -475,7 +591,8 @@ class AppointmentConversation extends Conversation
         }
     }
 
-    // Lets the patient continue, restart, or cancel after a mid-flow info card.
+    // After a mid-flow info answer: pause the form and offer Continue / Start
+    // Over / Cancel (handled by BotManController, see ScheduleVisitHold).
     protected function askContinueOrRestart(string $stepKey)
     {
         // At the plain main menu there's no schedule-visit-in-progress to
@@ -485,37 +602,7 @@ class AppointmentConversation extends Conversation
             return;
         }
 
-        $question = Question::create('Would you like to continue your schedule visit, or start over?')
-            ->fallback('Please choose an option from the buttons above.')
-            ->addButtons([
-                Button::create('Continue Schedule Visit')->value('continue_schedule'),
-                Button::create('Start Over')->value('restart_schedule'),
-                Button::create('Cancel')->value('cancel_schedule'),
-            ]);
-
-        $this->askLogged($question, function (Answer $followUp) use ($stepKey) {
-            $choice = $this->normalizeCommand($followUp);
-
-            if ($choice === 'continue_schedule') {
-                $this->resumeStep($stepKey);
-                return;
-            }
-
-            if ($choice === 'restart_schedule') {
-                $this->sayLogged('Okay! Restarting your schedule visit from the beginning.');
-                $this->resetState();
-                $this->run();
-                return;
-            }
-
-            if ($choice === 'cancel_schedule') {
-                $this->sayLogged('Okay, your schedule visit has been cancelled. Type "Menu" anytime to start again.');
-                return;
-            }
-
-            $this->sayLogged('Please choose one of the options above.');
-            $this->askContinueOrRestart($stepKey);
-        });
+        $this->holdAfterBotAnswer($stepKey);
     }
 
     // Shows the main menu and routes the chosen action. Pass
@@ -721,15 +808,20 @@ class AppointmentConversation extends Conversation
 
     public function run()
     {
-        // Resume a schedule visit that detoured into InquiryConversation.
+        // Pick up a schedule visit that was on hold (see ScheduleVisitHold).
         if ($this->pendingResumeStepKey) {
             $this->restoreState($this->pendingResumeState ?? []);
             $stepKey = $this->pendingResumeStepKey;
+            $draft = $this->pendingResumeDraft;
             $this->pendingResumeStepKey = null;
             $this->pendingResumeState = null;
-            $this->resumeStep($stepKey);
+            $this->pendingResumeDraft = null;
+            $this->resumeStep($stepKey, is_array($draft) ? $draft : null);
             return;
         }
+
+        // A brand-new schedule visit replaces any visit that was on hold.
+        ScheduleVisitHold::forget($this->conversationId());
 
         $this->askPatientForm();
     }
@@ -1195,6 +1287,18 @@ class AppointmentConversation extends Conversation
                 'patient_email'     => $this->email,
                 'patient_contact'   => $this->phone,
             ]);
+
+            // The visit is confirmed, so any inquiry this chat opened while the visit
+            // was still being filled in (and was kept anonymous until now) can be
+            // linked to the patient.
+            try {
+                Inquiry::where('conversation_id', $this->conversationId())
+                    ->whereNull('patient_id')
+                    ->where('resolved_status', '!=', 'Resolved')
+                    ->update(['patient_id' => $patientId]);
+            } catch (\Throwable $linkError) {
+                Log::error('Failed to link inquiry to patient after visit confirmation: ' . $linkError->getMessage());
+            }
 
             $visitDate = $this->getNextAvailableISODate($this->scheduleDay);
 

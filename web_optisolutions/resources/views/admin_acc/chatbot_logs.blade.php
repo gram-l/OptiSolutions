@@ -320,7 +320,7 @@
             messagesArea.innerHTML = messages.map(msg => `
                 <div class="message">
                     <div class="message-avatar ${msg.sender === 'patient' ? 'patient' : ''}">
-                        <i class="bi ${msg.sender === 'patient' ? 'bi-person-fill' : 'bi-headset'}"></i>
+                        <i class="bi ${msg.sender === 'patient' ? 'bi-person-fill' : (msg.senderLabel === 'Chatbot' ? 'bi-robot' : 'bi-headset')}"></i>
                     </div>
                     <div class="message-content ${msg.sender === 'bot' ? 'bot' : ''}">
                         <div class="message-sender ${msg.sender === 'patient' ? 'patient' : ''}">

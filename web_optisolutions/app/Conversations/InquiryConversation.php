@@ -12,16 +12,23 @@ use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
+use App\Services\ScheduleVisitHold;
+use App\Models\Staff\Inquiry;
+use App\Models\Staff\InquiryReply;
 use App\Models\Notification;
 
 class InquiryConversation extends Conversation
 {
     use HandlesGlobalCommands, HandlesRateLimit;
 
+    // Tells the patient how to get the 4 main buttons back. Must match
+    // MENU_HINT in chatbot-widget.blade.php.
+    public const MENU_HINT = 'You can type "Menu" anytime to see the main options.';
+
     // Must match the text in FALLBACK_TEXTS in chatbot-widget.blade.php --
     // that is how the widget knows to remove this bubble as soon as
     // Admin/Staff sends their first reply.
-    public const FORWARDED_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly.";
+    public const FORWARDED_TEXT = "Thanks for your message! I've forwarded it to our Admin/Staff team — they'll reply to you here shortly. " . self::MENU_HINT;
 
     protected $inquiryType;
     protected $message;
@@ -51,21 +58,25 @@ class InquiryConversation extends Conversation
      */
     protected $resumeState;
 
-    public function __construct($prefilledMessage = null, $resumeStepKey = null, $resumeState = null)
+    /**
+     * What the patient had already typed into the schedule-visit form
+     * (not yet submitted), so it can be put back when they continue.
+     * @var array|null
+     */
+    protected $resumeDraft;
+
+    public function __construct($prefilledMessage = null, $resumeStepKey = null, $resumeState = null, $resumeDraft = null)
     {
         $this->prefilledMessage = $prefilledMessage;
         $this->resumeStepKey = $resumeStepKey;
         $this->resumeState = $resumeState;
+        $this->resumeDraft = $resumeDraft;
     }
 
     public function run()
     {
         $this->patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
         $this->patientName = $this->bot->userStorage()->find()['patient_name'] ?? null;
-
-        if ($this->resumeStepKey) {
-            $this->say("No worries, let's sort this out first — we'll pick your schedule visit right back up after.");
-        }
 
         // If we already have the patient's original message (they typed
         // it while browsing the site / mid-schedule-visit, and got
@@ -146,47 +157,80 @@ class InquiryConversation extends Conversation
         // follow-up replies to the correct thread. Without this, a
         // patient's next message would create a duplicate inquiry
         // instead of continuing this one.
-        $conversationId = $this->bot->getMessage()->getSender();
+        $conversationId = (string) $this->bot->getMessage()->getSender();
 
-        // Best-effort guest name: not collected in the standalone
-        // "what's your inquiry about" flow, but available if this
-        // inquiry was routed here mid-schedule-visit (resumeState
-        // carries whatever name the patient had already typed).
-        $guestName = trim(($this->resumeState['fname'] ?? '') . ' ' . ($this->resumeState['lname'] ?? '')) ?: null;
+        // The patient's schedule visit is paused (not abandoned) while this
+        // inquiry is open; see ScheduleVisitHold.
+        $holdVisit = (bool) ($this->resumeStepKey && $this->resumeState);
+        $held = false;
+
+        // Privacy: while the schedule visit is not finished (not yet confirmed),
+        // Admin/Staff must not see who the patient is. So nothing that identifies
+        // them is saved with this inquiry: no name typed into the form, and no
+        // patient id left over from an earlier visit in the same chat. The inquiry
+        // is linked to the patient only after the visit is confirmed
+        // (see AppointmentConversation::submitAppointment).
+        $recordPatientId = $holdVisit ? null : $this->patientId;
+        $guestName = null;
 
         try {
             $logId = DB::table('chatbot_logs')->insertGetId([
-                'user_id'         => $this->patientId,
+                'user_id'         => $recordPatientId,
                 'conversation_id' => $conversationId !== '' ? $conversationId : null,
                 'user_message'    => $this->message,
                 'bot_message'     => '(no reply)', // column is NOT NULL
                 'chat_time'       => now(),
             ]);
 
-            $inquiryId = DB::table('inquiries')->insertGetId([
-                'patient_id'      => $this->patientId,
-                'guest_name'      => $guestName,
-                'log_id'          => $logId,
-                'conversation_id' => $conversationId !== '' ? $conversationId : null,
-                'inquiry_type'    => $this->inquiryType,
-                'resolved_status' => 'Pending',
-                'created_at'      => now(),
-            ]);
+            // A chat only ever has one open thread: a follow-up message goes
+            // into the inquiry that is still open instead of starting a second
+            // one (same rule BotManController uses for free-typed follow-ups).
+            // Kahit Resolved na ang inquiry ng chat na ito, doon pa rin napupunta
+            // ang follow-up (ire-reopen lang), hindi gagawa ng bagong inquiry.
+            $existingInquiry = Inquiry::latestForConversation($conversationId);
+            $existingInquiry?->reopenIfResolved();
+            $inquiryId = $existingInquiry?->inquiry_id;
 
-        try {
-            $name = $this->patientName ?: ($this->patientId ? "Patient #{$this->patientId}" : 'A guest');
-            NotificationService::newInquiry($name, $inquiryId);
-        } catch (\Throwable $notifyError) {
-            Log::error('Failed to create inquiry notification: ' . $notifyError->getMessage());
-        }
+            if ($inquiryId !== null) {
+                InquiryReply::create([
+                    'inquiry_id' => $inquiryId,
+                    'sender'     => 'Patient',
+                    'message'    => $this->message,
+                ]);
+            } else {
+                $inquiryId = DB::table('inquiries')->insertGetId([
+                    'patient_id'      => $recordPatientId,
+                    'guest_name'      => $guestName,
+                    'log_id'          => $logId,
+                    'conversation_id' => $conversationId !== '' ? $conversationId : null,
+                    'inquiry_type'    => $this->inquiryType,
+                    'resolved_status' => 'Pending',
+                    'created_at'      => now(),
+                ]);
 
-            /*AppNotification::create([
-                'icon'    => 'question_answer',
-                'title'   => 'New Inquiry',
-                'message' => "A new {$this->inquiryType} inquiry has been submitted.",
-                'is_read' => false,
-                'color'   => '2196F3',
-            ]);*/
+                try {
+                    $name = $holdVisit
+                        ? 'A guest'
+                        : ($this->patientName ?: ($this->patientId ? "Patient #{$this->patientId}" : 'A guest'));
+                    NotificationService::newInquiry($name, $inquiryId);
+                } catch (\Throwable $notifyError) {
+                    Log::error('Failed to create inquiry notification: ' . $notifyError->getMessage());
+                }
+            }
+
+            // Put the schedule visit form on hold until staff resolves this.
+            if ($holdVisit) {
+                $hold = ScheduleVisitHold::begin(
+                    $conversationId,
+                    $this->resumeStepKey,
+                    $this->resumeState,
+                    $this->resumeDraft,
+                    ScheduleVisitHold::MODE_STAFF,
+                    (int) $inquiryId
+                );
+                $this->say(ScheduleVisitHold::marker($hold));
+                $held = true;
+            }
 
             $this->say(self::FORWARDED_TEXT);
         } catch (\Throwable $e) {
@@ -211,20 +255,25 @@ class InquiryConversation extends Conversation
             $this->say("⚠️ We couldn't submit your inquiry right now. Please try again, or contact us directly at 0985 475 5511.");
         }
 
-        $this->resumeAppointmentIfNeeded();
+        // If the inquiry never reached staff there is nothing to wait for, so the
+        // form comes straight back (with what the patient had typed).
+        if (!$held) {
+            $this->resumeAppointmentIfNeeded();
+        }
     }
 
     /**
-     * If this inquiry was triggered as a detour out of a schedule visit
-     * in progress, hand control back to a fresh AppointmentConversation
-     * pre-loaded with the saved state and step, so the patient resumes
-     * exactly where they left off instead of starting over.
+     * Only used when the inquiry could NOT be sent to staff (rate limit or a
+     * save error): hand control straight back to a fresh AppointmentConversation
+     * with the saved state, step and typed values, so the patient isn't left
+     * waiting on a reply that will never come. A successfully sent inquiry puts
+     * the visit on hold instead (see submitInquiry / ScheduleVisitHold).
      */
     protected function resumeAppointmentIfNeeded()
     {
         if ($this->resumeStepKey && $this->resumeState) {
             $this->bot->startConversation(
-                new AppointmentConversation($this->resumeStepKey, $this->resumeState)
+                new AppointmentConversation($this->resumeStepKey, $this->resumeState, $this->resumeDraft)
             );
         }
     }

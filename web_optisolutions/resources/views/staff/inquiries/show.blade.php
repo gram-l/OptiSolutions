@@ -93,7 +93,7 @@
                     @php $isStaffMsg = $reply->is_staff; @endphp
                     <div class="inq-message {{ $isStaffMsg ? 'staff-row' : '' }}">
                         <div class="inq-message-avatar {{ $isStaffMsg ? '' : 'patient' }}">
-                            <i class="bi {{ $isStaffMsg ? 'bi-headset' : 'bi-person' }}"></i>
+                            <i class="bi {{ $reply->sender === 'Chatbot' ? 'bi-robot' : ($isStaffMsg ? 'bi-headset' : 'bi-person') }}"></i>
                         </div>
                         <div class="inq-message-content {{ $isStaffMsg ? 'staff' : '' }}">
                             <div class="inq-message-sender {{ $isStaffMsg ? 'staff' : '' }}">{{ $reply->sender }}</div>

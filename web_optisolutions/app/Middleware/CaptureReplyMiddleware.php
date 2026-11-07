@@ -37,7 +37,9 @@ class CaptureReplyMiddleware implements Sending
         $text = is_scalar($payload) ? (string) $payload : null;
     }
 
-    if ($text !== null && $text !== '') {
+    // HOLD:: is a control message for the chat widget (locks the schedule
+    // visit form), not something the patient reads -- keep it out of the logs.
+    if ($text !== null && $text !== '' && !str_starts_with($text, \App\Services\ScheduleVisitHold::MARKER_PREFIX)) {
         self::$captured[] = $text;
     }
 

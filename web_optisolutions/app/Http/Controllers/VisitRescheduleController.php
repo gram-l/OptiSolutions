@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\ValidationException;
 
 class VisitRescheduleController extends Controller
@@ -18,6 +19,8 @@ class VisitRescheduleController extends Controller
         $available = $doctor && $doctor->available && strtolower(trim($doctor->status ?? '')) === 'active';
         return response()->json([
             'visit_date' => $visit->visit_date,
+            'visit_time' => $visit->visit_time,
+            'visit_end_time' => $visit->visit_end_time,
             'today' => now('Asia/Manila')->toDateString(),
             'doctor' => $doctor->doctor_name ?? null,
             'doctor_available' => (bool) $available,
@@ -30,7 +33,31 @@ class VisitRescheduleController extends Controller
 
     public function store(Request $request, int $id)
     {
-        $data = $request->validate(['visit_date' => 'required|date_format:Y-m-d', 'schedule_id' => 'required|integer']);
+        if ($request->has('retry_token')) {
+            $request->validate(['retry_token' => 'required|string']);
+            try {
+                $retry = json_decode(Crypt::decryptString($request->input('retry_token')), true, 512, JSON_THROW_ON_ERROR);
+            } catch (\Throwable $exception) {
+                throw ValidationException::withMessages(['retry_token' => 'This email retry is invalid. Reopen the visit to check its schedule.']);
+            }
+            $visit = DB::table('schedule_visit')->where('visit_id', $id)->first();
+            abort_unless($visit, 404);
+            if ($retry['visit_id'] !== $id || $retry['expires_at'] < now()->timestamp || $visit->visited
+                || $retry['visit_date'] !== $visit->visit_date || $retry['visit_time'] !== $visit->visit_time
+                || $retry['visit_end_time'] !== $visit->visit_end_time) {
+                throw ValidationException::withMessages(['retry_token' => 'The visit changed or this retry expired. Reopen the visit to check its schedule.']);
+            }
+            $patient = DB::table('patients')->where('patient_id', $visit->patient_id)->first();
+            $retry['mail']['email'] = trim($patient->patient_email ?? '');
+            if (!filter_var($retry['mail']['email'], FILTER_VALIDATE_EMAIL)) {
+                throw ValidationException::withMessages(['patient_email' => 'Add a valid patient email before retrying.']);
+            }
+            return $this->sendUpdate($retry['mail'], $id, $retry);
+        }
+        $data = $request->validate([
+            'visit_date' => 'required|date_format:Y-m-d', 'schedule_id' => 'required|integer',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
         $mailData = DB::transaction(function () use ($data, $id) {
             $visit = DB::table('schedule_visit')->where('visit_id', $id)->lockForUpdate()->first();
             abort_unless($visit, 404);
@@ -48,24 +75,46 @@ class VisitRescheduleController extends Controller
             if ($start->format('l') !== $slot->day || $start->lt(now('Asia/Manila')) || !$end->gt($start)) {
                 throw ValidationException::withMessages(['visit_date' => 'Choose a future date matching the doctor’s schedule and a valid time range.']);
             }
+            if ($visit->visit_time && $visit->visit_end_time
+                && $start->eq(Carbon::parse($visit->visit_date . ' ' . $visit->visit_time, 'Asia/Manila'))
+                && $end->eq(Carbon::parse($visit->visit_date . ' ' . $visit->visit_end_time, 'Asia/Manila'))) {
+                throw ValidationException::withMessages(['schedule_id' => 'This is already the visit’s current date and time. Choose a different date or time.']);
+            }
             $patient = DB::table('patients')->where('patient_id', $visit->patient_id)->first();
             $email = trim($patient->patient_email ?? '');
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw ValidationException::withMessages(['patient_email' => 'Add a valid patient email before rescheduling.']);
             $details = $start->format('l, F j, Y') . ' at ' . $start->format('g:i A') . ' - ' . $end->format('g:i A');
             // Replace the old auto-generated schedule note, preserving other notes.
             $notes = preg_replace('/^(?:Rescheduled visit: )?(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),[^\r\n]* at [^\r\n]*(?:\r?\n|$)/m', '', $visit->notes ?? '');
+            $remarks = trim($data['remarks'] ?? '');
+            if ($remarks !== '') {
+                $notes = trim($notes) . (trim($notes) ? "\n" : '') . 'Reschedule remarks: ' . $remarks;
+            }
             DB::table('schedule_visit')->where('visit_id', $id)->update([
                 'visit_date' => $data['visit_date'], 'visit_time' => $slot->start_time, 'visit_end_time' => $slot->end_time,
                 'notes' => $details . (trim($notes) ? "\n" . trim($notes) : ''),
             ]);
             return ['email' => $email, 'name' => trim(($patient->patient_fname ?? '') . ' ' . ($patient->patient_lname ?? '')),
-                'doctor' => $doctor->doctor_name, 'service' => $visit->service_type, 'details' => $details];
+                'doctor' => $doctor->doctor_name, 'service' => $visit->service_type, 'details' => $details,
+                'remarks' => $remarks,
+                'visit_date' => $data['visit_date'], 'visit_time' => $slot->start_time, 'visit_end_time' => $slot->end_time];
         });
+        return $this->sendUpdate($mailData, $id, [
+            'visit_id' => $id, 'expires_at' => now()->addDay()->timestamp,
+            'visit_date' => $mailData['visit_date'], 'visit_time' => $mailData['visit_time'], 'visit_end_time' => $mailData['visit_end_time'],
+            'mail' => $mailData,
+        ]);
+    }
+
+    private function sendUpdate(array $mailData, int $id, array $retry)
+    {
         try {
-            Mail::to($mailData['email'])->send(new \App\Mail\VisitRescheduled($mailData['name'], $mailData['doctor'], $mailData['service'] ?? 'Clinic visit', $mailData['details'], $id));
+            Mail::to($mailData['email'])->send(new \App\Mail\VisitRescheduled($mailData['name'], $mailData['doctor'], $mailData['service'] ?? 'Clinic visit', $mailData['details'], $id, $mailData['remarks'] ?? null));
         } catch (\Throwable $exception) {
             Log::error('Rescheduled visit email failed.', ['visit_id' => $id, 'error' => $exception->getMessage()]);
-            return response()->json(['success' => true, 'email_sent' => false, 'message' => 'Visit rescheduled, but the email failed. Use Retry email to send the updated details.']);
+            return response()->json(['success' => true, 'email_sent' => false,
+                'retry_token' => Crypt::encryptString(json_encode($retry, JSON_THROW_ON_ERROR)),
+                'message' => 'Visit rescheduled, but the email failed. Use Retry email to send the updated details.']);
         }
         return response()->json(['success' => true, 'email_sent' => true, 'message' => 'Visit rescheduled. Updated details were emailed to the patient.']);
     }

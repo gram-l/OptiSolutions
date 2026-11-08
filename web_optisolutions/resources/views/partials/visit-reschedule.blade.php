@@ -1,14 +1,15 @@
 <script>
 (() => {
-    let activeId, slots = [], saved = false, busy = false;
+    let activeId, slots = [], saved = false, busy = false, currentSchedule = {}, retryToken = null;
     const base = @json($rescheduleBase);
     const overlay = document.createElement('div');
     overlay.className = 'visit-message-overlay';
     overlay.hidden = true;
-    overlay.innerHTML = '<section class="visit-message-dialog visit-reschedule-dialog" role="dialog" aria-modal="true" aria-labelledby="visitRescheduleTitle"><h3 id="visitRescheduleTitle">Reschedule visit</h3><p id="visitRescheduleDoctor"></p><label for="visitRescheduleDate">New date</label><input type="date" id="visitRescheduleDate"><label for="visitRescheduleSlot">Doctor’s schedule</label><select id="visitRescheduleSlot"></select><p id="visitRescheduleStatus" role="status" aria-live="polite"></p><div class="visit-message-actions"><button type="button" class="visit-message-cancel">Cancel</button><button type="button" class="visit-message-ok">Confirm and email</button></div></section>';
+    overlay.innerHTML = '<section class="visit-message-dialog visit-reschedule-dialog" role="dialog" aria-modal="true" aria-labelledby="visitRescheduleTitle"><h3 id="visitRescheduleTitle">Reschedule visit</h3><p id="visitRescheduleDoctor"></p><label for="visitRescheduleDate">New date</label><input type="date" id="visitRescheduleDate"><label for="visitRescheduleSlot">Doctor’s schedule</label><select id="visitRescheduleSlot"></select><label for="visitRescheduleRemarks">Remarks (optional)</label><textarea id="visitRescheduleRemarks" rows="3" maxlength="1000" placeholder="Reason or instructions for the patient" style="width:100%;box-sizing:border-box;padding:.65rem;border:1px solid #b8c4d2;border-radius:8px;margin:.35rem 0 .6rem;font:inherit;resize:vertical;"></textarea><p id="visitRescheduleStatus" role="status" aria-live="polite"></p><div class="visit-message-actions"><button type="button" class="visit-message-cancel">Cancel</button><button type="button" class="visit-message-ok">Confirm and email</button></div></section>';
     document.body.appendChild(overlay);
     const date = overlay.querySelector('input');
     const select = overlay.querySelector('select');
+    const remarks = overlay.querySelector('textarea');
     const status = overlay.querySelector('#visitRescheduleStatus');
     const confirm = overlay.querySelector('.visit-message-ok');
     const cancel = overlay.querySelector('.visit-message-cancel');
@@ -22,10 +23,14 @@
     }
     function showSlots() {
         const day = date.value ? new Date(date.value + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' }) : '';
-        const available = slots.filter(slot => slot.day === day && slot.end_time > slot.start_time);
+        const time = value => String(value || '').slice(0, 5);
+        const sameSchedule = slot => date.value === String(currentSchedule.visit_date || '').slice(0, 10)
+            && time(slot.start_time) === time(currentSchedule.visit_time)
+            && time(slot.end_time) === time(currentSchedule.visit_end_time);
+        const available = slots.filter(slot => slot.day === day && slot.end_time > slot.start_time && !sameSchedule(slot));
         select.replaceChildren(new Option(available.length ? 'Choose a schedule' : 'No schedule for this date', ''), ...available.map(slot => new Option(`${slot.day}: ${slot.start_time.slice(0, 5)} – ${slot.end_time.slice(0, 5)}`, slot.schedule_id)));
         confirm.disabled = true;
-        status.textContent = available.length ? 'The patient will receive the updated date and time by email.' : 'Choose a date when this doctor is scheduled.';
+        status.textContent = available.length ? 'The patient will receive the updated date and time by email.' : 'Choose a different date or time. The current schedule cannot be selected again.';
     }
     date.addEventListener('change', showSlots);
     select.addEventListener('change', () => confirm.disabled = !select.value || busy);
@@ -34,7 +39,7 @@
     overlay.addEventListener('keydown', event => {
         if (event.key === 'Escape') close();
         if (event.key === 'Tab') {
-            const elements = [...overlay.querySelectorAll('input,select,button')].filter(element => !element.disabled);
+            const elements = [...overlay.querySelectorAll('input,select,textarea,button')].filter(element => !element.disabled);
             const first = elements[0], last = elements.at(-1);
             if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
@@ -42,7 +47,8 @@
     });
     window.openVisitReschedule = async id => {
         if (busy) return;
-        activeId = id; slots = []; saved = false; busy = true;
+        activeId = id; slots = []; saved = false; busy = true; currentSchedule = {}; retryToken = null;
+        remarks.value = ''; remarks.disabled = false;
         opener = document.activeElement; previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         overlay.hidden = false; status.textContent = 'Loading doctor schedules…';
@@ -53,7 +59,7 @@
         try {
             const response = await fetch(`${base}/${id}/schedules`, { headers: { Accept: 'application/json' } });
             if (!response.ok) throw new Error('load');
-            const data = await response.json(); slots = data.schedules;
+            const data = await response.json(); slots = data.schedules; currentSchedule = data;
             overlay.querySelector('#visitRescheduleDoctor').textContent = data.doctor || 'Doctor';
             if (!data.doctor_available) {
                 status.textContent = data.message || 'This doctor is unavailable for rescheduling.';
@@ -66,25 +72,27 @@
         finally { busy = false; }
     };
     confirm.addEventListener('click', async () => {
-        if (busy || !select.value || !date.value) return;
+        if (busy || (!retryToken && (!select.value || !date.value))) return;
         busy = true; confirm.disabled = true; cancel.disabled = true; date.disabled = true; select.disabled = true;
-        status.textContent = 'Saving and sending email…';
+        remarks.disabled = true;
+        status.textContent = retryToken ? 'Retrying email…' : 'Saving and sending email…';
         try {
             const response = await fetch(`${base}/${activeId}/reschedule`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': @json(csrf_token()) },
-                body: JSON.stringify({ visit_date: date.value, schedule_id: Number(select.value) }),
+                body: JSON.stringify(retryToken ? { retry_token: retryToken } : { visit_date: date.value, schedule_id: Number(select.value), remarks: remarks.value.trim() }),
             });
             const data = await response.json();
             status.textContent = data.errors ? Object.values(data.errors).flat().join(' ') : (data.message || 'Unable to reschedule.');
             if (response.ok && data.success) {
                 saved = true;
+                retryToken = data.email_sent ? null : data.retry_token;
                 cancel.textContent = 'Close';
                 confirm.textContent = data.email_sent ? 'Email sent' : 'Retry email';
                 confirm.disabled = !!data.email_sent;
                 if (data.email_sent) confirm.hidden = true;
             }
         } catch (_) { status.textContent = 'Could not reach the server. Check the visit before retrying.'; }
-        finally { busy = false; cancel.disabled = false; date.disabled = false; select.disabled = false; if (!confirm.hidden) confirm.disabled = false; }
+        finally { busy = false; cancel.disabled = false; date.disabled = saved; select.disabled = saved; remarks.disabled = saved; if (!confirm.hidden) confirm.disabled = false; }
     });
 })();
 </script>

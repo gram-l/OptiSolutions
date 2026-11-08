@@ -450,7 +450,7 @@
             container.innerHTML = `
                 <div class="day-panel">
                     <table class="appointments-table">
-                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th>Visited</th><th> </th></tr></thead>
+                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th>Visited</th><th>Actions</th></tr></thead>
                         <tbody>
                             ${filtered.map(v => `
                                 <tr>
@@ -460,11 +460,18 @@
                                     <td><small style="color:#7f8c8d">${v.visit_time ? escapeHtml(v.visit_date + ' ' + v.visit_time.slice(0, 5) + ' – ' + (v.visit_end_time || '').slice(0, 5)) : formatBookedAt(v.scheduled_at)}</small></td>
                                     <td>${escapeHtml((v.notes || '').length > 40 ? v.notes.substring(0, 40) + '...' : (v.notes || '—'))}</td>
                                     <td class="visited-cell">${Number(v.visited) === 1 ? '<strong style="color:#15803d">Visited</strong><br><small>' + (v.review_pass_sent_at ? 'Review pass emailed' : 'Email not sent') + '</small>' : (visitAttendance(v) === 'Did not visit' ? '<span class="visit-no-show">Did not visit</span>' : '')}
-                                        ${Number(v.visited) !== 1 || !v.review_pass_sent_at ? `<button class="btn-sm btn-edit" onclick="markVisited(${v.visit_id}, this)">${Number(v.visited) === 1 ? 'Retry email' : 'Mark visited'}</button>` : ''}
                                     </td>
-                                    <td class="action-buttons">
-                                        <button class="btn-sm btn-edit" onclick="openEditNotesModal(${v.visit_id})"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
-                                        ${Number(v.visited) !== 1 ? `<button class="btn-sm btn-reschedule" onclick="openVisitReschedule(${v.visit_id})"><i class="fa-regular fa-calendar-xmark"></i> Reschedule</button><button class="btn-sm btn-cancel" onclick="cancelAppointment(${v.visit_id})"><i class="fa-solid fa-trash"></i> Remove</button>` : ''}
+                                    <td>
+                                        <div class="visit-actions">
+                                            ${Number(v.visited) !== 1 || !v.review_pass_sent_at ? `<button type="button" class="btn-sm btn-edit" onclick="markVisited(${v.visit_id}, this)">${Number(v.visited) === 1 ? 'Retry email' : 'Mark visited'}</button>` : ''}
+                                            <details class="visit-menu">
+                                                <summary aria-label="More actions for this visit">&#8942;</summary>
+                                                <div class="visit-menu-items">
+                                                    <button type="button" onclick="openEditNotesModal(${v.visit_id})">Edit</button>
+                                                    ${Number(v.visited) !== 1 ? `<button type="button" onclick="openVisitReschedule(${v.visit_id})">Reschedule</button><button type="button" class="visit-menu-delete" onclick="cancelAppointment(${v.visit_id})">Delete</button>` : ''}
+                                                </div>
+                                            </details>
+                                        </div>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -684,7 +691,10 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
                     title: data.success ? (data.email_sent ? 'Visit completed' : 'Email needs attention') : 'Unable to update visit',
                     variant: data.success ? (data.email_sent ? 'success' : 'warning') : 'error',
                 });
-                if (data.success) await loadDay();
+                if (data.success) {
+                    document.dispatchEvent(new CustomEvent('visit-completed', { detail: { id } }));
+                    await loadDay();
+                }
             } catch (error) {
                 await showVisitMessage('Could not reach the server. Please refresh to check the visit status before retrying.', { title: 'Connection problem', variant: 'error' });
             } finally { button.disabled = false; }
@@ -807,5 +817,7 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         loadDay();
     </script>
 @include('partials.visit-reschedule', ['rescheduleBase' => '/admin_acc/appointments'])
+@include('partials.visit-actions')
+@include('partials.visit-calendar', ['calendarInput' => 'dayPicker'])
 </body>
 </html>

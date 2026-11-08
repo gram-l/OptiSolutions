@@ -7,15 +7,55 @@
        shared staff stylesheet. */
     .visits-filter-bar {
         background: #FFFFFF;
-        padding: 1rem 1.5rem;
+        padding: 0.85rem 1rem;
         border-radius: 15px;
-        margin-bottom: 2rem;
-        display: flex;
-        gap: 1rem;
+        margin-bottom: 1rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
         flex-wrap: wrap;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-start;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .visits-filter-bar > #visitSearch,
+    .visits-filter-bar > #doctorFilter,
+    .visits-filter-bar > #serviceFilter {
+        box-sizing: border-box;
+        width: auto;
+        min-width: 0;
+        height: 40px;
+        margin: 0;
+        padding: 0.5rem 0.7rem;
+        font-size: 0.85rem;
+    }
+    .visits-filter-bar > #visitSearch,
+    .visits-filter-bar > #doctorFilter,
+    .visits-filter-bar > #serviceFilter { width: 100%; max-width: none; }
+    .visits-filter-bar .filter-bar-right { grid-column: 1 / -1; width: 100%; gap: 0.65rem; min-width: 0; }
+    .visits-filter-bar .download-wrap { margin-left: auto; }
+    .visits-filter-bar .date-nav { flex-wrap: wrap; gap: 0.4rem; min-width: 0; }
+    .visits-filter-bar input#visitDate { box-sizing: border-box; width: 145px; min-width: 0; height: 40px; }
+    .visits-filter-bar .date-nav-btn { width: 36px; height: 40px; padding: 0; flex-shrink: 0; }
+    .visits-filter-bar .date-label { flex-basis: 100%; font-size: 0.75rem; }
+    .visits-filter-bar .date-label:empty { display: none; }
+
+    @media (max-width: 768px) {
+        body .visits-filter-bar > #visitSearch,
+        body .visits-filter-bar > #doctorFilter,
+        body .visits-filter-bar > #serviceFilter {
+            flex: none;
+            width: 100%;
+            height: 40px;
+            min-height: 40px;
+            max-height: 40px;
+            min-width: 0;
+            max-width: 100%;
+        }
+        body .visits-filter-bar .filter-bar-right { flex: none; width: 100%; margin-left: 0; }
+        body .visits-filter-bar .date-nav { flex: none; }
+        body .visits-filter-bar .download-wrap { margin-left: 0; align-self: flex-end; }
     }
 
     .visits-filter-bar select#serviceFilter {
@@ -30,19 +70,19 @@
 
     .visits-filter-bar .filter-bar-right {
         display: flex;
-        gap: 1rem;
+        gap: 0.65rem;
         align-items: center;
         flex-wrap: wrap;
     }
 
     .visits-filter-bar .date-nav {
-        display: flex;
-        gap: 0.5rem;
+        display: contents;
+        gap: 0.4rem;
         align-items: center;
     }
 
     .visits-filter-bar .date-nav-btn {
-        padding: 0.5rem 1rem;
+        padding: 0;
         background: #ECF0F1;
         border: none;
         border-radius: 8px;
@@ -65,6 +105,7 @@
     }
 
     .visits-filter-bar .date-label {
+        order: 1;
         font-size: 0.85rem;
         color: #7f8c8d;
     }
@@ -338,7 +379,7 @@
                     <th>Scheduled At</th>
                     <th>Notes</th>
                     <th>Visited</th>
-                    <th></th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -361,21 +402,22 @@
                         @else
                             <span class="visit-no-show">{{ \App\Services\VisitReviewService::attendanceLabel($apt) === 'Did not visit' ? 'Did not visit' : '' }}</span>
                         @endif
-                        @if(!$apt->visited || !$apt->review_pass_sent_at)
-                            <button type="button" class="btn-edit-notes" onclick="markVisitCompleted({{ $apt->visit_id }}, this)">{{ $apt->visited ? 'Retry email' : 'Mark visited' }}</button>
-                        @endif
                     </td>
-                    <td data-label="" class="table-cards-actions">
-                        @if(!$apt->visited)
-                            <button type="button" class="btn-edit-notes" onclick="openVisitReschedule({{ $apt->visit_id }})"><i class="bi bi-calendar-event"></i> Reschedule</button>
-                        @endif
-                        <button
-                            type="button"
-                            class="btn-edit-notes"
-                            onclick="openNotesModal('{{ $apt->visit_id }}', {{ Js::from($apt->notes ?? '') }})"
-                        >
-                            <i class="bi bi-pencil"></i> Edit
-                        </button>
+                    <td data-label="Actions" class="table-cards-actions">
+                        <div class="visit-actions">
+                            @if(!$apt->visited || !$apt->review_pass_sent_at)
+                                <button type="button" class="btn-edit-notes" onclick="markVisitCompleted({{ $apt->visit_id }}, this)">{{ $apt->visited ? 'Retry email' : 'Mark visited' }}</button>
+                            @endif
+                            <details class="visit-menu">
+                                <summary aria-label="More actions for {{ $apt->patient_name ?: 'this patient' }}">&#8942;</summary>
+                                <div class="visit-menu-items">
+                                    <button type="button" onclick="openNotesModal('{{ $apt->visit_id }}', {{ Js::from($apt->notes ?? '') }})">Edit</button>
+                                    @if(!$apt->visited)
+                                        <button type="button" data-pending-visit-action onclick="openVisitReschedule({{ $apt->visit_id }})">Reschedule</button>
+                                    @endif
+                                </div>
+                            </details>
+                        </div>
                     </td>
                 </tr>
                 @endforeach
@@ -517,10 +559,13 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
             });
             if (data.success) {
                 document.getElementById(`visitedText-${id}`).innerHTML = '<strong style="color:#15803d">Visited</strong><br><small>' + (data.email_sent ? 'Review pass emailed' : 'Email not sent') + '</small>';
-                document.getElementById(`visitedText-${id}`).closest('tr').dataset.visited = '1';
+                const row = document.getElementById(`visitedText-${id}`).closest('tr');
+                row.dataset.visited = '1';
+                row.querySelectorAll('[data-pending-visit-action]').forEach(action => action.remove());
+                document.dispatchEvent(new CustomEvent('visit-completed', { detail: { id } }));
                 if (!data.email_sent) {
                     button.textContent = 'Retry email';
-                    document.getElementById(`visitedText-${id}`).appendChild(button);
+
                 }
                 if (data.email_sent) button.remove();
                 else button.textContent = 'Retry email';
@@ -702,4 +747,6 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
 @endsection
 @push('scripts')
 @include('partials.visit-reschedule', ['rescheduleBase' => '/staff/appointments'])
+@include('partials.visit-actions')
+@include('partials.visit-calendar', ['calendarInput' => 'visitDate'])
 @endpush

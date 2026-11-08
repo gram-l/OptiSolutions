@@ -101,6 +101,11 @@
                 @endforeach
             </tbody>
         </table>
+        <nav id="patientsPagination" aria-label="Patient records pages" style="display:none; justify-content:center; align-items:center; gap:1rem; flex-wrap:wrap; margin-top:1rem;">
+            <button type="button" id="patientsPrevBtn" class="btn-sm btn-secondary" onclick="changePatientsPage(-1)">Previous</button>
+            <span id="patientsPageInfo" role="status" aria-live="polite" style="color:#64748b; font-size:0.85rem;"></span>
+            <button type="button" id="patientsNextBtn" class="btn-sm btn-secondary" onclick="changePatientsPage(1)">Next</button>
+        </nav>
         <p id="noResultsMsg" style="display: none; padding: 2rem; text-align: center; background: white; border-radius: 20px;">No matching patients found.</p>
     @else
         <p style="padding: 2rem; text-align: center; background: white; border-radius: 20px;">No patients found.</p>
@@ -318,7 +323,15 @@
     const patientEditMap = @json($patientEditMap);
     const patientViewMap = @json($patientViewMap);
 
+    const PATIENTS_PER_PAGE = 10;
+    let patientsPage = 1;
+
     function filterPatientsTable() {
+        patientsPage = 1;
+        renderPatientsPage();
+    }
+
+    function renderPatientsPage() {
         const searchInput = document.getElementById('patientSearch');
         const departmentSelect = document.getElementById('departmentFilter');
         const searchFilter = searchInput.value.trim().toLowerCase();
@@ -328,7 +341,7 @@
         if (!table) return;
 
         const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
-        let visibleCount = 0;
+        const matchingRows = [];
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
@@ -339,15 +352,31 @@
             const matchesDepartment = departmentFilter === '' || rowDepartment === departmentFilter;
 
             const isMatch = matchesSearch && matchesDepartment;
-            row.style.display = isMatch ? '' : 'none';
-            if (isMatch) visibleCount++;
+            row.style.display = 'none';
+            if (isMatch) matchingRows.push(row);
         }
+
+        const totalPages = Math.max(1, Math.ceil(matchingRows.length / PATIENTS_PER_PAGE));
+        patientsPage = Math.max(1, Math.min(patientsPage, totalPages));
+        const start = (patientsPage - 1) * PATIENTS_PER_PAGE;
+        matchingRows.slice(start, start + PATIENTS_PER_PAGE).forEach(row => row.style.display = '');
+        document.getElementById('patientsPagination').style.display = matchingRows.length > PATIENTS_PER_PAGE ? 'flex' : 'none';
+        document.getElementById('patientsPageInfo').textContent = `Page ${patientsPage} of ${totalPages} · ${matchingRows.length} patients`;
+        document.getElementById('patientsPrevBtn').disabled = patientsPage <= 1;
+        document.getElementById('patientsNextBtn').disabled = patientsPage >= totalPages;
 
         const noResultsMsg = document.getElementById('noResultsMsg');
         if (noResultsMsg) {
-            noResultsMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+            noResultsMsg.style.display = matchingRows.length === 0 ? 'block' : 'none';
         }
     }
+
+    function changePatientsPage(delta) {
+        patientsPage += delta;
+        renderPatientsPage();
+    }
+
+    renderPatientsPage();
 
     // ===== View Patient Modal =====
 

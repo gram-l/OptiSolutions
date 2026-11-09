@@ -1754,6 +1754,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const updates = data.updates || [];
       const resolvedIds = data.resolvedInquiryIds || [];
 
+      // Iisang inquiry lang per chat: kapag nag-message ulit ang patient matapos
+      // ang resolve, nagiging "Pending" ulit ang inquiry na iyon (parehong ID).
+      // Kaya kapag hindi na Resolved ang isang ID, kalimutan na natin na naipakita
+      // na ang notice para lumabas ulit ang "resolved" + 4 buttons sa susunod
+      // na i-resolve ito ni Admin/Staff.
+      const stillResolved = new Set(resolvedIds);
+      const prunedResolved = Array.from(shownResolvedIds).filter(id => stillResolved.has(id));
+      if (prunedResolved.length !== shownResolvedIds.size) {
+        shownResolvedIds = new Set(prunedResolved);
+        session.shownResolvedIds = prunedResolved;
+        persistSession();
+      }
+
       const newOnes = updates.filter(u => !shownReplyIds.has(u.replyId));
       const newlyResolved = resolvedIds.filter(id => !shownResolvedIds.has(id));
       const resolvedTypeById = {};
@@ -1820,7 +1833,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addBubble("Thank you for scheduling your visit with us.", 'bot');
           }
           // Tells the patient their inquiry is done, and that they can message again anytime.
-          addBubble('Your inquiry has been marked as resolved. Thank you for reaching out to PolyClinic Lipa! '
+          addBubble('Your inquiry has been resolved. Thank you for reaching out to PolyClinic Lipa! '
             + 'If you have any other questions, just send us another message anytime.', 'bot');
           showMainMenu();
         }

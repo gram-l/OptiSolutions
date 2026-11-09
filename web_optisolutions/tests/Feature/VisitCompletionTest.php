@@ -47,14 +47,71 @@ class VisitCompletionTest extends TestCase
             $this->getJson("/$prefix/appointments/1/schedules")->assertOk()->assertJsonCount(1, 'schedules');
             $this->postJson("/$prefix/appointments/1/reschedule", ['visit_date' => $date, 'schedule_id' => 2])->assertUnprocessable();
             $this->postJson("/$prefix/appointments/1/reschedule", ['visit_date' => \Carbon\Carbon::parse($date)->addDay()->toDateString(), 'schedule_id' => 1])->assertUnprocessable();
-            $this->postJson("/$prefix/appointments/1/reschedule", ['visit_date' => $date, 'schedule_id' => 1])->assertOk()->assertJson(['email_sent' => true]);
-            $this->assertDatabaseHas('schedule_visit', ['visit_id' => 1, 'visit_date' => $date, 'visit_time' => '09:00:00', 'visit_end_time' => '12:00:00']);
+            $newDate = $role === 'Admin' ? $date : \Carbon\Carbon::parse($date)->addWeek()->toDateString();
+            $this->postJson("/$prefix/appointments/1/reschedule", ['visit_date' => $newDate, 'schedule_id' => 1])->assertOk()->assertJson(['email_sent' => true]);
+            $this->assertDatabaseHas('schedule_visit', ['visit_id' => 1, 'visit_date' => $newDate, 'visit_time' => '09:00:00', 'visit_end_time' => '12:00:00']);
         }
         Mail::assertSent(\App\Mail\VisitRescheduled::class, 2);
         Mail::assertSent(\App\Mail\VisitRescheduled::class, fn ($mail) => $mail->hasTo('patient@example.com') && $mail->doctorName === 'Dr. Test' && str_contains($mail->scheduleDetails, '9:00 AM - 12:00 PM'));
         DB::table('schedule_visit')->update(['visited' => true]);
         $this->postJson('/staff/appointments/1/reschedule', ['visit_date' => $date, 'schedule_id' => 1])->assertUnprocessable();
         Mail::assertSent(\App\Mail\VisitRescheduled::class, 2);
+    }
+
+    public function test_current_slot_is_rejected_and_remarks_are_saved_and_emailed_for_both_roles(): void
+    {
+        $date = now('Asia/Manila')->next('Monday')->toDateString();
+        DB::table('doctor_schedules')->insert([
+            ['schedule_id' => 1, 'doctor_id' => 1, 'day' => 'Monday', 'start_time' => '09:00:00', 'end_time' => '12:00:00'],
+            ['schedule_id' => 2, 'doctor_id' => 1, 'day' => 'Monday', 'start_time' => '13:00:00', 'end_time' => '16:00:00'],
+            ['schedule_id' => 3, 'doctor_id' => 1, 'day' => 'Monday', 'start_time' => '09:00:00', 'end_time' => '12:00:00'],
+        ]);
+        foreach (['Admin' => 'admin_acc', 'Staff' => 'staff'] as $role => $prefix) {
+            $this->loginAs($role);
+            DB::table('schedule_visit')->where('visit_id', 1)->update([
+                'visit_date' => $date, 'visit_time' => '09:00:00', 'visit_end_time' => '12:00:00', 'notes' => 'Original note',
+            ]);
+            $this->getJson("/$prefix/appointments/1/schedules")->assertOk()
+                ->assertJsonPath('visit_time', '09:00:00')->assertJsonPath('visit_end_time', '12:00:00');
+            foreach ([1, 3] as $slot) {
+                $this->postJson("/$prefix/appointments/1/reschedule", ['visit_date' => $date, 'schedule_id' => $slot, 'remarks' => 'Not saved'])
+                    ->assertUnprocessable()->assertJsonValidationErrors('schedule_id');
+            }
+            $this->assertDatabaseHas('schedule_visit', ['visit_id' => 1, 'notes' => 'Original note']);
+            $this->postJson("/$prefix/appointments/1/reschedule", ['visit_date' => $date, 'schedule_id' => 2, 'remarks' => str_repeat('x', 1001)])
+                ->assertUnprocessable()->assertJsonValidationErrors('remarks');
+            $this->postJson("/$prefix/appointments/1/reschedule", ['visit_date' => $date, 'schedule_id' => 2, 'remarks' => "  Patient requested afternoon.\nPlease arrive early.  "])
+                ->assertOk()->assertJsonPath('email_sent', true);
+            $notes = DB::table('schedule_visit')->where('visit_id', 1)->value('notes');
+            $this->assertStringContainsString('Original note', $notes);
+            $this->assertStringContainsString("Reschedule remarks: Patient requested afternoon.\nPlease arrive early.", $notes);
+        }
+        Mail::assertSent(\App\Mail\VisitRescheduled::class, 2);
+        Mail::assertSent(\App\Mail\VisitRescheduled::class, fn ($mail) => $mail->remarks === "Patient requested afternoon.\nPlease arrive early.");
+    }
+
+    public function test_failed_email_can_be_retried_without_reapplying_the_schedule_or_remarks(): void
+    {
+        $this->loginAs('Admin');
+        $date = now('Asia/Manila')->next('Monday')->toDateString();
+        DB::table('doctor_schedules')->insert(['schedule_id' => 1, 'doctor_id' => 1, 'day' => 'Monday', 'start_time' => '09:00:00', 'end_time' => '12:00:00']);
+        Mail::shouldReceive('to')->once()->andThrow(new \RuntimeException('Mail unavailable'));
+        $failed = $this->postJson('/admin_acc/appointments/1/reschedule', ['visit_date' => $date, 'schedule_id' => 1, 'remarks' => 'Patient request'])
+            ->assertOk()->assertJsonPath('email_sent', false)->assertJsonStructure(['retry_token']);
+        $notes = DB::table('schedule_visit')->value('notes');
+        Mail::swap(new \Illuminate\Mail\MailManager($this->app));
+        Mail::fake();
+        $this->postJson('/admin_acc/appointments/1/reschedule', ['retry_token' => 'tampered'])
+            ->assertUnprocessable()->assertJsonValidationErrors('retry_token');
+        $this->postJson('/admin_acc/appointments/1/reschedule', ['retry_token' => $failed->json('retry_token')])
+            ->assertOk()->assertJsonPath('email_sent', true);
+        $this->assertSame($notes, DB::table('schedule_visit')->value('notes'));
+        Mail::assertSent(\App\Mail\VisitRescheduled::class, 1);
+        Mail::assertSent(\App\Mail\VisitRescheduled::class, fn ($mail) => $mail->remarks === 'Patient request');
+        DB::table('schedule_visit')->update(['visit_date' => \Carbon\Carbon::parse($date)->addWeek()->toDateString()]);
+        $this->postJson('/admin_acc/appointments/1/reschedule', ['retry_token' => $failed->json('retry_token')])
+            ->assertUnprocessable()->assertJsonValidationErrors('retry_token');
+        Mail::assertSent(\App\Mail\VisitRescheduled::class, 1);
     }
 
     public function test_reschedule_rejects_past_dates_and_missing_email_and_keeps_saved_change_when_mail_fails(): void

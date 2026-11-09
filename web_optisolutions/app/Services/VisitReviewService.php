@@ -47,14 +47,14 @@ class VisitReviewService
         return $visit;
     }
 
-    public function submit(string $code, int $rating, ?string $comment, ?int $logId = null, bool $createLog = false): Feedback
+    public function submit(string $code, int $rating, ?string $comment, ?int $logId = null, bool $createLog = false, bool $anonymous = false): Feedback
     {
         Validator::make(['transaction_code' => self::normalizeCode($code), 'star_rating' => $rating, 'feedback_text' => $comment], [
             'feedback_text' => 'nullable|string|max:'.\App\Support\AnalysisLimits::MAX_TEXT_LENGTH,
             'transaction_code' => ['required', 'regex:' . self::CODE_PATTERN], 'star_rating' => 'required|integer|min:1|max:5',
         ])->validate();
 
-        return DB::transaction(function () use ($code, $rating, $comment, $logId, $createLog) {
+        return DB::transaction(function () use ($code, $rating, $comment, $logId, $createLog, $anonymous) {
             $visit = $this->eligibleVisit($code)->lockForUpdate()->first();
             if (!$visit || DB::table('feedback')->where('visit_id', $visit->visit_id)->exists()) {
                 throw ValidationException::withMessages(['transaction_code' => 'The transaction code is invalid, has already been used, or does not belong to a completed visit.']);
@@ -69,6 +69,7 @@ class VisitReviewService
             $feedback = Feedback::create([
                 'visit_id' => $visit->visit_id, 'patient_id' => $visit->patient_id,
                 'log_id' => $logId, 'feedback_text' => $comment, 'star_rating' => $rating, 'submitted_at' => now(),
+                'is_anonymous' => $anonymous,
             ]);
             DB::table('schedule_visit')->where('visit_id', $visit->visit_id)->update(['review_pass_used_at' => now()]);
             return $feedback;

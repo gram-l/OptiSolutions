@@ -93,7 +93,9 @@ trait HandlesOffTopic
     protected function handleOffTopicIfAny(Answer $answer, Closure $resumeCurrentStep): bool
     {
         if ($this->looksLikeAcknowledgment($answer)) {
-            $this->say(ClinicInfoService::acknowledgmentReply());
+            $reply = ClinicInfoService::acknowledgmentReply();
+            $this->say($reply);
+            $this->recordForStaff($answer->getText(), $reply);
             $resumeCurrentStep();
             return true;
         }
@@ -103,13 +105,17 @@ trait HandlesOffTopic
             $freeText = trim($answer->getText());
 
             if (ClinicInfoService::looksLikeGreeting($freeText)) {
-                $this->say(ClinicInfoService::greetingReply());
+                $reply = ClinicInfoService::greetingReply();
+                $this->say($reply);
+                $this->recordForStaff($freeText, $reply);
                 $resumeCurrentStep();
                 return true;
             }
 
             if (ClinicInfoService::looksLikeAskingPermission($freeText)) {
-                $this->say(ClinicInfoService::askingPermissionReply());
+                $reply = ClinicInfoService::askingPermissionReply();
+                $this->say($reply);
+                $this->recordForStaff($freeText, $reply);
                 $resumeCurrentStep();
                 return true;
             }
@@ -139,6 +145,17 @@ trait HandlesOffTopic
 
         $this->routeToInquiry($answer);
         return true;
+    }
+
+    // Saves what the patient typed (and the bot's answer) into the open inquiry,
+    // if there is one, so Admin/Staff can read the whole conversation.
+    protected function recordForStaff($patientText, string $botText): void
+    {
+        \App\Services\InquiryThread::recordBotExchange(
+            (string) $this->bot->getMessage()->getSender(),
+            (string) $patientText,
+            $botText
+        );
     }
 
     protected function routeToInquiry(Answer $answer)

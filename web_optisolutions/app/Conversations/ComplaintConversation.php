@@ -28,16 +28,40 @@ class ComplaintConversation extends Conversation
         $this->patientName = $patientName;
     }
 
+    // Max complaints per visitor (per IP) and the window, in minutes.
+    protected const COMPLAINT_LIMIT = 2;
+    protected const COMPLAINT_WINDOW_MINUTES = 24 * 60;
+
     public function run()
     {
+        // Stop right away on the click that goes over the limit,
+        // before the patient types anything.
+        if ($this->submissionLimitReached('complaint', self::COMPLAINT_LIMIT)) {
+            return $this->sayComplaintLimit();
+        }
+
         $this->askComplaint();
+    }
+
+    // Does not mention the quota or the clinic's contact details.
+    protected function sayComplaintLimit()
+    {
+        $this->say('Sorry, you can no longer submit a complaint at the moment. Please try again tomorrow.');
+        $this->askAnythingElse();
     }
 
     // Ask the patient to describe their complaint.
     public function askComplaint(
         $prompt = 'Please describe your concern in detail. We would like to hear about your experience so we can address it properly.'
     ) {
-        $this->ask($prompt, function (Answer $answer) use ($prompt) {
+        // Cancel button under the prompt; typing the complaint still works.
+        $question = Question::create($prompt)
+            ->fallback('Please describe your concern, or tap Cancel.')
+            ->addButtons([
+                Button::create('Cancel')->value('cancel'),
+            ]);
+
+        $this->ask($question, function (Answer $answer) use ($prompt) {
             if ($this->isGlobalCommand($answer)) {
                 return $this->handleGlobalCommand($answer, fn() => $this->askComplaint($prompt));
             }
@@ -59,10 +83,9 @@ class ComplaintConversation extends Conversation
     // Save the complaint and notify the patient.
     protected function submitComplaint($text)
     {
-        if ($this->tooManySubmissions('complaint')) {
-            $this->say($this->submissionCooldownMessage());
-            $this->askAnythingElse();
-            return;
+        // Safety net in case the limit was reached while the patient was typing.
+        if ($this->submissionLimitReached('complaint', self::COMPLAINT_LIMIT)) {
+            return $this->sayComplaintLimit();
         }
 
         $saved = false;
@@ -87,6 +110,9 @@ class ComplaintConversation extends Conversation
         } catch (\Throwable $notifyError) {
             \Illuminate\Support\Facades\Log::error('Failed to create complaint notification: ' . $notifyError->getMessage());
         }
+
+            // Only a saved complaint counts toward the daily limit.
+            $this->recordSubmission('complaint', self::COMPLAINT_WINDOW_MINUTES);
 
             $this->say("Complaint Recorded\n\nReference #: {$complaint->complaint_id}\nWe acknowledge receipt of your concern.");
             $saved = true;

@@ -166,20 +166,25 @@ class AnythingElseConversation extends Conversation
             if ($this->looksLikeFreeTextMessage($answer)) {
                 $typed = trim($answer->getText());
 
+                $conversationId = (string) $this->bot->getMessage()->getSender();
+
                 if (\App\Services\ClinicInfoService::looksLikeAcknowledgment($typed)) {
-                    $this->say(\App\Services\ClinicInfoService::acknowledgmentReply());
+                    $reply = \App\Services\ClinicInfoService::acknowledgmentReply();
+                    $this->say($reply);
+                    \App\Services\InquiryThread::recordBotExchange($conversationId, $typed, $reply);
                     return $this->showMenu();
                 }
 
                 if (\App\Services\ClinicInfoService::looksLikeGreeting($typed)) {
-                    $this->say(\App\Services\ClinicInfoService::greetingReply());
+                    $reply = \App\Services\ClinicInfoService::greetingReply();
+                    $this->say($reply);
+                    \App\Services\InquiryThread::recordBotExchange($conversationId, $typed, $reply);
                     return $this->showMenu();
                 }
 
                 return $this->routeToInquiry($answer);
             }
 
-            $this->say('Please choose one of the options above.');
             $this->showMenu();
         });
     }

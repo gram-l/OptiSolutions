@@ -41,6 +41,7 @@ class PolyclinicController extends Controller
                 'feedback.feedback_text',
                 'feedback.star_rating',
                 'feedback.submitted_at',
+                'feedback.is_anonymous',
                 'patients.patient_fname',
                 'patients.patient_lname',
             ]);

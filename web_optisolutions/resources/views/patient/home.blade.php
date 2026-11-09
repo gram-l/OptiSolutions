@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>PolyClinic</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Merriweather+Sans:wght@700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
   @vite(['resources/css/patient_css/home.css', 'resources/css/patient_css/about.css', 'resources/css/patient_css/contact.css', 'resources/js/script.js', 'resources/js/clinic-info.js', 'resources/js/navbar-loader.js', 'resources/js/privacy-notice.js'])
@@ -92,6 +92,130 @@
       .mv-modern .mv-card-modern,
       .mv-modern .mv-top-grid .mv-card-modern { padding: 22px 20px !important; gap: 16px !important; }
     }
+
+    /* ===== NAVBAR + ACCENT PICTURE ALWAYS LOCKED AT THE TOP =====
+       about.css / contact.css put overflow-x:hidden on <body>, which turns body
+       into its own scroll container and silently breaks position:sticky.
+       Clipping is already handled on <html>, so body must stay visible. */
+    html { overflow-x: hidden; }
+    body { overflow-x: visible !important; }
+    .navbar { position: -webkit-sticky; position: sticky; top: 0; z-index: 100; }
+
+    /* ==========================================================
+       TYPOGRAPHY SYSTEM - one font, one heading colour, one size per level
+       Heading colour : #01204C        Body text colour : #3D4A5C
+       Section titles : --fs-section   Sub-headings : --fs-sub   Body : --fs-body
+       ========================================================== */
+    :root {
+      --brand-navy: #01204C;
+      --ty-heading: #01204C;
+      --ty-body: #3D4A5C;
+      --fs-section: clamp(28px, 3vw, 36px);
+      --fs-sub: 22px;
+      --fs-card: 18px;
+      --fs-body: 16px;
+    }
+    body, button, input, textarea, select { font-family: 'Inter', sans-serif; }
+
+    /* Section titles (all the same size) */
+    .hero-flutter-title { color: var(--ty-heading) !important; font-family: 'Inter', sans-serif !important; }
+    .about-v2 .about-title,
+    .about-v2 .about-v2-mvv .about-v2-mvv-title,
+    .about-v2-guide-head h3,
+    .services-v2 .services-modern-title,
+    .doctors-v2 .doctors-modern-title,
+    .cta-banner-title,
+    .reviews-live-title {
+      font-family: 'Inter', sans-serif !important;
+      font-size: var(--fs-section) !important;
+      font-weight: 800 !important;
+      line-height: 1.25 !important;
+      letter-spacing: 0 !important;
+      text-transform: none !important;
+    }
+    .about-v2 .about-title, .about-v2 .about-title-line,
+    .about-v2 .about-v2-mvv .about-v2-mvv-title,
+    .about-v2-guide-head h3,
+    .services-v2 .services-modern-title, .services-v2 .services-title-accent,
+    .doctors-v2 .doctors-modern-title, .doctors-v2 .doctors-title-accent,
+    .cta-banner-title { color: var(--ty-heading) !important; }
+    /* Reviews sits on the dark-blue band, so its title stays white */
+    .reviews-live-title { color: #fff !important; }
+
+    /* Sub-headings (Mission, Vision, Core Values, visit guide) */
+    .about-v2 .about-v2-mv .about-v2-mv-body h3,
+    .about-v2 .about-v2-values-title,
+    .about-v2-guide-text h4,
+    .about-v2-guide-text h4 span {
+      font-family: 'Inter', sans-serif !important;
+      font-size: var(--fs-sub) !important;
+      font-weight: 800 !important;
+      line-height: 1.3 !important;
+      color: var(--ty-heading) !important;
+    }
+
+    /* Card titles */
+    .services-v2 .service-card-modern h3,
+    .doctor-card h3 {
+      font-family: 'Inter', sans-serif !important;
+      font-size: var(--fs-card) !important;
+      font-weight: 700 !important;
+      color: var(--ty-heading) !important;
+    }
+    .about-v2 .about-v2-value-card strong {
+      font-size: 16px !important; font-weight: 700 !important; color: var(--ty-heading) !important;
+    }
+
+    /* Body text (all the same size and colour) */
+    .about-v2 .about-text p,
+    .about-v2 .about-v2-mv .about-v2-mv-body p,
+    .about-v2-guide-head p,
+    .about-v2-guide-text p,
+    .about-v2-guide-text li,
+    .services-v2 .services-modern-subtitle,
+    .doctors-v2 .doctors-modern-subtitle,
+    .cta-banner-desc {
+      font-family: 'Inter', sans-serif !important;
+      font-size: var(--fs-body) !important;
+      line-height: 1.7 !important;
+      color: var(--ty-body) !important;
+    }
+    .hero-flutter-desc { color: var(--ty-body) !important; }
+    .about-v2 .about-v2-value-card small {
+      font-size: 15px !important; line-height: 1.55 !important; color: var(--ty-body) !important;
+    }
+    .about-v2-guide-text strong { color: var(--ty-heading) !important; }
+
+    /* Clinic name / address in the intro: plain text, no highlight */
+    .about-v2 .about-text .about-hl { color: inherit !important; font-weight: inherit !important; }
+
+    /* ===== No circles behind the Mission / Vision / Core Values icons ===== */
+    .about-v2 .about-v2-icon,
+    .about-v2 .about-v2-mv-item.vision .about-v2-icon,
+    .about-v2 .about-v2-value-icon,
+    .about-v2 .about-v2-value-card:nth-child(n) .about-v2-value-icon {
+      background: none !important; border-radius: 0 !important; box-shadow: none !important;
+    }
+    .about-v2 .about-v2-icon::before, .about-v2 .about-v2-icon::after { display: none !important; }
+
+    /* ===== Mission / Vision / Core Values: compact spacing ===== */
+    .about-v2 .about-v2-mvv { padding: 36px 32px 0; }
+    .about-v2 .about-v2-mvv .about-v2-mvv-title { margin-bottom: 24px; }
+    .about-v2 .about-v2-mvv .about-v2-mv { column-gap: 40px; row-gap: 20px; }
+    .about-v2 .about-v2-mv .about-v2-mv-item { row-gap: 8px; }
+    .about-v2 .about-v2-values { margin-top: 4px; }
+    .about-v2 .about-v2-values-title { margin-bottom: 12px; }
+    .about-v2 .about-v2-values-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+    .about-v2 .about-v2-value-card { padding: 4px 8px; gap: 3px; }
+    .about-v2 .about-v2-value-card small {
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .about-v2 .about-v2-value-icon .asset-icon { width: 26px; height: 26px; }
+    @media (max-width: 992px) { .about-v2 .about-v2-mvv { padding: 28px 20px 0; } }
+
+    /* ===== Before You Visit — now its own section above Contact ===== */
+    .visit-section { padding: 24px 0 72px; background: var(--white, #fff); }
+    .visit-section .about-v2-guide { margin-top: 48px; }
   </style>
 </head>
 <body>
@@ -205,26 +329,19 @@
 <!-- ========== ABOUT - MODERN ========== -->
 <section class="section about-section about-v2" id="about">
 
-  {{-- decorative background --}}
-  <img class="about-v2-cross about-v2-cross-lg" src="/images/medical-cross.svg" alt="" aria-hidden="true">
-  <img class="about-v2-cross about-v2-cross-sm" src="/images/medical-cross.svg" alt="" aria-hidden="true">
-  <img class="about-v2-leaves" src="/images/leaves.svg" alt="" aria-hidden="true">
-
   <div class="about-v2-hero">
     <div class="about-v2-photo-wrap">
       <div class="about-v2-photo">
-        <img src="/images/Polyclinic.jpg" alt="Clinic building" loading="lazy">
+        <img src="/images/Polyclinic.jpg" alt="PolyClinic building" loading="lazy">
       </div>
     </div>
 
     <div class="about-v2-content">
-      <span class="about-tag">About Our Clinic</span>
-      <h2 class="about-title">Welcome to<br><span class="about-title-accent" data-clinic-field="clinic_name" data-clinic-empty="Our Clinic">{{ $publicClinic['clinic_name'] ?: 'Our Clinic' }}</span></h2>
-      <div class="about-v2-rule"><i></i><b></b></div>
-      <p class="about-subtitle" data-clinic-field="address" data-clinic-empty="Address has not been set yet.">{{ $publicClinic['address'] ?: 'Address has not been set yet.' }}</p>
+      <h2 class="about-title"><span class="about-title-line">Compassionate Care for Every</span><br>Filipino Family</h2>
 
       <div class="about-text">
-        <p data-clinic-field="about_us" data-clinic-empty="Clinic information has not been set yet.">{{ $publicClinic['about_us'] ?: 'Clinic information has not been set yet.' }}</p>
+        <p><span class="about-hl" data-clinic-field="clinic_name" data-clinic-empty="Our Clinic">{{ $publicClinic['clinic_name'] ?: 'Our Clinic' }}</span> is a multi-specialty outpatient clinic at <span class="about-hl" data-clinic-field="address" data-clinic-empty="Address has not been set yet.">{{ $publicClinic['address'] ?: 'Address has not been set yet.' }}</span>, serving Lipa City and nearby communities since {{ $clinicInfo->founded_year ?? 2011 }}.</p>
+        <p data-clinic-field="about_us" data-clinic-empty="" @if($publicClinic['about_us'] === '') hidden @endif>{{ $publicClinic['about_us'] }}</p>
       </div>
 
       <div class="trust-badges">
@@ -232,44 +349,53 @@
         <div class="trust-badge"><i class="fas fa-users"></i><span>Licensed Specialists</span></div>
         <div class="trust-badge"><i class="fas fa-lock"></i><span>Data Privacy Compliant</span></div>
       </div>
+
     </div>
 
-    <svg class="about-v2-wave" viewBox="0 0 1440 110" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0 55 C220 105 430 5 720 45 C1010 85 1230 15 1440 60 L1440 110 L0 110Z" fill="#F7FAFE"/>
-      <path d="M0 55 C220 105 430 5 720 45 C1010 85 1230 15 1440 60" fill="none" stroke="#DCEAF9" stroke-width="2"/>
+    <svg class="about-v2-wave" viewBox="0 0 1440 220" preserveAspectRatio="none" aria-hidden="true">
+      <defs><path id="aboutWaveCurve" d="M0 150 C260 205 560 120 860 88 C1120 60 1300 40 1440 18 L1440 260 L0 260Z"/></defs>
+      <use href="#aboutWaveCurve" fill="#1494E3"/>
+      <use href="#aboutWaveCurve" fill="#77AD19" transform="translate(0 15)"/>
+      <use href="#aboutWaveCurve" fill="#F6200D" transform="translate(0 30)"/>
+      <use href="#aboutWaveCurve" fill="#EFC813" transform="translate(0 44)"/>
     </svg>
   </div>
 
+  <div class="about-v2-mvv">
+
   <div class="about-v2-mv">
-    <div class="about-v2-mv-item mission">
-      <div class="about-v2-icon"><i class="fas fa-bullseye"></i></div>
+    <div class="about-v2-mv-item mission" data-clinic-visible="mission" @if($publicClinic['mission'] === '') hidden style="display:none" @endif>
+      <div class="about-v2-icon"><span class="asset-icon" style="--icon:url('/images/icons/mission.svg')" aria-hidden="true"></span></div>
       <div class="about-v2-mv-body">
         <h3>Our Mission</h3>
-        <p data-clinic-field="mission" data-clinic-empty="Mission has not been set yet." data-clinic-placeholder class="{{ $publicClinic['mission'] === '' ? 'values-empty' : '' }}">{{ $publicClinic['mission'] ?: 'Mission has not been set yet.' }}</p>
+        <p data-clinic-field="mission" data-clinic-empty="">{{ $publicClinic['mission'] }}</p>
       </div>
     </div>
 
-    <div class="about-v2-mv-item vision">
-      <div class="about-v2-icon"><i class="fas fa-eye"></i></div>
+    <div class="about-v2-mv-item vision" data-clinic-visible="vision" @if($publicClinic['vision'] === '') hidden style="display:none" @endif>
+      <div class="about-v2-icon"><span class="asset-icon" style="--icon:url('/images/icons/vision.svg')" aria-hidden="true"></span></div>
       <div class="about-v2-mv-body">
         <h3>Our Vision</h3>
-        <p data-clinic-field="vision" data-clinic-empty="Vision has not been set yet." data-clinic-placeholder class="{{ $publicClinic['vision'] === '' ? 'values-empty' : '' }}">{{ $publicClinic['vision'] ?: 'Vision has not been set yet.' }}</p>
+        <p data-clinic-field="vision" data-clinic-empty="">{{ $publicClinic['vision'] }}</p>
       </div>
     </div>
 
-    <div class="about-v2-mv-item values">
-      <div class="about-v2-icon"><i class="fas fa-hand-holding-heart"></i></div>
-      <div class="about-v2-mv-body">
-        <h3>Our Core Values</h3>
-        <div data-clinic-values>
-        @forelse ($publicClinic['core_values'] as $value)
-          <span class="about-v2-value">{{ $value }}</span>
-        @empty
-          <p class="values-empty">Core values have not been set yet.</p>
-        @endforelse
-        </div>
+    <div class="about-v2-values" data-clinic-values-wrap @if(empty($publicClinic['core_values'])) hidden style="display:none" @endif>
+      <h3 class="about-v2-values-title">Our Core Values</h3>
+      {{-- Each value may be "Name" or "Name|Short description". --}}
+      <div class="about-v2-values-grid" data-clinic-values>
+        @php $valueIcons = ['heart-pulse', 'shield-check', 'star', 'handshake', 'lock', 'users']; @endphp
+        @foreach ($publicClinic['core_values'] as $i => $value)
+          @php [$valueName, $valueDesc] = array_map('trim', array_pad(explode('|', $value, 2), 2, '')); @endphp
+          <div class="about-v2-value-card">
+            <span class="about-v2-value-icon"><span class="asset-icon" style="--icon:url('/images/icons/{{ $valueIcons[$i % count($valueIcons)] }}.svg')" aria-hidden="true"></span></span>
+            <strong>{{ $valueName }}</strong>
+            @if ($valueDesc !== '')<small>{{ $valueDesc }}</small>@endif
+          </div>
+        @endforeach
       </div>
     </div>
+  </div>
   </div>
 </section>
 
@@ -280,7 +406,6 @@
   <img class="services-v2-leaves services-v2-leaves-right" src="/images/leaves.svg" alt="" aria-hidden="true">
   <div class="container">
     <div class="services-modern-header">
-      <span class="services-modern-tag">Services</span>
       <h2 class="services-modern-title">Comprehensive Medical Care<br><span class="services-title-accent">For You &amp; Your Family</span></h2>
       <p class="services-modern-subtitle">We offer a wide range of specialized healthcare services delivered with compassion and expertise.</p>
     </div>
@@ -381,8 +506,7 @@
 <section class="doctors-modern-section doctors-v2" id="doctors">
   <div class="container">
     <div class="doctors-modern-header">
-      <span class="doctors-modern-tag">Medical Team</span>
-      <h2 class="doctors-modern-title">Meet Our <span class="doctors-title-accent">Medical Experts</span></h2>
+      <h2 class="doctors-modern-title"><span class="doctors-title-accent">Medical Experts</span></h2>
       <p class="doctors-modern-subtitle">Our board-certified physicians bring years of specialized experience and compassionate care to help you achieve optimal health.</p>
     </div>
 
@@ -442,8 +566,10 @@
     <div class="reviews-live-grid" id="reviewsLiveGrid">
       @forelse ($recentFeedback ?? [] as $review)
         @php
-          $reviewerFname = trim($review->patient_fname ?? '');
-          $reviewerLname = trim($review->patient_lname ?? '');
+          // Patients who chose "post anonymously" never show any part of their name.
+          $isAnonymousReview = !empty($review->is_anonymous);
+          $reviewerFname = $isAnonymousReview ? '' : trim($review->patient_fname ?? '');
+          $reviewerLname = $isAnonymousReview ? '' : trim($review->patient_lname ?? '');
           $reviewerInitial = $reviewerFname !== '' ? strtoupper(substr($reviewerFname, 0, 1)) : 'A';
 
           // Pseudonymize the first name for display: keep the first letter and the
@@ -496,6 +622,45 @@
   </div>
 </section>
 
+<!-- ========== BEFORE YOU VISIT (visit guide + FAQ) ========== -->
+<section class="visit-section" id="visit">
+  <div class="about-v2-guide">
+    <div class="about-v2-guide-head">
+      <h3>Everything You Need to Know Before You Visit</h3>
+      <p>From booking your visit to what to expect when you arrive, here is how we make getting care simple for you and your family.</p>
+    </div>
+
+    <div class="about-v2-guide-body">
+      <div class="about-v2-guide-media" aria-hidden="false">
+        <div class="about-v2-guide-back"><img src="/images/Polyclinic.jpg" alt="" loading="lazy"></div>
+        <div class="about-v2-guide-front"><img src="/images/walkin.png" alt="A PolyClinic staff member assisting a patient at the front desk" loading="lazy"></div>
+      </div>
+
+      <div class="about-v2-guide-text">
+        <h4>Visiting <span data-clinic-field="clinic_name" data-clinic-empty="Our Clinic">{{ $publicClinic['clinic_name'] ?: 'Our Clinic' }}</span>, Made Simple</h4>
+
+        <p>Booking a visit takes just a few minutes. Open <strong>Schedule Visit</strong> in our chatbot, or browse our doctors through <a href="#doctors">Find Your Specialist</a>, then choose your service, doctor and preferred schedule. Your visit details are sent to you by email, and once your visit is completed, a review code is emailed so you can share your feedback.</p>
+
+        <p>Our staff is always ready to help with rescheduling, cancellations and any questions, so you know what to expect before you arrive.</p>
+
+        <ul>
+          <li><strong>Walk-ins are welcome.</strong> Scheduling ahead through our chatbot lets you secure a slot with your preferred doctor. Availability can vary by doctor and day, so please confirm with our staff.</li>
+          <li><strong>Fees, payment and HMO.</strong> Please ask our staff for current fees, accepted payment methods and HMO or insurance coverage before your visit.</li>
+          <li><strong>Laboratory and diagnostic tests.</strong> Ask our staff to confirm availability, schedule and preparation for your specific test.</li>
+          <li><strong>Records and certificates.</strong> Request medical records or certificates directly from our staff.</li>
+          <li><strong>Extra assistance.</strong> Seniors, PWD and patients with mobility needs may tell us ahead of time so we can help.</li>
+          <li><strong>Your privacy.</strong> We handle your information in line with our <a href="{{ route('privacy-notice') }}">Privacy Notice</a>.</li>
+        </ul>
+
+        <button type="button" class="about-v2-faq-btn" onclick="openFaqModal()">
+          <span class="asset-icon" style="--icon:url('/images/icons/circle-help.svg')" aria-hidden="true"></span>
+          Frequently Asked Questions
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ========== CTA BANNER - MODERN ========== -->
 <section class="cta-banner" id="contact">
   <div class="container">
@@ -522,6 +687,10 @@
         </div>
         <a href="{{ $publicClinic['directions_url'] }}" data-clinic-directions @if ($publicClinic['directions_url'] === '') hidden style="display:none" @endif target="_blank" rel="noopener noreferrer" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
       </div>
+      <figure class="cta-banner-photo">
+        <figcaption class="cta-photo-caption"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Lipa City, Batangas</figcaption>
+        <img src="/images/Polyclinic2.jpg" alt="PolyClinic Lipa building front" loading="lazy">
+      </figure>
       <div class="cta-banner-map" data-clinic-visible="address" @if ($publicClinic['address'] === '') hidden style="display:none" @endif>
         <iframe @if ($publicClinic['map_url'] !== '') src="{{ $publicClinic['map_url'] }}" @endif data-clinic-map title="Clinic location" allowfullscreen loading="lazy"></iframe>
       </div>
@@ -688,9 +857,7 @@
     setTimeout(positionReviewArrows, 400);
   });
 
-  /* ==========================================================
-     HERO — LIVE PATIENT FEEDBACK mini widget: auto-rotate
-     ========================================================== */
+  /* HERO — LIVE PATIENT FEEDBACK mini widget: auto-rotate */
   document.addEventListener('DOMContentLoaded', function () {
     const body = document.getElementById('heroLiveFeedbackBody');
     if (!body) return;

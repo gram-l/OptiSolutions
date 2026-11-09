@@ -41,7 +41,11 @@ trait HandlesGlobalCommands
     // $answer: the incoming global command.
     // $resumeCurrentStep: re-shows the current step, used when the
     // command targets the conversation we're already in.
-    protected function handleGlobalCommand(Answer $answer, Closure $resumeCurrentStep)
+    // $fromMenu: true when the command was picked from the 4-button main menu.
+    // The menu always starts a FRESH flow, even when this conversation is already
+    // a Review/Complaint one (e.g. Submit Review/Rating -> Cancel -> Submit
+    // Review/Rating again); otherwise the click would only re-show the menu.
+    protected function handleGlobalCommand(Answer $answer, Closure $resumeCurrentStep, bool $fromMenu = false)
     {
         $cmd = $this->normalizeCommand($answer);
 
@@ -64,7 +68,7 @@ trait HandlesGlobalCommands
         }
 
         if (in_array($cmd, ['review', 'submit review/rating'], true)) {
-            if ($this instanceof ReviewConversation) {
+            if (!$fromMenu && $this instanceof ReviewConversation) {
                 $resumeCurrentStep();
                 return;
             }
@@ -76,7 +80,7 @@ trait HandlesGlobalCommands
         }
 
         if (in_array($cmd, ['complaint', 'submit complaint'], true)) {
-            if ($this instanceof ComplaintConversation) {
+            if (!$fromMenu && $this instanceof ComplaintConversation) {
                 $resumeCurrentStep();
                 return;
             }
@@ -88,7 +92,9 @@ trait HandlesGlobalCommands
         }
 
         if ($cmd === 'cancel') {
-            $this->say('Okay, cancelled. Type "Menu" anytime to start again.');
+            // Cancel ends this flow and brings the 4 main options straight back.
+            $this->say('Okay, cancelled.');
+            $this->sendMenu();
             return;
         }
 
@@ -112,10 +118,38 @@ trait HandlesGlobalCommands
 
         $this->ask($question, function (Answer $answer) {
             if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, fn() => $this->sendMenu());
+                return $this->handleGlobalCommand($answer, fn() => $this->sendMenu(), true);
             }
 
-            $this->say('Please choose one of the options above.');
+            // Anything typed here (instead of tapping a button) is never rejected:
+            // the bot answers a plain "ok"/greeting itself, and everything else
+            // goes to Admin/Staff. Either way the message is saved so staff can see it.
+            $typed = trim((string) $answer->getText());
+            $isButtonTap = method_exists($answer, 'isInteractiveMessageReply') && $answer->isInteractiveMessageReply();
+
+            if (!$isButtonTap && $typed !== '') {
+                $conversationId = (string) $this->bot->getMessage()->getSender();
+                $reply = null;
+
+                if (ClinicInfoService::looksLikeAcknowledgment($typed)) {
+                    $reply = ClinicInfoService::acknowledgmentReply();
+                } elseif (ClinicInfoService::looksLikeGreeting($typed)) {
+                    $reply = ClinicInfoService::greetingReply();
+                } elseif (ClinicInfoService::looksLikeAskingPermission($typed)) {
+                    $reply = ClinicInfoService::askingPermissionReply();
+                }
+
+                if ($reply !== null) {
+                    $this->say($reply);
+                    \App\Services\InquiryThread::recordBotExchange($conversationId, $typed, $reply);
+                    return $this->sendMenu();
+                }
+
+                // Real message: goes to Admin/Staff (added to the open thread if any).
+                return $this->bot->startConversation(new \App\Conversations\InquiryConversation($typed));
+            }
+
+            // Empty / stale button value: just show the buttons again, no scolding.
             $this->sendMenu();
         });
     }

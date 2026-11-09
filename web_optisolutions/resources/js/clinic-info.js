@@ -25,25 +25,39 @@ export function renderClinicDetails(data, root = document) {
   root.querySelectorAll('[data-clinic-field]').forEach(element => {
     const value = text(info[element.dataset.clinicField]);
     element.textContent = value || element.dataset.clinicEmpty || '';
+    if (element.dataset.clinicEmpty === '') element.hidden = !value;
     if (element.hasAttribute('data-clinic-placeholder')) element.classList.toggle('values-empty', !value);
   });
 
+  const valueIcons = ['heart-pulse', 'shield-check', 'star', 'handshake', 'lock', 'users'];
   root.querySelectorAll('[data-clinic-values]').forEach(element => {
     const values = Array.isArray(info.core_values) ? info.core_values.map(text).filter(Boolean) : [];
     const owner = element.ownerDocument || root;
-    const nodes = values.map(value => {
-      const span = owner.createElement('span');
-      span.className = 'about-v2-value';
-      span.textContent = value;
-      return span;
+    const nodes = values.map((value, index) => {
+      const [name, ...rest] = value.split('|');
+      const desc = text(rest.join('|'));
+      const card = owner.createElement('div');
+      card.className = 'about-v2-value-card';
+      const iconWrap = owner.createElement('span');
+      iconWrap.className = 'about-v2-value-icon';
+      const icon = owner.createElement('span');
+      icon.className = 'asset-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.style.setProperty('--icon', "url('/images/icons/" + valueIcons[index % valueIcons.length] + ".svg')");
+      iconWrap.appendChild(icon);
+      const title = owner.createElement('strong');
+      title.textContent = text(name);
+      card.append(iconWrap, title);
+      if (desc) {
+        const small = owner.createElement('small');
+        small.textContent = desc;
+        card.appendChild(small);
+      }
+      return card;
     });
-    if (!nodes.length) {
-      const empty = owner.createElement('p');
-      empty.className = 'values-empty';
-      empty.textContent = 'Core values have not been set yet.';
-      nodes.push(empty);
-    }
     element.replaceChildren(...nodes);
+    const wrap = element.closest('[data-clinic-values-wrap]');
+    if (wrap) visible(wrap, nodes.length > 0);
   });
 
   const facebook = httpUrl(info.facebook_url);

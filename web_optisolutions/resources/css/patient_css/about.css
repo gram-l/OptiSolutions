@@ -30,8 +30,10 @@
   --radius-sm: 12px;
 }
 
+/* overflow-x on html only; on body it breaks the sticky navbar */
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -39,7 +41,6 @@ body {
   color: var(--gray-700);
   background: var(--white);
   line-height: 1.5;
-  overflow-x: hidden;
 }
 
 .container {
@@ -56,7 +57,7 @@ body {
 }
 
 .section-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 36px;
   font-weight: 700;
   color: var(--gray-900);
@@ -142,7 +143,7 @@ body {
   object-fit: contain;
 }
 .footer-modern-brandname {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 20px;
   font-weight: 800;
   color: white;
@@ -249,7 +250,7 @@ body {
 }
 
 .about-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 40px;
   font-weight: 800;
   color: var(--gray-900);
@@ -509,7 +510,7 @@ body {
   font-size: 14px;
   font-weight: 700;
   color: var(--gray-300);
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   min-width: 36px;
   padding-top: 4px;
   letter-spacing: 0.5px;
@@ -557,7 +558,7 @@ body {
 }
 
 .mv-content-modern h3 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--gray-900);
@@ -657,7 +658,7 @@ body {
 
 /* BRAND TOKENS */
 :root {
-  --brand-navy: #022D67;          /* headings */
+  --brand-navy: #01204C;          /* headings */
   --brand-blue: #022D67;          /* Main blue */
   --brand-blue-bright: #022D67;   /* same blue */
   --brand-blue-soft: #E6ECF6;     /* pill / icon backgrounds */
@@ -673,7 +674,7 @@ body {
   position: relative;
   padding: 0 0 80px;
   overflow: hidden;
-  font-family: 'Source Sans 3', 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
   background:
     radial-gradient(ellipse 60% 40% at 100% 0%, #EEF5FD 0%, transparent 70%),
     linear-gradient(180deg, #FFFFFF 0%, #F6FAFE 100%);
@@ -740,7 +741,7 @@ body {
   margin-bottom: 16px;
 }
 .about-v2 .about-title {
-  font-family: 'Merriweather Sans', 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   text-align: left;
   font-size: 30px;
   font-weight: 800;
@@ -823,7 +824,7 @@ body {
 .about-v2-mv-item.vision .about-v2-icon::before { left: -4px; right: auto; }
 
 .about-v2-mv-body h3 {
-  font-family: 'Merriweather Sans', 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 18px; font-weight: 800; color: var(--brand-navy);
   margin: 4px 0 0; padding-bottom: 10px; position: relative;
 }
@@ -861,3 +862,319 @@ body {
   .about-v2-mv { padding: 0 20px; }
   .about-v2-icon { flex-basis: 56px; width: 56px; height: 56px; font-size: 22px; }
 }
+
+/* ===== ABOUT V2 — building photo fading into white + tricolor/yellow wave ===== */
+.section.about-v2 { background: #FFFFFF; padding-bottom: 70px; }
+
+.about-v2-hero {
+  grid-template-columns: minmax(0, 52%) minmax(0, 1fr);
+  background: #FFFFFF;
+  padding-bottom: 170px;
+}
+.about-v2-photo-wrap { min-height: 460px; }
+.about-v2-photo-wrap::before { display: none; }
+.about-v2-photo {
+  inset: 0;
+  border-radius: 0;
+  box-shadow: none;
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 55%, transparent 100%);
+          mask-image: linear-gradient(to right, #000 0%, #000 55%, transparent 100%);
+}
+.about-v2-photo img { object-position: 30% center; }
+
+.about-v2-content {
+  max-width: 560px;
+  margin-left: -8%;
+  padding: 44px 32px 0 0;
+}
+.about-v2 .about-title {
+  font-size: 22px;
+  line-height: 1.3;
+  letter-spacing: 0;
+  color: #01204C;
+  margin-bottom: 22px;
+}
+.about-v2 .about-text p { font-size: 14.5px; line-height: 1.55; color: #4A5565; margin-bottom: 16px; }
+.about-v2 .about-text .about-hl { color: #0B5CAD; font-weight: 700; }
+
+.about-v2 .trust-badge { font-size: 11px; padding: 7px 14px 7px 10px; }
+.about-v2 .trust-badge i { font-size: 13px; }
+
+.about-v2-wave {
+  height: 170px;
+  z-index: 2;
+}
+.about-v2-mv { padding-top: 56px; }
+
+@media (max-width: 1100px) {
+  .about-v2-content { margin-left: 0; padding-right: 24px; }
+}
+@media (max-width: 900px) {
+  .about-v2-hero { grid-template-columns: 1fr; padding-bottom: 120px; }
+  .about-v2-photo-wrap { min-height: 280px; }
+  .about-v2-photo {
+    border-radius: 0;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
+            mask-image: linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
+  }
+  .about-v2-content { margin: -40px auto 0; padding: 0 24px; }
+  .about-v2-wave { height: 110px; }
+}
+@media (max-width: 560px) {
+  .about-v2 .trust-badges { flex-wrap: wrap; }
+  .about-v2-content { padding: 0 20px; }
+}
+
+/* ===== ABOUT V2 — refinements: readable type, CTA, wider mission/vision, core value cards ===== */
+.about-v2 .about-title { font-size: 34px; line-height: 1.2; }
+.about-v2 .about-text p { font-size: 16px; line-height: 1.65; color: #3D4A5C; }
+.about-v2 .trust-badges { flex-wrap: wrap; }
+.about-v2 .trust-badge { font-size: 13px; padding: 8px 16px 8px 12px; }
+.about-v2 .trust-badge i { font-size: 15px; }
+
+.about-v2-hero { padding-bottom: 120px; }
+
+/* Mission + Vision: two wide cards, Core Values: full-width row below */
+.about-v2-mv {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  max-width: 1120px;
+}
+.about-v2-mv-item,
+.about-v2-mv-item:first-child,
+.about-v2-mv-item:last-child {
+  background: #fff;
+  border: 1px solid var(--border-soft);
+  border-left: 1px solid var(--border-soft);
+  border-radius: 20px;
+  padding: 28px 30px;
+  box-shadow: 0 4px 18px rgba(2, 45, 103, .06);
+}
+.about-v2-mv-body p { font-size: 16px; line-height: 1.65; color: #3D4A5C; }
+
+.about-v2-values { grid-column: 1 / -1; margin-top: 8px; }
+.about-v2-values-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 20px; font-weight: 800; color: var(--brand-navy);
+  text-align: center; margin: 0 0 20px;
+}
+.about-v2-values-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+.about-v2-value-card {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+  background: #fff; border: 1px solid var(--border-soft); border-radius: 16px;
+  padding: 22px 16px;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.about-v2-value-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(2, 45, 103, .1); }
+.about-v2-value-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--brand-blue-soft); color: var(--brand-blue); font-size: 20px; margin-bottom: 4px;
+}
+.about-v2-value-card:nth-child(even) .about-v2-value-icon { background: var(--brand-green-soft); color: var(--brand-green); }
+.about-v2-value-card strong { font-size: 16px; color: var(--brand-navy); }
+.about-v2-value-card small { font-size: 14px; line-height: 1.5; color: #5F6F86; }
+
+@media (max-width: 992px) {
+  .about-v2-mv { grid-template-columns: 1fr; }
+  .about-v2 .about-title { font-size: 28px; }
+}
+@media (max-width: 480px) {
+  .about-v2 .about-title { font-size: 24px; }
+  .about-v2-mv-item { padding: 22px 20px; }
+}
+
+
+.about-v2 [data-clinic-field="about_us"] { white-space: pre-line; }
+
+/* ===== ABOUT V2 — hero: photo fills everything down to the wave, cleaner spacing ===== */
+.about-v2 .about-title {
+  font-size: clamp(24px, 2.5vw, 38px);
+  line-height: 1.25;
+  margin-bottom: 26px;
+}
+.about-v2 .about-text p { font-size: 16px; line-height: 1.7; margin-bottom: 20px; }
+.about-v2 .about-text p:last-child { margin-bottom: 0; }
+.about-v2 .trust-badges { gap: 12px; margin-top: 30px; flex-wrap: wrap; }
+.about-v2 .trust-badge { font-size: 12.5px; padding: 8px 16px 8px 12px; }
+
+@media (min-width: 901px) {
+  .about-v2-hero {
+    grid-template-columns: minmax(0, 50%) minmax(0, 1fr);
+    padding-bottom: 0;              /* photo column now runs all the way to the wave */
+  }
+  .about-v2-photo-wrap { min-height: 620px; }
+  .about-v2-photo {
+    inset: 0;                       /* fills the full height of the hero, no white gap */
+    -webkit-mask-image: linear-gradient(to right, #000 0%, #000 80%, transparent 100%);
+            mask-image: linear-gradient(to right, #000 0%, #000 80%, transparent 100%);
+  }
+  .about-v2-photo img { object-position: 40% center; }
+  .about-v2-content {
+    margin-left: 0;                 /* text no longer overlaps the photo */
+    max-width: 640px;
+    padding: 72px 40px 200px 28px;  /* bottom space keeps text clear of the wave */
+  }
+}
+@media (min-width: 960px) {
+  .about-v2 .about-title-line { white-space: nowrap; }
+}
+
+@media (max-width: 900px) {
+  .about-v2-hero { padding-bottom: 0; }
+  .about-v2-content { padding: 0 24px 140px; }
+}
+@media (max-width: 560px) {
+  .about-v2-content { padding: 0 20px 120px; }
+}
+
+
+/* ===== Icons as image assets (SVG files in /public/images/icons, tinted with currentColor) ===== */
+.asset-icon {
+  display: inline-block; width: 1em; height: 1em; flex: 0 0 auto;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+          mask: var(--icon) center / contain no-repeat;
+}
+.about-v2-icon .asset-icon { width: 32px; height: 32px; }
+.about-v2-value-icon .asset-icon { width: 24px; height: 24px; }
+
+/* ===== Visit guide: heading on top, photo collage left, text right ===== */
+.about-v2-guide { position: relative; z-index: 3; max-width: 1180px; margin: 72px auto 0; padding: 0 32px; }
+.about-v2-guide-head { text-align: center; max-width: 900px; margin: 0 auto 48px; }
+.about-v2-guide-head h3 {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(26px, 3vw, 38px); font-weight: 800; line-height: 1.2;
+  text-transform: uppercase; letter-spacing: .2px;
+  color: var(--brand-navy); margin: 0 0 14px;
+}
+.about-v2-guide-head p { font-size: 17px; line-height: 1.65; color: #4A5565; margin: 0; }
+
+.about-v2-guide-body { display: grid; grid-template-columns: minmax(0, 46%) minmax(0, 1fr); gap: 56px; align-items: center; }
+
+.about-v2-guide-media { position: relative; height: 560px; }
+.about-v2-guide-back, .about-v2-guide-front { position: absolute; overflow: hidden; border-radius: 22px; }
+.about-v2-guide-back { left: 0; top: 48px; bottom: 0; width: 44%; z-index: 1; }
+.about-v2-guide-back::after { content: ''; position: absolute; inset: 0; background: rgba(20, 110, 210, .45); }
+.about-v2-guide-front { right: 0; top: 0; bottom: 0; width: 70%; z-index: 2; box-shadow: 0 14px 34px rgba(2, 45, 103, .14); }
+.about-v2-guide-back img, .about-v2-guide-front img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.about-v2-guide-back img { object-position: 30% center; }
+.about-v2-guide-front img { object-position: 62% center; }
+
+.about-v2-guide-text h4 {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(22px, 2.3vw, 30px); font-weight: 800; line-height: 1.25;
+  color: var(--brand-navy); margin: 0 0 18px;
+}
+.about-v2-guide-text h4 span { color: #01204C; }
+.about-v2-guide-text p { font-size: 16px; line-height: 1.7; color: #3D4A5C; margin: 0 0 16px; }
+.about-v2-guide-text strong { color: #1F2A3B; font-weight: 700; }
+.about-v2-guide-text a { color: #0B5CAD; font-weight: 600; }
+.about-v2-guide-text ul { margin: 6px 0 26px; padding-left: 22px; }
+.about-v2-guide-text li { font-size: 15.5px; line-height: 1.65; color: #3D4A5C; margin-bottom: 8px; }
+.about-v2-guide-text li::marker { color: #0B5CAD; }
+
+.about-v2-faq-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 13px 28px; border: 0; border-radius: 999px; cursor: pointer;
+  background: #0B5CAD; color: #fff;
+  font: 700 15.5px 'Inter', sans-serif;
+  box-shadow: 0 6px 16px rgba(11, 92, 173, .25);
+  transition: transform .15s ease, background .15s ease;
+}
+.about-v2-faq-btn .asset-icon { width: 20px; height: 20px; }
+.about-v2-faq-btn:hover { transform: translateY(-2px); background: #094c91; }
+.about-v2-faq-btn:focus-visible { outline: 3px solid #1494E3; outline-offset: 3px; }
+
+@media (max-width: 992px) {
+  .about-v2-guide { padding: 0 20px; margin-top: 48px; }
+  .about-v2-guide-body { grid-template-columns: 1fr; gap: 32px; }
+  .about-v2-guide-media { height: 380px; max-width: 520px; margin: 0 auto; width: 100%; }
+}
+@media (max-width: 480px) {
+  .about-v2-guide-head { margin-bottom: 32px; }
+  .about-v2-guide-media { height: 300px; }
+  .about-v2-faq-btn { width: 100%; justify-content: center; }
+}
+
+
+/* ===== Mission / Vision / Core Values — editorial style (centered caps heading, plain text columns) ===== */
+.about-v2 .about-v2-mvv { position: relative; z-index: 3; max-width: 1120px; margin: 0 auto; padding: 56px 32px 0; }
+.about-v2-mvv-title {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(26px, 3vw, 38px); font-weight: 800; line-height: 1.2;
+  text-transform: uppercase; text-align: center;
+  color: var(--brand-navy); margin: 0 0 44px;
+}
+.about-v2-mvv-title span { color: #01204C; }
+
+.about-v2 .about-v2-mvv .about-v2-mv {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 64px; row-gap: 36px;
+  max-width: none; margin: 0; padding: 0;
+}
+/* plain columns: no card box */
+.about-v2 .about-v2-mv .about-v2-mv-item {
+  display: grid; grid-template-columns: 44px 1fr; align-items: center; column-gap: 14px; row-gap: 14px;
+  background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 0;
+}
+.about-v2 .about-v2-mv .about-v2-mv-body { display: contents; }
+.about-v2 .about-v2-mv .about-v2-icon { width: 44px; height: 44px; flex: none; }
+.about-v2 .about-v2-mv .about-v2-icon::before,
+.about-v2 .about-v2-mv .about-v2-icon::after { display: none; }
+.about-v2 .about-v2-mv .about-v2-icon .asset-icon { width: 24px; height: 24px; }
+.about-v2 .about-v2-mv .about-v2-mv-body h3 { grid-column: 2; margin: 0; padding: 0; font-size: 22px; }
+.about-v2 .about-v2-mv .about-v2-mv-body h3::after { display: none; }
+.about-v2 .about-v2-mv .about-v2-mv-body p {
+  grid-column: 1 / -1; margin: 0;
+  font-size: 17px; line-height: 1.75; color: #4A5565;
+}
+
+/* core values: centered, no boxes */
+.about-v2 .about-v2-values { margin-top: 12px; }
+.about-v2 .about-v2-values-title { font-size: 22px; margin-bottom: 24px; }
+.about-v2 .about-v2-value-card { background: transparent; border: 0; box-shadow: none; padding: 6px 12px; }
+.about-v2 .about-v2-value-card:hover { transform: none; box-shadow: none; }
+.about-v2 .about-v2-value-card strong { font-size: 17px; }
+.about-v2 .about-v2-value-card small { font-size: 15.5px; line-height: 1.65; color: #4A5565; }
+
+@media (max-width: 992px) {
+  .about-v2 .about-v2-mvv { padding: 40px 20px 0; }
+  .about-v2 .about-v2-mvv .about-v2-mv { grid-template-columns: 1fr; row-gap: 32px; }
+  .about-v2-mvv-title { margin-bottom: 32px; }
+}
+
+
+/* ===== Mission / Vision / Core Values — minimalist heading (sentence case, single color) + plain icons ===== */
+.about-v2 .about-v2-mvv .about-v2-mvv-title {
+  font-size: clamp(24px, 2.4vw, 32px);
+  font-weight: 800; text-transform: none; letter-spacing: 0;
+  color: var(--brand-navy); margin-bottom: 40px;
+}
+.about-v2-mvv-title span { color: inherit; }
+
+/* icons without circle backgrounds */
+.about-v2 .about-v2-mv .about-v2-icon { background: transparent; width: 32px; height: 32px; }
+.about-v2 .about-v2-mv .about-v2-mv-item { grid-template-columns: 32px 1fr; column-gap: 12px; }
+.about-v2 .about-v2-mv .about-v2-icon .asset-icon { width: 30px; height: 30px; }
+.about-v2 .about-v2-mv .about-v2-mv-body h3 { font-size: 20px; }
+.about-v2 .about-v2-value-icon { background: transparent; width: auto; height: auto; }
+.about-v2 .about-v2-value-icon .asset-icon { width: 30px; height: 30px; }
+
+
+/* Mission / Vision / Core Values icons */
+.about-v2 .about-v2-icon,
+.about-v2 .about-v2-mv-item.vision .about-v2-icon,
+.about-v2 .about-v2-value-icon,
+.about-v2 .about-v2-value-card:nth-child(n) .about-v2-value-icon {
+  background: none; border-radius: 0; box-shadow: none;
+}
+.about-v2 .about-v2-icon::before,
+.about-v2 .about-v2-icon::after { display: none; }
+
+/* ===== Clinic name / address in the intro paragraph: plain text, no highlight ===== */
+.about-v2 .about-text .about-hl { color: inherit; font-weight: inherit; background: none; }

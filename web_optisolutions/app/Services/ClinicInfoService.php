@@ -314,7 +314,6 @@ class ClinicInfoService
         "Glad I could help! Let me know if you need anything else.",
         "No problem at all! Feel free to ask if you have more questions.",
         "You're welcome! Just let me know if you have any other questions.",
-        'Happy to help! Just type "Menu" anytime to see what I can do.',
     ];
 
     // Determines whether the given text is a simple acknowledgment or thank-you message rather than an actual question or concern.

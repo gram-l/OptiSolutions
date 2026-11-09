@@ -85,6 +85,16 @@ class InquiryConversation extends Conversation
         // straight to staff — don't make them answer extra questions
         // about something they already asked once.
         if ($this->prefilledMessage !== null) {
+            // Safety net: the 4 main buttons (and Menu/Cancel) each have their own
+            // process, so they are NEVER saved as an inquiry. No matter which step
+            // sent them here, run the matching flow instead.
+            $typed = rtrim(trim((string) $this->prefilledMessage), ".!? \t");
+            $asAnswer = Answer::create($typed);
+            if ($typed !== '' && $this->isGlobalCommand($asAnswer)) {
+                $this->handleGlobalCommand($asAnswer, fn() => $this->sendMenu());
+                return;
+            }
+
             $this->inquiryType = 'General';
             $this->message = trim($this->prefilledMessage);
             $this->submitInquiry();

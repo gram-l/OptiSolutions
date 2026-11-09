@@ -299,6 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // is generated immediately, it isn't a human composing a message.
     holdSyncToken++;
     setSendingState(true);
+    document.querySelectorAll('.attached-cancel-btn').forEach(b => b.remove());
     let uploaded = false;
     try {
       const formData = new FormData();
@@ -322,7 +323,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      addBubble(FORWARDED_ATTACHMENT_TEXT + ' ' + MENU_HINT, 'bot');
+      addBubble(FORWARDED_ATTACHMENT_TEXT, 'bot');
+      // The inquiry now waits for Admin/Staff: the 4 main buttons come back
+      // only after they mark it as resolved.
+      clearQuickReplies();
       uploaded = true;
     } catch (e) {
       console.error('Failed to upload attachment:', e);
@@ -378,12 +382,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Formats text with bold styling and preserves line breaks.
-  function renderBubbleText(el, text) {
-    const escaped = text
+  function formatBubbleHtml(text) {
+    return text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    el.innerHTML = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      .replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+
+  // A closing "Type Menu ..." sentence is shown as a small reminder line
+  // under the message (same look as the Schedule Visit form footer).
+  const MENU_REMINDER_AFTER_SENTENCE_RE = /^([\s\S]*?[.!?])\s+((?:You can )?[Tt]ype\s+"?[Mm]enu"?\b[^\n]*)$/;
+  const MENU_REMINDER_AFTER_BREAK_RE = /^([\s\S]*?)\n+((?:You can )?[Tt]ype\s+"?[Mm]enu"?\b[^\n]*)$/;
+
+  function renderBubbleText(el, text) {
+    const m = typeof text === 'string'
+      ? (text.match(MENU_REMINDER_AFTER_BREAK_RE) || text.match(MENU_REMINDER_AFTER_SENTENCE_RE))
+      : null;
+    if (m && m[1].trim() !== '') {
+      el.innerHTML = formatBubbleHtml(m[1].trim())
+        + '<span class="chat-bubble-reminder">' + formatBubbleHtml(m[2].trim()) + '</span>';
+      return;
+    }
+    el.innerHTML = formatBubbleHtml(text);
   }
 
   function addBubble(text, sender = 'bot', persist = true, opts = {}) {
@@ -395,6 +416,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
     renderBubbleText(bubble, text);
+
+    // Original text, used to find the "forwarded to Admin/Staff" bubbles later.
+    // (bubble.textContent can't be used: the Menu reminder is split into its own
+    // <span>, so the text no longer has the space between the two sentences.)
+    messageWrap.dataset.rawText = typeof text === 'string' ? text : '';
 
     messageWrap.appendChild(bubble);
     // Sends the original text for translation without formatting markers.
@@ -671,9 +697,102 @@ document.addEventListener('DOMContentLoaded', () => {
     addButtons(HOLD_CHOICES);
   }
 
+  // A lone Cancel button (e.g. under the complaint prompt) sits right under the
+  // message it belongs to, in the same style as the Cancel on the review card.
+  function isCancelOnlyButtons(buttons) {
+    return Array.isArray(buttons) && buttons.length === 1 &&
+      String(buttons[0].value ?? buttons[0].text).trim().toLowerCase() === 'cancel';
+  }
+
+  function addAttachedCancel(buttons) {
+    const bots = messagesEl.querySelectorAll('.chat-message.bot');
+    const lastBot = bots[bots.length - 1];
+    const bubble = lastBot && lastBot.querySelector(':scope > .chat-bubble');
+    if (!bubble) {
+      addInlineButtons(buttons);
+      return;
+    }
+
+    document.querySelectorAll('.attached-cancel-btn').forEach(b => b.remove());
+
+    // Keeps the message and its Cancel button together as one block.
+    let group = bubble.parentElement.classList.contains('bubble-attached') ? bubble.parentElement : null;
+    if (!group) {
+      group = document.createElement('div');
+      group.className = 'bubble-attached';
+      bubble.parentElement.insertBefore(group, bubble);
+      group.appendChild(bubble);
+    }
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'attached-cancel-btn';
+    btn.textContent = buttons[0].text;
+    btn.addEventListener('click', () => {
+      if (isSending) return;
+      btn.remove();
+      sendMessage(buttons[0].value ?? buttons[0].text, '', { skipUserBubble: true });
+    });
+    group.appendChild(btn);
+    scrollToBottom();
+  }
+
+  // "Is there anything else you need?" -> Yes / No sit INSIDE that same bubble.
+  function isAnythingElseButtons(buttons) {
+    return Array.isArray(buttons) && buttons.length === 2 &&
+      buttons.every(b => ['anything_else_yes', 'anything_else_no'].includes(String(b.value)));
+  }
+
+  function addButtonsInsideBubble(buttons) {
+    const bots = messagesEl.querySelectorAll('.chat-message.bot');
+    const lastBot = bots[bots.length - 1];
+    const bubble = lastBot && lastBot.querySelector(':scope > .chat-bubble:not(.inline-buttons-bubble)');
+    if (!bubble) {
+      addInlineButtons(buttons);
+      return;
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'bubble-inline-actions';
+    buttons.forEach(btn => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'inline-reply-btn';
+      b.textContent = btn.text;
+      b.addEventListener('click', () => {
+        if (isSending) return;
+        actions.remove();
+        sendMessage(btn.value ?? btn.text, btn.text);
+      });
+      actions.appendChild(b);
+    });
+    bubble.appendChild(actions);
+    scrollToBottom();
+  }
+
   function addButtons(buttons, persist = true) {
+    if (isAnythingElseButtons(buttons)) {
+      clearQuickReplies();
+      addButtonsInsideBubble(buttons);
+      if (persist) {
+        session.history.push({ kind: 'buttons', buttons });
+        persistSession();
+      }
+      return;
+    }
+
     if (isRatingButtons(buttons)) {
       addStarRating(buttons, persist);
+      return;
+    }
+
+    if (isCancelOnlyButtons(buttons)) {
+      clearQuickReplies();
+      addAttachedCancel(buttons);
+      if (persist) {
+        session.history.push({ kind: 'buttons', buttons });
+        persistSession();
+      }
       return;
     }
 
@@ -841,6 +960,13 @@ document.addEventListener('DOMContentLoaded', () => {
     title.textContent = data.title || 'Details';
     card.appendChild(title);
 
+    if (data.description) {
+      const desc = document.createElement('p');
+      desc.className = 'chat-form-desc';
+      desc.innerHTML = formatBubbleHtml(data.description);
+      card.appendChild(desc);
+    }
+
     if (data.notice) {
       const notice = document.createElement('p');
       notice.className = 'chat-form-notice';
@@ -945,8 +1071,16 @@ document.addEventListener('DOMContentLoaded', () => {
         field.className = 'chat-form-input';
         field.type = f.type || 'text';
         field.placeholder = f.placeholder || '';
-        field.value = f.value || '';
+        field.value = f.digits_only ? String(f.value || '').replace(/\D+/g, '') : (f.value || '');
         if (f.maxlength) field.maxLength = f.maxlength;
+        if (f.inputmode) field.inputMode = f.inputmode;
+        if (f.digits_only) {
+          // Numbers only: strip anything else as the patient types or pastes.
+          field.addEventListener('input', () => {
+            const cleaned = field.value.replace(/\D+/g, '');
+            if (cleaned !== field.value) field.value = cleaned;
+          });
+        }
         if (f.min) field.min = f.min;
         if (f.max) field.max = f.max;
       }
@@ -1034,6 +1168,10 @@ document.addEventListener('DOMContentLoaded', () => {
         b.addEventListener('click', () => {
           if (isSending) return;
           if (activeForm && activeForm.el === messageWrap && activeForm.hold) return;
+          // Cancel ends the flow, so lock the card to stop a late submit.
+          if (btn.value === 'cancel') {
+            form.querySelectorAll('input, select, button').forEach(el => { el.disabled = true; });
+          }
           sendMessage(btn.value, '', { skipUserBubble: true });
         });
         row.appendChild(b);
@@ -1574,17 +1712,20 @@ document.addEventListener('DOMContentLoaded', () => {
     FORWARDED_MESSAGE_TEXT,
     FORWARDED_ATTACHMENT_TEXT,
   ]);
+  const FALLBACK_NORMALIZED = new Set(
+    Array.from(FALLBACK_TEXTS).map(t => t.replace(/\s+/g, ' ').trim())
+  );
   let shownReplyIds = new Set(session.shownReplyIds || []);
   let shownResolvedIds = new Set(session.shownResolvedIds || []);
 
   function removeFallbackBubbles() {
-    document.querySelectorAll('.chat-message.bot .chat-bubble').forEach(bubble => {
-      if (FALLBACK_TEXTS.has(bubble.textContent)) {
-        bubble.closest('.chat-message').remove();
-      }
+    const norm = t => String(t || '').replace(/\s+/g, ' ').trim();
+    const isFallback = t => FALLBACK_NORMALIZED.has(norm(t));
+    document.querySelectorAll('.chat-message.bot').forEach(wrap => {
+      if (isFallback(wrap.dataset.rawText)) wrap.remove();
     });
     session.history = session.history.filter(
-      item => !(item.kind === 'bubble' && FALLBACK_TEXTS.has(item.text))
+      item => !(item.kind === 'bubble' && isFallback(item.text))
     );
     persistSession();
   }
@@ -1674,14 +1815,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           // Shows the scheduling thank-you message after the inquiry is resolved.
           const fromSchedule = newlyResolved.some(id => resolvedTypeById[id] === 'Schedule Visit Follow-up');
-          // Combines the resolved notice and follow-up prompt into one message.
-          addBubble((fromSchedule
-            ? "Thank you for scheduling your visit with us."
-            : "Your inquiry has been resolved.") + " Is there anything else you need?", 'bot');
-          addButtons([
-            { text: "Yes, I need help", value: 'anything_else_yes' },
-            { text: "No, I'm all set",  value: 'anything_else_no' },
-          ]);
+          // Staff marked it resolved: back to the welcome greeting + the 4 main buttons.
+          if (fromSchedule) {
+            addBubble("Thank you for scheduling your visit with us.", 'bot');
+          }
+          addBubble('Hello! Welcome to PolyClinic Lipa. How can I help you today?', 'bot');
+          showMainMenu();
         }
       }
 

@@ -438,9 +438,8 @@ class BotManController extends Controller
     // Continue / Start Over / Cancel buttons (or the staff wait) are on screen.
     protected function sendMenuHint($bot, bool $onHold): void
     {
-        if (!$onHold) {
-            $bot->reply(InquiryConversation::MENU_HINT);
-        }
+        // Intentionally empty: the bot's answer to "thanks"/"ok"/greetings is sent
+        // alone, with no separate "type Menu" bubble after it.
     }
 
     // After the bot answers something. With a schedule visit on hold and the

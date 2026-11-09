@@ -34,13 +34,18 @@ class DemoComplaintsSeeder extends Seeder
 
         DB::transaction(function () use ($complaints) {
             foreach ($complaints as $index => $complaint) {
-                $text = '[Demo] '.$complaint;
-                if (DB::table('complaints')->where('complaint_text', $text)->exists()) {
+                DB::table('complaints')
+                    ->whereNull('patient_id')
+                    ->whereNull('log_id')
+                    ->where('complaint_text', '[Demo] '.$complaint)
+                    ->update(['complaint_text' => $complaint]);
+
+                if (DB::table('complaints')->where('complaint_text', $complaint)->exists()) {
                     continue;
                 }
 
                 DB::table('complaints')->insert([
-                    'complaint_text' => $text,
+                    'complaint_text' => $complaint,
                     'created_at' => now()->subHours($index),
                 ]);
             }

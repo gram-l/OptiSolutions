@@ -18,6 +18,8 @@ class PolyclinicController extends Controller
         $publicClinic = PublicClinicDetails::from($clinicInfo);
         $specialistsCount = PublicCatalog::doctors()->count();
 
+        $services = PublicCatalog::services()->orderBy('service_id')->get();
+
         $avgRating = DB::table('feedback')->avg('star_rating');
         $avgRating = $avgRating ? round($avgRating, 1) : null;
 
@@ -47,7 +49,7 @@ class PolyclinicController extends Controller
             ]);
 
         return view('patient.home', compact(
-            'heroImage', 'clinicInfo', 'publicClinic', 'specialistsCount', 'avgRating',
+            'heroImage', 'clinicInfo', 'publicClinic', 'specialistsCount', 'services', 'avgRating',
             'yearsOfExcellence', 'happyPatientsCount', 'recentFeedback'
         ));
     }

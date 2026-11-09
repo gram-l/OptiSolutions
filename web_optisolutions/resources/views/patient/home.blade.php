@@ -409,95 +409,28 @@
       <h2 class="services-modern-title">Comprehensive Medical Care<br><span class="services-title-accent">For You &amp; Your Family</span></h2>
       <p class="services-modern-subtitle">We offer a wide range of specialized healthcare services delivered with compassion and expertise.</p>
     </div>
-    <div class="service-grid-modern">
-      <div class="service-card-modern" onclick="openServiceModal('pediatrics')">
-        <div class="service-card-img"><img src="/images/pediatrics.png" alt="Pediatrics" loading="lazy"></div>
-        <div class="service-card-body">
-          <div class="service-card-icon icon-blue"><i class="fas fa-child"></i></div>
-          <div class="service-card-text">
-            <h3>Pediatrics</h3>
-            <p>Comprehensive care for children from newborn to adolescence, including vaccinations and growth monitoring.</p>
-            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+    {{-- Cards come from Admin > System Settings > Services (services table). --}}
+    <div class="service-grid-modern" id="serviceCardsHome">
+      @foreach ($services as $service)
+        @php $card = \App\Support\ServiceCardStyle::for($service); @endphp
+        <div class="service-card-modern" data-service-key="{{ $service->service_key }}" onclick="openServiceModal('{{ $service->service_key }}')">
+          <div class="service-card-img @if (!$card['image']) no-image @endif">
+            @if ($card['image'])
+              <img src="{{ $card['image'] }}" alt="{{ $service->title }}" loading="lazy">
+            @else
+              <i class="fas {{ $card['icon'] }}" aria-hidden="true"></i>
+            @endif
+          </div>
+          <div class="service-card-body">
+            <div class="service-card-icon {{ $card['color'] }}"><i class="fas {{ $card['icon'] }}"></i></div>
+            <div class="service-card-text">
+              <h3>{{ $service->title }}</h3>
+              <p>{{ $service->description }}</p>
+              <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="service-card-modern" onclick="openServiceModal('obgyne')">
-        <div class="service-card-img"><img src="/images/ob_gynecology.png" alt="OB-Gynecology" loading="lazy"></div>
-        <div class="service-card-body">
-          <div class="service-card-icon icon-teal"><i class="fas fa-person-dress"></i></div>
-          <div class="service-card-text">
-            <h3>OB-Gynecology</h3>
-            <p>Women's health, prenatal care, routine checkups, and reproductive health consultation.</p>
-            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
-          </div>
-        </div>
-      </div>
-      <div class="service-card-modern" onclick="openServiceModal('surgery')">
-        <div class="service-card-img"><img src="/images/general_surgery.png" alt="General Surgery" loading="lazy"></div>
-        <div class="service-card-body">
-          <div class="service-card-icon icon-indigo"><i class="fas fa-kit-medical"></i></div>
-          <div class="service-card-text">
-            <h3>General Surgery</h3>
-            <p>General surgical consultations, minor outpatient procedures, and post-operative follow-up evaluations.</p>
-            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
-          </div>
-        </div>
-      </div>
-      <div class="service-card-modern" onclick="openServiceModal('pulmonology')">
-        <div class="service-card-img"><img src="/images/im_pulmonology.png" alt="IM-Pulmonology" loading="lazy"></div>
-        <div class="service-card-body">
-          <div class="service-card-icon icon-cyan"><i class="fas fa-lungs"></i></div>
-          <div class="service-card-text">
-            <h3>IM-Pulmonology</h3>
-            <p>Respiratory and pulmonary care for lung health, asthma, chronic cough, and bronchial conditions.</p>
-            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
-          </div>
-        </div>
-      </div>
-      <div class="service-card-modern" onclick="openServiceModal('ophthalmology')">
-        <div class="service-card-img"><img src="/images/ophthalmology_ent.png" alt="Ophthalmology / ENT" loading="lazy"></div>
-        <div class="service-card-body">
-          <div class="service-card-icon icon-green"><i class="fas fa-eye"></i></div>
-          <div class="service-card-text">
-            <h3>Ophthalmology / ENT</h3>
-            <p>Eye care, vision assessments, ear, nose, and throat consultations and treatment plans.</p>
-            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
-          </div>
-        </div>
-      </div>
-      <div class="service-card-modern" onclick="openServiceModal('cardiology')">
-        <div class="service-card-img"><img src="/images/im_cardiology.png" alt="IM-Cardiology" loading="lazy"></div>
-        <div class="service-card-body">
-          <div class="service-card-icon icon-pink"><i class="fas fa-heart-pulse"></i></div>
-          <div class="service-card-text">
-            <h3>IM-Cardiology</h3>
-            <p>Comprehensive cardiovascular care, heart consultations, hypertension, and preventive checkups.</p>
-            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
-          </div>
-        </div>
-      </div>
-      <div class="service-card-modern" onclick="openServiceModal('adultmedicine')">
-        <div class="service-card-img"><img src="/images/general_adult_medicine.png" alt="General / Adult Medicine" loading="lazy"></div>
-        <div class="service-card-body">
-          <div class="service-card-icon icon-orange"><i class="fas fa-user-doctor"></i></div>
-          <div class="service-card-text">
-            <h3>General / Adult Medicine</h3>
-            <p>Comprehensive primary care for adults, wellness checks, disease management, and consultations.</p>
-            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
-          </div>
-        </div>
-      </div>
-      <div class="service-card-modern" onclick="openServiceModal('oncology')">
-        <div class="service-card-img"><img src="/images/medical_oncology.png" alt="Medical Oncology" loading="lazy"></div>
-        <div class="service-card-body">
-          <div class="service-card-icon icon-violet"><i class="fas fa-ribbon"></i></div>
-          <div class="service-card-text">
-            <h3>Medical Oncology</h3>
-            <p>Specialized evaluation and management for oncological and blood disorder consultations.</p>
-            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
-          </div>
-        </div>
-      </div>
+      @endforeach
     </div>
   </div>
 </section>
@@ -627,7 +560,7 @@
   <div class="about-v2-guide">
     <div class="about-v2-guide-head">
       <h3>Everything You Need to Know Before You Visit</h3>
-      <p>From booking your visit to what to expect when you arrive, here is how we make getting care simple for you and your family.</p>
+      <p>From scheduling your visit to what to expect when you arrive, here is how we make getting care simple for you and your family.</p>
     </div>
 
     <div class="about-v2-guide-body">
@@ -639,7 +572,7 @@
       <div class="about-v2-guide-text">
         <h4>Visiting <span data-clinic-field="clinic_name" data-clinic-empty="Our Clinic">{{ $publicClinic['clinic_name'] ?: 'Our Clinic' }}</span>, Made Simple</h4>
 
-        <p>Booking a visit takes just a few minutes. Open <strong>Schedule Visit</strong> in our chatbot, or browse our doctors through <a href="#doctors">Find Your Specialist</a>, then choose your service, doctor and preferred schedule. Your visit details are sent to you by email, and once your visit is completed, a review code is emailed so you can share your feedback.</p>
+        <p>Scheduling a visit takes just a few minutes. Open <strong>Schedule Visit</strong> in our chatbot, or browse our doctors through <a href="#doctors">Find Your Specialist</a>, then choose your service, doctor and preferred schedule. Your visit details are sent to you by email, and once your visit is completed, a review code is emailed so you can share your feedback.</p>
 
         <p>Our staff is always ready to help with rescheduling, cancellations and any questions, so you know what to expect before you arrive.</p>
 

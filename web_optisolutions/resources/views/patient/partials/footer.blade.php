@@ -1,5 +1,7 @@
 <!-- ========== FOOTER ========== -->
-@php($publicClinic = $publicClinic ?? \App\Support\PublicClinicDetails::from($clinicInfo ?? null))
+@php
+    $publicClinic = $publicClinic ?? \App\Support\PublicClinicDetails::from($clinicInfo ?? null);
+@endphp
 <footer class="footer-modern">
   <div class="container footer-modern-inner">
     <div class="footer-modern-top">
@@ -67,215 +69,28 @@
     <h3 class="faq-modal-title">Frequently Asked Questions</h3>
 
     <div class="faq-list">
+      {{-- Managed in Admin > System Settings > FAQs (faqs table). --}}
+      @php
+        $faqItems = \App\Models\Faq::publicList();
+        try {
+            $faqServiceTitles = \App\Support\PublicCatalog::services()->orderBy('service_id')->pluck('title')->all();
+        } catch (\Throwable $e) {
+            $faqServiceTitles = [];
+        }
+      @endphp
+      @forelse ($faqItems as $faqItem)
       <div class="faq-item">
         <button class="faq-question" type="button">
-          What are your clinic's operating hours?
+          {{ $faqItem->question }}
           <i class="fas fa-chevron-down"></i>
         </button>
         <div class="faq-answer">
-          <p data-clinic-field="operating_hours" data-clinic-empty="Clinic hours have not been set yet.">{{ $publicClinic['operating_hours'] ?: 'Clinic hours have not been set yet.' }}</p>
+          <p>{!! \App\Support\FaqFormatter::format($faqItem->answer, $publicClinic ?? [], $faqServiceTitles) !!}</p>
         </div>
       </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          Do you accept walk-in patients?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Yes, but we recommend scheduling a visit ahead of time through our chatbot so you can lock in a slot with your preferred doctor.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How do I schedule a visit?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Click "Schedule Visit" here in the footer, or open the chat widget and tap "Schedule Visit" — you'll be guided step by step through choosing a service, doctor, and time slot, no phone call needed.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          What services and specialties do you offer?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>We offer General / Adult Medicine, Pediatrics, OB-Gynecology, General Surgery, Ophthalmology / ENT, IM-Cardiology, IM-Pulmonology, and Medical Oncology.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          Where is PolyClinic Lipa located?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p><span data-clinic-field="address" data-clinic-empty="Address has not been set yet.">{{ $publicClinic['address'] ?: 'Address has not been set yet.' }}</span> <span data-clinic-visible="address" @if ($publicClinic['address'] === '') hidden style="display:none" @endif>You can check the map or tap "Get Directions" in our contact section.</span></p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How can I contact the clinic?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p></span>You can also message us through the chatbot inside of this website.</p><span data-clinic-visible="contact_no" @if ($publicClinic['contact_no'] === '') hidden style="display:none" @endif>When it's emergency, please call or text us at <span data-clinic-field="contact_no">{{ $publicClinic['contact_no'] }}</span>.
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How do I leave feedback or file a complaint?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Click "Leave Feedback" here in the footer, or type "Submit Review/Rating" or "Submit Complaint" directly in the chatbot.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How do I choose the right doctor?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Use <strong>Find Your Specialist</strong> on our website to browse our doctors and specialties, or choose a service when you tap Schedule Visit. If you are not sure which doctor to see, our staff will gladly help. Please note that the chatbot cannot diagnose your condition.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How do I reschedule my visit?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Please contact our clinic staff to request a new visit date. They will check your doctor's schedule and email you the updated details once the change is made.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How do I cancel my visit?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>If you can no longer make it, please let our staff know and give them your visit details so they can assist you with the cancellation.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          What should I bring to my visit?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Please have your visit details and any relevant previous medical records ready. For requirements specific to your doctor or service, ask our staff before you come.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How much is a consultation?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Fees depend on the doctor and service you choose. Please ask our staff for the current fee before your visit. The chatbot does not confirm fees.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          What payment methods do you accept?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Please confirm the accepted payment methods with our staff before your visit.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          Do you accept HMO or insurance?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Please ask our staff to verify whether your HMO or insurance covers your doctor and service, and whether an authorization is required, before your visit.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          Do you offer laboratory or diagnostic tests?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Please ask our staff to confirm whether your specific test is available, along with its schedule, fee and preparation instructions. Do not assume that fasting is required unless you have been told so.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How do I get my test results?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Please contact our staff about the availability of your results and the correct way to collect them. For your privacy, avoid posting medical results or sensitive personal details in the chat.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How do I request my medical records or a medical certificate?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Please request these directly from our staff. They will confirm the identity checks, requirements, availability and any applicable fee.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          Can I ask for a prescription refill?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Please ask your doctor or our staff whether a new consultation is needed. The chatbot cannot prescribe medicine or change your dosage.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          Do you have assistance for seniors, PWD or patients with mobility needs?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>Yes, we want every patient to feel comfortable. Please contact our staff before your visit to discuss the assistance you need so we can confirm the available arrangements.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          Where is my review code?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>After our staff marks your visit as completed, a review code is emailed to the address we have on record. Please check your inbox and spam folder, or ask our staff for help. Each code can be used for one review.</p>
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" type="button">
-          How is my personal information protected?
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="faq-answer">
-          <p>We handle your personal and medical information in line with our <a href="{{ route('privacy-notice') }}">Privacy Notice</a>.</p>
-        </div>
-      </div>
+      @empty
+      <p style="padding:8px 4px;color:#6C7A91;">No FAQs are available right now. Please ask our staff or the chatbot.</p>
+      @endforelse
     </div>
   </div>
 </div>

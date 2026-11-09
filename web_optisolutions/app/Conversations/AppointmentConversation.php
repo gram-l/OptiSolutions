@@ -1288,13 +1288,56 @@ class AppointmentConversation extends Conversation
     // STEP 4: SUBMIT & SAVE TO DATABASE
 
 
+    /**
+     * Details that must all be present before a schedule visit may be saved,
+     * announced to staff/admin, or emailed to the patient.
+     */
+    protected function missingVisitDetails(): array
+    {
+        $required = [
+            'first name'    => $this->fname ?? null,
+            'last name'     => $this->lname ?? null,
+            'birthdate'     => $this->dob ?? null,
+            'contact'       => $this->phone ?? null,
+            'service'       => $this->service ?? null,
+            'doctor'        => $this->doctor ?? null,
+            'doctor id'     => $this->doctorId ?? null,
+            'schedule day'  => $this->scheduleDay ?? null,
+            'schedule'      => $this->scheduleSuggestion ?? null,
+        ];
+
+        $missing = [];
+        foreach ($required as $label => $value) {
+            if (trim((string) $value) === '') {
+                $missing[] = $label;
+            }
+        }
+        if (!filter_var(trim((string) ($this->email ?? '')), FILTER_VALIDATE_EMAIL)) {
+            $missing[] = 'email';
+        }
+
+        return $missing;
+    }
+
     protected function submitAppointment()
     {
         // NOTE: the "Saving your schedule visit..." indicator is shown by the
         // chat widget only while this request is actually in flight, and
         // removed as soon as it finishes (see sendMessage() in
         // chatbot-widget.blade.php). It is intentionally NOT a bot message.
+        $visitId = null;
+        $confirmed = false;
+
         try {
+            // An incomplete schedule visit is never saved, so staff/admin are
+            // never notified and the patient is never emailed about it.
+            $missing = $this->missingVisitDetails();
+            if (!empty($missing)) {
+                Log::warning('Schedule visit not confirmed: incomplete details.', ['missing' => $missing]);
+                $this->sayLogged("We couldn't confirm your schedule visit because some details are missing. Please start again and complete every step. " . \App\Support\PublicClinicDetails::contactHelp());
+                return;
+            }
+
             $visitDate = $this->getNextAvailableISODate($this->scheduleDay);
 
             $booking = app(PatientBookingService::class)->book([
@@ -1310,7 +1353,40 @@ class AppointmentConversation extends Conversation
                 'notes'        => $this->scheduleSuggestion,
             ]);
             $patientId = $booking['patient']->patient_id;
-            $visitId = $booking['visit']->visit_id;
+            $visitId = (int) $booking['visit']->visit_id;
+
+            // The staff/admin notification is part of confirming the visit. If it
+            // cannot be created, the visit is withdrawn so nobody is left with a
+            // half-confirmed schedule visit. Uses NotificationService so the row
+            // gets the required `type` ('appointment') plus reference_type/reference_id.
+            try {
+                NotificationService::newVisit(
+                    trim("{$this->fname} {$this->lname}"),
+                    (string) $this->doctor,
+                    $visitDate,
+                    $visitId
+                );
+            } catch (\Throwable $notifyError) {
+                Log::error('Schedule visit not confirmed: notification failed, visit withdrawn. ' . $notifyError->getMessage(), [
+                    'exception' => $notifyError,
+                    'patient_id' => $patientId,
+                    'visit_id' => $visitId,
+                ]);
+                try {
+                    DB::table('app_notifications')
+                        ->where('reference_type', 'visit')
+                        ->where('reference_id', $visitId)
+                        ->delete();
+                    DB::table('schedule_visit')->where('visit_id', $visitId)->delete();
+                } catch (\Throwable $cleanupError) {
+                    Log::error('Could not withdraw the unconfirmed schedule visit: ' . $cleanupError->getMessage(), ['visit_id' => $visitId]);
+                }
+                $visitId = null;
+                throw $notifyError;
+            }
+
+            // From here on the schedule visit is complete and confirmed.
+            $confirmed = true;
 
             // The visit is confirmed, so any inquiry this chat opened while the visit
             // was still being filled in (and was kept anonymous until now) can be
@@ -1324,27 +1400,14 @@ class AppointmentConversation extends Conversation
                 Log::error('Failed to link inquiry to patient after visit confirmation: ' . $linkError->getMessage());
             }
 
-            // Notification failures should not affect the saved appointment.
-            // Uses NotificationService so the row gets the required `type`
-            // ('appointment') plus reference_type/reference_id.
             try {
-                NotificationService::newVisit(
-                    trim("{$this->fname} {$this->lname}"),
-                    (string) $this->doctor,
-                    $visitDate,
-                    (int) $visitId
-                );
-            } catch (\Throwable $notifyError) {
-                Log::error('Failed to create appointment notification: ' . $notifyError->getMessage(), [
-                    'exception' => $notifyError,
+                $this->bot->userStorage()->save([
                     'patient_id' => $patientId,
+                    'patient_name' => "{$this->fname} {$this->lname}",
                 ]);
+            } catch (\Throwable $storageError) {
+                Log::error('Failed to remember the patient after visit confirmation: ' . $storageError->getMessage());
             }
-
-            $this->bot->userStorage()->save([
-                'patient_id' => $patientId,
-                'patient_name' => "{$this->fname} {$this->lname}",
-            ]);
 
             // Confirmation card: title + screenshot note, patient/service/schedule sections.
             $card = [
@@ -1375,8 +1438,9 @@ class AppointmentConversation extends Conversation
             $this->sayLogged('APPT_CARD::' . json_encode($card));
 
             // Email the visit confirmation if the box on the details form was left ticked.
+            // Only reached once the visit is saved and confirmed.
             if ($this->sendCopy) {
-                $this->sendConfirmationEmail((int) $visitId);
+                $this->sendConfirmationEmail($visitId);
             }
 
             $this->askPostAppointment(); // → move to the final step
@@ -1390,6 +1454,13 @@ class AppointmentConversation extends Conversation
                 'doctor_id' => $this->doctorId,
                 'service' => $this->service,
             ]);
+
+            if ($confirmed) {
+                // Already saved and notified: do not tell the patient it failed.
+                $this->sayLogged("Your schedule visit is saved, but we couldn't finish showing the confirmation. Please contact the clinic to double-check. " . \App\Support\PublicClinicDetails::contactHelp());
+                return;
+            }
+
             $this->sayLogged("We couldn't save your schedule visit right now. Please try again. " . \App\Support\PublicClinicDetails::contactHelp());
         }
     }
@@ -1399,6 +1470,14 @@ class AppointmentConversation extends Conversation
 
     protected function sendConfirmationEmail(int $visitId)
     {
+        // Never email a schedule visit that is not saved in full.
+        $saved = DB::table('schedule_visit')->where('visit_id', $visitId)->first();
+        if (!$saved || !$saved->patient_id || !$saved->doctor_id || trim((string) $saved->service_type) === '' || !$saved->visit_date
+            || !empty($this->missingVisitDetails())) {
+            Log::warning('Visit confirmation email skipped: schedule visit is incomplete or not saved.', ['visit_id' => $visitId]);
+            return;
+        }
+
         try {
             Mail::to($this->email)->send(
                 new VisitConfirmationMail(

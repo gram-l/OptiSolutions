@@ -19,7 +19,9 @@ class PatientDoctorController extends Controller
         $serviceMap = PublicCatalog::servicesForDoctors($doctors->pluck('doctor_id')->all());
 
         $result = $doctors->map(function ($doctor) use ($schedules, $serviceMap) {
+            $dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
             $docSchedules = $schedules->get($doctor->doctor_id, collect())
+                ->sortBy(fn ($s) => sprintf('%d %s', array_search($s->day, $dayOrder), $s->start_time))
                 ->map(fn ($s) => [
                     'day'        => $s->day,
                     'start_time' => $s->start_time,

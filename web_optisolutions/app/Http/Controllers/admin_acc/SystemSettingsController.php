@@ -6,6 +6,7 @@ namespace App\Http\Controllers\admin_acc;
 use App\Http\Controllers\Controller;
 use App\Models\admin_models\ClinicInfo;
 use App\Models\admin_models\Service;
+use App\Models\Faq;
 use Illuminate\Http\Request;
 use Throwable;
 
@@ -15,8 +16,9 @@ class SystemSettingsController extends Controller
     {
         $clinic   = ClinicInfo::firstOrFail();
         $services = Service::orderBy('service_id')->get();
+        $faqs     = Faq::orderBy('sort_order')->orderBy('faq_id')->get();
 
-        return view('admin_acc.system_settings', compact('clinic', 'services'));
+        return view('admin_acc.system_settings', compact('clinic', 'services', 'faqs'));
     }
 
     public function updateGroup(Request $request, string $group)

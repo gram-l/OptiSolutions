@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const raw = fs.readFileSync('resources/views/admin_acc/system_settings.blade.php', 'utf8');
-const script = raw.match(/<script>([\s\S]*?)<\/script>/)[1].split("    document.addEventListener('DOMContentLoaded'")[0];
+const script = raw.match(/<script>([\s\S]*?)<\/script>/)[1].split('    // FAQ modal + actions')[0];
 
 function browser(response) {
     const nodes = new Map();
@@ -16,7 +16,9 @@ function browser(response) {
         nodes.set(id, item); return item;
     }
     for (const id of ['serviceModal', 'serviceForm', 'serviceAvailable', 'serviceTitle', 'serviceRoom', 'serviceDescription',
-        'serviceMethod', 'serviceModalTitle', 'serviceFormError', 'servicesTableContainer', 'addServiceBtn']) node(id);
+        'serviceMethod', 'serviceModalTitle', 'serviceFormError', 'servicesTableContainer', 'addServiceBtn', 'addFaqBtn',
+        'serviceFocusAreas', 'serviceIcon', 'serviceColor', 'serviceCardImageCurrent', 'serviceCardImage',
+        'serviceRemoveCardImage', 'serviceCardImagePreview']) node(id);
     const tabs = ['hours', 'about', 'contact', 'services'].map(tab => Object.assign(node('button-' + tab), { dataset: { tab } }));
     const panels = ['hours', 'about', 'contact', 'services'].map(tab => node('tab-' + tab));
     const button = node('saveButton');
@@ -55,6 +57,10 @@ function browser(response) {
     assert.equal(invalid.nodes.get('serviceTitle').value, 'ENT');
     assert.equal(invalid.nodes.get('serviceFormError').textContent, 'Title already exists.');
     assert.ok(invalid.nodes.get('serviceModal').classList.contains('open'), 'Validation errors keep the edit form open');
+    const oversized = browser({ ok: false, status: 413, json: async () => { throw new SyntaxError('HTML error response'); } });
+    oversized.context.openServiceModal();
+    await oversized.context.submitService(oversized.nodes.get('serviceForm'));
+    assert.match(oversized.nodes.get('serviceFormError').textContent, /picture is too large/);
     await success.context.submitService(success.nodes.get('serviceForm'), true);
     assert.equal(success.state.requests, 2, 'Delete also refreshes in place');
     console.log('Service settings tab, save, edit validation, duplicate submit, and delete UI checks passed.');

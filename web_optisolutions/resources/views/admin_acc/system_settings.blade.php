@@ -370,6 +370,7 @@
             const data = await response.json().catch(() => ({}));
             if (!response.ok || !data.html) {
                 const message = response.status === 419 ? 'Your session expired. Refresh this page and sign in again.'
+                    : response.status === 413 ? 'The picture is too large. Choose a picture up to 2 MB.'
                     : Object.values(data.errors || {}).flat().join(' ') || data.message || 'Could not save your changes. Please try again.';
                 throw new Error(message);
             }

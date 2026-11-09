@@ -170,9 +170,28 @@
         }
         .download-menu button:hover { background: var(--light-gray); }
         .download-menu button i { width: 16px; color: var(--primary-main); }
+        #visitMessageOverlay[data-variant="danger"] {
+            background: rgba(0, 0, 0, 0.5);
+        }
+        #visitMessageOverlay[data-variant="danger"] .visit-message-icon {
+            background: #e74c3c1a;
+            color: #e74c3c;
+        }
+        body.dark-mode #visitMessageOverlay[data-variant="danger"] .visit-message-icon {
+            background: #4a2831 !important;
+            color: #ffb9c1 !important;
+        }
+        #visitMessageOverlay[data-variant="danger"] .visit-message-ok {
+            background: #e74c3c;
+        }
+        #visitMessageOverlay[data-variant="danger"] .visit-message-actions {
+            gap: 1rem;
+        }
     </style>
+    @include('admin_acc.partials.centered-toast-styles')
 </head>
 <body>
+    <div id="visitDeleteToast" class="toast" role="status" aria-atomic="true"></div>
     <!-- Header -->
     @include('admin_acc.header')
 
@@ -450,7 +469,7 @@
             container.innerHTML = `
                 <div class="day-panel">
                     <table class="appointments-table">
-                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th>Visited</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th>Visited</th><th></th></tr></thead>
                         <tbody>
                             ${filtered.map(v => `
                                 <tr>
@@ -533,27 +552,44 @@
             }
         }
 
+        let visitDeletePending = false;
+        let visitDeleteToastTimer;
+
+        function showVisitDeleteToast(message, type = 'success') {
+            const toast = document.getElementById('visitDeleteToast');
+            toast.textContent = message;
+            toast.className = `toast toast-${type} show`;
+            clearTimeout(visitDeleteToastTimer);
+            visitDeleteToastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
         async function cancelAppointment(id) {
             const visit = visitsData.find(v => v.visit_id === id);
-            if (!visit) return;
+            if (!visit || visitDeletePending) return;
 
-            if (!confirm(`Remove the appointment for ${visit.patient_name || 'this patient'}? This cannot be undone.`)) {
-                return;
-            }
-
+            visitDeletePending = true;
             try {
+                const confirmed = await showVisitMessage(
+                    `Remove the appointment for ${visit.patient_name || 'this patient'}? This cannot be undone.`,
+                    { confirm: true, variant: 'danger', title: 'Delete appointment?', confirmText: 'Delete' },
+                );
+                if (!confirmed) return;
+
                 const res = await fetch(`${VISIT_BASE}/${id}`, {
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': CSRF_TOKEN, 'Accept': 'application/json' },
                 });
                 const data = await res.json();
-                if (data.success) {
+                if (res.ok && data.success) {
+                    showVisitDeleteToast('Appointment deleted successfully!');
                     await loadDay();
                 } else {
-                    alert(data.message || 'Could not remove this appointment.');
+                    showVisitDeleteToast(data.message || 'Could not delete this appointment.', 'error');
                 }
             } catch (e) {
-                alert('Could not reach the server. Please try again.');
+                showVisitDeleteToast('Could not reach the server. Please try again.', 'error');
+            } finally {
+                visitDeletePending = false;
             }
         }
 
@@ -625,7 +661,7 @@
             document.getElementById('downloadDropdown').classList.toggle('open');
         }
 
-function showVisitMessage(message, { confirm = false, variant = 'primary', title = 'Mark visit as completed?' } = {}) {
+function showVisitMessage(message, { confirm = false, variant = 'primary', title = 'Mark visit as completed?', confirmText = 'Confirm' } = {}) {
         let overlay = document.getElementById('visitMessageOverlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -640,11 +676,16 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         const priorFocus = document.activeElement;
         const priorOverflow = document.body.style.overflow;
         overlay.dataset.variant = variant;
-        overlay.querySelector('.visit-message-icon').textContent = confirm ? '?' : (variant === 'success' ? '✓' : '!');
+        const icon = overlay.querySelector('.visit-message-icon');
+        if (variant === 'danger') {
+            icon.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        } else {
+            icon.textContent = confirm ? '?' : (variant === 'success' ? '✓' : '!');
+        }
         overlay.querySelector('#visitMessageTitle').textContent = title;
         overlay.querySelector('#visitMessageText').textContent = message;
         cancel.hidden = !confirm;
-        ok.textContent = confirm ? 'Confirm' : 'OK';
+        ok.textContent = confirm ? confirmText : 'OK';
         overlay.hidden = false;
         document.body.style.overflow = 'hidden';
         (confirm ? cancel : ok).focus();

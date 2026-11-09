@@ -7,7 +7,10 @@ use App\Models\admin_models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\Support\ServiceCardStyle;
 class ServiceController extends Controller
 {
@@ -21,15 +24,21 @@ class ServiceController extends Controller
         $validated['card_image'] = $this->storeCardImage($request);
         unset($validated['remove_card_image']);
         $focusAreas = $this->takeFocusAreas($validated);
-        $service = Service::create($validated + ['service_key' => $candidate]);
-        $this->syncFocusAreas($service, $focusAreas);
+        try {
+            DB::transaction(function () use ($validated, $candidate, $focusAreas) {
+                $service = Service::create($validated + ['service_key' => $candidate]);
+                $this->syncFocusAreas($service, $focusAreas);
+            });
+        } catch (\Throwable $exception) {
+            $this->deleteCardImage($validated['card_image']);
+            throw $exception;
+        }
         return $this->saved($request, 'Service added.');
     }
 
     public function update(Request $request, Service $service)
     {
         $validated = $this->validateService($request, $service);
-        $oldImage = $service->card_image;
         $newImage = $this->storeCardImage($request);
         if ($newImage) {
             $validated['card_image'] = $newImage;
@@ -39,10 +48,18 @@ class ServiceController extends Controller
         unset($validated['remove_card_image']);
         $focusAreas = $this->takeFocusAreas($validated);
         if (array_key_exists('icon', $validated)) $validated['icon'] = $validated['icon'] ?? '';
-        DB::transaction(function () use ($service, $validated, $focusAreas) {
-            $service->update($validated);
-            $this->syncFocusAreas($service, $focusAreas);
-        });
+        try {
+            $oldImage = DB::transaction(function () use ($service, $validated, $focusAreas) {
+                $current = Service::whereKey($service->getKey())->lockForUpdate()->firstOrFail();
+                $previous = $current->card_image;
+                $current->update($validated);
+                $this->syncFocusAreas($current, $focusAreas);
+                return $previous;
+            });
+        } catch (\Throwable $exception) {
+            $this->deleteCardImage($newImage);
+            throw $exception;
+        }
         if (array_key_exists('card_image', $validated) && $oldImage !== ($validated['card_image'] ?? null)) {
             $this->deleteCardImage($oldImage);
         }
@@ -51,11 +68,13 @@ class ServiceController extends Controller
 
     public function destroy(Request $request, Service $service)
     {
-        $image = $service->card_image;
-        DB::transaction(function () use ($service) {
+        $image = DB::transaction(function () use ($service) {
+            $service = Service::whereKey($service->getKey())->lockForUpdate()->firstOrFail();
+            $image = $service->card_image;
             DB::table('doctor_service')->where('service_id', $service->service_id)->delete();
             DB::table('service_conditions')->where('service_id', $service->service_id)->delete();
             $service->delete();
+            return $image;
         });
         $this->deleteCardImage($image);
         return $this->saved($request, 'Service deleted.');
@@ -78,6 +97,9 @@ class ServiceController extends Controller
             'card_image' => 'nullable|file|image|mimes:jpg,jpeg,png,webp|max:2048',
             'remove_card_image' => 'sometimes|boolean',
             'focus_areas' => 'nullable|string|max:2000',
+        ], [
+            'card_image.uploaded' => 'The picture could not be uploaded. Try a JPG, PNG, or WebP image up to 2 MB.',
+            'card_image.max' => 'The picture must be 2 MB or smaller.',
         ]);
         unset($validated['card_image']); // the uploaded file is handled by storeCardImage()
         if (array_key_exists('card_color', $validated)) $validated['card_color'] = $validated['card_color'] ?: null;
@@ -120,26 +142,38 @@ class ServiceController extends Controller
         return redirect()->route('system_settings.index', ['tab' => 'services'])->with('success', $message);
     }
 
-    // Saves an uploaded card picture to public/images/services and returns its web path.
     private function storeCardImage(Request $request): ?string
     {
         $file = $request->file('card_image');
-        if (!$file || !$file->isValid()) return null;
+        if (!$file) return null;
 
-        $dir = public_path('images/services');
-        if (!is_dir($dir)) @mkdir($dir, 0755, true);
-        $name = 'service_'.Str::lower(Str::random(16)).'.'.$file->getClientOriginalExtension();
-        $file->move($dir, $name);
+        try {
+            $path = $file->store('service-cards', 'public');
+            if ($path !== false) return '/storage/'.$path;
+            Log::warning('The public storage disk refused a service photo upload.');
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
-        return '/images/services/'.$name;
+        throw ValidationException::withMessages([
+            'card_image' => 'The server could not store the picture. Please try again.',
+        ]);
     }
 
-    // Only ever removes files this feature uploaded (never the built-in artwork).
     private function deleteCardImage(?string $path): void
     {
-        if ($path && str_starts_with($path, '/images/services/')) {
-            $full = public_path(ltrim($path, '/'));
-            if (is_file($full)) @unlink($full);
+        if (!$path) return;
+
+        try {
+            if (str_starts_with($path, '/storage/service-cards/')) {
+                Storage::disk('public')->delete(substr($path, strlen('/storage/')));
+            } elseif (preg_match('~^/images/services/service_[a-z0-9]+\.(?:jpe?g|png|webp)$~i', $path)) {
+                // Clean up legacy uploads without touching the built-in service artwork.
+                $full = public_path(ltrim($path, '/'));
+                if (is_file($full)) unlink($full);
+            }
+        } catch (\Throwable $exception) {
+            report($exception);
         }
     }
 }

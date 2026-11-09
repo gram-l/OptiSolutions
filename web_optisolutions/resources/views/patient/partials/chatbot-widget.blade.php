@@ -1815,11 +1815,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           // Shows the scheduling thank-you message after the inquiry is resolved.
           const fromSchedule = newlyResolved.some(id => resolvedTypeById[id] === 'Schedule Visit Follow-up');
-          // Staff marked it resolved: back to the welcome greeting + the 4 main buttons.
+          // Staff marked it resolved: resolved notice + the 4 main buttons.
           if (fromSchedule) {
             addBubble("Thank you for scheduling your visit with us.", 'bot');
           }
-          addBubble('Hello! Welcome to PolyClinic Lipa. How can I help you today?', 'bot');
+          // Tells the patient their inquiry is done, and that they can message again anytime.
+          addBubble('Your inquiry has been marked as resolved. Thank you for reaching out to PolyClinic Lipa! '
+            + 'If you have any other questions, just send us another message anytime.', 'bot');
           showMainMenu();
         }
       }
@@ -1832,8 +1834,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-// Updates the typing indicator every 3 seconds.
-  setInterval(pollForReplies, 3000);
+// Staff replies / the "resolved" notice arrive by polling. Poll every 1 second while the
+  // chat is open and visible so they show up almost instantly; slow down when it isn't.
+  function scheduleNextPoll() {
+    const fast = !document.hidden && panel.classList.contains('open');
+    setTimeout(async () => {
+      try { await pollForReplies(); } finally { scheduleNextPoll(); }
+    }, fast ? 1000 : 5000);
+  }
+  scheduleNextPoll();
+
+  // Catch up right away when the patient comes back to the tab.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) pollForReplies();
+  });
 
   // Global trigger: open chat + jump straight to Submit Feedback
   window.openChatbotAndSubmitFeedback = async function (transactionCode = '') {

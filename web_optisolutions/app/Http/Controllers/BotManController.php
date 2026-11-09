@@ -346,20 +346,32 @@ class BotManController extends Controller
         // inquiry's thread below (via recordInquiry/recordInquiryReply),
         // so Admin/Staff still sees it — the patient just isn't shown
         // the ack bubble more than once per open inquiry.
-        $hasOpenInquiry = $conversationId !== '' && Inquiry::where('conversation_id', $conversationId)
-            ->where('resolved_status', '!=', 'Resolved')
-            ->exists();
+        $latestInquiry  = $conversationId !== '' ? Inquiry::latestForConversation($conversationId) : null;
+        $hasOpenInquiry = $latestInquiry && $latestInquiry->resolved_status !== 'Resolved';
+
+        // The widget removes the "forwarded to Admin/Staff" bubble once Staff replies,
+        // so if Staff was the last to reply and the patient writes again, show the
+        // acknowledgment again. (Back-to-back patient lines still get only one ack.)
+        $staffRepliedLast = false;
+        if ($hasOpenInquiry) {
+            $lastHuman = $latestInquiry->replies()
+                ->whereIn('sender', ['Patient', 'Staff', 'Admin'])
+                ->orderByDesc('reply_id')
+                ->first();
+            $staffRepliedLast = $lastHuman && $lastHuman->sender !== 'Patient';
+        }
+        $needsAck = !$hasOpenInquiry || $staffRepliedLast;
 
         // The patient's schedule visit is on hold and the bot can't answer this:
         // it goes to staff, and the visit now waits for them (not for a button).
         if ($onHold) {
-            $this->forwardToStaffWhileHeld($bot, $text, $conversationId, $hasOpenInquiry);
+            $this->forwardToStaffWhileHeld($bot, $text, $conversationId, !$needsAck);
             return;
         }
 
         $this->isUnhandledInquiry = true;
 
-        if (!$hasOpenInquiry) {
+        if ($needsAck) {
             $this->sendInquiryAck($bot);
         }
     }

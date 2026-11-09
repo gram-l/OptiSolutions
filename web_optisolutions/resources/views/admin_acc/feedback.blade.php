@@ -475,12 +475,15 @@
 
         function complaintFindings(c) {
             if (!c.issues_analyzed) return [{ category: 'unclassified', reported_reason: 'Analysis unavailable', evidence: '' }];
-            if (c.issue_findings?.length) return c.issue_findings.map(finding => ({
-                ...finding,
-                reported_reason: /^unspecified(?:\s|$)/i.test(finding.reported_reason || '')
-                    ? 'Reason unspecified' : finding.reported_reason,
-            }));
-            return [{ category: c.category || 'other', reported_reason: 'Reason unspecified', evidence: '' }];
+            if (c.issue_findings?.length) return c.issue_findings.map(finding => {
+                const reason = (finding.reported_reason || '').replace(/;\s*underlying reason unspecified$/i, '');
+                return {
+                    ...finding,
+                    reported_reason: !reason || /^unspecified\b/i.test(reason) ? 'No additional detail provided' : reason,
+                };
+            });
+            const category = c.category || 'other';
+            return [{ category, reported_reason: category === 'other' ? 'No specific issue described' : 'No additional detail provided', evidence: '' }];
         }
 
         function renderComplaintEvidence(c) {
@@ -506,6 +509,7 @@
         }
 
         function categoryLabel(category) {
+            if (category === 'other') return 'Needs clarification';
             const text = String(category || 'Uncategorized').trim().replace(/_/g, ' ');
             return text.replace(/\b\w/g, letter => letter.toUpperCase());
         }

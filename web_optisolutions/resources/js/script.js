@@ -2,6 +2,7 @@
 
 let doctorsData = [];
 let servicesData = Object.create(null);   // keyed by service_key
+let clinicData = {};                      // Admin > System Settings (clinic name, contact no, ...)
 
 function genderIcon(gender) {
   return gender === 'female'
@@ -58,9 +59,14 @@ function formatTime(t) {
 
 // ============ FETCH: DOCTORS (doctors + doctor_schedules) ============
 let _doctorsSig = '';        // to detect whether the list has changed
+const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+let _openDoctorId = null;    // doctor currently shown in the modal (kept in sync with the admin)
 let _doctorFiltersBound = false;
 
-// The filter tabs are derived from the services of the displayed doctors (no longer hardcoded).
+// The filter tabs mirror the Services list of the admin: one separate tab per available
+// service, in the same order as the service cards, with the admin's exact title.
+// Services that no doctor is linked to yet still get a tab. Doctors whose service is not
+// loaded yet (first paint) fall back to their own service list.
 function rebuildFilterTabs(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -68,8 +74,11 @@ function rebuildFilterTabs(containerId) {
   const current = (container.querySelector('.filter-tab.active') || { dataset: { filter: 'all' } }).dataset.filter;
 
   const seen = new Map();
-  doctorsData.forEach(d => d.services.forEach(sv => seen.set(sv.service_key, sv.title)));
-  const entries = [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  Object.keys(servicesData).forEach(key => seen.set(key, servicesData[key].title));
+  if (seen.size === 0) {
+    doctorsData.forEach(d => d.services.forEach(sv => seen.set(sv.service_key, sv.title)));
+  }
+  const entries = [...seen.entries()];
 
   const active = current !== 'all' && seen.has(current) ? current : 'all';
   container.innerHTML =
@@ -94,6 +103,12 @@ function rerenderDoctorGrids() {
     const input = searchId ? document.getElementById(searchId) : null;
     renderDoctors(filter, gridId, input ? input.value : '');
   });
+
+  // If a doctor's details are open, refresh them too (schedule, room, etc.).
+  const modal = document.getElementById('doctorModal');
+  if (_openDoctorId !== null && modal && modal.classList.contains('active')) {
+    showDoctorDetails(_openDoctorId, true);
+  }
 }
 
 async function loadDoctorsData() {
@@ -117,10 +132,14 @@ async function loadDoctorsData() {
       yearsExp: doc.years_experience,
       education: doc.education,
       license: doc.license,
-      schedule: (doc.schedules || []).map(s => ({
-        day: s.day,
-        time: `${formatTime(s.start_time)} - ${formatTime(s.end_time)}`
-      })),
+      // Everything the admin saved under Manage Doctors > Schedule, Monday to Sunday.
+      schedule: (doc.schedules || [])
+        .slice()
+        .sort((a, b) => (DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day)) || String(a.start_time).localeCompare(String(b.start_time)))
+        .map(s => ({
+          day: s.day,
+          time: `${formatTime(s.start_time)} - ${formatTime(s.end_time)}`
+        })),
       bio: doc.description,
       clinic: doc.clinic_room,
       fellowship: doc.fellowship,
@@ -138,6 +157,18 @@ async function loadDoctorsData() {
     }
   } catch (err) {
     console.error('Failed to load doctors:', err);
+  }
+}
+
+// ============ FETCH: CLINIC INFO (System Settings) ============
+async function loadClinicData() {
+  try {
+    const res = await fetch('/api/clinic-info', { cache: 'no-store', headers: { Accept: 'application/json' } });
+    if (!res.ok) return;
+    const payload = await res.json();
+    clinicData = (Array.isArray(payload) ? payload[0] : payload) || {};
+  } catch (err) {
+    // keep the last known details
   }
 }
 
@@ -163,12 +194,16 @@ async function loadServicesData() {
         conditions: svc.conditions || [],
         doctors: svc.doctors || [],
         room: svc.room,
-        schedule: svc.schedule
+        schedule: svc.schedule,
+        cardImage: svc.card_image,
+        cardColor: svc.card_color,
+        cardIcon: svc.card_icon
       };
     });
 
     renderServiceCards('servicesGrid');       // for services.blade.php
-    renderServiceCards('serviceCardsHome');   // for home.blade.php (if present)
+    renderHomeServiceCards('serviceCardsHome'); // for home.blade.php (if present)
+    rerenderDoctorGrids();                    // Medical Experts tabs follow the services
   } catch (err) {
     console.error('Failed to load services:', err);
   }
@@ -188,6 +223,34 @@ function renderServiceCards(containerId = 'servicesGrid') {
       </div>`;
   }).join('');
   grid.querySelectorAll('.service-page-card').forEach(card => {
+    card.addEventListener('click', () => openServiceModal(card.dataset.serviceKey));
+  });
+}
+
+// Home page cards: same markup as the server-rendered ones in home.blade.php,
+// so admin edits (title/description/availability) show up without a refresh.
+function renderHomeServiceCards(containerId = 'serviceCardsHome') {
+  const grid = document.getElementById(containerId);
+  if (!grid) return;
+  grid.innerHTML = Object.keys(servicesData).map(key => {
+    const svc = servicesData[key];
+    const img = svc.cardImage
+      ? `<img src="${escapeHtml(svc.cardImage)}" alt="${escapeHtml(svc.title)}" loading="lazy">`
+      : `<i class="fas ${escapeHtml(svc.cardIcon || svc.icon)}" aria-hidden="true"></i>`;
+    return `
+      <div class="service-card-modern" data-service-key="${escapeHtml(key)}">
+        <div class="service-card-img${svc.cardImage ? '' : ' no-image'}">${img}</div>
+        <div class="service-card-body">
+          <div class="service-card-icon ${escapeHtml(svc.cardColor || 'icon-blue')}"><i class="fas ${escapeHtml(svc.cardIcon || svc.icon)}"></i></div>
+          <div class="service-card-text">
+            <h3>${escapeHtml(svc.title)}</h3>
+            <p>${escapeHtml(svc.description || '')}</p>
+            <button type="button" class="service-learn-more">Learn More <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  grid.querySelectorAll('.service-card-modern').forEach(card => {
     card.addEventListener('click', () => openServiceModal(card.dataset.serviceKey));
   });
 }
@@ -254,6 +317,34 @@ function setupDoctorSearch(searchInputId, tabsContainerId, gridId) {
 
 // ============ DOCTOR MODAL ============
 
+// The bio is the admin's Description, but the number of years always follows the doctor's
+// "Years of Experience" field, so changing one in Manage Doctors never leaves the other stale.
+//  - {years} in the description is replaced by the years of experience.
+//  - "over 18 years of experience", "18+ years of practice", ... get the current number.
+//  - No description at all: a short line is built from the doctor's own record.
+function doctorBio(doc) {
+  const years = parseInt(doc.yearsExp, 10);
+  const hasYears = Number.isFinite(years) && years > 0;
+  let text = String(doc.bio || '').trim();
+
+  if (text === '' || text === 'null') {
+    if (!hasYears) return '';
+    return `${doc.name} has ${years} ${years === 1 ? 'year' : 'years'} of experience${doc.spec ? ' in ' + doc.spec : ''}.`;
+  }
+
+  if (hasYears) {
+    const unit = years === 1 ? 'year' : 'years';
+    text = text.replace(/\{years\}/gi, String(years));
+    text = text.replace(
+      /\b\d+(\+?)\s*(?:years?|yrs?)(\s+(?:of\s+)?(?:clinical\s+|medical\s+|professional\s+)?(?:experience|practice))/gi,
+      (m, plus, tail) => `${years}${plus} ${unit}${tail}`
+    );
+  } else {
+    text = text.replace(/\{years\}/gi, '');
+  }
+  return text;
+}
+
 // A doctor's "Clinical Focus Areas" = the conditions of their service(s), taken from
 // servicesData. No hardcoded mapping; just follow doctor_service.
 function getClinicalFocusAreas(doc) {
@@ -264,17 +355,38 @@ function getClinicalFocusAreas(doc) {
   return [...new Set(conditions)].slice(0, 6);
 }
 
-function showDoctorDetails(id) {
+function showDoctorDetails(id, refresh = false) {
   const doc = doctorsData.find(d => d.id === id);
-  if (!doc) return;
+  if (!doc) {
+    if (refresh) closeDoctorModal();   // the doctor was removed or deactivated in admin
+    return;
+  }
+  const previousTab = refresh
+    ? ((document.querySelector('#doctorModalTabbar .doctor-modal-tab.active') || {}).dataset || {}).tab
+    : null;
+  const previousScroll = refresh ? ((document.querySelector('#modalContent .doctor-modal-scrollarea') || {}).scrollTop || 0) : 0;
+  _openDoctorId = id;
 
-  const spec = doc.spec || 'General Practice';
+  const spec = doc.spec || '';
+  // Everything below comes from the doctor's record or from System Settings.
+  const clinicName = String(clinicData.clinic_name || '').trim();
+  const clinicPhone = String(clinicData.contact_no || '').trim();
+  const roomText = doc.clinic
+    ? (/^room\b/i.test(String(doc.clinic).trim()) ? String(doc.clinic).trim() : 'Room ' + String(doc.clinic).trim())
+    : '';
+
   const focusAreas = getClinicalFocusAreas(doc);
-  const firstSchedule = doc.schedule[0];
+  // One line per day (several sessions on a day are joined), Monday to Sunday.
+  const days = [];
+  doc.schedule.forEach(s => {
+    const last = days.find(d => d.day === s.day);
+    if (last) last.times.push(s.time); else days.push({ day: s.day, times: [s.time] });
+  });
+  const overviewSchedule = days.map(d =>
+    `<div class="sub-value-light"><i class="fas fa-clock"></i> ${escapeHtml(d.day)}: ${escapeHtml(d.times.join(', '))}</div>`
+  ).join('');
 
-  const subtitle = doc.fellowship
-    ? `Fellow, ${doc.fellowship}`
-    : (doc.education || spec);
+  const subtitle = doc.fellowship || doc.education || spec;
 
   const scheduleRows = doc.schedule.length
     ? doc.schedule.map(s => `
@@ -282,17 +394,15 @@ function showDoctorDetails(id) {
           <span class="schedule-day-badge">${escapeHtml(s.day.slice(0, 3).toUpperCase())}</span>
           <div class="schedule-row-info">
             <strong>${escapeHtml(s.day)} Schedule</strong>
-            <span>Outpatient Consultation</span>
           </div>
           <span class="schedule-row-time">${escapeHtml(s.time)}</span>
         </div>`).join('')
-    : `<p class="bio-text">No fixed clinic schedule listed yet — please call to confirm availability.</p>`;
+    : `<p class="bio-text">No fixed clinic schedule listed yet.${clinicPhone ? ' Please call ' + escapeHtml(clinicPhone) + ' to confirm availability.' : ''}</p>`;
 
   document.getElementById('modalContent').innerHTML = `
     <div class="modal-header">
       <div class="doctor-modal-tags">
-        <span class="doctor-modal-tag">${escapeHtml(spec.toUpperCase())}</span>
-        ${doc.license ? `<span class="doctor-modal-tag certified"><i class="fas fa-check-circle"></i> Board Certified</span>` : ''}
+        ${spec ? `<span class="doctor-modal-tag">${escapeHtml(spec.toUpperCase())}</span>` : ''}
       </div>
       <h2>${escapeHtml(doc.name)}</h2>
     </div>
@@ -300,7 +410,6 @@ function showDoctorDetails(id) {
     <div class="doctor-modal-summary-card">
       <div class="doctor-modal-summary-photo">
         ${doctorPhotoMarkup(doc)}
-        ${doc.license ? `<span class="doctor-modal-verified-badge"><i class="fas fa-check"></i></span>` : ''}
       </div>
       <div class="doctor-modal-summary-info">
         <h3>${escapeHtml(doc.name)}</h3>
@@ -322,20 +431,20 @@ function showDoctorDetails(id) {
     <div class="doctor-modal-scrollarea">
     <div class="doctor-modal-tabpanels">
       <div class="doctor-modal-tabpanel active" data-panel="overview">
-        <p class="bio-text">${escapeHtml(orNA(doc.bio))}</p>
+        <p class="bio-text">${escapeHtml(orNA(doctorBio(doc)))}</p>
         <div class="doctor-modal-grid">
           <div class="doctor-modal-box">
             <div class="doctor-modal-box-label"><i class="fas fa-hospital"></i> Primary Consultation</div>
-            <div class="info-item-value" style="margin-bottom:6px;">PolyClinic Lipa</div>
-            <div class="sub-value-light"><i class="fas fa-door-open"></i> ${escapeHtml(doc.clinic ? 'Room ' + doc.clinic : 'Room TBA')}</div>
-            ${firstSchedule ? `<div class="sub-value-light"><i class="fas fa-clock"></i> ${escapeHtml(firstSchedule.day)}: ${escapeHtml(firstSchedule.time)}</div>` : ''}
+            ${clinicName ? `<div class="info-item-value" style="margin-bottom:6px;">${escapeHtml(clinicName)}</div>` : ''}
+            ${roomText ? `<div class="sub-value-light"><i class="fas fa-door-open"></i> ${escapeHtml(roomText)}</div>` : ''}
+            ${overviewSchedule}
           </div>
           <div class="doctor-modal-box">
             <div class="doctor-modal-box-label"><i class="fas fa-stethoscope"></i> Clinical Focus Areas</div>
             <div class="focus-tags">
               ${focusAreas.length
                 ? focusAreas.map(c => `<span class="focus-tag">${escapeHtml(c)}</span>`).join('')
-                : `<span class="focus-tag">${escapeHtml(spec)}</span>`}
+                : (spec ? `<span class="focus-tag">${escapeHtml(spec)}</span>` : '')}
             </div>
           </div>
         </div>
@@ -346,12 +455,12 @@ function showDoctorDetails(id) {
           <div class="schedule-box-header">
             <div>
               <h4>Clinic Availability</h4>
-              <p>Direct consultation schedule for PolyClinic Lipa</p>
+              ${clinicName ? `<p>Consultation schedule at ${escapeHtml(clinicName)}</p>` : ''}
             </div>
-            <span class="room-pill">${escapeHtml(doc.clinic ? 'Room ' + doc.clinic : 'Room TBA')}</span>
+            ${roomText ? `<span class="room-pill">${escapeHtml(roomText)}</span>` : ''}
           </div>
           ${scheduleRows}
-          <div class="schedule-note"><i class="fas fa-circle-info"></i> For urgent concerns, please contact the main clinic desk.</div>
+          ${clinicPhone ? `<div class="schedule-note"><i class="fas fa-circle-info"></i> For urgent concerns, please call ${escapeHtml(clinicPhone)}.</div>` : ''}
         </div>
       </div>
 
@@ -375,6 +484,15 @@ function showDoctorDetails(id) {
 
   bindDoctorPhotoErrors(document.getElementById('modalContent'));
   setupDoctorModalTabs();
+  if (refresh) {
+    if (previousTab && previousTab !== 'overview') {
+      const tab = document.querySelector(`#doctorModalTabbar .doctor-modal-tab[data-tab="${previousTab}"]`);
+      if (tab) tab.click();
+    }
+    const area = document.querySelector('#modalContent .doctor-modal-scrollarea');
+    if (area) area.scrollTop = previousScroll;
+    return;
+  }
   document.getElementById('doctorModal').classList.add('active');
   lockBodyScroll();
 }
@@ -397,6 +515,7 @@ function setupDoctorModalTabs() {
 }
 
 function closeDoctorModal() {
+  _openDoctorId = null;
   document.getElementById('doctorModal').classList.remove('active');
   unlockBodyScroll();
 }
@@ -437,7 +556,7 @@ function openServiceModal(serviceKey) {
         <div class="service-modal-col">
           <div class="service-modal-box">
             <div class="service-modal-box-label"><i class="fas fa-circle-info"></i> Clinical Scope &amp; Overview</div>
-            <p class="service-modal-desc">${escapeHtml(service.description)}</p>
+            <p class="service-modal-desc">${escapeHtml(service.description || 'Please ask our staff for more details about this service.')}</p>
           </div>
           <div class="service-modal-box">
             <div class="service-modal-box-label"><i class="fas fa-list-check"></i> Common Conditions &amp; Procedures</div>
@@ -451,11 +570,11 @@ function openServiceModal(serviceKey) {
             <div class="service-modal-box-label"><i class="fas fa-clock"></i> Schedule &amp; Location</div>
             <div class="service-modal-schedule-row">
               <div class="sub-label"><i class="fas fa-map-marker-alt"></i> Consultation Room</div>
-              <div class="sub-value">${escapeHtml(service.room)}, PolyClinic Lipa</div>
+              <div class="sub-value">${escapeHtml([service.room, String(clinicData.clinic_name || '').trim()].filter(Boolean).join(', '))}</div>
             </div>
             <div class="service-modal-schedule-row">
               <div class="sub-label"><i class="fas fa-calendar-week"></i> Clinic Schedule</div>
-              <div class="sub-value">${escapeHtml(service.schedule)}</div>
+              <div class="sub-value">${escapeHtml(service.schedule || 'Please ask our staff for the schedule.')}</div>
             </div>
           </div>
           <div class="service-modal-box">
@@ -558,19 +677,21 @@ window.handleDoctorPhotoError = handleDoctorPhotoError;
 document.addEventListener('DOMContentLoaded', function () {
   loadDoctorsData();
   loadServicesData();
+  loadClinicData();
   startLiveSync();
 });
 
 // ============ LIVE SYNC (no refresh needed) ============
 // When a doctor or service is activated/deactivated in admin/staff, the
 // Medical Team and Services sections update automatically within a few seconds.
-const LIVE_SYNC_MS = 8000;
+const LIVE_SYNC_MS = 5000;
 
 function startLiveSync() {
   const tick = () => {
     if (document.hidden) return;
     loadDoctorsData();
     loadServicesData();
+    loadClinicData();
   };
   setInterval(tick, LIVE_SYNC_MS);
   // When returning to the tab (browsers throttle background tabs), check immediately

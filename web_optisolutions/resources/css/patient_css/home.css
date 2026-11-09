@@ -1843,14 +1843,20 @@ body {
   grid-column: 1 / -1;
   border-radius: 16px;
   overflow: hidden;
+  position: relative;
   min-height: 300px;
   min-width: 0;
   background: var(--gray-100);
 }
+/* Google's embed draws a white place card (e.g. "TM Kalaw Street") at the top-left
+   of the map. The iframe is pushed up so that card sits outside the clipped area. */
 .cta-banner-map iframe {
+  position: absolute;
+  top: -130px;
+  left: 0;
   width: 100%;
-  height: 100%;
-  min-height: 300px;
+  height: calc(100% + 130px);
+  min-height: 430px;
   border: 0;
 }
 /* RESPONSIVE - HOME */
@@ -1863,7 +1869,7 @@ body {
   .cta-info-item { text-align: left; }
   .btn-cta-banner { margin: 0 auto; }
   .cta-banner-map { min-height: 280px; }
-  .cta-banner-map iframe { min-height: 280px; }
+  .cta-banner-map iframe { min-height: 410px; }
 }
 @media (max-width: 768px) {
   .hero-flutter-inner { flex-direction: column; }
@@ -1900,7 +1906,7 @@ body {
   .cta-info-value { font-size: 14px; }
   .btn-cta-banner { width: 100%; justify-content: center; padding: 14px 20px; }
   .cta-banner-map { min-height: 260px; }
-  .cta-banner-map iframe { min-height: 260px; }
+  .cta-banner-map iframe { min-height: 390px; }
   .service-grid-modern { grid-template-columns: 1fr; }
   .doctors-grid-modern > .doctor-card { flex-basis: 100%; }
   .filter-tabs { gap: 6px; padding: 0 5px; }
@@ -2230,6 +2236,9 @@ body {
 .service-card-img { border-radius: 11px; overflow: hidden; aspect-ratio: 317 / 128; background: #EAF2FB; }
 .service-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s ease; }
 .services-v2 .service-card-modern:hover .service-card-img img { transform: scale(1.04); }
+/* Service added in admin without card art: soft placeholder with its icon */
+.service-card-img.no-image { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #EAF2FB, #F6FAFF); color: #022D67; font-size: 42px; opacity: .9; }
+
 
 .service-card-body { display: flex; gap: 12px; padding: 16px 12px 0 14px; flex: 1; }
 .services-v2 .service-card-icon {

@@ -13,6 +13,7 @@ use App\Http\Controllers\admin_acc\AdminDashboardController;
 use App\Http\Controllers\admin_acc\ProfileController;
 use App\Http\Controllers\admin_acc\SystemSettingsController;
 use App\Http\Controllers\admin_acc\ServiceController;
+use App\Http\Controllers\admin_acc\FaqController;
 use App\Http\Controllers\admin_acc\FeedbackController;
 use App\Http\Controllers\admin_acc\ChatbotInquiryController;
 use App\Http\Controllers\ChatbotCommandController;
@@ -124,6 +125,12 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
         Route::post('/services', [ServiceController::class, 'store'])->name('services.store');
         Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
         Route::delete('/services/{service}', [ServiceController::class, 'destroy'])->name('services.destroy');
+
+        // FAQs (admin_acc/FaqController) — names must match faqs-table.blade.php
+        Route::post('/faqs', [FaqController::class, 'store'])->name('faqs.store');
+        Route::put('/faqs/{faq}', [FaqController::class, 'update'])->name('faqs.update');
+        Route::delete('/faqs/{faq}', [FaqController::class, 'destroy'])->name('faqs.destroy');
+        Route::post('/faqs/{faq}/move', [FaqController::class, 'move'])->name('faqs.move');
     });
 
     Route::get('/admin_acc/feedback', [FeedbackController::class, 'index'])->name('admin_acc.feedback.index');
@@ -144,8 +151,9 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
         ->names('admin_acc.chatbot_commands');
 
     //settings routes
+    // The settings modal is a partial included by admin_acc.header, not a page.
     Route::get('/admin_acc/settings', function () {
-        return view('admin_acc.partials.settings');
+        return redirect()->route('system_settings.index');
     });
 
     // Settings > Security — password & session (Settings modal forms)

@@ -62,39 +62,41 @@
     flex-wrap: wrap;
 }
 
-/* NOTE: user_management.css only defines .add-user-btn, not
-   .add-patient-btn — so unlike the other shared classes, this one has
-   to be defined here. Matched to the same look as patients.css's
-   .add-patient-btn so Save/Add buttons and tabs stay consistent. */
-.add-patient-btn {
-    padding: 0.6rem 1.2rem;
+/* Match the primary and row actions on Manage Doctors. */
+.add-patient-btn,
+.tab-btn {
+    padding: 0.7rem 1.5rem;
     background: var(--primary-main);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
     font-weight: 600;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     transition: all 0.3s ease;
+    white-space: nowrap;
 }
 
-.add-patient-btn:hover {
+.add-patient-btn:hover,
+.tab-btn.active:hover {
     background: #0b4f8a;
     transform: translateY(-2px);
-}
-
-/* Tabs just layer opacity on top of that same button style to show
-   active state. */
-.tab-btn {
-    opacity: 0.6;
-}
-
-.tab-btn.active {
-    opacity: 1;
     box-shadow: 0 4px 12px rgba(14, 98, 170, 0.3);
 }
+
+.tab-btn:not(.active) { background: #e8f0fe; color: var(--primary-main); }
+.tab-btn:not(.active):hover { background: #d5e5fc; }
+body.dark-mode .tab-btn:not(.active) { background: #263e5e; color: #b6dbff; }
+body.dark-mode .tab-btn:not(.active):hover { background: #354c68; }
+
+.tab-btn.active {
+    box-shadow: 0 4px 12px rgba(14, 98, 170, 0.3);
+}
+
+.btn-icon.btn-remove { background: #fdeaea; color: var(--danger); }
+.btn-icon.btn-remove:hover { background: #fbd8d8; }
 
 /* Tab panels */
 .tab-panel {

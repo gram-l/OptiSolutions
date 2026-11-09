@@ -30,8 +30,10 @@
   --radius-sm: 12px;
 }
 
+/* overflow-x on html only; on body it breaks the sticky navbar */
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -39,7 +41,6 @@ body {
   color: var(--gray-700);
   background: var(--white);
   line-height: 1.5;
-  overflow-x: hidden;
 }
 
 .container {
@@ -56,7 +57,7 @@ body {
 }
 
 .section-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 36px;
   font-weight: 700;
   color: var(--gray-900);

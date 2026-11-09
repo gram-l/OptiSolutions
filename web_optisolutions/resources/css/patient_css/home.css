@@ -57,7 +57,7 @@ body {
 /* SHARED SECTION STYLES */
 .section { padding: 64px 40px; }
 .section-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 36px;
   font-weight: 700;
   color: var(--gray-900);
@@ -213,7 +213,7 @@ body {
   object-fit: contain;
 }
 .footer-modern-brandname {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 20px;
   font-weight: 800;
   color: white;
@@ -324,7 +324,7 @@ body {
   gap: 16px;
 }
 .hero-flutter-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 64px;
   font-weight: 800;
   color: var(--primary-dark);
@@ -575,7 +575,7 @@ body {
 }
 .stat-modern-number {
   display: block;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 30px;
   font-weight: 800;
   color: var(--primary);
@@ -641,7 +641,7 @@ body {
   margin-bottom: 12px;
 }
 .services-modern-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 38px;
   font-weight: 700;
   color: var(--gray-900);
@@ -733,7 +733,7 @@ body {
   margin-bottom: 12px;
 }
 .doctors-modern-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 38px;
   font-weight: 700;
   color: var(--gray-900);
@@ -995,7 +995,7 @@ body {
   color: white;
 }
 .modal-header h2 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 26px;
   font-weight: 800;
   color: white;
@@ -1252,7 +1252,7 @@ body {
 .service-modal-tag.dept { background: rgba(255,255,255,0.15); color: white; }
 .service-modal-tag.accredited { background: var(--accent); color: white; }
 .service-modal-header h2 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 26px;
   font-weight: 800;
   color: white;
@@ -1515,7 +1515,7 @@ body {
   margin-bottom: 16px;
 }
 .reviews-live-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 38px;
   font-weight: 800;
   color: var(--white);
@@ -1548,7 +1548,7 @@ body {
   gap: 12px;
 }
 .reviews-live-score-value {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 22px;
   font-weight: 800;
   color: var(--white);
@@ -1759,7 +1759,7 @@ body {
   text-transform: uppercase;
 }
 .cta-banner-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 32px;
   font-weight: 700;
   color: var(--gray-900);
@@ -2138,7 +2138,7 @@ body {
 
 /* BRAND TOKENS */
 :root {
-  --brand-navy: #022D67;          /* headings */
+  --brand-navy: #01204C;          /* headings */
   --brand-blue: #022D67;          /* Main blue */
   --brand-blue-bright: #022D67;   /* same blue */
   --brand-blue-soft: #E6ECF6;     /* pill / icon backgrounds */
@@ -2151,7 +2151,7 @@ body {
 
 /* SERVICES V2 */
 .services-modern-section.services-v2 {
-  font-family: 'Source Sans 3', 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
   position: relative;
   overflow: hidden;
   padding: 56px 40px 72px;
@@ -2185,7 +2185,7 @@ body {
   letter-spacing: .8px; padding: 6px 18px;
 }
 .services-v2 .services-modern-title {
-  font-family: 'Merriweather Sans', 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 32px; font-weight: 800; line-height: 1.22; color: var(--brand-navy); margin-bottom: 14px;
 }
 .services-v2 .services-title-accent { color: var(--brand-green); }
@@ -2247,7 +2247,7 @@ body {
 .doctors-modern-section.doctors-v2 {
   padding: 60px 40px 72px;
   background: linear-gradient(180deg, #F7FAFE 0%, #F1F7FE 100%);
-  font-family: 'Source Sans 3', 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 .doctors-v2 .container { max-width: 1140px; padding: 0; }
 
@@ -2259,10 +2259,10 @@ body {
   padding: 6px 18px; border-radius: 40px; margin-bottom: 16px;
 }
 .doctors-v2 .doctors-modern-title {
-  font-family: 'Merriweather Sans', 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 32px; font-weight: 800; line-height: 1.22; color: var(--brand-navy); margin-bottom: 12px;
 }
-.doctors-v2 .doctors-title-accent { color: var(--brand-green); }
+.doctors-v2 .doctors-title-accent { color: #01204C; }
 .doctors-v2 .doctors-modern-subtitle { font-size: 16px; line-height: 1.55; color: var(--text-muted); }
 
 /* search */

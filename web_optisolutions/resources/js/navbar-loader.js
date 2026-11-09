@@ -20,6 +20,7 @@
           <a href="#about" class="nav-link" data-page="about">About Us</a>
           <a href="#services" class="nav-link" data-page="services">Services</a>
           <a href="#doctors" class="nav-link" data-page="doctors">Doctors</a>
+          <a href="#reviews" class="nav-link" data-page="reviews">Reviews</a>
           <a href="#contact" class="nav-link" data-page="contact">Contact</a>
 
           <!-- <button class="nav-cta" onclick="window.location.href='/auth/login'">
@@ -29,17 +30,20 @@
 
       </div>
 
-      <div class="navbar-accent">
-        <img src="/images/navbar-accent.png" alt="" class="navbar-accent-image">
-      </div>
     </nav>
+
+    <!-- Accent picture: sits right under the navbar but is NOT part of the
+         sticky nav, so it scrolls away with the page while the navbar stays. -->
+    <div class="navbar-accent">
+      <img src="/images/navbar-accent.png" alt="" class="navbar-accent-image">
+    </div>
   `;
 
   const navbarStyles = `
     <style id="navbar-accent-styles">
 
       :root {
-        --nav-primary: #0F67B3;
+        --nav-primary: #01204C;
         --nav-primary-dark: #0A4B82;
         --nav-primary-tint: #EFF7FF;
         --nav-text: #2C3E50;
@@ -78,6 +82,10 @@
         overflow-x: hidden;
       }
 
+      /* body must never get overflow-x/y set (see note above) or the sticky
+         navbar + accent strip stop following the page while scrolling. */
+      body { overflow-x: visible; }
+
       html, body {
         margin: 0;
         padding: 0;
@@ -91,6 +99,7 @@
         background: #ffffff;
         border-bottom: 1px solid var(--nav-border);
         box-sizing: border-box;
+        position: -webkit-sticky;
         position: sticky;
         top: 0;
         z-index: 100;
@@ -265,10 +274,8 @@
       /* ============ ACCENT STRIP (full-bleed, no side white space) ============ */
 
       .navbar-accent {
-        width: 100vw;
-        max-width: 100vw;
-        margin-left: calc(-50vw + 50%);
-        margin-top: 16px;
+        width: 100%;
+        margin: 0;
         height: 49px;
         overflow: hidden;
         line-height: 0;
@@ -458,14 +465,21 @@
       });
     };
 
+    // Sections that have no nav link of their own but belong to one that does
+    // (the "Before You Visit" guide sits right above the Contact section).
+    const spyAliases = { visit: 'contact' };
+    const spyTargets = spySections
+      .concat(Object.keys(spyAliases).map(id => document.getElementById(id)).filter(Boolean))
+      .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1);
+
     const onScrollSpy = () => {
       const navbarEl = document.querySelector('.navbar');
       const offset = (navbarEl ? navbarEl.offsetHeight : 0) + 10;
 
       let current = spySections[0].id;
-      spySections.forEach(section => {
+      spyTargets.forEach(section => {
         if (section.getBoundingClientRect().top - offset <= 0) {
-          current = section.id;
+          current = spyAliases[section.id] || section.id;
         }
       });
       setActiveLink(current);

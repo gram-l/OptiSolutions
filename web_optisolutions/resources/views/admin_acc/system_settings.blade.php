@@ -171,12 +171,12 @@
                         <div id="coreValuesList">
                             @forelse (old('core_values', $clinic->core_values ?? []) as $value)
                                 <div class="core-value-row">
-                                    <input type="text" name="core_values[]" value="{{ $value }}">
+                                    <input type="text" name="core_values[]" value="{{ $value }}" placeholder="Name|Short description (description optional)">
                                     <button type="button" class="btn-icon" style="background:var(--danger); color:#fff;" onclick="this.parentElement.remove()">&times;</button>
                                 </div>
                             @empty
                                 <div class="core-value-row">
-                                    <input type="text" name="core_values[]" value="">
+                                    <input type="text" name="core_values[]" value="" placeholder="Name|Short description (description optional)">
                                     <button type="button" class="btn-icon" style="background:var(--danger); color:#fff;" onclick="this.parentElement.remove()">&times;</button>
                                 </div>
                             @endforelse
@@ -286,7 +286,7 @@
         const row = document.createElement('div');
         row.className = 'core-value-row';
         row.innerHTML = `
-            <input type="text" name="core_values[]" value="">
+            <input type="text" name="core_values[]" value="" placeholder="Name|Short description (description optional)">
             <button type="button" class="btn-icon" style="background:var(--danger); color:#fff;" onclick="this.parentElement.remove()">&times;</button>
         `;
         container.appendChild(row);

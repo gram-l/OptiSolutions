@@ -278,7 +278,8 @@ class AppointmentConversation extends Conversation
         }
 
         if ($cmd === 'cancel') {
-            $this->sayLogged('Okay, your schedule visit has been cancelled. Type "Menu" anytime to start again.');
+            $this->sayLogged('Okay, your schedule visit has been cancelled.');
+            $this->sendMainMenu();
             return;
         }
 
@@ -627,11 +628,26 @@ class AppointmentConversation extends Conversation
             // A genuine free-typed question right at the greeting screen
             // (instead of a button tap) now reaches staff via
             // InquiryConversation, rather than being silently ignored.
-            if ($this->handleOffTopicIfAny($answer, 'menu')) {
+            $choice = $this->normalizeCommand($answer);
+
+            // The 4 menu buttons reach us as plain text, so they must be
+            // recognised BEFORE the off-topic check, or "Schedule Visit" would
+            // be forwarded to Admin/Staff as an inquiry.
+            $menuChoices = [
+                'schedule visit', 'general information',
+                'review', 'submit review/rating',
+                'complaint', 'submit complaint',
+            ];
+
+            if (in_array($choice, ['menu', 'cancel'], true)) {
+                $this->sendMainMenu();
                 return;
             }
 
-            $choice = $this->normalizeCommand($answer);
+            if (!in_array($choice, $menuChoices, true) && $this->handleOffTopicIfAny($answer, 'menu')) {
+                return;
+            }
+
             $patientId = $this->bot->userStorage()->find()['patient_id'] ?? null;
 
             if ($choice === 'schedule visit') {
@@ -653,8 +669,7 @@ class AppointmentConversation extends Conversation
             } elseif (in_array($choice, ['complaint', 'submit complaint'], true)) {
                 $this->bot->startConversation(new ComplaintConversation($patientId));
             } else {
-                $this->sayLogged('Please choose one of the options above.');
-                $this->sendMainMenu();
+                $this->sendMainMenu(false);
             }
         });
     }
@@ -683,21 +698,20 @@ class AppointmentConversation extends Conversation
         return null;
     }
 
+    // Contact number: exactly 11 digits, Philippine mobile format (09XXXXXXXXX).
     protected function validatePhone($phone)
     {
         $trimmed = trim($phone);
-        if (!$trimmed) return "Contact number cannot be empty.";
-        $digits = preg_replace('/[\s\-().+]/', '', $trimmed);
-        if (!preg_match('/^\d+$/', $digits))
-            return "Phone number can only contain digits, spaces, dashes, or parentheses.";
-        $mobileLocal = preg_match('/^09\d{9}$/', $digits);
-        $mobileIntl  = preg_match('/^639\d{9}$/', $digits);
-        $landline    = preg_match('/^(0\d{9,10}|\d{7,8})$/', $digits);
-        if (!$mobileLocal && !$mobileIntl && !$landline)
-            return "Please enter a valid Philippine phone number.";
+        if ($trimmed === '') return "Contact number cannot be empty.";
+        if (!preg_match('/^\d+$/', $trimmed))
+            return "Contact number can only contain digits (no spaces, dashes, or symbols).";
+        if (strlen($trimmed) !== 11)
+            return "Contact number must be exactly 11 digits.";
+        if (!preg_match('/^09\d{9}$/', $trimmed))
+            return "Contact number must start with 09.";
 
         // Reject numbers that pass the shape check but look fake.
-        if ($this->isFakeLookingNumber($digits))
+        if ($this->isFakeLookingNumber($trimmed))
             return "This doesn't look like a real phone number. Please double-check and enter it again.";
 
         return null;
@@ -799,13 +813,7 @@ class AppointmentConversation extends Conversation
 
     protected function validateEmail($email)
     {
-        $trimmed = trim($email);
-        if (!$trimmed) return "Email address cannot be empty.";
-        if (!filter_var($trimmed, FILTER_VALIDATE_EMAIL))
-            return "Please enter a valid email address.";
-        if (str_contains($trimmed, '..'))
-            return "Email address cannot contain consecutive dots.";
-        return null;
+        return \App\Support\EmailValidator::validate((string) $email);
     }
 
     public function run()
@@ -938,7 +946,7 @@ class AppointmentConversation extends Conversation
         $today = now()->timezone('Asia/Manila');
         $fields = [
             ['name' => 'full_name', 'label' => 'Full name',      'type' => 'text',  'placeholder' => 'e.g. Maria Santos',              'autocomplete' => 'name',  'maxlength' => 100],
-            ['name' => 'phone',     'label' => 'Contact number', 'type' => 'tel',   'placeholder' => '09XX XXX XXXX',                  'autocomplete' => 'tel',   'maxlength' => 20],
+            ['name' => 'phone',     'label' => 'Contact number', 'type' => 'tel',   'placeholder' => '09XXXXXXXXX',                    'autocomplete' => 'tel',   'maxlength' => 11, 'inputmode' => 'numeric', 'digits_only' => true],
             ['name' => 'dob',       'label' => 'Date of birth',  'type' => 'date',  'placeholder' => '',                               'autocomplete' => 'bday',
                 'max' => $today->format('Y-m-d'), 'min' => $today->copy()->subYears(120)->format('Y-m-d')],
             ['name' => 'email',     'label' => 'Email address',  'type' => 'email', 'placeholder' => 'e.g. maria.santos@example.com',  'autocomplete' => 'email', 'maxlength' => 254],
@@ -961,6 +969,7 @@ class AppointmentConversation extends Conversation
             'notice' => $notice ?? (!empty($errors) ? 'Please fix the highlighted fields and try again.' : null),
             'footer' => 'Your information is kept confidential and only used for record-keeping and to manage your visit at PolyClinic Lipa.',
             'submit' => 'Next',
+            'secondary' => [['label' => 'Cancel', 'value' => 'cancel']],
             'fields' => $fields,
         ];
 
@@ -985,7 +994,7 @@ class AppointmentConversation extends Conversation
                     $errors['full_name'] = $e . ' Example: Maria Santos';
                 }
                 if ($e = $this->validatePhone($phone)) {
-                    $errors['phone'] = $e . ' Example: 09XX XXX XXXX or (043) 123-4567';
+                    $errors['phone'] = $e . ' Example: 09123456789';
                 }
                 if ($e = $this->validateDOB($dob)) {
                     $errors['dob'] = $e . ' Please pick your date of birth from the calendar.';
@@ -1070,7 +1079,10 @@ class AppointmentConversation extends Conversation
             'step'   => 'Step 2 of 3',
             'notice' => $notice ?? (!empty($errors) ? 'Please fix the highlighted fields and try again.' : ($patientName !== '' ? "Visit for {$patientName}" : null)),
             'submit' => 'Next',
-            'secondary' => [['label' => 'Back', 'value' => 'back_to_details']],
+            'secondary' => [
+                ['label' => 'Back', 'value' => 'back_to_details'],
+                ['label' => 'Cancel', 'value' => 'cancel'],
+            ],
             'fields' => $fields,
         ];
 
@@ -1190,6 +1202,7 @@ class AppointmentConversation extends Conversation
             'secondary' => [
                 ['label' => 'Edit details', 'value' => 'back_to_details'],
                 ['label' => 'Change visit', 'value' => 'back_to_visit'],
+                ['label' => 'Cancel', 'value' => 'cancel'],
             ],
         ];
 

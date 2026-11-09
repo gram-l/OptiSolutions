@@ -31,6 +31,7 @@ class ReviewConversation extends Conversation
     protected $feedbackId;
     protected $contactEmail;
     protected $transactionCode;
+    protected $anonymous = false;
 
     public function __construct($patientId = null, $patientName = null)
     {
@@ -43,29 +44,89 @@ class ReviewConversation extends Conversation
         $this->askTransactionCode();
     }
 
-    public function askTransactionCode()
+    // Step 1: a card (same style as the Schedule Visit forms) asking for the
+    // transaction code, with an option to post the review anonymously.
+    public function askTransactionCode(array $errors = [], ?array $values = null, ?string $notice = null)
     {
-        $this->ask('Before submitting a rating or review, please paste the transaction code emailed to you after your completed visit. No code? Please contact the clinic. Type menu to return to the main options.', function (Answer $answer) {
-            if ($this->isGlobalCommand($answer)) {
-                return $this->handleGlobalCommand($answer, fn() => $this->askTransactionCode());
+        $values = $values ?? [];
+
+        $payload = [
+            'title'       => 'Verify your visit',
+            'description' => 'Please paste the **transaction code** emailed to you after your completed visit.',
+            'notice'      => $notice ?? (!empty($errors) ? 'Please fix the highlighted field and try again.' : null),
+            'footer'      => 'No code? Please contact the clinic. Type "Menu" anytime to return to the main options.',
+            'submit'      => 'Verify code',
+            'secondary'   => [['label' => 'Cancel', 'value' => 'cancel']],
+            'fields'      => [
+                [
+                    'name' => 'transaction_code', 'label' => 'Transaction code', 'type' => 'text',
+                    'placeholder' => 'Paste your code here', 'autocomplete' => 'off', 'maxlength' => 64,
+                    'value' => (string) ($values['transaction_code'] ?? ''),
+                    'error' => $errors['transaction_code'] ?? null,
+                ],
+                [
+                    'name' => 'anonymous', 'label' => 'Post my review anonymously (my name will not be shown)', 'type' => 'checkbox',
+                    'value' => !empty($values['anonymous']),
+                ],
+            ],
+        ];
+
+        $this->ask(AppointmentConversation::FORM_CARD_PREFIX . json_encode($payload, JSON_UNESCAPED_UNICODE), function (Answer $answer) {
+            $text = (string) $answer->getText();
+            $values = $this->decodeFormSubmission($text);
+
+            if ($values === null) {
+                // Typed instead of using the card: menu/other commands still work,
+                // and a pasted code is accepted as before.
+                if ($this->isGlobalCommand($answer)) {
+                    return $this->handleGlobalCommand($answer, fn() => $this->askTransactionCode());
+                }
+                $values = ['transaction_code' => trim($text), 'anonymous' => $this->anonymous];
             }
-            if ($this->tooManySubmissions('review-code', 5, 10)) {
-                $this->say('Too many code attempts. Please wait a few minutes before trying again.');
-                return $this->askAnythingElse();
+
+            $this->anonymous = !empty($values['anonymous']);
+            $rawCode = is_string($values['transaction_code'] ?? null) ? $values['transaction_code'] : '';
+
+            if ($rawCode === '') {
+                return $this->askTransactionCode(['transaction_code' => 'Please paste your transaction code.'], $values);
             }
-            $code = VisitReviewService::normalizeCode($answer->getText());
+
+            $code = VisitReviewService::normalizeCode($rawCode);
             $visit = app(VisitReviewService::class)->verify($code);
             if (!$visit) {
-                $this->say('That code is invalid or already used. Only an unused code from a completed visit can be used to submit a review.');
-                return $this->askTransactionCode();
+                return $this->askTransactionCode(
+                    ['transaction_code' => 'That code is invalid or already used. Only an unused code from a completed visit can be used to submit a review.'],
+                    $values
+                );
             }
+
             $this->transactionCode = $code;
             $this->patientId = $visit->patient_id;
             $patient = DB::table('patients')->where('patient_id', $visit->patient_id)->first();
             $this->patientName = trim(($patient->patient_fname ?? '') . ' ' . ($patient->patient_lname ?? '')) ?: 'A patient';
-            $this->say('Transaction code verified. You can now rate your completed visit.');
+            $this->say($this->anonymous
+                ? 'Transaction code verified. Your review will be posted anonymously. You can now rate your completed visit.'
+                : 'Transaction code verified. You can now rate your completed visit.');
             return $this->askRating();
         });
+    }
+
+    // Decodes the widget's FORM_SUBMIT:: payload (null when the text is not a form submission).
+    protected function decodeFormSubmission(string $text): ?array
+    {
+        if (!str_starts_with($text, AppointmentConversation::FORM_SUBMIT_PREFIX)) {
+            return null;
+        }
+        $data = json_decode(substr($text, strlen(AppointmentConversation::FORM_SUBMIT_PREFIX)), true);
+        if (!is_array($data)) {
+            return [];
+        }
+        $values = [];
+        foreach ($data as $key => $v) {
+            if (!is_string($key)) continue;
+            $values[$key] = is_bool($v) ? $v : (is_scalar($v) ? trim((string) $v) : '');
+        }
+        return $values;
     }
 
     // Ask the patient for a star rating.
@@ -157,8 +218,8 @@ class ReviewConversation extends Conversation
 
             $email = trim($answer->getText());
 
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                return $this->askContactEmail('That doesn\'t look like a valid email address. Please try again (e.g. name@example.com):');
+            if ($error = \App\Support\EmailValidator::validate($email)) {
+                return $this->askContactEmail($error . ' Please type your real email address (e.g. maria.santos@gmail.com):');
             }
 
             $this->contactEmail = $email;
@@ -209,22 +270,18 @@ class ReviewConversation extends Conversation
     // Save the review and run sentiment analysis if there's a comment.
     protected function submitReview($text)
     {
-        if ($this->tooManySubmissions('review')) {
-            $this->say($this->submissionCooldownMessage());
-            $this->askAnythingElse();
-            return;
-        }
-
+        // No cooldown between reviews: every review needs a transaction code that
+        // Admin/Staff hands out, so staff already controls who can review.
         $saved = false;
 
         try {
-            $feedback = app(VisitReviewService::class)->submit($this->transactionCode ?? '', $this->rating, $text, null, true);
+            $feedback = app(VisitReviewService::class)->submit($this->transactionCode ?? '', $this->rating, $text, null, true, (bool) $this->anonymous);
             $this->feedbackId = $feedback->feedback_id;
             $saved = true;
 
             // Notification (flags low ratings so admin notices them).
             try {
-                NotificationService::newFeedback($this->patientName ?: 'A patient', $feedback->feedback_id, $this->rating);
+                NotificationService::newFeedback($this->anonymous ? 'An anonymous patient' : ($this->patientName ?: 'A patient'), $feedback->feedback_id, $this->rating);
             } catch (\Throwable $notifyError) {
                 \Illuminate\Support\Facades\Log::error('Failed to create feedback notification: ' . $notifyError->getMessage());
             }

@@ -362,7 +362,6 @@
   </div>
 
   <div class="about-v2-mvv">
-  <h3 class="about-v2-mvv-title">Our Mission, Vision and Core Values</h3>
 
   <div class="about-v2-mv">
     <div class="about-v2-mv-item mission" data-clinic-visible="mission" @if($publicClinic['mission'] === '') hidden style="display:none" @endif>
@@ -567,8 +566,10 @@
     <div class="reviews-live-grid" id="reviewsLiveGrid">
       @forelse ($recentFeedback ?? [] as $review)
         @php
-          $reviewerFname = trim($review->patient_fname ?? '');
-          $reviewerLname = trim($review->patient_lname ?? '');
+          // Patients who chose "post anonymously" never show any part of their name.
+          $isAnonymousReview = !empty($review->is_anonymous);
+          $reviewerFname = $isAnonymousReview ? '' : trim($review->patient_fname ?? '');
+          $reviewerLname = $isAnonymousReview ? '' : trim($review->patient_lname ?? '');
           $reviewerInitial = $reviewerFname !== '' ? strtoupper(substr($reviewerFname, 0, 1)) : 'A';
 
           // Pseudonymize the first name for display: keep the first letter and the
@@ -686,6 +687,10 @@
         </div>
         <a href="{{ $publicClinic['directions_url'] }}" data-clinic-directions @if ($publicClinic['directions_url'] === '') hidden style="display:none" @endif target="_blank" rel="noopener noreferrer" class="btn-cta-banner">Get Directions <i class="fas fa-arrow-right"></i></a>
       </div>
+      <figure class="cta-banner-photo">
+        <figcaption class="cta-photo-caption"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Lipa City, Batangas</figcaption>
+        <img src="/images/Polyclinic2.jpg" alt="PolyClinic Lipa building front" loading="lazy">
+      </figure>
       <div class="cta-banner-map" data-clinic-visible="address" @if ($publicClinic['address'] === '') hidden style="display:none" @endif>
         <iframe @if ($publicClinic['map_url'] !== '') src="{{ $publicClinic['map_url'] }}" @endif data-clinic-map title="Clinic location" allowfullscreen loading="lazy"></iframe>
       </div>
@@ -852,9 +857,7 @@
     setTimeout(positionReviewArrows, 400);
   });
 
-  /* ==========================================================
-     HERO — LIVE PATIENT FEEDBACK mini widget: auto-rotate
-     ========================================================== */
+  /* HERO — LIVE PATIENT FEEDBACK mini widget: auto-rotate */
   document.addEventListener('DOMContentLoaded', function () {
     const body = document.getElementById('heroLiveFeedbackBody');
     if (!body) return;

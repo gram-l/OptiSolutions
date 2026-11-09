@@ -35,6 +35,26 @@ trait HandlesRateLimit
         return false;
     }
 
+    /**
+     * Checks the limit WITHOUT counting an attempt. Use this at the start of
+     * a flow so the patient is stopped right away, then call
+     * recordSubmission() only after something was actually saved.
+     */
+    protected function submissionLimitReached(string $bucket, int $maxAttempts): bool
+    {
+        return RateLimiter::tooManyAttempts($this->submissionKey($bucket), $maxAttempts);
+    }
+
+    protected function recordSubmission(string $bucket, int $decayMinutes): void
+    {
+        RateLimiter::hit($this->submissionKey($bucket), $decayMinutes * 60);
+    }
+
+    private function submissionKey(string $bucket): string
+    {
+        return 'chatbot-submit:' . $bucket . ':' . (request()->ip() ?? 'unknown');
+    }
+
     protected function submissionCooldownMessage(): string
     {
         return "You've sent a few of these recently. Please wait a few minutes before submitting again so our staff can catch up.";

@@ -17,6 +17,11 @@ class Feedback extends Model
         'feedback_text',
         'star_rating',
         'submitted_at',
+        'is_anonymous',
+    ];
+
+    protected $casts = [
+        'is_anonymous' => 'boolean',
     ];
 
     public function sentimentResult()

@@ -8,6 +8,10 @@ return [
     */
     'visit_reminders' => [],
 
+    // Chatbot email check: reject domains that have no DNS/MX record (made-up domains).
+    // Set CLINIC_EMAIL_DNS_CHECK=false in .env for offline/local development.
+    'email_dns_check' => env('CLINIC_EMAIL_DNS_CHECK', true),
+
     // Used only when the clinic_info table has no value for the field.
     'fallback' => [
         'address'         => '',

@@ -16,10 +16,11 @@ class FeedbackController extends Controller
             'log_id'        => 'nullable|integer|exists:chatbot_logs,log_id',
             'feedback_text' => 'nullable|string|max:'.\App\Support\AnalysisLimits::MAX_TEXT_LENGTH,
             'star_rating'   => 'required|integer|min:1|max:5',
+            'is_anonymous'  => 'nullable|boolean',
         ]);
 
         $feedback = app(\App\Services\VisitReviewService::class)->submit(
-            $validated['transaction_code'], $validated['star_rating'], $validated['feedback_text'] ?? null, null, true,
+            $validated['transaction_code'], $validated['star_rating'], $validated['feedback_text'] ?? null, null, true, (bool) ($validated['is_anonymous'] ?? false),
         );
 
         // Classify right away so the review can show up on the homepage

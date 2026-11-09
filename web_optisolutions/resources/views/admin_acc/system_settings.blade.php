@@ -9,8 +9,6 @@
     @vite(['resources/css/admin_css/user_management.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/system_settings.css'])
 
     <style>
-        /* ── Scoped modal (renamed from generic .modal/.modal-content so it
-             can never collide with the header's profile modal/dropdown) ── */
         .ss-modal {
             display: none;
             position: fixed;
@@ -31,80 +29,13 @@
             overflow-y: auto;
             box-shadow: 0 12px 32px var(--shadow);
         }
-
-        /* ── Popup toast notifications (success / error) ── */
-        #ssToastContainer {
-            position: fixed;
-            top: 1.25rem;
-            right: 1.25rem;
-            z-index: 2000;
-            display: flex;
-            flex-direction: column;
-            gap: 0.6rem;
-            pointer-events: none;
-        }
-        .ss-toast {
-            pointer-events: auto;
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-            min-width: 280px;
-            max-width: 360px;
-            background: var(--white);
-            border-radius: 10px;
-            padding: 0.9rem 1rem;
-            box-shadow: 0 8px 24px var(--shadow);
-            border-left: 5px solid var(--primary-main);
-            opacity: 0;
-            transform: translateX(30px);
-            animation: ssToastIn 0.25s ease forwards;
-        }
-        .ss-toast.ss-toast-success { border-left-color: #2ecc71; }
-        .ss-toast.ss-toast-error { border-left-color: var(--danger); }
-        .ss-toast .ss-toast-icon {
-            font-size: 1.1rem;
-            margin-top: 0.1rem;
-        }
-        .ss-toast-success .ss-toast-icon { color: #2ecc71; }
-        .ss-toast-error .ss-toast-icon { color: var(--danger); }
-        .ss-toast .ss-toast-body { flex: 1; }
-        .ss-toast .ss-toast-title {
-            font-weight: 600;
-            font-size: 0.88rem;
-            color: var(--text-dark);
-            margin-bottom: 0.15rem;
-        }
-        .ss-toast .ss-toast-message {
-            font-size: 0.8rem;
-            color: #7f8c8d;
-            line-height: 1.35;
-        }
-        .ss-toast .ss-toast-close {
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #b2b8bf;
-            font-size: 1rem;
-            line-height: 1;
-            padding: 0;
-        }
-        .ss-toast .ss-toast-close:hover { color: var(--text-dark); }
-        .ss-toast.ss-toast-hide {
-            animation: ssToastOut 0.2s ease forwards;
-        }
-        @keyframes ssToastIn {
-            to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes ssToastOut {
-            to { opacity: 0; transform: translateX(30px); }
-        }
     </style>
+    @include('admin_acc.partials.centered-toast-styles')
 </head>
 <body>
     @include('admin_acc.header')
 
-    {{-- Popup toasts render here via JS; no native alert() is used --}}
-    <div id="ssToastContainer"></div>
+    <div id="settingsToast" class="toast" role="status" aria-atomic="true"></div>
 
     <div class="container">
         @include('admin_acc.sidebar')
@@ -120,10 +51,10 @@
         {{-- Tabs --}}
         <div class="filter-bar">
             <div class="filter-group">
-                <button class="add-patient-btn tab-btn active" data-tab="hours" type="button">Clinic Hours</button>
-                <button class="add-patient-btn tab-btn" data-tab="about" type="button">About</button>
-                <button class="add-patient-btn tab-btn" data-tab="contact" type="button">Contact</button>
-                <button class="add-patient-btn tab-btn" data-tab="services" type="button">Services</button>
+                <button class="tab-btn active" data-tab="hours" type="button">Clinic Hours</button>
+                <button class="tab-btn" data-tab="about" type="button">About</button>
+                <button class="tab-btn" data-tab="contact" type="button">Contact</button>
+                <button class="tab-btn" data-tab="services" type="button">Services</button>
             </div>
             <button class="add-patient-btn" id="addServiceBtn" type="button" onclick="openServiceModal()" style="display:none;">
                 <i class="bi bi-plus-lg"></i> Add Service
@@ -172,12 +103,12 @@
                             @forelse (old('core_values', $clinic->core_values ?? []) as $value)
                                 <div class="core-value-row">
                                     <input type="text" name="core_values[]" value="{{ $value }}" placeholder="Name|Short description (description optional)">
-                                    <button type="button" class="btn-icon" style="background:var(--danger); color:#fff;" onclick="this.parentElement.remove()">&times;</button>
+                                    <button type="button" class="btn-icon btn-remove" aria-label="Remove core value" onclick="this.parentElement.remove()">&times;</button>
                                 </div>
                             @empty
                                 <div class="core-value-row">
                                     <input type="text" name="core_values[]" value="" placeholder="Name|Short description (description optional)">
-                                    <button type="button" class="btn-icon" style="background:var(--danger); color:#fff;" onclick="this.parentElement.remove()">&times;</button>
+                                    <button type="button" class="btn-icon btn-remove" aria-label="Remove core value" onclick="this.parentElement.remove()">&times;</button>
                                 </div>
                             @endforelse
                         </div>
@@ -287,7 +218,7 @@
         row.className = 'core-value-row';
         row.innerHTML = `
             <input type="text" name="core_values[]" value="" placeholder="Name|Short description (description optional)">
-            <button type="button" class="btn-icon" style="background:var(--danger); color:#fff;" onclick="this.parentElement.remove()">&times;</button>
+            <button type="button" class="btn-icon btn-remove" aria-label="Remove core value" onclick="this.parentElement.remove()">&times;</button>
         `;
         container.appendChild(row);
     }
@@ -353,10 +284,10 @@
             serviceModal.classList.remove('open');
             activateSettingsTab('services');
             document.getElementById('addServiceBtn').focus();
-            ssShowToast('success', 'Saved', data.message);
+            ssShowToast('success', data.message);
         } catch (error) {
             const message = error.name === 'TimeoutError' ? 'The request timed out. Please try again.' : error.message;
-            if (deleting) ssShowToast('error', 'Unsuccessful', message);
+            if (deleting) ssShowToast('error', message);
             else { errorBox.textContent = message; errorBox.hidden = false; }
         } finally {
             savingService = false;
@@ -374,45 +305,26 @@
         if (e.target === serviceModal) closeServiceModal();
     });
 
-    // ── Popup toast notifications ──
-    function ssShowToast(type, title, message) {
-        const container = document.getElementById('ssToastContainer');
-        const toast = document.createElement('div');
-        toast.className = `ss-toast ss-toast-${type}`;
-
-        const icon = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill';
-        toast.innerHTML = `
-            <i class="bi ${icon} ss-toast-icon"></i>
-            <div class="ss-toast-body">
-                <div class="ss-toast-title"></div>
-                <div class="ss-toast-message"></div>
-            </div>
-            <button type="button" class="ss-toast-close" aria-label="Close">&times;</button>
-        `;
-        toast.querySelector('.ss-toast-title').textContent = title;
-        toast.querySelector('.ss-toast-message').textContent = message;
-
-        const remove = () => {
-            toast.classList.add('ss-toast-hide');
-            setTimeout(() => toast.remove(), 200);
-        };
-
-        toast.querySelector('.ss-toast-close').addEventListener('click', remove);
-        container.appendChild(toast);
-        setTimeout(remove, 4500);
+    let settingsToastTimer;
+    function ssShowToast(type, message) {
+        const toast = document.getElementById('settingsToast');
+        toast.textContent = message;
+        toast.className = `toast toast-${type} show`;
+        clearTimeout(settingsToastTimer);
+        settingsToastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         @if (session('success'))
-            ssShowToast('success', 'Saved', @json(session('success')));
+            ssShowToast('success', @json(session('success')));
         @endif
 
         @if (session('error'))
-            ssShowToast('error', 'Unsuccessful', @json(session('error')));
+            ssShowToast('error', @json(session('error')));
         @endif
 
         @if ($errors->any())
-            ssShowToast('error', 'Unsuccessful', @json($errors->first()));
+            ssShowToast('error', @json($errors->first()));
         @endif
     });
 </script>

@@ -49,13 +49,13 @@
         </div>
 
         {{-- Tabs --}}
-        <div class="filter-bar">
-            <div class="filter-group">
-                <button class="add-patient-btn tab-btn active" data-tab="hours" type="button">Clinic Hours</button>
-                <button class="add-patient-btn tab-btn" data-tab="about" type="button">About</button>
-                <button class="add-patient-btn tab-btn" data-tab="contact" type="button">Contact</button>
-                <button class="add-patient-btn tab-btn" data-tab="services" type="button">Services</button>
-                <button class="add-patient-btn tab-btn" data-tab="faqs" type="button">FAQs</button>
+        <div class="settings-tab-row">
+            <div class="admin-tabs" role="group" aria-label="Settings sections">
+                <button class="tab-btn active" data-tab="hours" type="button">Clinic Hours</button>
+                <button class="tab-btn" data-tab="about" type="button">About</button>
+                <button class="tab-btn" data-tab="contact" type="button">Contact</button>
+                <button class="tab-btn" data-tab="services" type="button">Services</button>
+                <button class="tab-btn" data-tab="faqs" type="button">FAQs</button>
             </div>
             <button class="add-patient-btn" id="addServiceBtn" type="button" onclick="openServiceModal()" style="display:none;">
                 <i class="bi bi-plus-lg"></i> Add Service

@@ -12,6 +12,8 @@
     @vite(['resources/css/admin_css/feedback.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 
     <style>
+        [data-feedback-panel][hidden], #feedbackFilters[hidden] { display: none !important; }
+
         .reported-reason-item { margin-bottom: .6rem; }
         .reported-reasons-toggle {
             display: block; padding: 0; border: 0; background: none;
@@ -154,8 +156,13 @@
                 <p>Review patient feedback, analyze sentiment, and identify recurring issues</p>
             </div>
 
-            <!-- Filter Bar -->
-            <div class="filter-bar">
+            <div class="admin-tabs" id="feedbackTabs" role="tablist" aria-label="Feedback sections">
+                <button type="button" role="tab" id="overviewTab" aria-controls="overviewPanel" aria-selected="true">Overview</button>
+                <button type="button" role="tab" id="patientFeedbackTab" aria-controls="patientFeedbackPanel" aria-selected="false" tabindex="-1">Patient feedback</button>
+                <button type="button" role="tab" id="complaintsTab" aria-controls="complaintsPanel" aria-selected="false" tabindex="-1">Complaints</button>
+            </div>
+
+            <div class="filter-bar" id="feedbackFilters">
                 <div class="filter-group">
                     <input type="text" class="search-box" id="searchInput" placeholder="Search comment, doctor or service...">
                     <select class="filter-select" id="sentimentFilter">
@@ -170,35 +177,37 @@
                 </div>
             </div>
 
-            <!-- Overview: sentiment distribution and recurring patterns -->
-            <div class="overview-grid">
-                <div class="analytics-card card-sentiment">
-                    <div class="analytics-title"><i class="fa-solid fa-chart-pie"></i> Sentiment Distribution</div>
-                    <div class="sentiment-summary" id="sentimentSummary"></div>
-                    <div class="sentiment-rating">
-                        <div class="rating-stars" id="avgRating"></div>
-                        <div class="sentiment-rating-text">Average Rating: <span id="avgRatingValue">0</span>/5</div>
+            <section id="overviewPanel" role="tabpanel" aria-labelledby="overviewTab" data-feedback-panel tabindex="0">
+                <!-- Overview: sentiment distribution and recurring patterns -->
+                <div class="overview-grid">
+                    <div class="analytics-card card-sentiment">
+                        <div class="analytics-title"><i class="fa-solid fa-chart-pie"></i> Sentiment Distribution</div>
+                        <div class="sentiment-summary" id="sentimentSummary"></div>
+                        <div class="sentiment-rating">
+                            <div class="rating-stars" id="avgRating"></div>
+                            <div class="sentiment-rating-text">Average Rating: <span id="avgRatingValue">0</span>/5</div>
+                        </div>
+                    </div>
+                    <div class="pattern-card card-pattern">
+                        <div class="analytics-title" id="negativePatternsTitle"><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i> Recurring Negative Patterns</div>
+                        <div id="negativePatterns" role="region" aria-labelledby="negativePatternsTitle" tabindex="0"></div>
                     </div>
                 </div>
-                <div class="pattern-card card-pattern">
-                    <div class="analytics-title" id="negativePatternsTitle"><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i> Recurring Negative Patterns</div>
-                    <div id="negativePatterns" role="region" aria-labelledby="negativePatternsTitle" tabindex="0"></div>
-                </div>
-            </div>
 
-            <!-- Feedback List -->
-            <div class="visit-ratings-grid">
-                <div class="analytics-card">
-                    <div class="analytics-title"><i class="fa-solid fa-user-doctor"></i> Doctor Star Ratings</div>
-                    <div id="doctorRatings"></div>
+                <div class="visit-ratings-grid">
+                    <div class="analytics-card">
+                        <div class="analytics-title"><i class="fa-solid fa-user-doctor"></i> Doctor Star Ratings</div>
+                        <div id="doctorRatings"></div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-title"><i class="fa-solid fa-stethoscope"></i> Service Overall Ratings</div>
+                        <div id="serviceRatings"></div>
+                    </div>
                 </div>
-                <div class="analytics-card">
-                    <div class="analytics-title"><i class="fa-solid fa-stethoscope"></i> Service Overall Ratings</div>
-                    <div id="serviceRatings"></div>
-                </div>
-            </div>
-            <p class="visit-ratings-note">Doctor and service averages use reviews linked to completed visits and follow the selected filters. A visit's overall rating contributes to both averages.</p>
-            <div class="feedback-section">
+                <p class="visit-ratings-note">Doctor and service averages use reviews linked to completed visits and follow the selected filters. A visit's overall rating contributes to both averages.</p>
+            </section>
+
+            <section class="feedback-section" id="patientFeedbackPanel" role="tabpanel" aria-labelledby="patientFeedbackTab" data-feedback-panel tabindex="0" hidden>
                 <div class="section-title">
                     <span>All Patient Feedback</span>
                     <div class="download-dropdown" id="downloadDropdownFeedback">
@@ -230,10 +239,9 @@
                     <span class="page-info" id="feedbackPageInfo"></span>
                     <button type="button" class="page-btn" id="feedbackNextBtn" onclick="changePage('feedback', 1)"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
-            </div>
+            </section>
 
-            <!-- Complaint List -->
-            <div class="feedback-section" style="margin-top: 2rem;">
+            <section class="feedback-section" id="complaintsPanel" role="tabpanel" aria-labelledby="complaintsTab" data-feedback-panel tabindex="0" hidden>
                 <div class="section-title">
                     <span>Complaint List</span>
                     <div class="download-dropdown" id="downloadDropdownComplaint">
@@ -263,7 +271,7 @@
                     <span class="page-info" id="complaintPageInfo"></span>
                     <button type="button" class="page-btn" id="complaintNextBtn" onclick="changePage('complaint', 1)"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 
@@ -699,6 +707,39 @@
         });
 
         refreshAll();
+    </script>
+    <script>
+        (() => {
+            const tabs = [...document.querySelectorAll('#feedbackTabs [role="tab"]')];
+            const filters = document.getElementById('feedbackFilters');
+
+            function selectTab(selected) {
+                tabs.forEach(tab => {
+                    const active = tab === selected;
+                    tab.setAttribute('aria-selected', String(active));
+                    tab.tabIndex = active ? 0 : -1;
+                    document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+                });
+                filters.hidden = selected.id === 'complaintsTab';
+            }
+
+            tabs.forEach((tab, index) => {
+                tab.addEventListener('click', () => selectTab(tab));
+                tab.addEventListener('keydown', event => {
+                    const nextIndex = {
+                        ArrowLeft: (index + tabs.length - 1) % tabs.length,
+                        ArrowRight: (index + 1) % tabs.length,
+                        Home: 0,
+                        End: tabs.length - 1,
+                    }[event.key];
+                    if (nextIndex === undefined) return;
+                    event.preventDefault();
+                    const next = tabs[nextIndex];
+                    selectTab(next);
+                    next.focus();
+                });
+            });
+        })();
     </script>
 </body>
 </html>

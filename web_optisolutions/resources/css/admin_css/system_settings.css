@@ -62,9 +62,26 @@
     flex-wrap: wrap;
 }
 
+/* Keep the current section's action beside its tabs when space permits. */
+.settings-tab-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.settings-tab-row .admin-tabs {
+    flex: 1 1 22rem;
+    margin-bottom: 0;
+}
+
+.settings-tab-row > .add-patient-btn {
+    margin-bottom: 0.5rem;
+}
+
 /* Match the primary and row actions on Manage Doctors. */
-.add-patient-btn,
-.tab-btn {
+.add-patient-btn {
     padding: 0.7rem 1.5rem;
     background: var(--primary-main);
     color: white;
@@ -79,19 +96,9 @@
     white-space: nowrap;
 }
 
-.add-patient-btn:hover,
-.tab-btn.active:hover {
+.add-patient-btn:hover {
     background: #0b4f8a;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(14, 98, 170, 0.3);
-}
-
-.tab-btn:not(.active) { background: #e8f0fe; color: var(--primary-main); }
-.tab-btn:not(.active):hover { background: #d5e5fc; }
-body.dark-mode .tab-btn:not(.active) { background: #263e5e; color: #b6dbff; }
-body.dark-mode .tab-btn:not(.active):hover { background: #354c68; }
-
-.tab-btn.active {
     box-shadow: 0 4px 12px rgba(14, 98, 170, 0.3);
 }
 

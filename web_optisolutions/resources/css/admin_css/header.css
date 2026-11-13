@@ -1,5 +1,27 @@
 @import '../shared/dark-mode-components.css';
 
+.admin-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.25rem;
+    margin-bottom: 0.85rem;
+    border-bottom: 1px solid var(--light-gray);
+}
+.admin-tabs button {
+    padding: 0.55rem 0;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--primary-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.admin-tabs button:is([aria-selected="true"], .active, :hover, :focus-visible) {
+    border-bottom-color: currentColor;
+}
+.admin-tabs button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
 /* ===== HEADER ===== */
 
 /* Global mobile safety net: any <img> without more specific sizing

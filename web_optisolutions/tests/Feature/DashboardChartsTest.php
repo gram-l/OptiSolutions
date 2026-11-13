@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Services\DiagnosticAnalyticsService;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -79,6 +80,66 @@ class DashboardChartsTest extends TestCase
         $this->assertSame([1, 1, 0, 0, 0, 0, 0], $staff['inquiryVolumeByDay']);
         $this->assertSame([0, 0, 0, 0, 1, 2], $staff['weeklyVisits']);
         $this->assertSame('Pediatrics', $staff['serviceDistribution'][0]['service_type']);
+        $this->assertSame([
+            'ratings' => 'No ratings are linked to scheduled visits yet.',
+            'sentiment' => 'Positive feedback had the largest share at 57%.',
+            'inquiry-status' => 'The clinic has resolved 1 of 3 chatbot inquiries.',
+            'services' => 'Pediatrics accounted for 2 of 3 scheduled visits.',
+            'visits' => 'Scheduled visits rose from 0 to 1 across the last two completed weeks.',
+            'inquiry-volume' => '2 days tied for the most inquiries with 1 each.',
+        ], $admin['chartInterpretations']);
+    }
+
+    public function test_admin_sentiment_percentages_add_up_to_one_hundred(): void
+    {
+        foreach (['Positive', 'Positive', 'Positive', 'Neutral', 'Neutral', 'Neutral', 'Negative', 'Negative'] as $label) {
+            $feedbackId = DB::table('feedback')->insertGetId([
+                'star_rating' => 5,
+                'submitted_at' => '2026-10-26 00:00:00',
+            ], 'feedback_id');
+            DB::table('sentiment_results')->insert(['feedback_id' => $feedbackId, 'sentiment_label' => $label]);
+        }
+
+        $data = $this->chartData('Admin', '/admin/dashboard/data');
+        $this->assertSame(38, $data['positivePercent']);
+        $this->assertSame(37, $data['neutralPercent']);
+        $this->assertSame(25, $data['negativePercent']);
+    }
+
+    public function test_admin_dashboard_renders_the_welcome_date_and_sentiment_rows(): void
+    {
+        $this->withoutVite();
+        $period = [
+            'label' => 'Test week',
+            'negative' => 0,
+            'categories' => [],
+            'classified' => 0,
+            'negative_rate' => null,
+            'pending' => 0,
+        ];
+        $this->mock(DiagnosticAnalyticsService::class)->shouldReceive('dashboard')->once()->andReturn([
+            'week' => '2026-10-26',
+            'latest_week' => '2026-10-26',
+            'doctors' => [],
+            'specialties' => [],
+            'periods' => ['previous' => $period, 'current' => $period],
+            'available' => false,
+            'unlinked' => 0,
+        ]);
+        $this->chartData('Admin', '/admin/dashboard/data');
+
+        $this->get('/admin_acc/dashboard')
+            ->assertOk()
+            ->assertSee('Thursday, 29 October 2026')
+            ->assertSee('data-label="Positive"', false)
+            ->assertSee('data-label="Neutral"', false)
+            ->assertSee('data-label="Negative"', false)
+            ->assertSee('No ratings are linked to scheduled visits yet.')
+            ->assertSee('No reviews have been analyzed for sentiment yet.')
+            ->assertSee('No chatbot inquiries have been recorded yet.')
+            ->assertSee('No visits have been scheduled for any service yet.')
+            ->assertSee('No visits were scheduled in the selected weeks.')
+            ->assertSee('Daily inquiry volume stayed at zero in the selected week.');
     }
 
     public function test_empty_staff_dashboard_still_supplies_all_chart_arrays(): void

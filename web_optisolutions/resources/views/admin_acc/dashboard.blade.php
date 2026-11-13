@@ -17,7 +17,7 @@
     @include('partials.mobile_dashboard_charts')
     @include('admin_acc.header')
 
-    <div class="container">
+    <div class="container dashboard-layout">
         @include('admin_acc.sidebar')
 
         <main class="main-content admin-dashboard">
@@ -26,7 +26,10 @@
                     <h2>Welcome, {{ Auth::user()->name }}!</h2>
                     <p>Here's what's happening with your clinic today.</p>
                 </div>
-                <div class="welcome-banner-icon"><i class="bi bi-heart-pulse"></i></div>
+                @php
+                    $clinicDate = now('Asia/Manila');
+                @endphp
+                <time datetime="{{ $clinicDate->toDateString() }}">{{ $clinicDate->format('l, j F Y') }}</time>
             </div>
 
             @php
@@ -38,21 +41,20 @@
 
                 // ---- Weekly Patient Visits defaults ----
                 $defaultWeekLabels = ['W-5', 'W-4', 'W-3', 'W-2', 'W-1', 'This wk'];
-                $hasWeeklyData = isset($weeklyVisits) && count($weeklyVisits) > 0;
-                $weeklyVisitsData = $hasWeeklyData ? $weeklyVisits : array_fill(0, 6, 0);
+                $weeklyVisitsData = $weeklyVisits ?? array_fill(0, 6, 0);
                 $weeklyVisitsLabels = $weekLabels ?? $defaultWeekLabels;
 
                 // ---- Patient Feedback defaults ----
                 $sentimentTotal = ($positivePercent ?? 0) + ($neutralPercent ?? 0) + ($negativePercent ?? 0);
                 $sentimentRows = [
-                    ['label' => 'Positive', 'value' => $sentimentTotal > 0 ? ($positivePercent ?? 0) : 0, 'color' => '#0E62AA', 'emoji' => '😊', 'avatarClass' => 'sentiment-avatar-positive'],
-                    ['label' => 'Neutral',  'value' => $sentimentTotal > 0 ? ($neutralPercent ?? 0)  : 0, 'color' => '#9DBCD4', 'emoji' => '😐', 'avatarClass' => 'sentiment-avatar-neutral'],
-                    ['label' => 'Negative', 'value' => $sentimentTotal > 0 ? ($negativePercent ?? 0) : 0, 'color' => '#062744', 'emoji' => '😟', 'avatarClass' => 'sentiment-avatar-negative'],
+                    ['label' => 'Positive', 'value' => $sentimentTotal > 0 ? ($positivePercent ?? 0) : 0, 'color' => '#16a34a', 'icon' => 'bi-emoji-smile', 'avatarClass' => 'sentiment-avatar-positive'],
+                    ['label' => 'Neutral',  'value' => $sentimentTotal > 0 ? ($neutralPercent ?? 0)  : 0, 'color' => '#94a3b8', 'icon' => 'bi-emoji-neutral', 'avatarClass' => 'sentiment-avatar-neutral'],
+                    ['label' => 'Negative', 'value' => $sentimentTotal > 0 ? ($negativePercent ?? 0) : 0, 'color' => '#dc2626', 'icon' => 'bi-emoji-frown', 'avatarClass' => 'sentiment-avatar-negative'],
                 ];
 
                 // ---- Inquiry Volume defaults ----
-                $hasInquiryData = isset($inquiryVolumeByDay) && count($inquiryVolumeByDay) > 0;
-                $inquiryVolumeData = $hasInquiryData ? $inquiryVolumeByDay : array_fill(0, 7, 0);
+                $inquiryVolumeData = $inquiryVolumeByDay ?? array_fill(0, 7, 0);
+                $hasInquiryData = array_sum($inquiryVolumeData) > 0;
 
 
                 // ---- Chat Inquiries Status defaults ----
@@ -69,21 +71,21 @@
                             <div class="card-icon-badge"><i class="bi bi-file-earmark-text"></i></div>
                             <div class="card-title">Pending Inquiries</div>
                         </div>
-                        <i class="bi bi-chevron-right card-chevron"></i>
+                        <i class="bi bi-chevron-right card-chevron" aria-hidden="true"></i>
                     </div>
                     <div class="card-value" id="stat-pending-inquiries">{{ $pendingInquiries ?? 0 }}</div>
-                    <div class="card-subtitle"><span class="dot"></span> Awaiting reply</div>
+                    <div class="card-subtitle"><span class="dot" id="pending-inquiries-dot" data-attention="{{ ($pendingInquiries ?? 0) > 0 ? 'true' : 'false' }}" aria-hidden="true"></span> Awaiting reply</div>
                 </a>
                 <a href="{{ url('/admin_acc/appointments') }}" class="analytics-card">
                     <div class="card-top-row">
                         <div class="card-icon-title">
                             <div class="card-icon-badge"><i class="bi bi-calendar-check"></i></div>
-                            <div class="card-title">Today's Scheduled Visits</div>
+                            <div class="card-title">Today's Visits</div>
                         </div>
-                        <i class="bi bi-chevron-right card-chevron"></i>
+                        <i class="bi bi-chevron-right card-chevron" aria-hidden="true"></i>
                     </div>
                     <div class="card-value" id="stat-todays-appointments">{{ $todaysAppointments ?? 0 }}</div>
-                    <div class="card-subtitle"><span class="dot"></span> <span id="stat-pending-approval">{{ $pendingApproval ?? 0 }}</span> pending approval</div>
+                    <div class="card-subtitle"><span class="dot" id="pending-approval-dot" data-attention="{{ ($pendingApproval ?? 0) > 0 ? 'true' : 'false' }}" aria-hidden="true"></span> <span id="stat-pending-approval">{{ $pendingApproval ?? 0 }}</span> pending approval</div>
                 </a>
                 <a href="{{ url('/admin_acc/patients') }}" class="analytics-card">
                     <div class="card-top-row">
@@ -91,10 +93,10 @@
                             <div class="card-icon-badge"><i class="bi bi-person"></i></div>
                             <div class="card-title"> Patient Count</div>
                         </div>
-                        <i class="bi bi-chevron-right card-chevron"></i>
+                        <i class="bi bi-chevron-right card-chevron" aria-hidden="true"></i>
                     </div>
                     <div class="card-value" id="stat-active-patients">{{ $activePatients ?? 0 }}</div>
-                    <div class="card-subtitle"><span class="dot"></span> <span id="stat-new-patients">{{ $newPatientsThisMonth ?? 0 }}</span> new this month</div>
+                    <div class="card-subtitle"><span class="dot" aria-hidden="true"></span> <span id="stat-new-patients">{{ $newPatientsThisMonth ?? 0 }}</span> new this month</div>
                 </a>
                 <a href="{{ route('admin_acc.feedback.index') }}" class="analytics-card">
                     <div class="card-top-row">
@@ -102,64 +104,50 @@
                             <div class="card-icon-badge"><i class="bi bi-star-fill"></i></div>
                             <div class="card-title">Patient Satisfaction</div>
                         </div>
-                        <i class="bi bi-chevron-right card-chevron"></i>
+                        <i class="bi bi-chevron-right card-chevron" aria-hidden="true"></i>
                     </div>
                     <div class="card-value" id="stat-avg-rating">{{ $avgRating ?? 0 }} / 5</div>
-                    <div class="card-subtitle">⭐ Average rating</div>
+                    <div class="card-subtitle"><i class="bi bi-star-fill dashboard-star" aria-hidden="true"></i> Average rating</div>
                 </a>
             </div>
 
-            <style>
-                .charts-grid {
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 1.5rem;
-                    margin-top: 1.5rem;
-                }
-                .charts-grid .chart-card {
-                    margin-top: 0;
-                }
-                @media (max-width: 900px) {
-                    .charts-grid {
-                        grid-template-columns: 1fr;
-                    }
-                }
-            </style>
-
             <div class="charts-grid">
-                <!-- 1) SERVICE DISTRIBUTION (doughnut + side legend) -->
-                @include('partials.dashboard_rating_leaders')
+                @include('partials.dashboard_rating_leaders', ['compactAdminRatings' => true, 'ratingInterpretation' => $chartInterpretations['ratings']])
 
                 <!-- 2) PATIENT FEEDBACK OVERVIEW (custom bars) -->
                 <div class="chart-card">
                     <div class="chart-header">
                         <div class="chart-header-title">
                             <div class="chart-icon-badge"><i class="bi bi-emoji-smile"></i></div>
-                            <h3>Patient Feedback Overview</h3>
+                            <div>
+                                <h3>Patient Feedback Overview</h3>
+                                <p class="panel-caption">Sentiment across analyzed reviews</p>
+                            </div>
                         </div>
                     </div>
-                    <div id="sentimentBars" class="sentiment-bars" style="margin-top: 1.1rem;">
+                    <div id="sentimentBars" class="sentiment-bars">
                         @foreach($sentimentRows as $row)
-                            <div class="sentiment-row" data-label="{{ $row['label'] }}" data-color="{{ $row['color'] }}">
+                            <div class="sentiment-row" data-label="{{ $row['label'] }}">
                                 <div class="sentiment-row-inner">
-                                    <div class="sentiment-avatar {{ $row['avatarClass'] }}">{{ $row['emoji'] }}</div>
+                                    <div class="sentiment-avatar {{ $row['avatarClass'] }}"><i class="bi {{ $row['icon'] }}" aria-hidden="true"></i></div>
                                     <span class="sentiment-label">{{ $row['label'] }}</span>
                                     <div class="bar-container">
                                         <div class="sentiment-fill bar-fill" style="background: {{ $row['color'] }}; width: {{ $row['value'] }}%;"></div>
                                     </div>
-                                    <span class="sentiment-value" style="color: {{ $row['color'] }};">{{ $row['value'] }}%</span>
+                                    <span class="sentiment-value">{{ $row['value'] }}%</span>
                                 </div>
                             </div>
                         @endforeach
                     </div>
-                    <p id="sentimentEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $sentimentTotal > 0 ? 'display:none;' : '' }}">
-                        No feedback data available yet.
-                    </p>
+                    <p class="chart-interpretation" data-chart-interpretation="sentiment">{{ $chartInterpretations['sentiment'] }}</p>
                     <div class="top-complaint-box">
                         <div class="top-complaint-icon"><i class="bi bi-chat-square-text"></i></div>
                         <div>
                             <div class="top-complaint-label">Reported concerns</div>
-                            <div class="top-complaint-text"><a href="#diagnostic-title" id="diagnostic-open" aria-haspopup="dialog" aria-controls="diagnostic-modal">Click to view comparisons and supporting reviews</a></div>
+                            <p class="top-complaint-text">Comparisons and supporting reviews</p>
+                            <button type="button" class="diagnostic-trigger" id="diagnostic-open" aria-haspopup="dialog" aria-controls="diagnostic-modal">
+                                View details <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -194,9 +182,7 @@
                             </div>
                         </div>
                     </div>
-                    <p id="inquiryStatusEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasInquiryStatusData ? 'display:none;' : '' }}">
-                        No chat inquiry data available yet.
-                    </p>
+                    <p class="chart-interpretation" data-chart-interpretation="inquiry-status">{{ $chartInterpretations['inquiry-status'] }}</p>
                 </div>
 
                 <!-- 4) PATIENT VISITS TREND (line) -->
@@ -223,49 +209,54 @@
                                         <span class="donut-legend-value">{{ $service->total }} visits</span>
                                     </div>
                                 @endforeach
-                            @else
-                                <p style="color: #7f8c8d; font-size: 0.85rem;">No service data available yet.</p>
                             @endif
                         </div>
                     </div>
+                    <p class="chart-interpretation" data-chart-interpretation="services">{{ $chartInterpretations['services'] }}</p>
                 </div>
 
-                <!-- 5) SENTIMENT TREND OVER TIME (line) -->
-                <div class="chart-card">
+                <div class="chart-card compact-chart-card visits-chart-card">
                     <div class="chart-header">
                         <div class="chart-header-title">
-                            <div class="chart-icon-badge"><i class="bi bi-graph-up"></i></div>
-                            <h3>Patient Visits Trend</h3>
+                            <div class="chart-icon-badge"><i class="bi bi-graph-up" aria-hidden="true"></i></div>
+                            <div>
+                                <h3>Patient Visits Trend</h3>
+                                <p class="panel-caption" id="visits-period-description">{{ $visitPeriodLabel ?? "Weekly scheduled visits, including this week (ongoing)." }}</p>
+                            </div>
                         </div>
                         @include('partials.dashboard_chart_filter', ['chartFilter' => 'visits'])
                     </div>
-                    <p class="chart-subtitle" id="visits-period-description">{{ $visitPeriodLabel ?? "Weekly scheduled visits, including this week (ongoing)." }}</p>
-<p id="visits-filter-status" class="dashboard-chart-filter-status" role="status"></p>
-                    <div>
-                        <canvas id="weeklyVisitsChart" height="220"></canvas>
+                    <p id="visits-filter-status" class="dashboard-chart-filter-status" role="status"></p>
+                    <div class="compact-chart-plot">
+                        <canvas id="weeklyVisitsChart" role="img" aria-label="Scheduled patient visits by week"></canvas>
                     </div>
-                    <p id="weeklyVisitsEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasWeeklyData ? 'display:none;' : '' }}">
-                        No visit data available yet.
-                    </p>
+                    <div class="visits-chart-legend">
+                        <span>Completed weeks</span>
+                        <span>This week (ongoing)</span>
+                    </div>
+                    <p class="chart-interpretation" data-chart-interpretation="visits">{{ $chartInterpretations['visits'] }}</p>
                 </div>
 
-                <!-- 6) CHAT INQUIRIES: RESOLVED VS IN PROGRESS (donut) -->
-                <div class="chart-card">
+                <div class="chart-card compact-chart-card inquiry-volume-card">
                     <div class="chart-header">
                         <div class="chart-header-title">
-                            <div class="chart-icon-badge"><i class="bi bi-bar-chart"></i></div>
-                            <h3>Inquiry Volume</h3>
+                            <div class="chart-icon-badge"><i class="bi bi-bar-chart" aria-hidden="true"></i></div>
+                            <div>
+                                <h3>Inquiry Volume</h3>
+                                <p class="panel-caption" id="inquiry-period-description">{{ $inquiryPeriodLabel ?? "Inquiries received Monday–Sunday (Philippine time)." }}</p>
+                            </div>
                         </div>
                         @include('partials.dashboard_chart_filter', ['chartFilter' => 'inquiry'])
                     </div>
-                    <p class="chart-subtitle" id="inquiry-period-description">{{ $inquiryPeriodLabel ?? "Inquiries received Monday–Sunday (Philippine time)." }}</p>
-<p id="inquiry-filter-status" class="dashboard-chart-filter-status" role="status"></p>
-                    <div>
-                        <canvas id="inquiryVolumeChart" height="220"></canvas>
+                    <p id="inquiry-filter-status" class="dashboard-chart-filter-status" role="status"></p>
+                    <div class="compact-chart-plot">
+                        <canvas id="inquiryVolumeChart" role="img" aria-label="Inquiries received by day"></canvas>
+                        <div id="inquiryVolumeEmptyNote" class="compact-chart-empty" @if($hasInquiryData) hidden @endif>
+                            <strong id="inquiryVolumeEmptyTitle">{{ ($inquiryPeriod ?? 'this_week') === 'last_week' ? 'No inquiries last week' : 'No inquiries yet this week' }}</strong>
+                            <span id="inquiryVolumeEmptyDetail" @if(($inquiryPeriod ?? 'this_week') === 'last_week') hidden @endif>New inquiries will show up here as they come in.</span>
+                        </div>
                     </div>
-                    <p id="inquiryVolumeEmptyNote" style="color: #7f8c8d; margin-top: 10px; font-size: 0.85rem; {{ $hasInquiryData ? 'display:none;' : '' }}">
-                        No inquiry data available yet.
-                    </p>
+                    <p class="chart-interpretation" data-chart-interpretation="inquiry-volume">{{ $chartInterpretations['inquiry-volume'] }}</p>
                 </div>
             </div>
 
@@ -314,25 +305,77 @@
             serviceChart.update('none');
         });
 
+        const trendBlue = '#0e62aa';
+
+        function compactChartOptions() {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        border: { display: false },
+                        grid: { display: false },
+                        ticks: { font: { size: 10 }, maxRotation: 0 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 5,
+                        border: { display: false },
+                        grid: { color: '#e5e7eb', drawTicks: false },
+                        ticks: { precision: 0, maxTicksLimit: 6, padding: 8, font: { size: 10 } }
+                    }
+                }
+            };
+        }
+
+        function visitsDatasets(visits) {
+            const line = {
+                label: 'Patient visits',
+                borderColor: trendBlue,
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: trendBlue
+            };
+            const last = visits.length - 1;
+            return [
+                { ...line, data: visits.map((count, i) => i === last ? null : count),
+                    backgroundColor: 'rgba(14, 98, 170, 0.10)', fill: 'origin' },
+                { ...line, data: visits.map((count, i) => i >= last - 1 ? count : null),
+                    label: 'This week (ongoing)', borderDash: [4, 3],
+                    pointRadius: ({ dataIndex }) => dataIndex === last ? 3 : 0,
+                    pointHitRadius: ({ dataIndex }) => dataIndex === last ? 4 : 0 }
+            ];
+        }
+
+        const visitCountLabels = {
+            id: 'visitCountLabels',
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                ctx.save();
+                ctx.font = '10px Segoe UI, sans-serif';
+                ctx.fillStyle = Chart.defaults.color;
+                ctx.textAlign = 'center';
+                chart.data.datasets.forEach((dataset, index) => {
+                    const last = dataset.data.length - 1;
+                    chart.getDatasetMeta(index).data.forEach((point, i) => {
+                        if (dataset.data[i] === null || (index === 1 && i !== last)) return;
+                        ctx.fillText(dataset.data[i], point.x, point.y - 7);
+                    });
+                });
+                ctx.restore();
+            }
+        };
+
         const weeklyChart = new Chart(document.getElementById('weeklyVisitsChart'), {
             type: 'line',
             data: {
-                labels: @json($weeklyVisitsLabels),
-                datasets: [{
-                    label: 'Patient Visits',
-                    data: @json($weeklyVisitsData),
-                    borderColor: navy,
-                    backgroundColor: 'rgba(6,39,68,0.08)',
-                    fill: true,
-                    tension: 0.35,
-                    pointBackgroundColor: navy
-                }]
+                labels: @json($weekStartLabels ?? $weeklyVisitsLabels),
+                datasets: visitsDatasets(@json($weeklyVisitsData))
             },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { precision: 0 }, suggestedMax: 5 } }
-            }
+            options: { ...compactChartOptions(), layout: { padding: { top: 10, right: 8 } } },
+            plugins: [visitCountLabels]
         });
 
         const inquiryChart = new Chart(document.getElementById('inquiryVolumeChart'), {
@@ -342,16 +385,25 @@
                 datasets: [{
                     label: 'Inquiries',
                     data: @json($inquiryVolumeData),
-                    backgroundColor: navy,
-                    borderRadius: 4
+                    backgroundColor: trendBlue,
+                    borderRadius: 4,
+                    maxBarThickness: 26
                 }]
             },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { precision: 0 }, suggestedMax: 5 } }
-            }
+            options: compactChartOptions()
         });
+
+        function updateInquiryEmptyState(counts, period) {
+            const empty = !counts.some(count => count > 0);
+            const previous = period === 'last_week';
+            document.getElementById('inquiryVolumeEmptyNote').hidden = !empty;
+            document.getElementById('inquiryVolumeEmptyTitle').textContent =
+                previous ? 'No inquiries last week' : 'No inquiries yet this week';
+            document.getElementById('inquiryVolumeEmptyDetail').hidden = previous;
+            inquiryChart.options.plugins.tooltip.enabled = !empty;
+        }
+
+        updateInquiryEmptyState(inquiryChart.data.datasets[0].data, @json($inquiryPeriod ?? 'this_week'));
 
         const hasInquiryStatusData = @json($hasInquiryStatusData);
 
@@ -385,6 +437,8 @@
                 document.getElementById('stat-pending-inquiries').textContent = data.pendingInquiries ?? 0;
                 document.getElementById('stat-todays-appointments').textContent = data.todaysAppointments ?? 0;
                 document.getElementById('stat-pending-approval').textContent = data.pendingApproval ?? 0;
+                document.getElementById('pending-inquiries-dot').dataset.attention = data.pendingInquiries > 0;
+                document.getElementById('pending-approval-dot').dataset.attention = data.pendingApproval > 0;
                 document.getElementById('stat-active-patients').textContent = data.activePatients ?? 0;
                 document.getElementById('stat-new-patients').textContent = data.newPatientsThisMonth ?? 0;
                 document.getElementById('stat-avg-rating').textContent = data.avgRating ?? 0;
@@ -411,14 +465,12 @@
                             </span>
                             <span class="donut-legend-value">${s.total} visits</span>
                         </div>`).join('')
-                    : '<p style="color:#7f8c8d; font-size:0.85rem;">No service data available yet.</p>';
+                    : '';
 
                 const weekly = Array.isArray(data.weeklyVisits) ? data.weeklyVisits : [];
-                const hasWeekly = weekly.length > 0;
-                weeklyChart.data.labels = data.weekLabels ?? weeklyChart.data.labels;
-                weeklyChart.data.datasets[0].data = hasWeekly ? weekly : new Array(6).fill(0);
+                weeklyChart.data.labels = data.weekStartLabels ?? data.weekLabels ?? weeklyChart.data.labels;
+                weeklyChart.data.datasets = visitsDatasets(weekly);
                 weeklyChart.update();
-                document.getElementById('weeklyVisitsEmptyNote').style.display = hasWeekly ? 'none' : 'block';
 
                 const sentimentTotal = (data.positivePercent ?? 0) + (data.neutralPercent ?? 0) + (data.negativePercent ?? 0);
                 const sentimentValues = {
@@ -432,13 +484,11 @@
                     row.querySelector('.sentiment-value').textContent = value + '%';
                     row.querySelector('.sentiment-fill').style.width = value + '%';
                 });
-                document.getElementById('sentimentEmptyNote').style.display = sentimentTotal > 0 ? 'none' : 'block';
 
                 const inquiryVolume = Array.isArray(data.inquiryVolumeByDay) ? data.inquiryVolumeByDay : [];
-                const hasInquiry = inquiryVolume.length > 0;
-                inquiryChart.data.datasets[0].data = hasInquiry ? inquiryVolume : new Array(7).fill(0);
+                inquiryChart.data.datasets[0].data = inquiryVolume;
+                updateInquiryEmptyState(inquiryVolume, data.inquiryPeriod);
                 inquiryChart.update();
-                document.getElementById('inquiryVolumeEmptyNote').style.display = hasInquiry ? 'none' : 'block';
 
                 const resolvedCount = data.resolvedInquiries ?? 0;
                 const unresolvedCount = data.unresolvedInquiries ?? 0;
@@ -449,7 +499,11 @@
                 inquiryStatusChart.update();
                 document.getElementById('inquiryStatusResolvedValue').textContent = resolvedCount;
                 document.getElementById('inquiryStatusUnresolvedValue').textContent = unresolvedCount;
-                document.getElementById('inquiryStatusEmptyNote').style.display = hasStatusData ? 'none' : 'block';
+
+                document.querySelectorAll('[data-chart-interpretation]').forEach(note => {
+                    const interpretation = data.chartInterpretations?.[note.dataset.chartInterpretation];
+                    if (typeof interpretation === 'string') note.textContent = interpretation;
+                });
             } catch (err) {
                 console.error('Admin dashboard refresh failed:', err);
             }

@@ -27,29 +27,29 @@
     <!-- Main Container -->
     <div class="container">
         @include('admin_acc.sidebar')
-<div style="flex: 1; min-width: 0;">
+<main class="inquiries-page">
         <div class="page-header">
             <h2>
                 <span><i class="bi bi-chat-dots"></i></span> 
                 Chatbot Inquiries
             </h2>
             <p>Review and respond to patient conversations from the AI chatbot</p>
-             <!-- Sidebar Navigation -->
-       
         </div>
 
         <!-- Chatbot Inquiries Interface -->
         <div class="inquiries-container">
             <!-- Chat List Sidebar -->
-            <div class="chat-list">
+            <section class="chat-list" aria-label="Recent conversations">
                 <div class="chat-list-header">
                     <div class="chat-list-header-top">
-                        <h3>Recent Conversations</h3>
+                        <div class="inquiry-search">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input type="search" class="search-box" placeholder="Search patient or inquiry" id="searchInput" aria-label="Search patient or inquiry">
+                        </div>
                         <button type="button" class="select-mode-btn" id="selectModeBtn" title="Select conversations to delete" aria-label="Select conversations to delete">
                             <i class="bi bi-pencil"></i>
                         </button>
                     </div>
-                    <input type="text" class="search-box" placeholder="Search patient or inquiry..." id="searchInput">
                     <div class="selection-actions-bar" id="selectionActionsBar">
                         <span class="selection-count" id="selectionCount">0 selected</span>
                         <div style="display:flex; gap:0.5rem;">
@@ -63,13 +63,13 @@
                 <ul class="chat-items" id="chatList">
                     <!-- Chat items will be dynamically populated -->
                 </ul>
-            </div>
+            </section>
 
             <!-- Chat Conversation Area -->
             <div class="chat-conversation" id="conversationArea">
                 <!-- Default empty state -->
                 <div class="empty-state" id="emptyState">
-                    <div class="emoji">💬</div>
+                    <i class="bi bi-chat-dots empty-chat-icon" aria-hidden="true"></i>
                     <p>Select a conversation to view details</p>
                 </div>
                 
@@ -80,13 +80,13 @@
                             <i class="bi bi-arrow-left"></i>
                         </button>
                         <div class="patient-details">
-                            <h3 id="patientName">Maria Santos</h3>
-                            <p id="patientInfo">ID: P-12345 • Ophthalmology</p>
+                            <h3 id="patientName"></h3>
+                            <p id="patientInfo"></p>
                         </div>
-                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <div class="conversation-actions">
                             <span class="status-badge status-active" id="statusBadge">Active</span>
                             <button class="resolve-btn-modern" id="resolveBtn">
-                                <i class="bi bi-check-circle"></i>Mark as Resolve
+                                <i class="bi bi-check2" aria-hidden="true"></i> Mark as resolved
                             </button>
                             <button class="unresolve-btn-modern" id="unresolveBtn">
                                 <i class="bi bi-arrow-counterclockwise"></i> Unresolve
@@ -102,11 +102,12 @@
 
                 <!-- Reply Area (hidden by default) -->
                 <div class="reply-area" id="replyArea" style="display: none;">
-                    <input type="text" class="reply-input" placeholder="Type your response..." id="replyInput">
-                    <button class="send-btn" id="sendBtn">Send Reply</button>
+                    <input type="text" class="reply-input" placeholder="Type your response..." id="replyInput" aria-label="Type your response">
+                    <button type="button" class="send-btn" id="sendBtn"><i class="bi bi-send" aria-hidden="true"></i><span>Send</span></button>
                 </div>
             </div>
         </div>
+    </main>
     </div>
 
     <!-- Custom confirm modal (replaces window.confirm) — icon + title +
@@ -145,67 +146,46 @@
         const PAGE_SIZE = 6;
         let visibleCount = PAGE_SIZE;
 
-        // Status -> dot color / label, used for the top-right of each chat item.
-        // Colors pulled from the site's own palette (chatbot_logs.css :root vars)
-        // instead of arbitrary red/orange/green.
-        function getStatusMeta(chat) {
-            if (chat.rawStatus === 'Resolved') {
-                return { color: 'var(--resolved-green)', showDot: false, label: 'Resolved' };
-            }
-            // 'Pending' and 'Active' are both just "not resolved yet" from
-            // the admin's point of view, so both now render identically as
-            // "In Progress" using the shared --pending amber instead of the
-            // old two-tone active(blue)/pending(navy) split.
-            return { color: 'var(--pending)', showDot: true, label: 'In Progress' };
-        }
-
         // Render chat list
         function renderChatList(filterText = "") {
             const chatListEl = document.getElementById("chatList");
-            const filteredLogs = chatLogs.filter(log =>
-                log.name.toLowerCase().includes(filterText.toLowerCase()) ||
-                (log.department || '').toLowerCase().includes(filterText.toLowerCase()) ||
-                log.lastMessage.toLowerCase().includes(filterText.toLowerCase())
+            const query = filterText.trim().toLowerCase();
+            const filteredLogs = chatLogs.filter(chat =>
+                [chat.name, chat.inquiryCode, chat.patientId, chat.department, chat.lastMessage]
+                    .some(value => (value || '').toLowerCase().includes(query))
             );
 
             if (filteredLogs.length === 0) {
-                chatListEl.innerHTML = `<li style="padding:1.5rem; text-align:center; color:#7f8c8d;">No inquiries found.</li>`;
+                chatListEl.innerHTML = `<li class="chat-list-empty">No inquiries found.</li>`;
                 return;
             }
 
             const itemsToShow = filteredLogs.slice(0, visibleCount);
 
-            // Layout per item:
-            //   Guest                      *  Pending
-            //   INQ-007                   Aug 26
-            // Top row: name (left) + status dot/label (right).
-            // Bottom row: inquiry code (left) + date/time (right).
+            const focusedChat = document.activeElement?.closest('.chat-item')?.dataset.id;
             let html = itemsToShow.map(chat => {
                 const isResolved = chat.rawStatus === 'Resolved';
-                const meta = getStatusMeta(chat);
-
+                const isOpen = currentChatId === chat.id;
+                const isSelected = selectMode && selectedIds.has(chat.id);
                 return `
-                <li class="chat-item ${currentChatId === chat.id ? 'active' : ''} ${!isResolved ? 'unresolved' : ''} ${selectMode && selectedIds.has(chat.id) ? 'selected' : ''}" data-id="${chat.id}">
-                    ${selectMode ? `<input type="checkbox" class="chat-item-checkbox" ${selectedIds.has(chat.id) ? 'checked' : ''} tabindex="-1">` : ''}
-                    <div class="chat-avatar">
-                        ${chat.avatar}
-                        ${chat.unread ? '<span class="avatar-unread-dot" title="Unread"></span>' : ''}
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-name">
-                            <span class="chat-name-text">${escapeHtml(chat.name)}</span>
-                            <span class="chat-status-label" style="color:${meta.color};">
-                                ${meta.showDot ? `<span class="status-dot-inline" style="background:${meta.color};"></span>` : ''}
-                                ${meta.label}
+                    <li class="chat-item ${isOpen ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-id="${chat.id}">
+                        <button class="chat-item-button" type="button" ${selectMode ? `aria-pressed="${isSelected}"` : (isOpen ? 'aria-current="true"' : '')}>
+                            ${selectMode ? `<span class="chat-item-checkbox bi ${isSelected ? 'bi-check-square-fill' : 'bi-square'}" aria-hidden="true"></span>` : ''}
+                            <span class="chat-avatar" aria-hidden="true">${escapeHtml(chat.avatar)}</span>
+                            <span class="chat-info">
+                                <span class="chat-name">
+                                    <span class="chat-name-text">${escapeHtml(chat.name)}</span>
+                                    <span class="chat-time">${formatTime(chat.timestamp)}</span>
+                                </span>
+                                <span class="chat-code">${escapeHtml(chat.inquiryCode)}</span>
+                                <span class="chat-status-label ${isResolved ? 'resolved' : 'in-progress'}">
+                                    ${isResolved ? 'Resolved' : 'In progress'}
+                                </span>
                             </span>
-                        </div>
-                        <div class="chat-preview">
-                            <span class="chat-code">${chat.inquiryCode}</span>
-                            <span class="chat-time">${formatTime(chat.timestamp)}</span>
-                        </div>
-                    </div>
-                </li>
-            `;
+                            ${chat.unread ? '<span class="chat-unread" aria-label="Unread"></span>' : ''}
+                        </button>
+                    </li>
+                `;
             }).join("");
 
             if (filteredLogs.length > visibleCount) {
@@ -216,6 +196,9 @@
             }
 
             chatListEl.innerHTML = html;
+            if (focusedChat) {
+                chatListEl.querySelector(`[data-id="${focusedChat}"] button`)?.focus({ preventScroll: true });
+            }
 
             // Add click event listeners to chat items
             document.querySelectorAll('.chat-item').forEach(item => {
@@ -238,18 +221,14 @@
             }
         }
 
-        // Format time for display
+        const clinicTimezone = 'Asia/Manila';
+        const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: clinicTimezone, dateStyle: 'short' });
+        const shortDate = new Intl.DateTimeFormat('en', { timeZone: clinicTimezone, month: 'short', day: 'numeric' });
+        const clockTime = new Intl.DateTimeFormat('en', { timeZone: clinicTimezone, hour: 'numeric', minute: '2-digit' });
+
         function formatTime(timestamp) {
             const date = new Date(timestamp);
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-            if (msgDate.getTime() === today.getTime()) {
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } else {
-                return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-            }
+            return dateKey.format(date) === dateKey.format(new Date()) ? clockTime.format(date) : shortDate.format(date);
         }
 
         // Show/hide the reply box and Resolve button based on the chat's
@@ -293,66 +272,84 @@
 
             updateActionVisibility(chat);
 
-            // Update header — now includes the INQ ticket code alongside
-            // the patient ID and department, since chat.name shows the
-            // actual person's name instead of the INQ code.
-            document.getElementById("patientName").innerText = chat.name;
-            // No department segment when the inquiry has no specific
-            // type (department comes through as null/empty from the
-            // backend instead of a placeholder like "General").
-            const infoParts = [chat.inquiryCode, `ID: ${chat.patientId}`];
-            if (chat.department) 
-            document.getElementById("patientInfo").innerHTML = infoParts.map(escapeHtml).join(' • ');
+            document.getElementById("patientName").textContent = chat.name;
+            const infoParts = [chat.inquiryCode, `Started ${shortDate.format(new Date(chat.timestamp))}`];
+            if (chat.patientId !== 'Guest') infoParts.push(chat.patientId);
+            if (chat.department) infoParts.push(chat.department);
+            document.getElementById("patientInfo").textContent = infoParts.join(' · ');
             const statusBadge = document.getElementById("statusBadge");
-            // 'active' and 'pending' both display as the same "In Progress"
+            // 'active' and 'pending' both display as the same "In progress"
             // badge now — only "resolved" gets its own look.
             const displayStatus = chat.status === "resolved" ? "resolved" : "active";
             statusBadge.className = `status-badge status-${displayStatus}`;
-            statusBadge.innerText = displayStatus === "resolved" ? "Resolved" : "In Progress";
+            statusBadge.innerText = displayStatus === "resolved" ? "Resolved" : "In progress";
 
             // Render messages
             renderMessages(chat.conversation);
         }
 
-        // Render conversation messages
         function renderMessages(messages) {
             const messagesArea = document.getElementById("messagesArea");
-            messagesArea.innerHTML = messages.map(msg => `
-                <div class="message">
-                    <div class="message-avatar ${msg.sender === 'patient' ? 'patient' : ''}">
-                        <i class="bi ${msg.sender === 'patient' ? 'bi-person-fill' : (msg.senderLabel === 'Chatbot' ? 'bi-robot' : 'bi-headset')}"></i>
-                    </div>
-                    <div class="message-content ${msg.sender === 'bot' ? 'bot' : ''}">
-                        <div class="message-sender ${msg.sender === 'patient' ? 'patient' : ''}">
-                            ${escapeHtml(msg.senderLabel || (msg.sender === 'patient' ? 'Patient' : 'Admin'))}
-                        </div>
-                        ${renderAttachment(msg)}
-                        ${msg.text && msg.text !== '(Sent an attachment)' ? `<div class="message-text">${escapeHtml(msg.text)}</div>` : ''}
-                        <div class="message-time">${msg.time}</div>
-                    </div>
-                </div>
-            `).join("");
+            const today = dateKey.format(new Date());
+            let previousDay;
+            messagesArea.innerHTML = messages.map(msg => {
+                const date = msg.timestamp ? new Date(msg.timestamp) : null;
+                const day = date ? dateKey.format(date) : null;
+                const divider = day && day !== previousDay
+                    ? `<div class="message-day">${day === today ? 'Today' : shortDate.format(date)}</div>`
+                    : '';
+                previousDay = day;
+                const outgoing = msg.sender !== 'patient' && msg.senderLabel !== 'Chatbot';
+                const sender = msg.senderLabel || (outgoing ? 'Admin' : 'Patient');
+                const icon = msg.senderLabel === 'Chatbot' ? 'bi-robot' : 'bi-person';
+                const text = msg.text && msg.text !== '(Sent an attachment)' ? escapeHtml(msg.text) : '';
 
-            // Scroll to bottom
+                return `${divider}
+                    <div class="message ${outgoing ? 'outgoing' : 'incoming'}">
+                        <span class="message-avatar" aria-hidden="true">
+                            ${outgoing ? (sender === 'Admin' ? 'AD' : 'ST') : `<i class="bi ${icon}"></i>`}
+                        </span>
+                        <div class="message-content">
+                            <div class="message-sender">${escapeHtml(sender)}</div>
+                            <div class="message-bubble">
+                                ${renderAttachment(msg)}
+                                ${text ? `<div class="message-text">${text}</div>` : ''}
+                            </div>
+                            <div class="message-time">${date ? clockTime.format(date) : escapeHtml(msg.time || '')}</div>
+                        </div>
+                    </div>`;
+            }).join("");
             messagesArea.scrollTop = messagesArea.scrollHeight;
         }
 
-        // Shows an image preview (or a download link for non-image files)
-        // for any message that has a patient-sent attachment.
         function renderAttachment(msg) {
             if (!msg.attachmentUrl) return '';
 
+            const name = msg.attachmentName || 'Attachment';
+            const extension = name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
             const isImage = /\.(jpe?g|png|gif|webp)$/i.test(msg.attachmentName || msg.attachmentUrl);
-            const safeUrl = escapeHtml(msg.attachmentUrl);
-            const safeName = escapeHtml(msg.attachmentName || 'Attachment');
+            if (!URL.canParse(msg.attachmentUrl, window.location.origin)) return '';
+            const url = new URL(msg.attachmentUrl, window.location.origin);
+            if (!['http:', 'https:'].includes(url.protocol)) return '';
+            const safeUrl = escapeHtml(url.href).replaceAll('"', '&quot;');
+            const safeName = escapeHtml(name);
 
             if (isImage) {
-                return `<a href="${safeUrl}" target="_blank" rel="noopener">
-                    <img src="${safeUrl}" alt="${safeName}" style="max-width:220px;max-height:220px;border-radius:8px;display:block;margin-bottom:0.4rem;">
+                return `<a class="message-image" href="${safeUrl}" target="_blank" rel="noopener">
+                    <img src="${safeUrl}" alt="${safeName.replaceAll('"', '&quot;')}">
                 </a>`;
             }
 
-            return `<a href="${safeUrl}" target="_blank" rel="noopener" style="display:inline-block;margin-bottom:0.4rem;">📎 ${safeName}</a>`;
+            return `<a class="message-file" href="${safeUrl}" target="_blank" rel="noopener">
+                <span class="message-file-icon ${extension === 'pdf' ? 'pdf' : ''}" aria-hidden="true">
+                    ${extension === 'pdf' ? 'PDF' : '<i class="bi bi-file-earmark"></i>'}
+                </span>
+                <span class="message-file-details">
+                    <span class="message-file-name">${safeName}</span>
+                    <span class="message-file-type">${extension === 'pdf' ? 'PDF document' : 'Attachment'}</span>
+                </span>
+                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+            </a>`;
         }
 
         // Simple escape HTML to prevent XSS
@@ -455,9 +452,9 @@
                     senderLabel: 'Admin',
                     text: messageText,
                     time: data.time,
+                    timestamp: data.timestamp,
                 });
                 chat.lastMessage = messageText;
-                chat.timestamp = new Date().toISOString();
                 chat.rawStatus = data.status;
                 chat.status = data.status === 'Pending' ? 'pending' : (data.status === 'Resolved' ? 'resolved' : 'active');
 
@@ -470,12 +467,12 @@
                 const statusBadge = document.getElementById("statusBadge");
                 const displayStatus = chat.status === "resolved" ? "resolved" : "active";
                 statusBadge.className = `status-badge status-${displayStatus}`;
-                statusBadge.innerText = displayStatus === "resolved" ? "Resolved" : "In Progress";
+                statusBadge.innerText = displayStatus === "resolved" ? "Resolved" : "In progress";
                 updateActionVisibility(chat);
 
-                const originalText = sendBtn.innerText;
-                sendBtn.innerText = "Sent!";
-                setTimeout(() => { sendBtn.innerText = originalText; }, 1000);
+                const sendLabel = sendBtn.querySelector("span");
+                sendLabel.textContent = "Sent";
+                setTimeout(() => { sendLabel.textContent = "Send"; }, 1000);
             } catch (e) {
                 showToast(e.message || 'Failed to send reply. Please try again.');
             } finally {
@@ -742,6 +739,7 @@
         // without losing the currently loaded conversation.
         document.getElementById("backToListBtn").addEventListener("click", () => {
             document.getElementById("conversationArea").classList.remove("mobile-active");
+            document.querySelector('#chatList [aria-current="true"]')?.focus();
         });
 
         // Initial render

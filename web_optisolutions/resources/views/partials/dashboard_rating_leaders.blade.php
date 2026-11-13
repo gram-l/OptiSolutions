@@ -1,3 +1,4 @@
+@php($compactAdminRatings = $compactAdminRatings ?? false)
 <div class="chart-card rating-leaders-card">
     <div class="chart-header">
         <div class="chart-header-title">
@@ -6,15 +7,27 @@
         </div>
     </div>
     <p class="chart-subtitle">Top 3 by average star rating · All time</p>
-    <div class="rating-leaders-scroll" tabindex="0" role="region" aria-label="Leading doctor and service ratings">
+    @unless($compactAdminRatings)
+        <div class="rating-leaders-scroll" tabindex="0" role="region" aria-label="Leading doctor and service ratings">
+    @endunless
     <div class="rating-leaders-columns">
         @foreach(['Doctors' => ($leadingDoctors ?? []), 'Services' => ($leadingServices ?? [])] as $heading => $leaders)
             <section>
                 <h4>{{ $heading }}</h4>
                 <ol id="rating-leaders-{{ strtolower($heading) }}" class="rating-leaders-list">
                     @forelse($leaders as $leader)
-                        <li><span class="rating-leader-name">{{ $loop->iteration }}. {{ $leader->name }}</span>
-                            <span class="rating-leader-score"><i class="bi bi-star-fill" aria-hidden="true"></i> {{ number_format($leader->average_rating, 1) }}<span class="rating-leader-count"> / 5 ratings</span></span>
+                        <li>
+                            <span class="rating-leader-name">
+                                <span class="rating-leader-rank">{{ $loop->iteration }}{{ $compactAdminRatings ? '' : '.' }}</span>
+                                {{ $leader->name }}
+                            </span>
+                            <span class="rating-leader-score"><i class="bi bi-star-fill" aria-hidden="true"></i> {{ number_format($leader->average_rating, 1) }}<span class="rating-leader-count">
+                                    @if($compactAdminRatings)
+                                        · {{ $leader->rating_count }} {{ Str::plural('review', $leader->rating_count) }}
+                                    @else
+                                        / 5 ratings
+                                    @endif
+                                </span></span>
                         </li>
                     @empty
                         <li class="rating-leaders-empty">No linked ratings yet.</li>
@@ -23,8 +36,13 @@
             </section>
         @endforeach
     </div>
-    <p class="rating-leaders-note">Based on ratings linked to a scheduled visit. Equal averages are ordered by rating count.</p>
-    </div>
+    @isset($ratingInterpretation)
+        <p class="chart-interpretation" data-chart-interpretation="ratings">{{ $ratingInterpretation }}</p>
+    @endisset
+    @unless($compactAdminRatings)
+            <p class="rating-leaders-note">Based on ratings linked to a scheduled visit. Equal averages are ordered by rating count.</p>
+        </div>
+    @endunless
 </div>
 <style>
     .chart-card.rating-leaders-card { display:flex; flex-direction:column; min-height:0; min-width:0; contain:size; align-self:stretch; overflow:hidden; }

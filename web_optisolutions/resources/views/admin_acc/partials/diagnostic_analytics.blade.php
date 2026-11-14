@@ -30,6 +30,9 @@
             </select>
         </label>
         <button type="submit" id="diagnostic-compare">Compare</button>
+        @unless($diagnosticStaff ?? false)
+            <button type="submit" id="diagnostic-report" formaction="{{ route('admin.dashboard.diagnostics.report') }}" formtarget="_blank">Generate report</button>
+        @endunless
     </form>
     <div id="diagnostic-errors" role="alert">
     @foreach(['diagnostic_week', 'diagnostic_doctor', 'diagnostic_specialty'] as $field)
@@ -70,6 +73,7 @@
         .diagnostic-filters input,.diagnostic-filters select { width:100%; min-width:0; }
         .diagnostic-filters select { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .diagnostic-filters button { flex:0 0 90px; width:90px; background:#0e62aa; color:white; cursor:pointer; }
+        .diagnostic-filters #diagnostic-report { flex:0 0 auto; width:auto; padding-inline:1rem; }
         @media(max-width:600px) {
             .diagnostic-filters label,.diagnostic-filters label:first-child { flex:0 0 100%; }
         }
@@ -192,6 +196,7 @@
     }
 
     form.addEventListener('submit', async event => {
+        if (event.submitter?.id === 'diagnostic-report') return;
         event.preventDefault();
         if (comparisonController || !form.reportValidity()) return;
         const parameters = new URLSearchParams(new FormData(form));

@@ -36,6 +36,7 @@ const doctor = element('diagnostic-doctor', { name: 'diagnostic_doctor' });
 const specialty = element('diagnostic-specialty', { name: 'diagnostic_specialty' });
 const week = element('diagnostic-week', { name: 'diagnostic_week', value: '2026-10-19' });
 const button = element('diagnostic-compare');
+const reportButton = element('diagnostic-report');
 const results = element('diagnostic-results', { innerHTML: '<p>Previous results</p>' });
 const errors = element('diagnostic-errors');
 const status = element('diagnostic-status', { hidden: true });
@@ -46,7 +47,7 @@ const preferences = new Map();
 const timers = new Map();
 let timerId = 0;
 const form = element('diagnostic-form', {
-    elements: [week, doctor, specialty, button], dataset: { compareUrl: '/admin/dashboard/diagnostics' },
+    elements: [week, doctor, specialty, button, reportButton], dataset: { compareUrl: '/admin/dashboard/diagnostics' },
     reportValidity: () => true,
     contains(candidate) { return this.elements.includes(candidate); },
 });
@@ -88,6 +89,11 @@ const values = select => select.options.map(o => o.value);
     doctor.value = '1'; doctor.fire('change');
     assert.equal(specialty.value, 'General Medicine');
     assert.deepEqual(values(specialty), ['', 'General Medicine']);
+
+    let reportPrevented = false;
+    await form.fire('submit', { submitter: reportButton, preventDefault() { reportPrevented = true; } });
+    assert.equal(reportPrevented, false, 'Report submission follows the button’s native form action');
+    assert.equal(requests.length, 0, 'Generating a report does not send a comparison request');
 
     document.activeElement = button;
     const pending = submit();

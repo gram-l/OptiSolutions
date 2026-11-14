@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\admin_models\Feedback;
 use Illuminate\Http\Request;
 use App\Models\admin_models\Complaint;
+use App\Services\IssueAnalysisService;
 use App\Services\SentimentAnalysisService;
 
 class FeedbackController extends Controller
@@ -44,13 +45,13 @@ class FeedbackController extends Controller
             ];
         });
 
-    $items = $feedback->where('sentiment', 'negative')->map(fn ($entry) => [
+    $items = $feedback->filter(fn ($entry) => $entry['sentiment'] === 'negative'
+        || ($entry['rating'] >= 1 && $entry['rating'] <= 3 && trim($entry['comment'] ?? '') !== ''))->map(fn ($entry) => [
         'id' => $entry['id'], 'text' => $entry['comment'], 'source' => 'feedback',
     ])->concat($complaints->map(fn ($entry) => [
         'id' => $entry['complaint_id'], 'text' => $entry['complaint_text'], 'source' => 'complaint',
     ]))->values();
-    $diagnosis = $items->isEmpty() ? ['details' => []] : app(SentimentAnalysisService::class)->diagnose($items->all());
-    $details = collect($diagnosis['details'] ?? [])->keyBy(fn ($entry) => $entry['source'] . ':' . $entry['id']);
+    $details = app(IssueAnalysisService::class)->resolve($items)['details'];
     $feedback = $feedback->map(function ($entry) use ($details) {
         $entry['issue_categories'] = $details->get('feedback:' . $entry['id'])['matched_categories'] ?? [];
         $entry['issue_findings'] = $details->get('feedback:' . $entry['id'])['findings'] ?? [];
@@ -99,6 +100,9 @@ public function store(Request $request, SentimentAnalysisService $sentimentServi
       } catch (\Throwable $exception) {
         \Illuminate\Support\Facades\Log::warning('Review saved; sentiment analysis remains pending.', ['feedback_id' => $feedback->feedback_id]);
       }
+      if ($feedback->star_rating <= 3 || strtolower($result['sentiment_label'] ?? '') === 'negative') {
+        app(IssueAnalysisService::class)->capture('feedback', $feedback->feedback_id, $feedback->feedback_text);
+      }
     }
 
     return redirect()->back()->with('success', 'Feedback submitted.');
@@ -134,7 +138,7 @@ public function diagnoseRootCauses()
     // Negative-classified feedback
     $negativeFeedback = Feedback::whereHas('sentimentResult', function ($q) {
         $q->where('sentiment_label', 'Negative');
-    })->get()->map(function ($f) {
+    })->get()->filter(fn ($f) => trim($f->feedback_text ?? '') !== '')->map(function ($f) {
         return [
             'id' => $f->feedback_id,
             'text' => $f->feedback_text,
@@ -153,12 +157,21 @@ public function diagnoseRootCauses()
 
     $items = $negativeFeedback->concat($complaints)->values();
 
-    $result = app(SentimentAnalysisService::class)->diagnose($items->all());
+    $result = app(IssueAnalysisService::class)->resolve($items);
 
-    if ($result !== null) {
-        return response()->json($result);
+    if ($result['pending'] && $result['details']->isEmpty()) {
+        return response()->json(['error' => 'Issue analysis is temporarily unavailable. Please try again.'], 503);
     }
 
-    return response()->json(['error' => 'Issue analysis is temporarily unavailable. Please try again.'], 503);
+    $details = $result['details']->values();
+    $categoryCounts = fn ($source) => $details->where('source', $source)->pluck('matched_categories')
+        ->collapse()->countBy()->sortDesc();
+
+    return response()->json([
+        'details' => $details,
+        'feedback_category_counts' => (object) $categoryCounts('feedback')->all(),
+        'complaint_category_counts' => (object) $categoryCounts('complaint')->all(),
+        'pending' => $result['pending'],
+    ]);
 }
 }

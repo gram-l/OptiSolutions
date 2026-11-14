@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Complaint;
+use App\Services\IssueAnalysisService;
 use Illuminate\Http\Request;
 
 class ComplaintController extends Controller
@@ -22,6 +23,8 @@ class ComplaintController extends Controller
             'status'         => 'pending',
             
         ]);
+
+        app(IssueAnalysisService::class)->capture('complaint', $complaint->complaint_id, $complaint->complaint_text);
 
         return response()->json(['complaint_id' => $complaint->complaint_id], 201);
     }

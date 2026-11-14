@@ -61,9 +61,11 @@
         @endif
     </p>
     @if(!$diagnostic['available'])
-        <p role="status">Concern analysis is unavailable or incomplete. Review counts remain available; concern comparisons cannot be generated. Try Compare again later.</p>
+        <p role="status">Issue analysis is pending for {{ $diagnostic['pending_issues'] }} comment(s). Counts shown for matched issues use saved results and may increase after analysis completes.</p>
     @else
         <p class="diagnostic-note">Unmatched negative reviews: {{ $previous['unmatched'] }} previously; {{ $current['unmatched'] }} currently. One review can mention several concerns, so concern shares may total more than 100%.</p>
+    @endif
+    @if($diagnostic['available'] || $diagnostic['categories'])
         @if($current['negative'] < 5 || $previous['negative'] < 5)
             <p class="diagnostic-note">At least one period has fewer than five negative reviews. Small numbers make comparisons sensitive to individual submissions.</p>
         @endif
@@ -75,7 +77,9 @@
             <article class="diagnostic-finding">
                 <h4>{{ $labelFor($category) }}</h4>
                 <p class="diagnostic-trend {{ $after > $before ? 'diagnostic-increase' : ($after < $before ? 'diagnostic-decrease' : 'diagnostic-unchanged') }}">
-                    @if($after > $before)
+                    @if(!$diagnostic['available'])
+                        Partial counts
+                    @elseif($after > $before)
                         ↑ Mentioned more than last week
                     @elseif($after < $before)
                         ↓ Mentioned less than last week
@@ -90,7 +94,7 @@
                         @foreach($period['comments'] as $comment)
                             @if(in_array($category, $comment['categories'], true))
                                 <div class="diagnostic-comment">
-                                    <p class="diagnostic-comment-meta"><strong>{{ $period['label'] }} · Review #{{ $comment['id'] }}</strong> · {{ $comment['date'] }}<br>{{ $comment['doctor'] ?: 'Doctor not linked' }} · {{ $comment['specialty'] ?: 'Specialty not linked' }}</p>
+                                    <p class="diagnostic-comment-meta"><strong>{{ $period['label'] }} · Review #{{ $comment['id'] }}</strong> · {{ $comment['date'] }}<br>{{ $comment['doctor'] ?: 'Doctor not linked' }} · {{ $comment['specialty'] ?: 'Specialty not linked' }} · {{ $comment['rating'] ? $comment['rating'] . '/5 stars' : 'Unrated' }}</p>
                                     <blockquote>{{ $comment['text'] }}</blockquote>
                                     @foreach($comment['findings'] as $finding)
                                         @if(($finding['category'] ?? '') === $category)

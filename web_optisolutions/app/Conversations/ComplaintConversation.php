@@ -11,7 +11,7 @@ use App\Models\admin_models\Complaint;
 use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
 use App\Conversations\Concerns\HandlesRateLimit;
-use App\Services\SentimentAnalysisService;
+use App\Services\IssueAnalysisService;
 use App\Services\NotificationService;
 use App\Models\Notification;
 
@@ -102,8 +102,8 @@ class ComplaintConversation extends Conversation
                 'patient_id'     => $this->patientId,
                 'log_id'         => $logId,
                 'complaint_text' => $text,
-                'category'       => app(SentimentAnalysisService::class)->categorize($text),
             ]);
+            app(IssueAnalysisService::class)->capture('complaint', $complaint->complaint_id, $text);
 
         try {
             NotificationService::newComplaint($this->patientName ?: 'A patient', $complaint->complaint_id);

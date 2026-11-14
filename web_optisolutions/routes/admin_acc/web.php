@@ -172,6 +172,7 @@ Route::middleware(['auth', 'admin', PreventBackHistory::class])->group(function 
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/data', [AdminDashboardController::class, 'data'])->name('dashboard.data');
         Route::get('/dashboard/diagnostics', [AdminDashboardController::class, 'diagnostics'])->name('dashboard.diagnostics');
+        Route::get('/dashboard/diagnostics/report', [AdminDashboardController::class, 'diagnosticReport'])->name('dashboard.diagnostics.report');
     });
 
     //patient list routes

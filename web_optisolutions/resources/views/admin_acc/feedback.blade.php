@@ -13,6 +13,7 @@
 
     <style>
         [data-feedback-panel][hidden], #feedbackFilters[hidden] { display: none !important; }
+        #feedbackDoctorFilter, #feedbackServiceFilter { max-width: min(100%, 15rem); min-width: 0; }
 
         .reported-reason-item { margin-bottom: .6rem; }
         .reported-reasons-toggle {
@@ -171,6 +172,12 @@
                         <option value="neutral">Neutral <i class="fa-regular fa-face-meh"></i></option>
                         <option value="negative">Negative <i class="fa-regular fa-face-frown"></i></option>
                     </select>
+                    <select class="filter-select" id="feedbackDoctorFilter" aria-label="Filter feedback by doctor">
+                        <option value="">All Doctors</option>
+                    </select>
+                    <select class="filter-select" id="feedbackServiceFilter" aria-label="Filter feedback by service">
+                        <option value="">All Services</option>
+                    </select>
                     <input type="date" class="date-filter" id="dateFromFilter" title="From date">
                     <span class="date-filter-sep">to</span>
                     <input type="date" class="date-filter" id="dateToFilter" title="To date">
@@ -191,6 +198,7 @@
                     <div class="pattern-card card-pattern">
                         <div class="analytics-title" id="negativePatternsTitle"><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i> Recurring Negative Patterns</div>
                         <div id="negativePatterns" role="region" aria-labelledby="negativePatternsTitle" tabindex="0"></div>
+                        <p class="visit-ratings-note" id="filteredPatternsNote" hidden>Doctor and service filters use visit-linked feedback. Standalone complaints are available in the Complaints tab.</p>
                     </div>
                 </div>
 
@@ -291,6 +299,24 @@
 
         const feedbackData = sortByDateDesc(@json($feedbackData), 'date');
         const complaintData = sortByDateDesc(@json($complaintData), 'created_at');
+        const doctorFilter = document.getElementById('feedbackDoctorFilter');
+        const serviceFilter = document.getElementById('feedbackServiceFilter');
+        const serviceKey = value => (value || '').trim().toLowerCase();
+
+        function populateReviewFilter(select, keyFor, labelFor) {
+            const options = new Map();
+            for (const review of feedbackData) {
+                const key = keyFor(review);
+                const label = (labelFor(review) || '').trim();
+                if (key && label && !options.has(key)) options.set(key, label);
+            }
+            for (const [key, label] of [...options].sort((a, b) => a[1].localeCompare(b[1]))) {
+                select.add(new Option(label, key));
+            }
+        }
+
+        populateReviewFilter(doctorFilter, review => String(review.doctor_id ?? ''), review => review.doctor);
+        populateReviewFilter(serviceFilter, review => serviceKey(review.service), review => review.service);
 
         const ROWS_PER_PAGE = 10;
         let feedbackCurrentPage = 1;
@@ -320,7 +346,7 @@
                 const rating = Number(entry.rating);
                 const name = String(entry[label] || '').trim();
                 if (!entry[key] || !name || !Number.isInteger(rating) || rating < 1 || rating > 5) return;
-                const id = key === 'service' ? name.toLowerCase() : String(entry[key]);
+                const id = key === 'service' ? serviceKey(name) : String(entry[key]);
                 const group = groups.get(id) || { name, total: 0, count: 0, sentiments: { positive: 0, neutral: 0, negative: 0, pending: 0, no_comment: 0 } };
                 group.total += rating;
                 group.count++;
@@ -377,7 +403,9 @@
             const search = document.getElementById('searchInput').value.trim().toLowerCase();
             const from = document.getElementById('dateFromFilter').value;
             const to = document.getElementById('dateToFilter').value;
-            const complaints = complaintData.filter(c => {
+            const visitFilterActive = Boolean(doctorFilter.value || serviceFilter.value);
+            document.getElementById('filteredPatternsNote').hidden = !visitFilterActive;
+            const complaints = visitFilterActive ? [] : complaintData.filter(c => {
                 const date = toDateOnly(c.created_at);
                 return (c.complaint_text || '').toLowerCase().includes(search)
                     && (!from || (date && date >= from)) && (!to || (date && date <= to));
@@ -405,8 +433,8 @@
                         </div>
                     </div>
                 `;
-            }).join('') + '<p style="font-size:0.75rem;color:#7f8c8d;margin-top:0.6rem;">Based on negative feedback and complaints. One entry can mention multiple categories; percentages may total more than 100%. Unclassified entries need the analysis service.</p>'
-                : '<div style="padding:1rem; text-align:center; color:#95a5a6;">No negative feedback or complaints for selected filters</div>';
+            }).join('') + `<p style="font-size:0.75rem;color:#7f8c8d;margin-top:0.6rem;">Based on ${visitFilterActive ? 'negative visit feedback' : 'negative feedback and complaints'}. One entry can mention multiple categories; percentages may total more than 100%. Unclassified entries need the analysis service.</p>`
+                : `<div style="padding:1rem; text-align:center; color:#95a5a6;">No ${visitFilterActive ? 'negative visit feedback' : 'negative feedback or complaints'} for selected filters</div>`;
         }
 
         function renderFeedbackTable(filteredData) {
@@ -560,18 +588,22 @@
         function getFilteredData() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const sentimentFilter = document.getElementById('sentimentFilter').value;
+            const selectedDoctor = doctorFilter.value;
+            const selectedService = serviceFilter.value;
             const dateFrom = document.getElementById('dateFromFilter').value;
             const dateTo = document.getElementById('dateToFilter').value;
 
             return feedbackData.filter(f => {
                 const matchesSearch = [f.comment, f.doctor, f.service].some(value => (value || '').toLowerCase().includes(searchTerm));
                 const matchesSentiment = sentimentFilter === 'all' || f.sentiment === sentimentFilter;
+                const matchesDoctor = !selectedDoctor || String(f.doctor_id ?? '') === selectedDoctor;
+                const matchesService = !selectedService || serviceKey(f.service) === selectedService;
 
                 const entryDate = toDateOnly(f.date);
                 const matchesFrom = !dateFrom || (entryDate && entryDate >= dateFrom);
                 const matchesTo = !dateTo || (entryDate && entryDate <= dateTo);
 
-                return matchesSearch && matchesSentiment && matchesFrom && matchesTo;
+                return matchesSearch && matchesSentiment && matchesDoctor && matchesService && matchesFrom && matchesTo;
             });
         }
 
@@ -585,6 +617,8 @@
 
         document.getElementById('searchInput').addEventListener('input', refreshAll);
         document.getElementById('sentimentFilter').addEventListener('change', refreshAll);
+        doctorFilter.addEventListener('change', refreshAll);
+        serviceFilter.addEventListener('change', refreshAll);
         document.getElementById('dateFromFilter').addEventListener('change', refreshAll);
         document.getElementById('dateToFilter').addEventListener('change', refreshAll);
 
@@ -609,6 +643,9 @@
                 Doctor: f.doctor || 'Not linked',
                 Service: f.service || 'Not linked',
                 Sentiment: f.sentiment,
+                'Issue categories': (f.issue_categories || []).map(categoryLabel).join(', '),
+                'Reported reasons': (f.issue_findings || []).map(finding =>
+                    `${categoryLabel(finding.category)}: ${finding.reported_reason || ''}`).join('; '),
                 Date: formatDate(f.date),
             }));
         }

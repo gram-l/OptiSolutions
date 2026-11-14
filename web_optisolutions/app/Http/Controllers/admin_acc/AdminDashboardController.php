@@ -31,6 +31,14 @@ class AdminDashboardController extends Controller
         ]);
     }
 
+    public function diagnosticReport(Request $request)
+    {
+        $report = app(\App\Services\DiagnosticAnalyticsService::class)->dashboard($request, forReport: true);
+
+        return response()->view('admin_acc.diagnostic_report', compact('report'))
+            ->header('Cache-Control', 'private, no-store');
+    }
+
     public function getDashboardData(): array
     {
         // ---- Stat cards ----

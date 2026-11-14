@@ -9,7 +9,7 @@
     :is(.admin-dashboard, .dash-page) :is(.charts-grid, .charts-section) {
         grid-template-columns: minmax(0, 1fr);
         min-width: 0;
-        gap: 1rem;
+        gap: var(--dashboard-card-gap, 1rem);
     }
     :is(.admin-dashboard, .dash-page) .chart-card {
         min-width: 0;

@@ -14,7 +14,7 @@
         table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
         caption { text-align: left; margin-bottom: .5rem; font-weight: 600; }
         th, td { padding: .5rem .65rem; border: 1px solid #b7c9d8; vertical-align: top; text-align: left; }
-        thead th { background: #eef5fc; }
+        thead th { background: #d3e4f3; color: #123b63; font-weight: 700; text-transform: uppercase; }
         @media print {
             body { margin: 0; padding: 0; color: #111; font-size: 10pt; }
             button { display: none; }

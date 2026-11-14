@@ -188,9 +188,6 @@
     #visitsTable thead th {
         text-align: left;
         padding: 0.75rem 1.25rem;
-        background: #ECF0F1;
-        color: #333333;
-        font-weight: 600;
         font-size: 0.85rem;
     }
 

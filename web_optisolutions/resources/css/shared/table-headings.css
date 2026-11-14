@@ -1,0 +1,23 @@
+body table > thead > tr > th {
+    background-color: #d3e4f3 !important;
+    color: #123b63 !important;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+body.dark-mode table > thead > tr > th {
+    background-color: #203952 !important;
+    color: #e1efff !important;
+}
+
+@media (max-width: 768px) {
+    body table:is(.admin-mobile-table, .table-cards) td[data-label]:not([data-label=""])::before {
+        color: #123b63;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    body.dark-mode table:is(.admin-mobile-table, .table-cards) td[data-label]:not([data-label=""])::before {
+        color: #e1efff;
+    }
+}

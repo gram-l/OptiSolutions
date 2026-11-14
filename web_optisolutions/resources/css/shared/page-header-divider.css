@@ -1,0 +1,18 @@
+:is(.page-header, .page-title-group, .dashboard-heading, .page-header-divider, .dash-page .welcome-banner) {
+    position: relative;
+}
+
+:is(.page-header, .page-title-group, .dashboard-heading, .page-header-divider)::after,
+.dash-page .welcome-banner::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: -0.45rem;
+    height: 1px;
+    background: linear-gradient(90deg, rgb(14 98 170 / 42%), rgb(54 172 216 / 18%) 50%, transparent);
+    pointer-events: none;
+}
+
+body.dark-mode :is(.page-header, .page-title-group, .dashboard-heading, .page-header-divider, .dash-page .welcome-banner)::after {
+    background: linear-gradient(90deg, rgb(139 201 255 / 55%), rgb(139 201 255 / 20%) 50%, transparent);
+}

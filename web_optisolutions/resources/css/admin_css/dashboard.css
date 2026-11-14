@@ -18,7 +18,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #eef2f7;
+            background: #e8f1f8;
             min-height: 100vh;
         }
 
@@ -136,40 +136,50 @@
         }
 
         .admin-dashboard {
-            --dashboard-card-gap: 0.25rem;
+            --dashboard-card-gap: 1rem;
+            --dashboard-blue: #11678f;
+            --dashboard-blue-tint: #e3f3fa;
+            --dashboard-blue-border: #9ccde1;
+            --dashboard-green: #3e6316;
+            --dashboard-green-tint: #f0f7e3;
             flex: 1;
             min-width: 0;
         }
 
-        .welcome-banner {
-            background: #fff;
-            padding: 0.55rem 1rem;
-            border-radius: 14px;
-            color: #28733a;
-            margin-bottom: 0.25rem;
+        .dashboard-heading {
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
             gap: 1rem;
+            margin: 1.25rem 0 var(--dashboard-card-gap);
         }
 
-        body.dark-mode .admin-dashboard :is(.welcome-banner, .welcome-banner h2, .welcome-banner p) {
-            color: #28733a !important;
+        .dashboard-heading h1 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--primary-dark);
+            font-size: clamp(1.5rem, 3vw, 2rem);
         }
 
-        .welcome-banner-text h2 {
-            font-size: 1.4rem;
-            margin-bottom: 0.15rem;
+        .dashboard-heading-icon {
+            display: grid;
+            place-items: center;
+            width: 2.75rem;
+            height: 2.75rem;
+            border-radius: 0.75rem;
+            background: var(--dashboard-blue-tint);
+            color: var(--dashboard-blue);
+            font-size: 1.35rem;
         }
 
-        .welcome-banner-text p {
-            opacity: 0.9;
-            font-size: 0.92rem;
-        }
-
-        .welcome-banner time {
-            font-size: 0.85rem;
-            font-weight: 600;
+        body.dark-mode .admin-dashboard {
+            --dashboard-blue: #a7e0f7;
+            --dashboard-blue-tint: #173c50;
+            --dashboard-blue-border: #5d9cb6;
+            --dashboard-green: #c8e69e;
+            --dashboard-green-tint: #293b22;
         }
 
         .analytics-grid {
@@ -181,10 +191,10 @@
 
         .analytics-card {
             background: var(--white);
-            padding: 0.75rem 0.9rem;
-            border: 1px solid #e2e8f0;
+            padding: 0.95rem 1.1rem;
+            border: 1px solid #cedde9;
             border-radius: 14px;
-            box-shadow: 0 1px 3px rgb(15 23 42 / 5%);
+            box-shadow: 0 2px 6px rgb(6 39 68 / 9%);
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
             display: block;
             text-decoration: none;
@@ -193,8 +203,8 @@
         }
 
         a.analytics-card:is(:hover, :focus-visible) {
-            border-color: #7ca9cf;
-            box-shadow: 0 3px 10px rgb(14 98 170 / 12%);
+            border-color: var(--dashboard-blue-border);
+            box-shadow: 0 3px 10px rgb(17 103 143 / 12%);
         }
 
         .card-top-row {
@@ -213,9 +223,9 @@
         .card-icon-badge {
             width: 34px;
             height: 34px;
-            border-radius: 10px;
-            background: rgba(14, 98, 170, 0.1);
-            color: var(--primary-main);
+            border-radius: 50%;
+            background: var(--dashboard-blue-tint);
+            color: var(--dashboard-blue);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -229,17 +239,15 @@
         }
 
         .card-title {
-            color: #475569;
-            font-size: 0.78rem;
+            color: var(--primary-dark);
+            font-size: 0.9rem;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
         }
 
         .card-value {
             font-size: 1.8rem;
             font-weight: bold;
-            color: var(--primary-text);
+            color: var(--dashboard-blue);
             margin-bottom: 0.3rem;
         }
         .card-subtitle {
@@ -260,9 +268,18 @@
             display: inline-block;
         }
 
-        .card-subtitle .dot[data-attention="true"],
-        .dashboard-star {
+        .card-subtitle .dot[data-attention="true"] {
             color: #f59e0b;
+        }
+
+        .admin-dashboard :is(.dashboard-star, .rating-leader-score i) {
+            color: var(--dashboard-green);
+        }
+
+        .admin-dashboard a.analytics-card[href$="/feedback"] .card-icon-badge,
+        .admin-dashboard .rating-leaders-card .chart-icon-badge {
+            background: var(--dashboard-green-tint);
+            color: var(--dashboard-green);
         }
 
         .card-subtitle .dot[data-attention="true"] {
@@ -446,10 +463,6 @@
             white-space: nowrap;
         }
 
-        .admin-dashboard .rating-leader-score i {
-            color: #f59e0b;
-        }
-
         .charts-section {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -481,8 +494,8 @@
             width: 32px;
             height: 32px;
             border-radius: 9px;
-            background: rgba(14, 98, 170, 0.1);
-            color: var(--primary-main);
+            background: var(--dashboard-blue-tint);
+            color: var(--dashboard-blue);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -627,41 +640,6 @@
             flex-shrink: 0;
         }
 
-        .top-complaint-box {
-            margin-top: 0.75rem;
-            padding: 0.65rem 0.75rem;
-            background: #eef4fb;
-            border-radius: 12px;
-            display: flex;
-            align-items: flex-start;
-            gap: 0.7rem;
-        }
-
-        .top-complaint-icon {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: rgba(14, 98, 170, 0.12);
-            color: var(--primary-main);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.85rem;
-            flex-shrink: 0;
-        }
-
-        .top-complaint-label {
-            font-size: 0.88rem;
-            font-weight: 600;
-            margin-bottom: 0.2rem;
-            color: var(--text-dark);
-        }
-
-        .top-complaint-text {
-            font-size: 0.85rem;
-            color: #7f8c8d;
-        }
-
         .panel-caption {
             color: #475569;
             font-size: 0.8rem;
@@ -672,24 +650,23 @@
             display: inline-flex;
             align-items: center;
             gap: 0.4rem;
-            margin-top: 0.55rem;
-            padding: 0.45rem 0.7rem;
-            border: 1px solid #7ca9cf;
-            border-radius: 8px;
-            background: var(--white);
-            color: #0e518d;
+            padding: 0.65rem 1rem;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: #07588b;
+            color: #fff;
             font: inherit;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
         }
 
         .diagnostic-trigger:hover {
-            background: #dbeafe;
+            background: #064873;
         }
 
         .admin-dashboard :is(a.analytics-card, .diagnostic-trigger):focus-visible {
-            outline: 2px solid #0e62aa;
+            outline: 2px solid var(--dashboard-blue);
             outline-offset: 3px;
         }
 
@@ -861,10 +838,6 @@
             .card-subtitle {
                 font-size: 0.75rem;
                 flex-wrap: wrap;
-            }
-            .welcome-banner {
-                flex-wrap: wrap;
-                gap: 0.4rem 1rem;
             }
             .donut-layout {
                 flex-direction: column;

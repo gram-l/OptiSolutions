@@ -1,4 +1,6 @@
 @import './shared/dark-mode-components.css';
+@import './shared/table-headings.css';
+@import './shared/page-header-divider.css';
 
 * {
     margin: 0;
@@ -766,11 +768,8 @@ body.sidebar-collapsed .sidebar a:hover .nav-item::after {
     .data-table.table-cards td:last-of-type { border-bottom: none; }
     .data-table.table-cards td[data-label]:not([data-label=""])::before {
         content: attr(data-label);
-        font-weight: 600;
         font-size: 0.68rem;
-        text-transform: uppercase;
         letter-spacing: 0.03em;
-        color: #95a5a6;
         text-align: left;
         flex: 0 0 108px;
         flex-shrink: 0;

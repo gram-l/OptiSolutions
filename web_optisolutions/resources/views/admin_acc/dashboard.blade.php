@@ -21,16 +21,12 @@
         @include('admin_acc.sidebar')
 
         <main class="main-content admin-dashboard">
-            <div class="welcome-banner">
-                <div class="welcome-banner-text">
-                    <h2>Welcome, {{ Auth::user()->name }}!</h2>
-                    <p>Here's what's happening with your clinic today.</p>
-                </div>
-                @php
-                    $clinicDate = now('Asia/Manila');
-                @endphp
-                <time datetime="{{ $clinicDate->toDateString() }}">{{ $clinicDate->format('l, j F Y') }}</time>
-            </div>
+            <header class="dashboard-heading">
+                <h1><span class="dashboard-heading-icon" aria-hidden="true"><i class="bi bi-house-door"></i></span> Dashboard</h1>
+                <button type="button" class="diagnostic-trigger" id="diagnostic-open" aria-haspopup="dialog" aria-controls="diagnostic-modal">
+                    <i class="bi bi-bar-chart-line-fill" aria-hidden="true"></i> Diagnostic Analytics
+                </button>
+            </header>
 
             @php
                 // ---- Service Distribution defaults ----
@@ -140,16 +136,6 @@
                         @endforeach
                     </div>
                     <p class="chart-interpretation" data-chart-interpretation="sentiment">{{ $chartInterpretations['sentiment'] }}</p>
-                    <div class="top-complaint-box">
-                        <div class="top-complaint-icon"><i class="bi bi-chat-square-text"></i></div>
-                        <div>
-                            <div class="top-complaint-label">Reported concerns</div>
-                            <p class="top-complaint-text">Comparisons and supporting reviews</p>
-                            <button type="button" class="diagnostic-trigger" id="diagnostic-open" aria-haspopup="dialog" aria-controls="diagnostic-modal">
-                                View details <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- 3) INQUIRY VOLUME (bar) -->

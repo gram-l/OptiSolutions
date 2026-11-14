@@ -35,9 +35,12 @@
                 <i class="bi bi-list"></i>
             </button>
             <div class="logo-section">
-                <img class="clinic-logo-light" src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
-                <img class="clinic-logo-dark" src="{{ asset('images/polyclinic_logo_dark.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
-                <h1>PolyClinic Staff</h1>
+                <img class="clinic-logo-light" src="{{ asset('images/polyclinic_logo.png') }}" alt="" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
+                <img class="clinic-logo-dark" src="{{ asset('images/polyclinic_logo_dark.png') }}" alt="" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
+                <div class="portal-brand">
+                    <h1>Polyclinic</h1>
+                    <span class="portal-brand-role">Staff Portal</span>
+                </div>
             </div>
         </div>
 

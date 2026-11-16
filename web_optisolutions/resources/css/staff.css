@@ -3,6 +3,7 @@
 @import './shared/table-headings.css';
 @import './shared/portal-corners.css';
 @import './shared/portal-scrollbars.css';
+@import './shared/portal-dashboard.css';
 
 * {
     margin: 0;

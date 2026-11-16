@@ -1,8 +1,10 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const raw = fs.readFileSync('resources/views/staff/dashboard.blade.php', 'utf8');
+const raw = fs.readFileSync('resources/views/partials/portal_dashboard_script.blade.php', 'utf8');
 const script = [...raw.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1]
+    .replace(/@json\(\$weekStartLabels \?\? \$weeklyVisitsLabels\)/, '["This week"]')
+    .replace(/@json\(\$inquiryPeriod \?\? 'this_week'\)/, '"this_week"')
     .replace(/@json\(\$([\w]+)\)/g, (_, key) => JSON.stringify({
         hasServiceData: false, hasInquiryStatusData: false,
         serviceLabels: ['No data'], serviceTotals: [1], weeklyVisitsLabels: ['This week'],
@@ -13,7 +15,7 @@ const script = [...raw.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1]
     }[key]));
 const nodes = new Map();
 const getNode = id => {
-    if (!nodes.has(id)) nodes.set(id, { id, style: {}, textContent: '', innerHTML: '' });
+    if (!nodes.has(id)) nodes.set(id, { id, style: {}, dataset: {}, textContent: '', innerHTML: '' });
     return nodes.get(id);
 };
 const charts = new Map();
@@ -40,15 +42,17 @@ const context = {
         getElementById: getNode, querySelectorAll: () => [],
         addEventListener(name, callback) { if (name === 'DOMContentLoaded') ready = callback; },
     },
-    window: { addEventListener() {}, updateDashboardRatingLeaders() {}, createDashboardChartFilters(callback) {
+    window: { matchMedia: () => ({ addEventListener() {} }), updateDashboardRatingLeaders() {}, createDashboardChartFilters(callback) {
         refresh = callback;
         return { async load() { loadCount++; return {
             serviceDistribution: [], weeklyVisits: Array(12).fill(0), weekLabels: Array(12).fill('Week'),
             inquiryVolumeByDay: [1, 2, 3, 0, 0, 0, 0], recentActivities: [],
+            pendingInquiries: 3, todaysScheduledVisits: 5, totalPatients: 10, availableDoctorsToday: 2,
         }; } };
     } },
     Chart: class {
         constructor(canvas, config) {
+            config.options.plugins.tooltip ||= {};
             config.options.plugins.legend ||= {};
             config.options.plugins.legend.labels ||= {};
             this.config = config; this.data = config.data; this.options = optionsProxy(config.options);
@@ -67,5 +71,8 @@ const context = {
     assert.equal(errors.length, 0, JSON.stringify(errors));
     assert.equal(charts.get('weeklyVisitsChart').data.datasets[0].data.length, 12);
     assert.deepEqual(charts.get('inquiryVolumeChart').data.datasets[0].data, [1, 2, 3, 0, 0, 0, 0]);
+    assert.equal(getNode('stat-todays-appointments').textContent, 5);
+    assert.equal(getNode('stat-active-patients').textContent, 10);
+    assert.equal(getNode('stat-active-doctors').textContent, 2);
     console.log('Staff chart initialization and filter refresh passed, including empty 12-week data.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -63,7 +63,7 @@ class AdminDashboardController extends Controller
         $newPatientsThisMonth = 0;
 
         $avgRating           = DB::table('feedback')->avg('star_rating');
-        $charts = app(\App\Services\DashboardChartService::class)->data(balanceSentimentPercentages: true);
+        $charts = app(\App\Services\DashboardChartService::class)->data();
 
         return array_merge([
             'pendingInquiries' => $pendingInquiries,

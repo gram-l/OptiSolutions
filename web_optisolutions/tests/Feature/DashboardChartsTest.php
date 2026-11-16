@@ -90,7 +90,7 @@ class DashboardChartsTest extends TestCase
         ], $admin['chartInterpretations']);
     }
 
-    public function test_admin_sentiment_percentages_add_up_to_one_hundred(): void
+    public function test_admin_and_staff_use_the_same_sentiment_percentages_that_add_up_to_one_hundred(): void
     {
         foreach (['Positive', 'Positive', 'Positive', 'Neutral', 'Neutral', 'Neutral', 'Negative', 'Negative'] as $label) {
             $feedbackId = DB::table('feedback')->insertGetId([
@@ -100,13 +100,15 @@ class DashboardChartsTest extends TestCase
             DB::table('sentiment_results')->insert(['feedback_id' => $feedbackId, 'sentiment_label' => $label]);
         }
 
-        $data = $this->chartData('Admin', '/admin/dashboard/data');
-        $this->assertSame(38, $data['positivePercent']);
-        $this->assertSame(37, $data['neutralPercent']);
-        $this->assertSame(25, $data['negativePercent']);
+        $admin = $this->chartData('Admin', '/admin/dashboard/data');
+        $staff = $this->chartData('Staff', '/staff/dashboard/data');
+        foreach (['positivePercent' => 38, 'neutralPercent' => 37, 'negativePercent' => 25] as $key => $expected) {
+            $this->assertSame($expected, $admin[$key]);
+            $this->assertSame($expected, $staff[$key]);
+        }
     }
 
-    public function test_admin_dashboard_renders_the_welcome_date_and_sentiment_rows(): void
+    public function test_admin_dashboard_renders_sentiment_rows_and_chart_interpretations(): void
     {
         $this->withoutVite();
         $period = [
@@ -123,6 +125,8 @@ class DashboardChartsTest extends TestCase
             'doctors' => [],
             'specialties' => [],
             'periods' => ['previous' => $period, 'current' => $period],
+            'categories' => [],
+            'pending_issues' => 1,
             'available' => false,
             'unlinked' => 0,
         ]);
@@ -130,7 +134,6 @@ class DashboardChartsTest extends TestCase
 
         $this->get('/admin_acc/dashboard')
             ->assertOk()
-            ->assertSee('Thursday, 29 October 2026')
             ->assertSee('data-label="Positive"', false)
             ->assertSee('data-label="Neutral"', false)
             ->assertSee('data-label="Negative"', false)

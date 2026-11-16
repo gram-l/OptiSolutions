@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardChartService
 {
-    public function data(bool $balanceSentimentPercentages = false): array
+    public function data(): array
     {
         $filters = request()->validate([
             'inquiry_period' => ['nullable', 'in:this_week,last_week'],
@@ -64,11 +64,10 @@ class DashboardChartService
         $negative = $sentimentCounts['Negative'] ?? 0;
         $sentimentTotal = $positive + $neutral + $negative;
 
-        $positivePercent = $sentimentTotal > 0 ? round($positive / $sentimentTotal * 100) : 0;
-        $neutralPercent  = $sentimentTotal > 0 ? round($neutral / $sentimentTotal * 100) : 0;
-        $negativePercent = $sentimentTotal > 0 ? round($negative / $sentimentTotal * 100) : 0;
+        $percentages = [0, 0, 0];
 
-        if ($balanceSentimentPercentages && $sentimentTotal > 0) {
+        if ($sentimentTotal > 0) {
+            // Give leftover percentage points to the largest remainders.
             $scaledCounts = [$positive * 100, $neutral * 100, $negative * 100];
             $percentages = array_map(fn ($count) => intdiv($count, $sentimentTotal), $scaledCounts);
             $remainders = array_map(fn ($count) => $count % $sentimentTotal, $scaledCounts);
@@ -78,9 +77,8 @@ class DashboardChartService
             foreach (array_slice(array_keys($remainders), 0, $remaining) as $index) {
                 $percentages[$index]++;
             }
-
-            [$positivePercent, $neutralPercent, $negativePercent] = $percentages;
         }
+        [$positivePercent, $neutralPercent, $negativePercent] = $percentages;
 
         // ---- 4) Inquiry Volume per weekday (this week) ----
         // Previously this counted `replied_at`, which meant unresolved /

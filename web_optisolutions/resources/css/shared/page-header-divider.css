@@ -9,10 +9,10 @@
     inset-inline: 0;
     inset-block-end: -0.45rem;
     height: 1px;
-    background: linear-gradient(90deg, rgb(14 98 170 / 42%), rgb(54 172 216 / 18%) 50%, transparent);
+    background: #d1d5db;
     pointer-events: none;
 }
 
 body.dark-mode :is(.page-header, .page-title-group, .dashboard-heading, .page-header-divider, .dash-page .welcome-banner)::after {
-    background: linear-gradient(90deg, rgb(139 201 255 / 55%), rgb(139 201 255 / 20%) 50%, transparent);
+    background: #4b5563;
 }

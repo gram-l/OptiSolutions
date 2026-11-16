@@ -16,6 +16,11 @@
     body .container .day-nav { flex-wrap: wrap; gap: 0.5rem; }
 
     @media (min-width: 769px) {
+        body > .container:has(> .sidebar) {
+            --admin-content-gutter: 0.5rem;
+            column-gap: var(--admin-content-gutter);
+            padding-inline-end: var(--admin-content-gutter);
+        }
         body > .container:not(.dashboard-layout) { margin-top: 0; }
         body > .container > .sidebar { margin-top: 0; }
         body > .container:not(.dashboard-layout) > :not(.sidebar):not(.sidebar-overlay):not(script) {

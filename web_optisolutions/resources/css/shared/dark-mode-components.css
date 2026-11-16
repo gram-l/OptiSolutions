@@ -72,12 +72,7 @@ body.dark-mode :is(.commands-table, .diagnostic-table) :is(tbody, tr, td) {
 body.dark-mode .commands-table tbody tr:hover > td { background: #25344a !important; }
 body.dark-mode .commands-table code { background: #293548 !important; color: var(--dm-text) !important; }
 
-body.dark-mode :is(.command-confirm-icon, .um-confirm-icon, .logout-modal-icon) { background: #4a2831 !important; color: var(--dm-danger) !important; }
-body.dark-mode .um-confirm[data-variant="warning"] .um-confirm-icon { background: #443826 !important; color: #ffd98b !important; }
-body.dark-mode .um-confirm[data-variant="primary"] .um-confirm-icon { background: #263e5e !important; color: var(--dm-link) !important; }
-body.dark-mode :is(.confirm-icon, .visit-message-icon) { background: #263e5e !important; color: var(--dm-link) !important; }
-body.dark-mode .confirm-icon:has(.fa-trash) { background: #4a2831 !important; color: var(--dm-danger) !important; }
-body.dark-mode .confirm-icon:has(.fa-lock) { background: #443826 !important; color: #ffd98b !important; }
+body.dark-mode .visit-message-icon { background: #263e5e !important; color: var(--dm-link) !important; }
 body.dark-mode .visit-message-overlay[data-variant="warning"] .visit-message-icon { background: #443826 !important; color: #ffd98b !important; }
 body.dark-mode .visit-message-overlay[data-variant="error"] .visit-message-icon { background: #4a2831 !important; color: var(--dm-danger) !important; }
 

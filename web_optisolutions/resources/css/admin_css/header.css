@@ -1,7 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import '../shared/dark-mode-components.css';
 @import '../shared/portal-brand.css';
 @import '../shared/table-headings.css';
 @import '../shared/page-header-divider.css';
+@import '../shared/portal-corners.css';
+@import '../shared/portal-scrollbars.css';
+
+html body {
+    font-family: Inter, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body :where(button, input, select, textarea) {
+    font-family: inherit;
+}
+
+body .container :is(.page-header h2, .dashboard-heading h1) {
+    font-size: clamp(1.25rem, 1rem + 0.75vw, 1.5rem);
+}
+
+body .container .page-header > p {
+    font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+    body .container .page-header > p {
+        font-size: 0.85rem;
+    }
+}
 
 .admin-tabs {
     display: flex;
@@ -41,13 +66,18 @@ img {
     background: #ffffff;
     padding: 0 2rem;
     height: 70px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
     z-index: 200;
+}
+
+body > .header {
+    border-bottom: 1px solid #dde5ed;
+    border-radius: 0 !important;
+    box-shadow: none;
 }
 
 /* Logo */
@@ -94,11 +124,10 @@ img {
     object-fit: cover;
 }
 
-.logo-section h1 {
+.header .logo-section .portal-brand h1 {
     font-size: 1.2rem;
-    font-weight: 700;
     color: #062744;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
 }
 
 /* Right controls */
@@ -162,7 +191,7 @@ img {
     color: #ffffff;
     font-weight: 700;
     font-size: 0.9rem;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -207,7 +236,7 @@ img {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #95a5a6;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
 }
 
 /* Notification items */
@@ -251,7 +280,7 @@ img {
     font-size: 0.82rem;
     color: #333;
     line-height: 1.4;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
 }
 
 .notif-text span {
@@ -279,7 +308,7 @@ img {
     color: #0E62AA;
     text-decoration: none;
     font-weight: 600;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
 }
 
 .dropdown-footer a:hover {
@@ -307,20 +336,20 @@ img {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
 }
 
 .profile-name {
     font-size: 0.9rem;
     font-weight: 700;
     color: #062744;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
 }
 
 .profile-role {
     font-size: 0.75rem;
     color: #7f8c8d;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
 }
 
 .menu-item {
@@ -332,7 +361,7 @@ img {
     transition: background 0.15s;
     color: #333;
     font-size: 0.85rem;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
     text-decoration: none;
     border: none;
     background: transparent;
@@ -393,20 +422,11 @@ img {
     .mobile-menu-btn {
         display: flex;
     }
-    .logo-section h1 {
-        font-size: 1.05rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
 }
 
 @media (max-width: 480px) {
     .header {
         padding: 0 1rem;
-    }
-    .logo-section h1 {
-        font-size: 1rem;
     }
     .dropdown {
         min-width: 220px;
@@ -450,11 +470,8 @@ img {
         height: 36px;
         flex-shrink: 0;
     }
-    .header .logo-section h1 {
-        margin: 0;
+    .header .logo-section .portal-brand h1 {
         font-size: 1rem;
-        line-height: 1.2;
-        font-weight: 700;
         white-space: normal;
         overflow: visible;
         text-overflow: clip;
@@ -493,7 +510,11 @@ body.dark-mode {
     --text-light: #afbdce; --primary-dark: #e7edf5; --shadow: rgba(0,0,0,.25);
     color-scheme: dark; background: #101622 !important; color: #e7edf5;
 }
-body.dark-mode :is(.header, .sidebar, .dropdown, .profile-menu, .notif-panel, .notifications-panel,
+body.dark-mode > .header {
+    background: #1a2232;
+    border-color: #344155;
+}
+body.dark-mode :is(.dropdown, .profile-menu, .notif-panel, .notifications-panel,
     .filter-bar, .stat-card, .chart-card, .analytics-card, .pattern-card, .doctor-card, .feedback-section,
     .patients-table-container, .users-table-container, .table-container, .data-table, .feedback-table,
     .patients-table, .users-table, .inquiries-container, .chat-list, .chat-conversation,
@@ -531,8 +552,8 @@ body.dark-mode :is(input,select,textarea,button,a):focus-visible { outline: 2px 
 body.dark-mode :is(.message-bubble, .message-content, .chat-bubble, .inq-bubble) {
     background: #263449 !important; color: #e7edf5 !important; border-color: #45556e !important;
 }
-body.dark-mode :is(.nav-item.active, .settings-nav-item.active, .chat-item.active) { background: #155e9c !important; color: #fff !important; }
-body.dark-mode :is(.nav-item.active, .settings-nav-item.active) i { color: #fff !important; }
+body.dark-mode :is(.settings-nav-item.active, .chat-item.active) { background: #155e9c !important; color: #fff !important; }
+body.dark-mode .settings-nav-item.active i { color: #fff !important; }
 body.dark-mode :is(.welcome-banner, .welcome-banner h2, .welcome-banner p, .welcome-banner i) { color: #fff !important; }
 body.dark-mode :is(.btn-edit, .btn-view, .btn-reschedule, .notes-modal-btn-cancel, .btn-settings-outline,
     .page-btn, .back-to-list-btn, .settings-mobile-back, .btn-today, .btn-clear) {

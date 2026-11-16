@@ -1,0 +1,18 @@
+:root {
+    --portal-scrollbar-thumb: #858585;
+    --portal-scrollbar-track: #ededed;
+    scrollbar-color: var(--portal-scrollbar-thumb) var(--portal-scrollbar-track);
+}
+
+:root:has(body.dark-mode) {
+    --portal-scrollbar-thumb: #888;
+    --portal-scrollbar-track: #303030;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--portal-scrollbar-thumb);
+}
+
+::-webkit-scrollbar-track {
+    background: var(--portal-scrollbar-track);
+}

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>PolyClinic Staff</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     @vite(['resources/css/staff.css'])
@@ -57,7 +57,7 @@
             <div class="avatar-dropdown">
                 <div class="user-avatar" onclick="toggleUserDropdown()">
                     @if(Auth::user() && Auth::user()->profile_photo)
-                        <img src="{{ asset('storage/' . Auth::user()->profile_photo) }}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                        <img class="staff-avatar-photo" src="{{ asset('storage/' . Auth::user()->profile_photo) }}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
                     @else
                         {{ Auth::user() ? strtoupper(substr(Auth::user()->name, 0, 1)) : 'S' }}{{ Auth::user() && str_word_count(Auth::user()->name) > 1 ? strtoupper(substr(explode(' ', Auth::user()->name)[1], 0, 1)) : 'T' }}
                     @endif
@@ -778,8 +778,8 @@
         const staffNotificationKeys = { appointments: 'notify_appointments', inquiries: 'notify_chatbot', email: 'notify_email' };
 
         const notifPrefKeyByType = {
-            appointment: 'appointments',
-            chat_inquiry: 'inquiries',
+            appointment: 'bi-calendar-check',
+            chat_inquiry: 'bi-chat-dots',
         };
 
         function loadNotifPrefs() {
@@ -859,8 +859,8 @@
 
         // Icon shown in each row's circle (UI only)
         const notifTypeIcons = {
-            chat_inquiry: 'bi-chat-dots',
-            appointment: 'bi-calendar-check',
+            chat_inquiry: 'inquiries',
+            appointment: 'appointments',
         };
 
         let rawNotifications = [];  

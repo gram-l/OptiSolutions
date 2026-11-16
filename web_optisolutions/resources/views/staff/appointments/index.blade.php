@@ -504,7 +504,9 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         const priorFocus = document.activeElement;
         const priorOverflow = document.body.style.overflow;
         overlay.dataset.variant = variant;
-        overlay.querySelector('.visit-message-icon').textContent = confirm ? '?' : (variant === 'success' ? '✓' : '!');
+        const icon = overlay.querySelector('.visit-message-icon');
+        icon.style.display = confirm ? 'none' : '';
+        icon.textContent = variant === 'success' ? '✓' : '!';
         overlay.querySelector('#visitMessageTitle').textContent = title;
         overlay.querySelector('#visitMessageText').textContent = message;
         cancel.hidden = !confirm;

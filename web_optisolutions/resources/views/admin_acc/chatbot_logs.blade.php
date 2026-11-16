@@ -20,7 +20,7 @@
     @vite(['resources/css/admin_css/chatbot_logs.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'
     ])
 </head>
-<body>
+<body class="inquiries-screen">
     <!-- Header -->
 @include('admin_acc.header')
 
@@ -115,7 +115,6 @@
          on the Manage Doctors page. -->
     <div class="modal-overlay" id="confirmModalOverlay" style="display:none;">
         <div class="modal-box">
-            <div class="modal-icon"><i class="bi bi-question-circle"></i></div>
             <h3 id="confirmModalTitle">Confirm Action</h3>
             <p id="confirmModalMessage"></p>
             <div class="modal-actions">
@@ -173,16 +172,14 @@
                             ${selectMode ? `<span class="chat-item-checkbox bi ${isSelected ? 'bi-check-square-fill' : 'bi-square'}" aria-hidden="true"></span>` : ''}
                             <span class="chat-avatar" aria-hidden="true">${escapeHtml(chat.avatar)}</span>
                             <span class="chat-info">
-                                <span class="chat-name">
-                                    <span class="chat-name-text">${escapeHtml(chat.name)}</span>
-                                    <span class="chat-time">${formatTime(chat.timestamp)}</span>
-                                </span>
+                                <span class="chat-name-text">${escapeHtml(chat.name)}</span>
+                                <span class="chat-time">${formatTime(chat.timestamp)}</span>
                                 <span class="chat-code">${escapeHtml(chat.inquiryCode)}</span>
                                 <span class="chat-status-label ${isResolved ? 'resolved' : 'in-progress'}">
                                     ${isResolved ? 'Resolved' : 'In progress'}
                                 </span>
                             </span>
-                            ${chat.unread ? '<span class="chat-unread" aria-label="Unread"></span>' : ''}
+                            <span class="chat-unread" ${chat.unread ? 'role="img" aria-label="Unread"' : 'aria-hidden="true" style="visibility: hidden"'}></span>
                         </button>
                     </li>
                 `;
@@ -369,24 +366,16 @@
                 document.getElementById('confirmModalTitle').textContent = title;
                 overlay.style.display = 'flex';
 
-                const iconEl = overlay.querySelector('.modal-icon');
-                const iconInner = iconEl.querySelector('i');
                 const cancelBtn = document.getElementById('confirmModalCancel');
                 const confirmBtn = document.getElementById('confirmModalConfirm');
 
-                iconEl.classList.remove('modal-icon-resolve', 'modal-icon-unresolve', 'modal-icon-delete');
                 confirmBtn.classList.remove('modal-btn-confirm-resolve', 'modal-btn-confirm-unresolve', 'modal-btn-confirm-delete');
-                iconInner.className = 'bi bi-question-circle';
                 if (variant === 'resolve') {
-                    iconEl.classList.add('modal-icon-resolve');
                     confirmBtn.classList.add('modal-btn-confirm-resolve');
                 } else if (variant === 'unresolve') {
-                    iconEl.classList.add('modal-icon-unresolve');
                     confirmBtn.classList.add('modal-btn-confirm-unresolve');
                 } else if (variant === 'delete') {
-                    iconEl.classList.add('modal-icon-delete');
                     confirmBtn.classList.add('modal-btn-confirm-delete');
-                    iconInner.className = 'bi bi-trash';
                 }
 
                 function cleanup(result) {

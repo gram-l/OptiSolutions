@@ -202,7 +202,6 @@
     {{-- Delete Confirmation Modal --}}
     <div class="modal" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="deleteCommandTitle" aria-describedby="deleteCommandMessage">
         <div class="modal-content command-confirm-content">
-            <div class="command-confirm-icon" aria-hidden="true"><i class="fa-solid fa-trash"></i></div>
             <h3 id="deleteCommandTitle">Delete Command?</h3>
             <p id="deleteCommandMessage">
                 Are you sure you want to delete "<span id="deleteCommandLabel"></span>"? This can't be undone.

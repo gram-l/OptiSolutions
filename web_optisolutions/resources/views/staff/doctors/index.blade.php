@@ -207,7 +207,6 @@
 {{-- "Save changes?" confirmation, shown before the edit form actually submits --}}
 <div class="confirm-modal-overlay" id="confirmSaveOverlay">
     <div class="confirm-modal-box">
-        <div class="confirm-modal-icon"><i class="bi bi-question-lg"></i></div>
         <h3>Save changes?</h3>
         <p id="confirmSaveMessage">This will update the doctor's schedule.</p>
         <div class="confirm-modal-buttons">

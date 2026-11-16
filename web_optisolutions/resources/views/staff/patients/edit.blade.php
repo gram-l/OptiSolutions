@@ -21,27 +21,27 @@
 
             <div class="form-group">
                 <label>First Name</label>
-                <input type="text" name="patient_fname" value="{{ $patient->patient_fname }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                <input type="text" name="patient_fname" value="{{ $patient->patient_fname }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: inherit;">
             </div>
 
             <div class="form-group">
                 <label>Last Name</label>
-                <input type="text" name="patient_lname" value="{{ $patient->patient_lname }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                <input type="text" name="patient_lname" value="{{ $patient->patient_lname }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: inherit;">
             </div>
 
             <div class="form-group">
                 <label>Birthday</label>
-                <input type="date" name="patient_birthdate" value="{{ \Carbon\Carbon::parse($patient->patient_birthdate)->format('Y-m-d') }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                <input type="date" name="patient_birthdate" value="{{ \Carbon\Carbon::parse($patient->patient_birthdate)->format('Y-m-d') }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: inherit;">
             </div>
 
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" name="patient_email" value="{{ $patient->patient_email }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                <input type="email" name="patient_email" value="{{ $patient->patient_email }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: inherit;">
             </div>
 
             <div class="form-group">
                 <label>Contact Number</label>
-                <input type="text" name="patient_contact" value="{{ $patient->patient_contact }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                <input type="text" name="patient_contact" value="{{ $patient->patient_contact }}" required style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: inherit;">
             </div>
 
             <!-- NOTES (diagnosis) - tied to the patient's latest visit -->
@@ -53,7 +53,7 @@
                         name="notes"
                         rows="4"
                         placeholder="Enter the diagnosis or notes for this patient's latest visit..."
-                        style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: 'Poppins', sans-serif; resize: vertical;"
+                        style="width: 100%; padding: 0.7rem; border: 1px solid var(--light-gray); border-radius: 8px; font-family: inherit; resize: vertical;"
                     >{{ $patient->latestVisit->notes }}</textarea>
                     <small style="color: #999;">This updates the notes for the latest visit ({{ \Carbon\Carbon::parse($patient->latestVisit->visit_date)->format('M d, Y') }}).</small>
                 @else

@@ -677,10 +677,11 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         const priorOverflow = document.body.style.overflow;
         overlay.dataset.variant = variant;
         const icon = overlay.querySelector('.visit-message-icon');
+        icon.style.display = confirm ? 'none' : '';
         if (variant === 'danger') {
             icon.innerHTML = '<i class="fa-solid fa-trash"></i>';
         } else {
-            icon.textContent = confirm ? '?' : (variant === 'success' ? '✓' : '!');
+            icon.textContent = variant === 'success' ? '✓' : '!';
         }
         overlay.querySelector('#visitMessageTitle').textContent = title;
         overlay.querySelector('#visitMessageText').textContent = message;

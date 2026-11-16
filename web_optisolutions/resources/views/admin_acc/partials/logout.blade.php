@@ -9,7 +9,6 @@
 --}}
 <div class="logout-modal-overlay" id="logoutModalOverlay" style="display:none;">
     <div class="logout-modal">
-        <div class="logout-modal-icon"><i class="bi bi-box-arrow-right"></i></div>
         <h3>Log out?</h3>
         <p>Are you sure you want to log out?</p>
         <div class="logout-modal-actions">
@@ -43,18 +42,6 @@
         max-width: 90vw;
         text-align: center;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    }
-    .logout-modal-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: #fdecea;
-        color: #e74c3c;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.3rem;
-        margin: 0 auto 0.85rem;
     }
     .logout-modal h3 {
         margin: 0 0 0.4rem;

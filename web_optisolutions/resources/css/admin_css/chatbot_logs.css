@@ -19,10 +19,24 @@
             --resolved-green: #16733c;
         }
 
-        body {
+        body.inquiries-screen {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #eef2f7;
-            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        .inquiries-screen > .header {
+            flex-shrink: 0;
+        }
+
+        body.inquiries-screen > .container:has(> .inquiries-page) {
+            flex: 1;
+            min-height: 0;
+            margin-bottom: 0;
+            align-items: stretch;
         }
 
         .header {
@@ -115,6 +129,9 @@
         .inquiries-page {
             flex: 1;
             min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
             --inquiry-border: #dce2e8;
             --inquiry-muted: #526377;
             --inquiry-surface: #fff;
@@ -154,7 +171,14 @@
         .inquiries-container {
             display: flex;
             gap: 0.9rem;
-            height: clamp(30rem, calc(100dvh - 13rem), 48rem);
+            flex: 1;
+            min-height: 0;
+        }
+
+        @media (min-width: 769px) {
+            .inquiries-screen .container > .sidebar {
+                height: auto;
+            }
         }
 
         .chat-list,
@@ -367,16 +391,14 @@
 
         .chat-info {
             display: grid;
-            gap: 0.18rem;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: baseline;
+            gap: 0.18rem 0.4rem;
             flex: 1;
             min-width: 0;
         }
 
-        .chat-name {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            gap: 0.4rem;
+        .chat-name-text {
             font-weight: 600;
             color: var(--primary-dark);
         }
@@ -419,6 +441,7 @@
 
         .chat-status-label.resolved { color: var(--resolved-green); }
         .chat-status-label.in-progress { color: var(--pending); }
+        .chat-info :is(.chat-time, .chat-status-label) { justify-self: end; }
 
         .chat-unread {
             flex-shrink: 0;
@@ -640,7 +663,7 @@
             --inquiry-thread: #141d2b;
         }
 
-        body.dark-mode .inquiries-page :is(.chat-name, .message-file, .search-box) { color: #e7edf5; }
+        body.dark-mode .inquiries-page :is(.chat-name-text, .message-file, .search-box) { color: #e7edf5; }
         body.dark-mode .inquiries-page .chat-item:hover { background: #26374d; }
         body.dark-mode .inquiries-page .chat-item.selected { background: #472e39 !important; }
         body.dark-mode .inquiries-page .chat-unread { background: #8bc9ff; }
@@ -651,11 +674,7 @@
         ::-webkit-scrollbar {
             width: 8px;
         }
-        ::-webkit-scrollbar-track {
-            background: var(--light-gray);
-        }
         ::-webkit-scrollbar-thumb {
-            background: var(--primary-main);
             border-radius: 10px;
         }
 
@@ -730,34 +749,6 @@
             text-align: center;
         }
 
-        .modal-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: rgba(14, 98, 170, 0.1);
-            color: var(--primary-main);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-            margin: 0 auto 0.85rem;
-        }
-
-        .modal-icon-resolve {
-            background: var(--resolved-green);
-            color: var(--white);
-        }
-
-        .modal-icon-unresolve {
-            background: var(--pending);
-            color: var(--white);
-        }
-
-        .modal-icon-delete {
-            background: #e74c3c;
-            color: var(--white);
-        }
-
         @keyframes modalPopIn {
             from { transform: translateY(8px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
@@ -799,8 +790,8 @@
         }
 
         .modal-btn-confirm {
-            background: linear-gradient(135deg, var(--primary-main), var(--primary-dark));
-            color: var(--white);
+            background: var(--primary-main);
+            color: #fff;
         }
 
         .modal-btn-confirm-resolve {
@@ -864,9 +855,6 @@
            conversation (full width/height) once a chat is opened, with a
            back button to return to the list. */
         @media (max-width: 768px) {
-            .inquiries-container {
-                height: clamp(26rem, calc(100dvh - 11rem), 42rem);
-            }
             .chat-list {
                 flex: 1 1 100%;
             }

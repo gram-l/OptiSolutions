@@ -1,7 +1,8 @@
 @import './shared/dark-mode-components.css';
 @import './shared/portal-brand.css';
 @import './shared/table-headings.css';
-@import './shared/page-header-divider.css';
+@import './shared/portal-corners.css';
+@import './shared/portal-scrollbars.css';
 
 * {
     margin: 0;
@@ -25,16 +26,21 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: Inter, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: #edf4f7;
     min-height: 100vh;
 }
 
+body :where(button, input, select, textarea) {
+    font-family: inherit;
+}
+
 .header {
-    background: var(--white);
+    background: #fff;
     padding: 0 2rem;
     height: 70px;
-    box-shadow: 0 2px 10px var(--shadow);
+    border-bottom: 1px solid #dde5ed;
+    border-radius: 0 !important;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -81,7 +87,7 @@ body {
 .logo-icon {
     width: 45px;
     height: 45px;
-    background: linear-gradient(135deg, var(--primary-main), var(--primary-light));
+    background: var(--primary-main);
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -95,7 +101,7 @@ body {
     font-size: 1.2rem;
     font-weight: 700;
     color: var(--primary-dark);
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-family: inherit;
 }
 
 .user-info {
@@ -108,7 +114,7 @@ body {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-main), var(--primary-light));
+    background: var(--primary-main);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -126,7 +132,7 @@ body {
     font-weight: 600;
     box-shadow: 0 2px 6px var(--shadow);
     transition: all 0.2s ease;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: inherit;
 }
 
 .logout-btn:hover {
@@ -171,10 +177,16 @@ body > .container {
 /* Sidebar — matches the admin panel's: full-height rail flush under the
    header, no rounded corners, toggle button only (no brand row). */
 .sidebar {
+    --sidebar-divider: #dde5ed;
+    --sidebar-hover: #edf2f7;
+    --sidebar-active: #e8f2fc;
+    --sidebar-active-text: #084e85;
+    --sidebar-accent: #0e62aa;
     width: 220px;
-    background: var(--white);
+    background: #f8fafc;
+    color: #34516b;
     padding: 0.85rem 0.75rem 1.25rem;
-    box-shadow: 2px 0 8px var(--shadow);
+    box-shadow: inset -1px 0 var(--sidebar-divider);
     height: calc(100vh - 70px);
     position: sticky;
     /* Keep collapsed navigation labels above page content, below overlays. */
@@ -183,7 +195,7 @@ body > .container {
     top: 70px;
     align-self: stretch;
     transition: width 0.25s ease, padding 0.25s ease;
-    border-radius: 0;
+    border-radius: 0 !important;
 }
 
 .sidebar-header {
@@ -200,8 +212,8 @@ body > .container {
     height: 32px;
     border: none;
     border-radius: 8px;
-    background: var(--light-gray);
-    color: var(--icon-color);
+    background: transparent;
+    color: inherit;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -211,7 +223,7 @@ body > .container {
 }
 
 .sidebar-toggle-btn:hover {
-    background: #dfe4e8;
+    background: var(--sidebar-hover);
 }
 
 .sidebar-toggle-btn i {
@@ -219,28 +231,31 @@ body > .container {
 }
 
 .nav-item {
-    padding: 0.9rem 0.75rem;
-    margin-bottom: 0.5rem;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    margin-bottom: 0.25rem;
     border-radius: 10px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.15s ease, color 0.15s ease;
     display: flex;
     align-items: center;
     gap: 0.7rem;
-    color: var(--text-dark);
+    color: inherit;
+    font-size: 0.9rem;
     font-weight: 500;
     white-space: nowrap;
     text-decoration: none;
 }
 
-.nav-item:hover {
-    background: var(--light-gray);
-    transform: translateX(5px);
+.sidebar a:hover .nav-item {
+    background: var(--sidebar-hover);
 }
 
-.nav-item.active {
-    background: var(--primary-main);
-    color: var(--white);
+.sidebar a .nav-item.active {
+    background: var(--sidebar-active);
+    color: var(--sidebar-active-text);
+    box-shadow: inset 3px 0 var(--sidebar-accent);
+    font-weight: 600;
 }
 
 .nav-icon {
@@ -250,11 +265,7 @@ body > .container {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--icon-color);
-}
-
-.nav-item.active .nav-icon {
-    color: var(--white);
+    color: inherit;
 }
 
 .main-content {
@@ -279,12 +290,6 @@ body > .container {
 .container > *:last-child,
 .main-content > *:last-child {
     margin-bottom: 0 !important;
-}
-
-.container > div[style*="background: linear-gradient"],
-.container > div[style*="background:linear-gradient"] {
-    margin-top: 0 !important;
-    margin-bottom: 0.5rem !important;
 }
 
 /* In case Recent Activity uses these common wrapper classes */
@@ -450,7 +455,7 @@ body.dark-mode .page-subtitle {
     border-radius: 25px;
     width: 250px;
     outline: none;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: inherit;
 }
 
 .search-box:focus {
@@ -495,7 +500,7 @@ body.dark-mode .page-subtitle {
     padding: 0.7rem;
     border: 1px solid var(--light-gray);
     border-radius: 8px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: inherit;
 }
 
 .modal-buttons {
@@ -530,7 +535,7 @@ body.dark-mode .page-subtitle {
 }
 
 .chat-header {
-    background: linear-gradient(135deg, var(--primary-main), var(--primary-light));
+    background: var(--primary-main);
     color: white;
     padding: 1rem;
     display: flex;
@@ -577,7 +582,7 @@ body.dark-mode .page-subtitle {
     padding: 0.6rem;
     border: 1px solid var(--light-gray);
     border-radius: 25px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: inherit;
 }
 
 .popup-toast {
@@ -617,12 +622,8 @@ body.sidebar-collapsed .sidebar-toggle-btn i {
 body.sidebar-collapsed .nav-item {
     position: relative;
     justify-content: center;
-    padding: 0.85rem 0;
+    padding: 0;
     gap: 0;
-}
-
-body.sidebar-collapsed .nav-item:hover {
-    transform: none;
 }
 
 body.sidebar-collapsed .nav-item span {
@@ -637,8 +638,8 @@ body.sidebar-collapsed .nav-item::after {
     left: calc(100% + 10px);
     top: 50%;
     transform: translateY(-50%);
-    background: var(--primary-dark);
-    color: var(--white);
+    background: #062744;
+    color: #fff;
     padding: 0.4rem 0.75rem;
     border-radius: 6px;
     font-size: 0.78rem;
@@ -695,7 +696,7 @@ body.sidebar-collapsed .sidebar a:hover .nav-item::after {
     body.sidebar-collapsed .sidebar-header { flex-direction: row; }
     body.sidebar-collapsed .nav-item {
         justify-content: flex-start;
-        padding: 0.9rem 0.75rem;
+        padding: 0 0.75rem;
         gap: 0.7rem;
     }
     body.sidebar-collapsed .nav-item span { display: inline; }
@@ -812,7 +813,7 @@ body.sidebar-collapsed .sidebar a:hover .nav-item::after {
 
 .left-panel {
     width: 55%;
-    background: linear-gradient(135deg, var(--primary-dark), var(--primary-main), var(--primary-light));
+    background: var(--primary-main);
     color: #fff;
     padding: 35px 40px;
     position: relative;
@@ -1001,21 +1002,6 @@ body.sidebar-collapsed .sidebar a:hover .nav-item::after {
     pointer-events: none;
 }
 
-/* Hover effect */
-.sidebar a:hover .nav-item {
-    background: var(--light-gray);
-    transform: translateX(5px);
-}
-
-body.sidebar-collapsed .sidebar a:hover .nav-item {
-    transform: none;
-}
-
-.sidebar a .nav-item.active {
-    background: var(--primary-main);
-    color: var(--white);
-}
-
 /* notification bell + avatar dropdown*/
 .header-actions {
     display: flex;
@@ -1098,7 +1084,7 @@ body.sidebar-collapsed .sidebar a:hover .nav-item {
     text-decoration: none;
     color: var(--text-dark);
     font-size: 0.9rem;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: inherit;
     cursor: pointer;
     transition: background 0.2s ease;
 }
@@ -1747,8 +1733,6 @@ body.dark-mode {
     --shadow: rgba(0, 0, 0, 0.4);
 }
 
-body.dark-mode .header,
-body.dark-mode .sidebar,
 body.dark-mode .stat-card,
 body.dark-mode .data-table,
 body.dark-mode .action-bar,
@@ -1787,7 +1771,8 @@ body.dark-mode select option {
 }
 
 body.dark-mode .header {
-    box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    background: #1a2232;
+    border-color: #344155;
 }
 
 body.dark-mode .header h1,
@@ -1800,38 +1785,14 @@ body.dark-mode div[style*="color:var(--text-dark)"] {
     color: #e4e8ee;
 }
 
-body.dark-mode .nav-item {
-    color: #b8c1cf;
-}
-body.dark-mode .nav-item:hover {
-    background: #232b3d;
-}
-body.dark-mode .nav-item.active,
-body.dark-mode .sidebar a .nav-item.active {
-    background: var(--primary-main);
-    color: #fff;
-}
-
-body.dark-mode .sidebar-toggle-btn {
-    background: #232b3d;
-    color: #b8c1cf;
-}
-
-body.dark-mode .sidebar-toggle-btn:hover {
-    background: var(--primary-main);
-    color: #fff;
-}
-
-body.dark-mode.sidebar-collapsed .sidebar-toggle-btn {
-    background: #232b3d;
-}
-
 body.dark-mode .sidebar {
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.4);
-}
-
-body.dark-mode .nav-icon {
-    color: inherit;
+    --sidebar-divider: #344155;
+    --sidebar-hover: #243247;
+    --sidebar-active: #263e59;
+    --sidebar-active-text: #c8e4ff;
+    --sidebar-accent: #78baff;
+    background: #172031;
+    color: #b9cadd;
 }
 
 body.dark-mode .stat-label,
@@ -1939,8 +1900,7 @@ body.dark-mode .toggle-slider {
     background: #3a4356;
 }
 
-body.dark-mode .welcome-banner,
-body.dark-mode [class*="header"][style*="background: linear-gradient"] {
+body.dark-mode .welcome-banner {
     filter: brightness(0.9);
 }
 
@@ -1961,7 +1921,7 @@ body.dark-mode [class*="header"][style*="background: linear-gradient"] {
     padding: 0.6rem 1rem;
     border: 1px solid var(--light-gray);
     border-radius: 10px;
-    font-family: 'Poppins', sans-serif;
+    font-family: inherit;
     font-size: 0.9rem;
     background: white;
     color: var(--text-dark);
@@ -2006,7 +1966,7 @@ body.dark-mode [class*="header"][style*="background: linear-gradient"] {
     padding: 0.55rem 0.75rem;
     border: 1px solid var(--light-gray);
     border-radius: 10px;
-    font-family: 'Poppins', sans-serif;
+    font-family: inherit;
     font-size: 0.9rem;
     color: var(--text-dark);
     outline: none;
@@ -2573,7 +2533,7 @@ body.dark-mode .settings-coming-soon {
     background: none;
     border: none;
     text-align: left;
-    font-family: 'Poppins', sans-serif;
+    font-family: inherit;
     font-size: 0.9rem;
     color: var(--text-dark, #1e293b);
     cursor: pointer;
@@ -2610,7 +2570,7 @@ body.dark-mode .download-menu-item:hover {
    staff pages that reuse generic names like .filter-btn.
    ===================================================================== */
 .dash-page .welcome-banner {
-    background: linear-gradient(120deg, var(--primary-main), var(--primary-dark));
+    background: var(--primary-main);
     padding: 1.35rem 1.85rem;
     border-radius: 18px;
     color: var(--white);
@@ -3193,19 +3153,6 @@ body.dark-mode .status-available { background: rgba(39, 174, 96, 0.18); color: #
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
-.confirm-modal-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: rgba(14, 98, 170, 0.1);
-    color: var(--primary-main);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.3rem;
-    margin: 0 auto 0.85rem;
-}
-
 .confirm-modal-box h3 {
     color: var(--text-dark);
     margin-bottom: 0.4rem;
@@ -3486,7 +3433,7 @@ body.dark-mode {
     --text-light: #afbdce; --primary-dark: #e7edf5; --shadow: rgba(0,0,0,.25);
     color-scheme: dark; background: #101622 !important; color: #e7edf5;
 }
-body.dark-mode :is(.header, .sidebar, .dropdown, .profile-menu, .notif-panel, .notifications-panel,
+body.dark-mode :is(.dropdown, .profile-menu, .notif-panel, .notifications-panel,
     .filter-bar, .stat-card, .chart-card, .analytics-card, .pattern-card, .doctor-card, .feedback-section,
     .patients-table-container, .users-table-container, .table-container, .data-table, .feedback-table,
     .patients-table, .users-table, .inquiries-container, .chat-list, .chat-conversation,
@@ -3524,8 +3471,8 @@ body.dark-mode :is(input,select,textarea,button,a):focus-visible { outline: 2px 
 body.dark-mode :is(.message-bubble, .message-content, .chat-bubble, .inq-bubble) {
     background: #263449 !important; color: #e7edf5 !important; border-color: #45556e !important;
 }
-body.dark-mode :is(.nav-item.active, .settings-nav-item.active, .chat-item.active) { background: #155e9c !important; color: #fff !important; }
-body.dark-mode :is(.nav-item.active, .settings-nav-item.active) i { color: #fff !important; }
+body.dark-mode :is(.settings-nav-item.active, .chat-item.active) { background: #155e9c !important; color: #fff !important; }
+body.dark-mode .settings-nav-item.active i { color: #fff !important; }
 body.dark-mode :is(.welcome-banner, .welcome-banner h2, .welcome-banner p, .welcome-banner i) { color: #fff !important; }
 body.dark-mode :is(.btn-edit, .btn-view, .btn-reschedule, .notes-modal-btn-cancel, .btn-settings-outline,
     .page-btn, .back-to-list-btn, .settings-mobile-back, .btn-today, .btn-clear) {

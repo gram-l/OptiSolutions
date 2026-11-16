@@ -5,6 +5,11 @@
             <div class="chart-icon-badge"><i class="bi bi-star"></i></div>
             <h3>Star Ratings Summary</h3>
         </div>
+        @isset($ratingsOverviewUrl)
+            <a class="rating-overview-link" href="{{ $ratingsOverviewUrl }}" aria-label="View more ratings in Feedback Overview">
+                View more <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </a>
+        @endisset
     </div>
     <p class="chart-subtitle">Top 3 by average star rating · All time</p>
     @unless($compactAdminRatings)
@@ -47,6 +52,7 @@
 <style>
     .chart-card.rating-leaders-card { display:flex; flex-direction:column; min-height:0; min-width:0; contain:size; align-self:stretch; overflow:hidden; }
     .rating-leaders-card > .chart-header,.rating-leaders-card > .chart-subtitle { flex-shrink:0; }
+    .rating-overview-link { flex-shrink:0; margin-inline-start:.5rem; color:var(--dashboard-blue, #0e62aa); font-size:.8rem; font-weight:600; }
     .rating-leaders-scroll { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-right:.4rem; scrollbar-width:thin; }
     .rating-leaders-scroll:focus-visible { outline:2px solid #0e62aa; outline-offset:-2px; }
     .rating-leaders-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.5rem; }

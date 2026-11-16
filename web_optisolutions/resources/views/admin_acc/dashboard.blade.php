@@ -21,7 +21,10 @@
         @include('admin_acc.sidebar')
 
         <main class="main-content portal-dashboard">
-            @include('partials.portal_dashboard', ['dashboardDataRoute' => 'admin.dashboard.data'])
+            @include('partials.portal_dashboard', [
+                'dashboardDataRoute' => 'admin.dashboard.data',
+                'ratingsOverviewUrl' => route('admin_acc.feedback.index'),
+            ])
         </main>
     </div>
     @include('admin_acc.partials.diagnostic_analytics')

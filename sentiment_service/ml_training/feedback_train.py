@@ -24,7 +24,7 @@ import pandas as pd
 import sklearn
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score, make_scorer
 from sklearn.model_selection import GridSearchCV, StratifiedKFold, train_test_split
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer
@@ -112,6 +112,7 @@ def main():
     parser.add_argument('--output-dir', type=Path)
     parser.add_argument('--folds', type=int, default=5)
     parser.add_argument('--jobs', type=int, default=1)
+    parser.add_argument('--selection-metric', choices=['macro_f1', 'neutral_f1'], default='macro_f1')
     args = parser.parse_args()
     output = args.output_dir or HERE / 'experiments' / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     output.mkdir(parents=True, exist_ok=False)
@@ -124,16 +125,29 @@ def main():
     assignments.loc[train.index, 'partition'] = 'train_cv'
     assignments.loc[test.index, 'partition'] = 'test'
     assignments.to_csv(output / 'split_manifest.csv', index=False)
-    # Select only by macro F1 on training folds. No test prediction occurs here.
-    options = []
-    for mode, rich in [('legacy', False), ('light', False), ('light', True)]:
-        candidate = pipeline(mode, rich)
-        options.append({'preprocess__kw_args': [{'mode': mode}],
-            'features': [candidate.named_steps['features']],
-            'clf__C': [0.5, 1.0, 4.0, 16.0], 'clf__class_weight': [None, 'balanced']})
+    # All tuning uses training folds only.
+    if args.selection_metric == 'neutral_f1':
+        estimator = pipeline(mode='light', rich=True)
+        options = {
+            'clf__C': [0.5, 1.0, 4.0],
+            'clf__class_weight': ['balanced'] + [
+                {'negative': 1.0, 'neutral': weight, 'positive': 1.0}
+                for weight in (1.25, 1.5, 1.75)
+            ],
+        }
+    else:
+        estimator = pipeline()
+        options = []
+        for mode, rich in [('legacy', False), ('light', False), ('light', True)]:
+            candidate = pipeline(mode, rich)
+            options.append({'preprocess__kw_args': [{'mode': mode}],
+                'features': [candidate.named_steps['features']],
+                'clf__C': [0.5, 1.0, 4.0, 16.0], 'clf__class_weight': [None, 'balanced']})
     folds = StratifiedKFold(n_splits=args.folds, shuffle=True, random_state=2026)
-    search = GridSearchCV(pipeline(), options, scoring={'macro_f1': 'f1_macro', 'accuracy': 'accuracy'},
-        refit='macro_f1', cv=folds, n_jobs=args.jobs, verbose=2, error_score='raise', return_train_score=False)
+    scoring = {'macro_f1': 'f1_macro', 'accuracy': 'accuracy',
+        'neutral_f1': make_scorer(f1_score, labels=['neutral'], average='macro', zero_division=0)}
+    search = GridSearchCV(estimator, options, scoring=scoring,
+        refit=args.selection_metric, cv=folds, n_jobs=args.jobs, verbose=2, error_score='raise', return_train_score=False)
     with threadpool_limits(limits=1):
         search.fit(train['review'], train['sentiment'])
     results = pd.DataFrame(search.cv_results_)
@@ -154,8 +168,12 @@ def main():
     errors[errors['sentiment'] != errors['predicted']].to_csv(output / 'misclassified_reviews.csv', index=False)
     test.assign(predicted=predicted).to_csv(output / 'holdout_predictions.csv', index=False)
     selection = {key: str(value) if key == 'features' else value for key, value in search.best_params_.items()}
-    summary = {'audit': audit, 'selection_metric': 'training CV macro F1', 'folds': args.folds,
-        'candidate_count': len(results), 'best_cv_macro_f1': search.best_score_, 'best_parameters': selection,
+    metric_name = 'Neutral F1' if args.selection_metric == 'neutral_f1' else 'macro F1'
+    summary = {'audit': audit, 'selection_metric': f'training CV {metric_name}', 'folds': args.folds,
+        'candidate_count': len(results),
+        'best_cv_macro_f1': results.loc[search.best_index_, 'mean_test_macro_f1'],
+        'best_cv_neutral_f1': results.loc[search.best_index_, 'mean_test_neutral_f1'],
+        'best_parameters': selection,
         'baseline_clean_holdout': baseline_metrics, 'candidate_clean_holdout': candidate_metrics,
         'saved_model_legacy_holdout': saved_full, 'saved_model_raw_input_holdout': deployed_full,
         'candidate_legacy_holdout': candidate_full,
@@ -165,13 +183,16 @@ def main():
         'activation': 'Candidate only. sentiment_model.pkl was not replaced.'}
     (output / 'evaluation.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
     lines = ['# Logistic Regression retraining results', '',
-        '| Evaluation | Accuracy | Macro F1 | Neutral F1 |', '|---|---:|---:|---:|']
+        '| Evaluation | Accuracy | Macro F1 | Neutral precision | Neutral recall | Neutral F1 |',
+        '|---|---:|---:|---:|---:|---:|']
     for name, metrics in [('Old saved model / published split (cleaned input)', saved_full),
         ('Old saved model / published split (raw input)', deployed_full),
         ('Tuned candidate / published split', candidate_full),
         ('Baseline / cleaned holdout', baseline_metrics), ('Tuned candidate / cleaned holdout', candidate_metrics)]:
-        lines.append(f"| {name} | {metrics['accuracy']:.2%} | {metrics['macro_f1']:.2%} | {metrics['classification_report']['neutral']['f1-score']:.2%} |")
-    lines += ['', f'Training-only {args.folds}-fold CV macro F1: {search.best_score_:.2%}.', '',
+        neutral = metrics['classification_report']['neutral']
+        lines.append(f"| {name} | {metrics['accuracy']:.2%} | {metrics['macro_f1']:.2%} | "
+            f"{neutral['precision']:.2%} | {neutral['recall']:.2%} | {neutral['f1-score']:.2%} |")
+    lines += ['', f'Training-only {args.folds}-fold CV {metric_name}: {search.best_score_:.2%}.', '',
         audit['evaluation_note'], '', audit['domain_note'], '',
         'Candidate and reports are saved separately. No labels were automatically changed. The active model was not replaced.',
         '', 'See audit.json, evaluation.json, cv_results.csv, split_manifest.csv and misclassified_reviews.csv for reproducibility and manual label review.']

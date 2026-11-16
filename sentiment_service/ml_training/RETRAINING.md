@@ -1,4 +1,28 @@
-# Reproduce the Logistic Regression experiment
+# Sentiment model retraining
+
+## Run a trial on Taglish patient feedback
+
+Provide a de-identified UTF-8 CSV with `review_text` and `sentiment` columns.
+Use human-reviewed labels of `negative`, `neutral`, or `positive` based on the
+comment text. Include factual neutral comments and have reviewers resolve mixed
+and ambiguous comments consistently. Keep the CSV outside version control.
+
+With 10,000 usable comments, the trial fits on 8,000 and evaluates on 2,000
+held-out comments. The script reports actual counts after excluding blanks,
+normalized duplicates, conflicting labels, and text shared with the original
+training corpus. Use at most one comment per patient for this row-level split
+so repeated responders cannot appear in both partitions.
+
+```powershell
+.\sentiment_service\venv\Scripts\python.exe -B sentiment_service/ml_training/train_patient_feedback.py --data C:\path\patient_feedback.csv --output-dir sentiment_service/ml_training/experiments/patient_trial
+```
+
+Compare the active model and candidate on the same holdout in `evaluation.json`.
+Check macro F1 and Neutral precision, recall, and F1 alongside Positive and
+Negative scores. The output contains aggregate metrics and a candidate pickle.
+The trial leaves the active model in place.
+
+## Reproduce the FiReCS Logistic Regression experiment
 
 Use the existing Python environment with the versions pinned in `../requirements.txt`.
 From the repository root on Windows:

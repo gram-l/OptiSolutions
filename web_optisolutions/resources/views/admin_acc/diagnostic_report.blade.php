@@ -12,6 +12,7 @@
         button { padding: .6rem 1rem; background: #0e62aa; color: #fff; border: 0; border-radius: 6px; font: inherit; cursor: pointer; }
         .table-scroll { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+        .table-interpretation { margin: 0 0 1rem; font-size: .875rem; }
         caption { text-align: left; margin-bottom: .5rem; font-weight: 600; }
         th, td { padding: .5rem .65rem; border: 1px solid #b7c9d8; vertical-align: top; text-align: left; }
         thead th { background: #d3e4f3; color: #123b63; font-weight: 700; text-transform: uppercase; }
@@ -21,6 +22,7 @@
             .table-scroll { overflow: visible; }
             h2, h3 { break-after: avoid; }
             tr { break-inside: avoid; }
+            .table-interpretation { break-inside: avoid; }
         }
     </style>
 </head>
@@ -42,6 +44,16 @@
         <section aria-labelledby="period-{{ $loop->index }}">
             <h2 id="period-{{ $loop->index }}">{{ $period['label'] }}</h2>
             @foreach(['All selected reviews' => [$period['overall'] + ['label' => 'Overall']], 'By doctor' => $period['doctors'], 'By service' => $period['services']] as $title => $groups)
+                @php
+                    $groupData = collect($groups);
+                    $reviewCount = $groupData->sum('reviews');
+                    $negativeCount = $groupData->sum('negative');
+                    $lowCount = $groupData->sum('low');
+                    $topVolume = $groupData->max('reviews');
+                    $volumeLeaders = $groupData->where('reviews', $topVolume);
+                    $issueRows = $groupData->flatMap(fn ($group) => collect($group['categories'])
+                        ->map(fn ($counts, $category) => ['category' => $category] + $counts)->values());
+                @endphp
                 <div class="table-scroll">
                     <table>
                         <caption>{{ $title }}</caption>
@@ -73,7 +85,26 @@
                         </tbody>
                     </table>
                 </div>
-                @if(collect($groups)->contains(fn ($group) => $group['categories'] !== []))
+                <p class="table-interpretation">
+                    <strong>Interpretation:</strong>
+                    @if(!$reviewCount)
+                        No reviews matched the selected filters for this period.
+                    @elseif($loop->first)
+                        Of {{ $reviewCount }} {{ Str::plural('review', $reviewCount) }}, {{ $lowCount }} had low ratings and {{ $negativeCount }} contained negative comments.
+                    @elseif($volumeLeaders->count() > 1)
+                        {{ $volumeLeaders->count() }} groups tied for the highest review volume at {{ $topVolume }} each.
+                    @else
+                        {{ $volumeLeaders->first()['label'] }} accounted for {{ $topVolume }} of the {{ $reviewCount }} {{ Str::plural('review', $reviewCount) }} shown.
+                    @endif
+                </p>
+                @if($issueRows->isNotEmpty())
+                    @php
+                        $metric = $issueRows->sum('negative') > 0 ? 'negative' : 'low';
+                        $issueTotals = $issueRows->groupBy('category')->map->sum($metric);
+                        $topCount = $issueTotals->max();
+                        $leaders = $issueTotals->filter(fn ($count) => $count === $topCount);
+                        $commentType = $metric === 'negative' ? 'negative comment' : 'low-rated comment';
+                    @endphp
                     <div class="table-scroll">
                         <table>
                             <caption>Issue categories · {{ $title }}</caption>
@@ -107,6 +138,15 @@
                             </tbody>
                         </table>
                     </div>
+                    <p class="table-interpretation">
+                        <strong>Interpretation:</strong>
+                        @if($leaders->count() > 1)
+                            {{ $leaders->count() }} issues tied for the most matches, each appearing in {{ $topCount }} {{ Str::plural($commentType, $topCount) }}.
+                        @else
+                            {{ $issueLabel($leaders->keys()->first()) }} was the most frequent issue, appearing in {{ $topCount }} {{ Str::plural($commentType, $topCount) }}.
+                        @endif
+                        @unless($report['available']) This reflects the matches available so far. @endunless
+                    </p>
                 @elseif($report['available'] && $loop->first)
                     <p>No issue categories matched in negative or low-rated review comments.</p>
                 @endif

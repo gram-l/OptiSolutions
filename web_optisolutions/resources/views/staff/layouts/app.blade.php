@@ -271,7 +271,9 @@
 
             {{-- LEFT: sidebar nav --}}
             <div class="settings-sidebar">
-                <div class="settings-sidebar-label">GENERAL</div>
+                <input type="search" class="search-box" data-settings-search aria-label="Search settings" placeholder="Search settings" style="width:100%; margin:0 0 0.75rem;">
+                <p class="settings-item-desc" data-settings-no-results role="status" hidden>No matching settings.</p>
+                <div class="settings-sidebar-label" style="margin-top:0;">GENERAL</div>
                 <button type="button" class="settings-nav-item active" data-tab="notifications" onclick="switchSettingsTab('notifications')">
                     <i class="bi bi-bell"></i> Notifications
                 </button>
@@ -490,7 +492,8 @@
                 </div>
 
                 <div class="settings-tab-panel" id="settings-tab-manual">
-                    <div class="settings-content-title">Help &amp; User Manual</div>
+                    <div class="settings-content-title"><i class="bi bi-book"></i> Help &amp; User Manual</div>
+                    <p class="settings-content-subtitle">Find instructions for using OptiSolutions</p>
                     @include('partials.account-settings', ['manualAudience' => 'staff'])
                 </div>
 

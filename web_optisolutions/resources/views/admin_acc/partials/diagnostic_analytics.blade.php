@@ -1,3 +1,6 @@
+@php
+    $diagnosticFields = ['diagnostic_week', 'diagnostic_compare_week', 'diagnostic_doctor', 'diagnostic_specialty'];
+@endphp
 <dialog id="diagnostic-modal" class="diagnostic-modal" aria-labelledby="diagnostic-title" aria-describedby="diagnostic-description">
 <section class="chart-card diagnostic-panel">
     <div class="diagnostic-modal-header">
@@ -5,13 +8,16 @@
         <button type="button" id="diagnostic-close" class="diagnostic-close" aria-label="Close diagnostic analytics" autofocus>&times;</button>
     </div>
     <aside id="diagnostic-banner" class="diagnostic-banner" aria-label="About weekly comparisons">
-        <p id="diagnostic-description">Compare problems mentioned in negative comments across two completed weeks, Monday–Sunday (Philippine time). “This week” means the selected week; “last week” means the week before it.</p>
+        <p id="diagnostic-description">Choose any two completed Monday–Sunday weeks to compare negative comments in Philippine time.</p>
         <button type="button" id="diagnostic-banner-dismiss" class="diagnostic-banner-dismiss" aria-label="Dismiss comparison explanation">&times;</button>
         <button type="button" id="diagnostic-banner-never" class="diagnostic-banner-never">Don’t show again</button>
     </aside>
     <form method="GET" action="{{ route($diagnosticDashboardRoute ?? 'admin.dashboard') }}#diagnostic-title" data-compare-url="{{ route($diagnosticCompareRoute ?? 'admin.dashboard.diagnostics') }}" class="diagnostic-filters" id="diagnostic-form">
         <label>Week starting (Monday)
             <input type="date" name="diagnostic_week" value="{{ old('diagnostic_week', $diagnostic['week']) }}" min="1970-01-05" step="7" max="{{ $diagnostic['latest_week'] }}" required>
+        </label>
+        <label>Compare to week (Monday)
+            <input type="date" name="diagnostic_compare_week" value="{{ old('diagnostic_compare_week', $diagnostic['compare_week'] ?? \Carbon\CarbonImmutable::parse($diagnostic['week'])->subWeek()->toDateString()) }}" min="1970-01-05" step="7" max="{{ $diagnostic['latest_week'] }}" required>
         </label>
         <label>Doctor
             <select name="diagnostic_doctor" id="diagnostic-doctor">
@@ -31,11 +37,25 @@
         </label>
         <button type="submit" id="diagnostic-compare">Compare</button>
         @unless($diagnosticStaff ?? false)
-            <button type="submit" id="diagnostic-report" formaction="{{ route('admin.dashboard.diagnostics.report') }}" formtarget="_blank">Generate report</button>
+            <details id="diagnostic-report" class="diagnostic-report-dropdown">
+                <summary>Generate report <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                <div class="diagnostic-report-options">
+                    <button type="submit" name="report_scope" value="all" formaction="{{ route('admin.dashboard.diagnostics.report') }}" formtarget="_blank" formnovalidate>
+                        <i class="bi bi-calendar-range" aria-hidden="true"></i> All dates
+                    </button>
+                    <details>
+                        <summary><i class="bi bi-calendar-event" aria-hidden="true"></i> Chosen date</summary>
+                        <label>Report date
+                            <input type="date" name="report_date" value="{{ $diagnostic['week'] }}">
+                        </label>
+                        <button type="submit" name="report_scope" value="date" formaction="{{ route('admin.dashboard.diagnostics.report') }}" formtarget="_blank" formnovalidate>Generate for this date</button>
+                    </details>
+                </div>
+            </details>
         @endunless
     </form>
     <div id="diagnostic-errors" role="alert">
-    @foreach(['diagnostic_week', 'diagnostic_doctor', 'diagnostic_specialty'] as $field)
+    @foreach($diagnosticFields as $field)
         @error($field)<p role="alert">{{ $message }}</p>@enderror
     @endforeach
     </div>
@@ -66,16 +86,26 @@
         .diagnostic-banner-never { align-self:flex-end; border:1px solid #0e62aa; border-radius:6px; padding:.45rem .8rem; background:#0e62aa; color:#fff; font:inherit; font-size:.85rem; font-weight:600; text-decoration:none; cursor:pointer; }
         .diagnostic-banner-never:hover { background:#094f8b; border-color:#094f8b; }
         .diagnostic-banner button:focus-visible { outline:2px solid #0e62aa; outline-offset:3px; }
-        .diagnostic-filters { display:flex; flex-wrap:wrap; align-items:end; gap:1rem; margin:1rem 0; }
-        .diagnostic-filters label { display:flex; flex-direction:column; gap:.4rem; font-size:.85rem; flex:0 1 240px; min-width:0; max-width:100%; }
-        .diagnostic-filters label:first-child { flex-basis:160px; }
-        .diagnostic-filters input,.diagnostic-filters select,.diagnostic-filters button { box-sizing:border-box; height:46px; padding:.6rem; border:1px solid #b7c9d8; border-radius:6px; max-width:100%; background:white; }
+        .diagnostic-filters { display:flex; flex-wrap:wrap; align-items:end; gap:.6rem; margin:.75rem 0; }
+        .diagnostic-filters label { display:flex; flex-direction:column; gap:.25rem; font-size:.8rem; flex:0 1 170px; min-width:0; max-width:100%; }
+        .diagnostic-filters > label:has(input[type="date"]) { flex-basis:145px; }
+        .diagnostic-filters input,.diagnostic-filters select,.diagnostic-filters button { box-sizing:border-box; height:36px; padding:.35rem .5rem; border:1px solid #b7c9d8; border-radius:6px; max-width:100%; background:white; font-size:.8rem; }
         .diagnostic-filters input,.diagnostic-filters select { width:100%; min-width:0; }
         .diagnostic-filters select { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .diagnostic-filters button { flex:0 0 90px; width:90px; background:#0e62aa; color:white; cursor:pointer; }
-        .diagnostic-filters #diagnostic-report { flex:0 0 auto; width:auto; padding-inline:1rem; }
+        .diagnostic-filters button { flex:0 0 auto; width:auto; padding-inline:.65rem; background:#0e62aa; color:white; cursor:pointer; }
+        .diagnostic-report-dropdown { position:relative; }
+        .diagnostic-report-dropdown summary { cursor:pointer; list-style:none; }
+        .diagnostic-report-dropdown summary::-webkit-details-marker { display:none; }
+        .diagnostic-report-dropdown > summary { display:flex; align-items:center; gap:.4rem; height:36px; padding:0 .65rem; border-radius:6px; background:#0e62aa; color:#fff; font-size:.8rem; font-weight:600; }
+        .diagnostic-report-dropdown[open] > summary i { transform:rotate(180deg); }
+        .diagnostic-report-options { position:absolute; z-index:2; inset-inline-end:0; inset-block-start:calc(100% + .35rem); min-width:13rem; padding:.35rem; border:1px solid #b7c9d8; border-radius:6px; background:#fff; color:#062744; box-shadow:0 6px 18px #0002; }
+        .diagnostic-report-options :is(button, summary) { display:block; width:100%; height:auto; padding:.6rem; border:0; background:none; color:inherit; text-align:start; font:inherit; }
+        .diagnostic-report-options :is(button, summary):is(:hover, :focus-visible) { background:#e8f1fa; color:#062744; }
+        .diagnostic-report-options label { padding:.4rem .6rem; }
+        body.dark-mode .diagnostic-report-options { background:#1a2232; color:#e7edf5; border-color:#45556e; }
+        @media (max-width:768px) { .diagnostic-report-options { inset-inline-start:0; inset-inline-end:auto; } }
         @media(max-width:600px) {
-            .diagnostic-filters label,.diagnostic-filters label:first-child { flex:0 0 100%; }
+            .diagnostic-filters label,.diagnostic-filters > label:has(input[type="date"]) { flex:0 0 100%; }
         }
         .diagnostic-filters button:disabled { opacity:.65; cursor:wait; }
         .diagnostic-scroll { overflow-x:auto; }
@@ -196,10 +226,22 @@
     }
 
     form.addEventListener('submit', async event => {
-        if (event.submitter?.id === 'diagnostic-report') return;
+        if (event.submitter?.name === 'report_scope') {
+            const reportDate = form.elements.report_date;
+            if (event.submitter.value === 'date' && !reportDate.value) {
+                event.preventDefault();
+                reportDate.required = true;
+                reportDate.reportValidity();
+                reportDate.required = false;
+                return;
+            }
+            document.getElementById('diagnostic-report').open = false;
+            return;
+        }
         event.preventDefault();
         if (comparisonController || !form.reportValidity()) return;
         const parameters = new URLSearchParams(new FormData(form));
+        parameters.delete('report_date');
         const url = new URL(form.dataset.compareUrl, window.location.href);
         url.search = parameters.toString();
         const controller = new AbortController();
@@ -285,7 +327,7 @@
         else if (modal.open) modal.close();
     });
     // Preserve direct links and the non-JavaScript form fallback.
-    const hasDiagnosticErrors = @json($errors->hasAny(['diagnostic_week', 'diagnostic_doctor', 'diagnostic_specialty']));
+    const hasDiagnosticErrors = @json($errors->hasAny($diagnosticFields));
     if (window.location.hash === '#diagnostic-title' || hasDiagnosticErrors) {
         if (document.readyState === 'complete') openDiagnostic();
         else window.addEventListener('load', openDiagnostic, { once: true });

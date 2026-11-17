@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -20,16 +21,24 @@ class DiagnosticAnalyticsService
         $latest = $thisWeek->subWeek();
         $doctors = \App\Support\DoctorServices::withLabels(DB::table('doctors')->orderBy('doctor_name')->get(['doctor_id', 'doctor_name']));
         $specialties = DoctorSpecialties::catalog();
+        $weekRules = [
+            Rule::excludeIf($forReport && $request->filled('report_scope')),
+            'bail', 'nullable', 'date_format:Y-m-d', 'after_or_equal:1970-01-05', 'before:' . $thisWeek->format('Y-m-d'),
+            function ($attribute, $value, $fail) {
+                if (!CarbonImmutable::parse($value, 'Asia/Manila')->isMonday()) {
+                    $fail('Select a Monday to compare a completed Monday–Sunday week.');
+                }
+            },
+        ];
         $filters = $request->validate([
-            'diagnostic_week' => ['bail', 'nullable', 'date_format:Y-m-d', 'after_or_equal:1970-01-05', 'before:' . $thisWeek->format('Y-m-d'),
-                function ($attribute, $value, $fail) {
-                    if (!CarbonImmutable::parse($value, 'Asia/Manila')->isMonday()) {
-                        $fail('Select a Monday to compare a completed Monday–Sunday week.');
-                    }
-                }],
+            'diagnostic_week' => $weekRules,
+            'diagnostic_compare_week' => $weekRules,
             'diagnostic_doctor' => ['nullable', 'integer', 'min:1', Rule::in($doctors->pluck('doctor_id')->all())],
             'diagnostic_specialty' => ['nullable', 'string', 'max:255', Rule::in($specialties->all())],
-        ]);
+        ] + ($forReport ? [
+            'report_scope' => ['nullable', Rule::in(['all', 'date'])],
+            'report_date' => ['exclude_unless:report_scope,date', 'required', 'date_format:Y-m-d'],
+        ] : []));
         $selectedDoctor = $doctors->firstWhere('doctor_id', $filters['diagnostic_doctor'] ?? null);
         if ($selectedDoctor && !empty($filters['diagnostic_specialty'])
             && !in_array($filters['diagnostic_specialty'], DoctorSpecialties::split($selectedDoctor->specialty), true)) {
@@ -39,15 +48,29 @@ class DiagnosticAnalyticsService
         }
         $currentStart = isset($filters['diagnostic_week'])
             ? CarbonImmutable::createFromFormat('!Y-m-d', $filters['diagnostic_week'], 'Asia/Manila') : $latest;
-        $previousStart = $currentStart->subWeek();
-        $end = $currentStart->addWeek();
+        $previousStart = isset($filters['diagnostic_compare_week'])
+            ? CarbonImmutable::createFromFormat('!Y-m-d', $filters['diagnostic_compare_week'], 'Asia/Manila')
+            : $currentStart->subWeek();
+        if ($previousStart->equalTo($currentStart)) {
+            throw ValidationException::withMessages(['diagnostic_compare_week' => 'Choose a different week to compare.']);
+        }
+        $reportDate = isset($filters['report_date'])
+            ? CarbonImmutable::createFromFormat('!Y-m-d', $filters['report_date'], 'Asia/Manila') : null;
+        $allDates = ($filters['report_scope'] ?? null) === 'all';
+        $ranges = match (true) {
+            $allDates => [['All dates', null, null]],
+            $reportDate !== null => [[$reportDate->format('M j, Y'), $reportDate, $reportDate->addDay()]],
+            default => array_map(fn ($start) => [
+                $start->format('M j, Y') . ' – ' . $start->addDays(6)->format('M j, Y'),
+                $start, $start->addWeek(),
+            ], [$previousStart, $currentStart]),
+        };
 
         $all = DB::table('feedback as f')
             ->leftJoin('sentiment_results as sr', 'sr.feedback_id', '=', 'f.feedback_id')
             ->leftJoin('schedule_visit as v', 'v.visit_id', '=', 'f.visit_id')
             ->leftJoin('doctors as d', 'd.doctor_id', '=', 'v.doctor_id')
-            ->where('f.submitted_at', '>=', $previousStart->format('Y-m-d H:i:s'))
-            ->where('f.submitted_at', '<', $end->format('Y-m-d H:i:s'))
+            ->when(!$allDates, fn ($query) => $this->restrictToRanges($query, 'f.submitted_at', $ranges))
             ->orderBy('f.submitted_at')
             ->get(['f.feedback_id', 'f.feedback_text', 'f.submitted_at', 'sr.sentiment_label',
                 'f.star_rating', 'v.doctor_id', 'd.doctor_name', 'v.service_type']);
@@ -59,7 +82,7 @@ class DiagnosticAnalyticsService
         $negative = $rows->filter(fn ($row) => trim($row->feedback_text ?? '') !== ''
             && strtolower($row->sentiment_label ?? '') === 'negative');
         if ($forReport) {
-            return $this->buildReport($rows, $negative, $currentStart) + [
+            return $this->buildReport($rows, $negative, $ranges, $allDates) + [
                 'doctor' => $selectedDoctor?->doctor_name,
                 'specialty' => $filters['diagnostic_specialty'] ?? null,
                 'low_rating_max' => self::LOW_RATING_MAX,
@@ -111,7 +134,8 @@ class DiagnosticAnalyticsService
             (($periods['current']['categories'][$b] ?? 0) <=> ($periods['current']['categories'][$a] ?? 0)) ?: strcmp($a, $b));
 
         return [
-            'week' => $currentStart->format('Y-m-d'), 'latest_week' => $latest->format('Y-m-d'),
+            'week' => $currentStart->format('Y-m-d'), 'compare_week' => $previousStart->format('Y-m-d'),
+            'latest_week' => $latest->format('Y-m-d'),
             'doctor' => $filters['diagnostic_doctor'] ?? '', 'specialty' => $filters['diagnostic_specialty'] ?? '',
             'doctors' => $doctors, 'specialties' => $specialties,
             'periods' => $periods, 'categories' => $categories,
@@ -120,11 +144,21 @@ class DiagnosticAnalyticsService
         ];
     }
 
-    private function buildReport(Collection $reviews, Collection $negative, CarbonImmutable $currentStart): array
+    private function restrictToRanges(Builder $query, string $column, array $ranges): Builder
+    {
+        return $query->where(function (Builder $dates) use ($column, $ranges) {
+            foreach ($ranges as [, $from, $until]) {
+                $dates->orWhere(fn (Builder $range) => $range
+                    ->where($column, '>=', $from->toDateTimeString())
+                    ->where($column, '<', $until->toDateTimeString()));
+            }
+        });
+    }
+
+    private function buildReport(Collection $reviews, Collection $negative, array $ranges, bool $allDates): array
     {
         $complaints = DB::table('complaints')
-            ->where('created_at', '>=', $currentStart->subWeek()->toDateTimeString())
-            ->where('created_at', '<', $currentStart->addWeek()->toDateTimeString())
+            ->when(!$allDates, fn ($query) => $this->restrictToRanges($query, 'created_at', $ranges))
             ->get(['complaint_id', 'complaint_text', 'created_at']);
         $low = $reviews->filter(fn ($review) => $this->isLowRating($review->star_rating));
         $written = $negative->union($low->filter(fn ($review) => trim($review->feedback_text ?? '') !== ''));
@@ -139,11 +173,11 @@ class DiagnosticAnalyticsService
         $complaintMatches = $details->get('complaint', collect())->keyBy('id');
 
         $periods = [];
-        foreach ([$currentStart->subWeek(), $currentStart] as $start) {
-            $from = $start->toDateTimeString();
-            $until = $start->addWeek()->toDateTimeString();
-            $periodReviews = $reviews->filter(fn ($review) => $review->submitted_at >= $from && $review->submitted_at < $until);
-            $periodComplaints = $complaints->filter(fn ($complaint) => $complaint->created_at >= $from && $complaint->created_at < $until);
+        foreach ($ranges as [$label, $start, $end]) {
+            $from = $start?->toDateTimeString();
+            $until = $end?->toDateTimeString();
+            $periodReviews = $from === null ? $reviews : $reviews->filter(fn ($review) => $review->submitted_at >= $from && $review->submitted_at < $until);
+            $periodComplaints = $from === null ? $complaints : $complaints->filter(fn ($complaint) => $complaint->created_at >= $from && $complaint->created_at < $until);
             $complaintCategories = [];
             foreach ($periodComplaints as $complaint) {
                 foreach (array_unique($complaintMatches->get($complaint->complaint_id)['matched_categories'] ?? []) as $category) {
@@ -152,7 +186,7 @@ class DiagnosticAnalyticsService
             }
             arsort($complaintCategories);
             $periods[] = [
-                'label' => $start->format('M j, Y') . ' – ' . $start->addDays(6)->format('M j, Y'),
+                'label' => $label,
                 'overall' => $this->summarizeReviews($periodReviews, $negative, $reviewMatches),
                 'doctors' => $periodReviews->groupBy(fn ($review) => $review->doctor_id ?? 0, preserveKeys: true)
                     ->map(fn ($group) => ['label' => $group->first()->doctor_name ?: 'Doctor not linked']

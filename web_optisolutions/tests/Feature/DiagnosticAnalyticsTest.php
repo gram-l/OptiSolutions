@@ -119,12 +119,12 @@ class DiagnosticAnalyticsTest extends TestCase
         $this->assertSame(1, $data['periods']['current']['rating_only']);
         $html = view('admin_acc.partials.diagnostic_analytics', ['diagnostic' => $data])->render();
         $plain = preg_replace('/\s+/', ' ', strip_tags($html));
-        $this->assertStringContainsString('Negative comments went up from 8 to 14 this week.', $plain);
-        $this->assertStringContainsString('Waiting Time is the most mentioned problem: 10 of 14 negative comments this week (last week: 3 of 8).', $plain);
+        $this->assertStringContainsString('Negative comments went up from 8 to 14 in the selected week.', $plain);
+        $this->assertStringContainsString('Waiting Time is the most mentioned problem: 10 of 14 negative comments in the selected week (comparison week: 3 of 8).', $plain);
         $this->assertStringContainsString('Negative comments: 8 → 14 (up by 6).', $plain);
         $this->assertStringContainsString('Share that were negative: 20.0% → 35.0%.', $plain);
-        $this->assertStringContainsString('↑ Mentioned more than last week', $plain);
-        $this->assertStringContainsString('View comments (10 this week, 3 last week)', $plain);
+        $this->assertStringContainsString('↑ Mentioned more than in the comparison week', $plain);
+        $this->assertStringContainsString('View comments (10 in the selected week, 3 in the comparison week)', $plain);
         Http::assertSentCount(1);
         $this->assertCount(22, Http::recorded()[0][0]['items']);
     }
@@ -169,7 +169,7 @@ class DiagnosticAnalyticsTest extends TestCase
         $data = $this->data();
         $render = fn ($value) => preg_replace('/\s+/', ' ', strip_tags(
             view('admin_acc.partials.diagnostic_results', ['diagnostic' => $value])->render()));
-        $this->assertStringContainsString('Negative comments stayed at 0 this week.', $render($data));
+        $this->assertStringContainsString('Negative comments stayed at 0 in the selected week.', $render($data));
         $this->assertStringContainsString('not enough classified comments', $render($data));
         $data['periods']['previous']['negative'] = 5;
         $data['periods']['current']['negative'] = 6;
@@ -178,13 +178,13 @@ class DiagnosticAnalyticsTest extends TestCase
         $data['categories'] = ['waiting_time', 'staff_attitude'];
         $plain = $render($data);
         $this->assertStringContainsString('are tied as the most mentioned problems', $plain);
-        $this->assertStringContainsString('last week: Waiting Time 1 of 5; Staff Attitude 4 of 5', $plain);
-        $this->assertStringContainsString('↓ Mentioned less than last week', $plain);
+        $this->assertStringContainsString('comparison week: Waiting Time 1 of 5; Staff Attitude 4 of 5', $plain);
+        $this->assertStringContainsString('↓ Mentioned less than in the comparison week', $plain);
         $data['periods']['previous']['categories']['waiting_time'] = 3;
-        $this->assertStringContainsString('→ Mentioned as often as last week', $render($data));
+        $this->assertStringContainsString('→ Mentioned as often as in the comparison week', $render($data));
         $data['periods']['current']['negative'] = 0;
         $data['periods']['current']['categories'] = [];
-        $this->assertStringContainsString('Negative comments went down from 5 to 0 this week.', $render($data));
+        $this->assertStringContainsString('Negative comments went down from 5 to 0 in the selected week.', $render($data));
         $this->assertStringContainsString('(down by 5).', $render($data));
         $data['available'] = false;
         $this->assertStringContainsString('Problem analysis is currently unavailable or incomplete.', $render($data));
@@ -194,6 +194,25 @@ class DiagnosticAnalyticsTest extends TestCase
     {
         $this->expectException(ValidationException::class);
         $this->data(['diagnostic_week' => '2026-10-26']);
+    }
+
+    public function test_nonconsecutive_weeks_can_be_compared_in_either_order(): void
+    {
+        $this->review('2026-10-05', 'Negative');
+        $this->review('2026-10-12', 'Negative');
+        $this->review('2026-10-19', 'Negative');
+        $this->review('2026-10-25 23:59:59', 'Negative');
+
+        $data = $this->data([
+            'diagnostic_week' => '2026-10-05',
+            'diagnostic_compare_week' => '2026-10-19',
+        ]);
+
+        $this->assertSame('2026-10-19', $data['compare_week']);
+        $this->assertSame(2, $data['periods']['previous']['negative']);
+        $this->assertSame(1, $data['periods']['current']['negative']);
+        Http::assertSentCount(1);
+        $this->assertCount(3, Http::recorded()[0][0]['items']);
     }
 
     public function test_confirmed_no_match_replaces_legacy_complaint_category_and_survives_outage(): void
@@ -355,6 +374,24 @@ class DiagnosticAnalyticsTest extends TestCase
         $this->assertSame(['waiting_time' => 1], $current['complaint_categories']);
         Http::assertSentCount(1);
         $this->assertCount(3, Http::recorded()[0][0]['items']);
+
+        $allDates = $this->get(route('admin.dashboard.diagnostics.report', ['report_scope' => 'all']))
+            ->assertOk()->viewData('report')['periods'];
+        $this->assertCount(1, $allDates);
+        $this->assertSame('All dates', $allDates[0]['label']);
+        $this->assertSame(5, $allDates[0]['overall']['reviews']);
+        $this->assertSame(1, $allDates[0]['complaints']);
+
+        $chosenDate = $this->get(route('admin.dashboard.diagnostics.report', [
+            'report_scope' => 'date', 'report_date' => '2026-10-20',
+        ]))->assertOk()->viewData('report')['periods'];
+        $this->assertCount(1, $chosenDate);
+        $this->assertSame('Oct 20, 2026', $chosenDate[0]['label']);
+        $this->assertSame(1, $chosenDate[0]['overall']['reviews']);
+        $this->assertSame(1, $chosenDate[0]['complaints']);
+
+        $this->getJson(route('admin.dashboard.diagnostics.report', ['report_scope' => 'date']))
+            ->assertUnprocessable()->assertJsonValidationErrors('report_date');
     }
 
     public function test_staff_dashboard_renders_shared_modal_with_staff_comparison_routes(): void

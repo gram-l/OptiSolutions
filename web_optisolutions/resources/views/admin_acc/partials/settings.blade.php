@@ -42,6 +42,8 @@
         <!-- Left nav -->
         <div class="settings-nav">
             <div class="settings-nav-scroll">
+                <input type="search" class="settings-input" data-settings-search aria-label="Search settings" placeholder="Search settings" style="width:100%; margin:0 0 0.75rem;">
+                <p class="settings-row-desc" data-settings-no-results role="status" hidden>No matching settings.</p>
                 <div class="settings-nav-group">
                     <div class="settings-nav-group-label">General</div>
                     <button class="settings-nav-item active" data-target="pane-notifications">
@@ -280,7 +282,8 @@
 
             <div class="settings-pane" id="pane-manual">
                 <div class="settings-pane-header">
-                    <h3>Help &amp; User Manual</h3>
+                    <h3><i class="bi bi-book"></i> Help &amp; User Manual</h3>
+                    <p>Find instructions for using OptiSolutions</p>
                 </div>
                 @include('partials.account-settings', ['manualAudience' => 'admin'])
             </div>

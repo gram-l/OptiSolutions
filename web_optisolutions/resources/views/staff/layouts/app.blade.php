@@ -289,6 +289,9 @@
                 <button type="button" class="settings-nav-item" data-tab="privacy" onclick="switchSettingsTab('privacy')">
                     <i class="bi bi-shield-check"></i> Data &amp; Privacy
                 </button>
+                <button type="button" class="settings-nav-item" data-tab="manual" onclick="switchSettingsTab('manual')">
+                    <i class="bi bi-book"></i> Help &amp; User Manual
+                </button>
 
                 <form method="POST" action="{{ route('logout') }}" class="settings-logout-form">
                     @csrf
@@ -484,6 +487,11 @@
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-account-clear-cache data-cache-url="{{ route('staff.profile.cache') }}" style="border-radius: 20px; padding: 0.3rem 1rem;"><i class="bi bi-trash"></i> Clear</button>
                     </div>
                     <p data-account-cache-status role="status" aria-live="polite"></p>
+                </div>
+
+                <div class="settings-tab-panel" id="settings-tab-manual">
+                    <div class="settings-content-title">Help &amp; User Manual</div>
+                    @include('partials.account-settings', ['manualAudience' => 'staff'])
                 </div>
 
             </div>

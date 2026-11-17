@@ -63,6 +63,9 @@
                     <button class="settings-nav-item" data-target="pane-privacy">
                         <i class="bi bi-shield-check"></i> Data &amp; Privacy
                     </button>
+                    <button type="button" class="settings-nav-item" data-target="pane-manual">
+                        <i class="bi bi-book"></i> Help &amp; User Manual
+                    </button>
                 </div>
             </div>
 
@@ -273,6 +276,13 @@
                     </button>
                 </div>
                 <p data-account-cache-status role="status" aria-live="polite"></p>
+            </div>
+
+            <div class="settings-pane" id="pane-manual">
+                <div class="settings-pane-header">
+                    <h3>Help &amp; User Manual</h3>
+                </div>
+                @include('partials.account-settings', ['manualAudience' => 'admin'])
             </div>
 
         </div>

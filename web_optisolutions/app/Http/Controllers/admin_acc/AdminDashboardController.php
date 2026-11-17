@@ -30,6 +30,14 @@ class AdminDashboardController extends Controller
         ]);
     }
 
+    public function diagnosticReport(Request $request)
+    {
+        $report = app(\App\Services\DiagnosticAnalyticsService::class)->dashboard($request, forReport: true);
+
+        return response()->view('admin_acc.diagnostic_report', compact('report'))
+            ->header('Cache-Control', 'private, no-store');
+    }
+
     public function getDashboardData(): array
     {
         // ---- Stat cards ----
@@ -54,6 +62,7 @@ class AdminDashboardController extends Controller
         $newPatientsThisMonth = 0;
 
         $avgRating           = DB::table('feedback')->avg('star_rating');
+        $charts = app(\App\Services\DashboardChartService::class)->data();
 
         return array_merge([
             'pendingInquiries' => $pendingInquiries,
@@ -62,6 +71,6 @@ class AdminDashboardController extends Controller
             'activePatients' => $activePatients,
             'newPatientsThisMonth' => $newPatientsThisMonth,
             'avgRating' => $avgRating ? round($avgRating, 1) : 0,
-        ], app(\App\Services\DashboardChartService::class)->data());
+        ], $charts);
     }
 }

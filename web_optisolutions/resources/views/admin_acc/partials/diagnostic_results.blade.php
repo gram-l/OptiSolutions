@@ -9,21 +9,21 @@
     <p class="diagnostic-overview">
         <strong class="{{ $change > 0 ? 'diagnostic-increase' : ($change < 0 ? 'diagnostic-decrease' : 'diagnostic-unchanged') }}">
             @if($change > 0)
-                Negative comments went up from {{ $previous['negative'] }} to {{ $current['negative'] }} this week.
+                Negative comments went up from {{ $previous['negative'] }} to {{ $current['negative'] }} in the selected week.
             @elseif($change < 0)
-                Negative comments went down from {{ $previous['negative'] }} to {{ $current['negative'] }} this week.
+                Negative comments went down from {{ $previous['negative'] }} to {{ $current['negative'] }} in the selected week.
             @else
-                Negative comments stayed at {{ $current['negative'] }} this week.
+                Negative comments stayed at {{ $current['negative'] }} in the selected week.
             @endif
         </strong>
         @if(!$diagnostic['available'])
             Problem analysis is currently unavailable or incomplete.
         @elseif($topCount > 0)
             {{ implode(', ', array_map($labelFor, $topCategories)) }} {{ count($topCategories) > 1 ? 'are tied as the most mentioned problems' : 'is the most mentioned problem' }}:
-            {{ $topCount }} of {{ $current['negative'] }} negative comments this week
-            (last week: @foreach($topCategories as $topCategory){{ $loop->first ? '' : '; ' }}{{ count($topCategories) > 1 ? $labelFor($topCategory) . ' ' : '' }}{{ $previous['categories'][$topCategory] ?? 0 }} of {{ $previous['negative'] }}@endforeach).
+            {{ $topCount }} of {{ $current['negative'] }} negative comments in the selected week
+            (comparison week: @foreach($topCategories as $topCategory){{ $loop->first ? '' : '; ' }}{{ count($topCategories) > 1 ? $labelFor($topCategory) . ' ' : '' }}{{ $previous['categories'][$topCategory] ?? 0 }} of {{ $previous['negative'] }}@endforeach).
         @elseif($current['negative'] > 0)
-            No problems were matched in this week's negative comments.
+            No problems were matched in the selected week's negative comments.
         @endif
     </p>
     <div class="diagnostic-scroll">
@@ -61,9 +61,11 @@
         @endif
     </p>
     @if(!$diagnostic['available'])
-        <p role="status">Concern analysis is unavailable or incomplete. Review counts remain available; concern comparisons cannot be generated. Try Compare again later.</p>
+        <p role="status">Issue analysis is pending for {{ $diagnostic['pending_issues'] }} comment(s). Counts shown for matched issues use saved results and may increase after analysis completes.</p>
     @else
         <p class="diagnostic-note">Unmatched negative reviews: {{ $previous['unmatched'] }} previously; {{ $current['unmatched'] }} currently. One review can mention several concerns, so concern shares may total more than 100%.</p>
+    @endif
+    @if($diagnostic['available'] || $diagnostic['categories'])
         @if($current['negative'] < 5 || $previous['negative'] < 5)
             <p class="diagnostic-note">At least one period has fewer than five negative reviews. Small numbers make comparisons sensitive to individual submissions.</p>
         @endif
@@ -75,22 +77,24 @@
             <article class="diagnostic-finding">
                 <h4>{{ $labelFor($category) }}</h4>
                 <p class="diagnostic-trend {{ $after > $before ? 'diagnostic-increase' : ($after < $before ? 'diagnostic-decrease' : 'diagnostic-unchanged') }}">
-                    @if($after > $before)
-                        ↑ Mentioned more than last week
+                    @if(!$diagnostic['available'])
+                        Partial counts
+                    @elseif($after > $before)
+                        ↑ Mentioned more than in the comparison week
                     @elseif($after < $before)
-                        ↓ Mentioned less than last week
+                        ↓ Mentioned less than in the comparison week
                     @else
-                        → Mentioned as often as last week
+                        → Mentioned as often as in the comparison week
                     @endif
                 </p>
-                <p>Mentioned in {{ $after }} of {{ $current['negative'] }} negative comments this week (last week: {{ $before }} of {{ $previous['negative'] }}).</p>
+                <p>Mentioned in {{ $after }} of {{ $current['negative'] }} negative comments in the selected week (comparison week: {{ $before }} of {{ $previous['negative'] }}).</p>
                 <details>
-                    <summary>View comments ({{ $after }} this week, {{ $before }} last week)</summary>
+                    <summary>View comments ({{ $after }} in the selected week, {{ $before }} in the comparison week)</summary>
                     @foreach(['current' => $current, 'previous' => $previous] as $period)
                         @foreach($period['comments'] as $comment)
                             @if(in_array($category, $comment['categories'], true))
                                 <div class="diagnostic-comment">
-                                    <p class="diagnostic-comment-meta"><strong>{{ $period['label'] }} · Review #{{ $comment['id'] }}</strong> · {{ $comment['date'] }}<br>{{ $comment['doctor'] ?: 'Doctor not linked' }} · {{ $comment['specialty'] ?: 'Specialty not linked' }}</p>
+                                    <p class="diagnostic-comment-meta"><strong>{{ $period['label'] }} · Review #{{ $comment['id'] }}</strong> · {{ $comment['date'] }}<br>{{ $comment['doctor'] ?: 'Doctor not linked' }} · {{ $comment['specialty'] ?: 'Specialty not linked' }} · {{ $comment['rating'] ? $comment['rating'] . '/5 stars' : 'Unrated' }}</p>
                                     <blockquote>{{ $comment['text'] }}</blockquote>
                                     @foreach($comment['findings'] as $finding)
                                         @if(($finding['category'] ?? '') === $category)

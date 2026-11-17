@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>PolyClinic Staff</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     @vite(['resources/css/staff.css'])
@@ -35,9 +35,12 @@
                 <i class="bi bi-list"></i>
             </button>
             <div class="logo-section">
-                <img class="clinic-logo-light" src="{{ asset('images/polyclinic_logo.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
-                <img class="clinic-logo-dark" src="{{ asset('images/polyclinic_logo_dark.png') }}" alt="PolyClinic Logo" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
-                <h1>PolyClinic Staff</h1>
+                <img class="clinic-logo-light" src="{{ asset('images/polyclinic_logo.png') }}" alt="" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
+                <img class="clinic-logo-dark" src="{{ asset('images/polyclinic_logo_dark.png') }}" alt="" style="width: 42px; height: 42px; border-radius: 8px; object-fit: contain;">
+                <div class="portal-brand">
+                    <h1>Polyclinic</h1>
+                    <span class="portal-brand-role">Staff Portal</span>
+                </div>
             </div>
         </div>
 
@@ -54,7 +57,7 @@
             <div class="avatar-dropdown">
                 <div class="user-avatar" onclick="toggleUserDropdown()">
                     @if(Auth::user() && Auth::user()->profile_photo)
-                        <img src="{{ asset('storage/' . Auth::user()->profile_photo) }}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                        <img class="staff-avatar-photo" src="{{ asset('storage/' . Auth::user()->profile_photo) }}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
                     @else
                         {{ Auth::user() ? strtoupper(substr(Auth::user()->name, 0, 1)) : 'S' }}{{ Auth::user() && str_word_count(Auth::user()->name) > 1 ? strtoupper(substr(explode(' ', Auth::user()->name)[1], 0, 1)) : 'T' }}
                     @endif
@@ -268,7 +271,9 @@
 
             {{-- LEFT: sidebar nav --}}
             <div class="settings-sidebar">
-                <div class="settings-sidebar-label">GENERAL</div>
+                <input type="search" class="search-box" data-settings-search aria-label="Search settings" placeholder="Search settings" style="width:100%; margin:0 0 0.75rem;">
+                <p class="settings-item-desc" data-settings-no-results role="status" hidden>No matching settings.</p>
+                <div class="settings-sidebar-label" style="margin-top:0;">GENERAL</div>
                 <button type="button" class="settings-nav-item active" data-tab="notifications" onclick="switchSettingsTab('notifications')">
                     <i class="bi bi-bell"></i> Notifications
                 </button>
@@ -285,6 +290,9 @@
                 </button>
                 <button type="button" class="settings-nav-item" data-tab="privacy" onclick="switchSettingsTab('privacy')">
                     <i class="bi bi-shield-check"></i> Data &amp; Privacy
+                </button>
+                <button type="button" class="settings-nav-item" data-tab="manual" onclick="switchSettingsTab('manual')">
+                    <i class="bi bi-book"></i> Help &amp; User Manual
                 </button>
 
                 <form method="POST" action="{{ route('logout') }}" class="settings-logout-form">
@@ -481,6 +489,12 @@
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-account-clear-cache data-cache-url="{{ route('staff.profile.cache') }}" style="border-radius: 20px; padding: 0.3rem 1rem;"><i class="bi bi-trash"></i> Clear</button>
                     </div>
                     <p data-account-cache-status role="status" aria-live="polite"></p>
+                </div>
+
+                <div class="settings-tab-panel" id="settings-tab-manual">
+                    <div class="settings-content-title"><i class="bi bi-book"></i> Help &amp; User Manual</div>
+                    <p class="settings-content-subtitle">Find instructions for using OptiSolutions</p>
+                    @include('partials.account-settings', ['manualAudience' => 'staff'])
                 </div>
 
             </div>
@@ -775,8 +789,8 @@
         const staffNotificationKeys = { appointments: 'notify_appointments', inquiries: 'notify_chatbot', email: 'notify_email' };
 
         const notifPrefKeyByType = {
-            appointment: 'appointments',
-            chat_inquiry: 'inquiries',
+            appointment: 'bi-calendar-check',
+            chat_inquiry: 'bi-chat-dots',
         };
 
         function loadNotifPrefs() {
@@ -856,8 +870,8 @@
 
         // Icon shown in each row's circle (UI only)
         const notifTypeIcons = {
-            chat_inquiry: 'bi-chat-dots',
-            appointment: 'bi-calendar-check',
+            chat_inquiry: 'inquiries',
+            appointment: 'appointments',
         };
 
         let rawNotifications = [];  

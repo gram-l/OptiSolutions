@@ -1,0 +1,9 @@
+/* Keep each button's own radius and preserve circular avatars and markers. */
+body :where(:not(
+    button, input:is([type="button"], [type="submit"], [type="reset"]),
+    [role="button"], .btn, [class^="btn-"], [class*=" btn-"], [class*="-btn"],
+    .switch-track, .toggle-slider,
+    [class*="avatar"], [class*="-dot"], .dot, .chat-unread, .visit-sentiment-legend i
+)) {
+    border-radius: 4px !important;
+}

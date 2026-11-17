@@ -127,9 +127,10 @@ _COMPLAINT_VARIANTS = {
                      'started late', 'behind schedule', 'late nagsimula'],
     'doctor_expertise': ['hindi magaling ang doctor', 'hindi magaling ang doktor',
                          'hindi magaling na doctor', 'hindi magaling na doktor', 'not a good doctor'],
-    'staff_attitude': ['masama ugali', 'masama ang ugali', 'masamang ugali'],
+    'staff_attitude': ['masama ugali', 'masama ang ugali', 'masamang ugali', 'disrespect'],
     'staff_attentiveness': ['not accommodating', 'hindi accommodating', 'not helpful'],
-    'cleanliness_hygiene': ['not clean', 'overcrowded waiting area', 'waiting area was overcrowded',
+    'cleanliness_hygiene': ['not clean', 'dumi ng clinic', 'init sa waiting area',
+                            'overcrowded waiting area', 'waiting area was overcrowded',
                             'lacked enough seating', 'not enough seating', 'limited seating',
                             'insufficient seating', 'lack of seating'],
 }
@@ -168,6 +169,8 @@ def category_matches(text):
         matched = []
         for phrase, pattern in lexicon:
             for match in pattern.finditer(text):
+                if category == 'waiting_time' and phrase == 'waiting' and re.match(r'\s+(?:area|room)\b', text[match.end():]):
+                    continue
                 # "Not rude" does not report rudeness; explicitly negative
                 # phrases such as "no doctor" and "hindi pinansin" still match.
                 starts_negative = _normalize(phrase).split()[0] in {'hindi', 'not', 'no', 'walang', 'wala', 'never'}

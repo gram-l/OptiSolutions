@@ -117,7 +117,6 @@
     </div>
 
     <dialog id="userConfirm" class="um-confirm" aria-labelledby="userConfirmTitle" aria-describedby="userConfirmText">
-        <div class="um-confirm-icon"><i id="userConfirmIcon" class="fa-solid fa-trash" aria-hidden="true"></i></div>
         <h3 id="userConfirmTitle">Delete account?</h3>
         <p id="userConfirmText"></p>
         <form method="dialog" class="um-confirm-actions">
@@ -148,13 +147,12 @@
             toastTimer = setTimeout(() => t.hidden = true, 3500);
         }
 
-        function confirmUserAction({ title, message, variant, action, icon }) {
+        function confirmUserAction({ title, message, variant, action }) {
             const dialog = document.getElementById('userConfirm');
             if (dialog.open) return Promise.resolve(false);
             document.getElementById('userConfirmTitle').textContent = title;
             document.getElementById('userConfirmText').textContent = message;
             document.getElementById('userConfirmAction').textContent = action;
-            document.getElementById('userConfirmIcon').className = `fa-solid ${icon}`;
             dialog.dataset.variant = variant;
             dialog.returnValue = 'cancel';
             const previousOverflow = document.body.style.overflow;
@@ -341,7 +339,7 @@
             const deactivating = user.status === 'active';
             if (!await confirmUserAction({ title: deactivating ? 'Deactivate account?' : 'Activate account?',
                 message: 'Change the account status for ' + user.name + '?', variant: 'warning',
-                action: deactivating ? 'Deactivate' : 'Activate', icon: 'fa-lock' })) return;
+                action: deactivating ? 'Deactivate' : 'Activate' })) return;
             try {
                 const response = await fetch('/admin_acc/user_management/' + user_id + '/toggle', {
                     method: 'PATCH', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
@@ -363,7 +361,7 @@
             if (!await confirmUserAction({
                 title: 'Delete account?',
                 message: warning + `Are you sure you want to permanently delete ${u.name}'s account from the system? This action cannot be undone.`,
-                variant: 'danger', action: 'Delete', icon: 'fa-trash',
+                variant: 'danger', action: 'Delete',
             })) return;
 
             try {

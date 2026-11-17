@@ -128,16 +128,6 @@
             text-align: center;
             padding: 2rem 1.75rem 1.75rem;
         }
-        .confirm-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            margin: 0 auto 1rem;
-        }
         .confirm-modal-content h3 { margin-bottom: 0.5rem; }
         .confirm-modal-content p { color: #6b7280; font-size: 0.9rem; line-height: 1.5; }
         .confirm-modal-content .modal-buttons { justify-content: center; margin-top: 1.5rem; }
@@ -313,7 +303,6 @@
     <!-- Confirmation Modal -->
     <div id="confirmModal" class="modal confirm-modal">
         <div class="modal-content confirm-modal-content">
-            <div class="confirm-icon" id="confirmIcon"><i class="fa-solid fa-circle-question"></i></div>
             <h3 id="confirmTitle">Are you sure?</h3>
             <p id="confirmMessage"></p>
             <div class="modal-buttons">
@@ -375,7 +364,6 @@
     function showConfirm({ title = 'Are you sure?', message, variant = 'primary', confirmText = 'Confirm' }) {
         return new Promise((resolve) => {
             const modal = document.getElementById('confirmModal');
-            const icon = document.getElementById('confirmIcon');
             const okBtn = document.getElementById('confirmOkBtn');
             const cancelBtn = document.getElementById('confirmCancelBtn');
 
@@ -384,15 +372,11 @@
             okBtn.textContent = confirmText;
 
             const variants = {
-                danger:  { icon: 'fa-trash',           color: '#e74c3c' },
-                warning: { icon: 'fa-lock',             color: '#f39c12' },
-                primary: { icon: 'fa-circle-question',  color: '#0E62AA' },
+                danger:  '#e74c3c',
+                warning: '#f39c12',
+                primary: '#0E62AA',
             };
-            const v = variants[variant] || variants.primary;
-            icon.innerHTML = `<i class="fa-solid ${v.icon}"></i>`;
-            icon.style.color = v.color;
-            icon.style.background = v.color + '1A';
-            okBtn.style.background = v.color;
+            okBtn.style.background = variants[variant] || variants.primary;
 
             modal.style.display = 'flex';
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Staff\Inquiry;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class DashboardChartService
 {
@@ -27,6 +28,7 @@ class DashboardChartService
         $weekCount = (int) ($filters['visit_weeks'] ?? 6);
         $weeklyVisits = array_fill(0, $weekCount, 0);
         $weekLabels = [];
+        $weekStartLabels = [];
         $startOfThisWeek = Carbon::now('Asia/Manila')->startOfWeek(Carbon::MONDAY);
 
         for ($i = $weekCount - 1; $i >= 0; $i--) {
@@ -38,6 +40,7 @@ class DashboardChartService
                 ->whereBetween('visit_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
                 ->count();
 
+            $weekStartLabels[] = $weekStart->format('M j');
             $weekLabels[] = $i === 0 ? 'This week (ongoing)' : $weekStart->format('M j') . ' – ' . $weekEnd->format('M j');
         }
 
@@ -62,9 +65,21 @@ class DashboardChartService
         $negative = $sentimentCounts['Negative'] ?? 0;
         $sentimentTotal = $positive + $neutral + $negative;
 
-        $positivePercent = $sentimentTotal > 0 ? round($positive / $sentimentTotal * 100) : 0;
-        $neutralPercent  = $sentimentTotal > 0 ? round($neutral / $sentimentTotal * 100) : 0;
-        $negativePercent = $sentimentTotal > 0 ? round($negative / $sentimentTotal * 100) : 0;
+        $percentages = [0, 0, 0];
+
+        if ($sentimentTotal > 0) {
+            // Give leftover percentage points to the largest remainders.
+            $scaledCounts = [$positive * 100, $neutral * 100, $negative * 100];
+            $percentages = array_map(fn ($count) => intdiv($count, $sentimentTotal), $scaledCounts);
+            $remainders = array_map(fn ($count) => $count % $sentimentTotal, $scaledCounts);
+            arsort($remainders);
+            $remaining = 100 - array_sum($percentages);
+
+            foreach (array_slice(array_keys($remainders), 0, $remaining) as $index) {
+                $percentages[$index]++;
+            }
+        }
+        [$positivePercent, $neutralPercent, $negativePercent] = $percentages;
 
         // ---- 4) Inquiry Volume per weekday (this week) ----
         // Previously this counted `replied_at`, which meant unresolved /
@@ -153,7 +168,7 @@ class DashboardChartService
             ->orderByDesc('average_rating')->orderByDesc('rating_count')->orderBy('v.service_type')
             ->limit(3)->get();
 
-        return [
+        $charts = [
             'leadingDoctors' => $leadingDoctors,
             'leadingServices' => $leadingServices,
             'inquiryPeriod' => $inquiryPeriod,
@@ -162,7 +177,7 @@ class DashboardChartService
                 . $weekStartForInquiries->format('M j, Y') . ' – ' . $weekEndForInquiries->format('M j, Y') . ' (Philippine time)',
             'visitPeriodLabel' => 'Weekly scheduled visits over the last ' . $weekCount . ' weeks, including this week (ongoing).',
             'serviceDistribution' => $serviceDistribution,
-            'weeklyVisits' => $weeklyVisits, 'weekLabels' => $weekLabels,
+            'weeklyVisits' => $weeklyVisits, 'weekLabels' => $weekLabels, 'weekStartLabels' => $weekStartLabels,
             'positivePercent' => $positivePercent, 'neutralPercent' => $neutralPercent,
             'negativePercent' => $negativePercent, 'inquiryVolumeByDay' => $inquiryVolumeByDay,
             'sentimentTrendLabels' => $sentimentTrendLabels,
@@ -170,6 +185,72 @@ class DashboardChartService
             'sentimentTrendNeutral' => $sentimentTrendNeutral,
             'sentimentTrendNegative' => $sentimentTrendNegative,
             'resolvedInquiries' => $resolvedInquiries, 'unresolvedInquiries' => $unresolvedInquiries,
+        ];
+        $charts['chartInterpretations'] = $this->interpretCharts($charts);
+
+        return $charts;
+    }
+
+    private function interpretCharts(array $charts): array
+    {
+        $ratings = collect(['doctors' => $charts['leadingDoctors'], 'services' => $charts['leadingServices']])
+            ->filter(fn ($leaders) => $leaders->isNotEmpty())
+            ->map(function ($leaders, $group) {
+                $leader = $leaders->first();
+                return $leader->name . ' leads the ' . $group . ' list at ' . number_format($leader->average_rating, 1) . '/5';
+            });
+
+        $sentiment = [
+            'positive' => $charts['positivePercent'],
+            'neutral' => $charts['neutralPercent'],
+            'negative' => $charts['negativePercent'],
+        ];
+        $largestShare = max($sentiment);
+        $topSentiments = array_keys($sentiment, $largestShare);
+        $sentimentSummary = match (true) {
+            $largestShare === 0 => 'No reviews have been analyzed for sentiment yet.',
+            count($topSentiments) > 1 => ucfirst(implode(' and ', $topSentiments)) . " tied for the largest share at {$largestShare}% each.",
+            default => ucfirst($topSentiments[0]) . " feedback had the largest share at {$largestShare}%.",
+        };
+
+        $resolved = $charts['resolvedInquiries'];
+        $inquiryTotal = $resolved + $charts['unresolvedInquiries'];
+        $services = $charts['serviceDistribution'];
+        $topServiceCount = $services->max('total');
+        $topServices = $services->where('total', $topServiceCount);
+        $serviceSummary = match (true) {
+            $services->isEmpty() => 'No visits have been scheduled for any service yet.',
+            $topServices->count() > 1 => $topServices->count() . " services tied for the most scheduled visits with {$topServiceCount} each.",
+            default => $topServices->first()->service_type . " accounted for {$topServiceCount} of " . $services->sum('total') . ' scheduled visits.',
+        };
+
+        $weeks = $charts['weeklyVisits'];
+        $ongoing = array_pop($weeks);
+        [$previous, $latest] = array_slice($weeks, -2);
+        $visitSummary = match (true) {
+            array_sum($weeks) + $ongoing === 0 => 'No visits were scheduled in the selected weeks.',
+            array_sum($weeks) === 0 => "The ongoing week has {$ongoing} scheduled " . Str::plural('visit', $ongoing) . ', the first in the selected period.',
+            $latest > $previous => "Scheduled visits rose from {$previous} to {$latest} across the last two completed weeks.",
+            $latest < $previous => "Scheduled visits fell from {$previous} to {$latest} across the last two completed weeks.",
+            default => "The last two completed weeks each had {$latest} scheduled " . Str::plural('visit', $latest) . '.',
+        };
+
+        $daily = array_combine(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], $charts['inquiryVolumeByDay']);
+        $peak = max($daily);
+        $peakDays = array_keys($daily, $peak);
+        $volumeSummary = match (true) {
+            $peak === 0 => 'Daily inquiry volume stayed at zero in the selected week.',
+            count($peakDays) > 1 => count($peakDays) . " days tied for the most inquiries with {$peak} each.",
+            default => "{$peakDays[0]} had the most inquiries with {$peak} of " . array_sum($daily) . ' for the selected week.',
+        };
+
+        return [
+            'ratings' => $ratings->isEmpty() ? 'No ratings are linked to scheduled visits yet.' : $ratings->implode(' and ') . '.',
+            'sentiment' => $sentimentSummary,
+            'inquiry-status' => $inquiryTotal > 0 ? "The clinic has resolved {$resolved} of {$inquiryTotal} chatbot " . Str::plural('inquiry', $inquiryTotal) . '.' : 'No chatbot inquiries have been recorded yet.',
+            'services' => $serviceSummary,
+            'visits' => $visitSummary,
+            'inquiry-volume' => $volumeSummary,
         ];
     }
 }

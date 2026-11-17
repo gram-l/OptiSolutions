@@ -1,0 +1,18 @@
+:is(.page-header, .page-title-group, .dashboard-heading, .page-header-divider, .dash-page .welcome-banner) {
+    position: relative;
+}
+
+:is(.page-header, .page-title-group, .dashboard-heading, .page-header-divider)::after,
+.dash-page .welcome-banner::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: -0.45rem;
+    height: 1px;
+    background: #d1d5db;
+    pointer-events: none;
+}
+
+body.dark-mode :is(.page-header, .page-title-group, .dashboard-heading, .page-header-divider, .dash-page .welcome-banner)::after {
+    background: #4b5563;
+}

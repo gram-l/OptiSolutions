@@ -217,9 +217,9 @@
         }
 
         .day-header {
-            background: linear-gradient(95deg, var(--primary-main), var(--primary-dark));
+            background: var(--primary-main);
             padding: 1rem 1.5rem;
-            color: var(--white);
+            color: #fff;
             display: flex;
             justify-content: space-between;
             align-items: center;

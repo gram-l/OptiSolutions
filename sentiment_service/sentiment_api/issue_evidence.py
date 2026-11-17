@@ -14,11 +14,13 @@ REASON_RULES = {
         ('Long wait at cashier reported', ['tagal ng pila sa cashier', 'long wait at cashier', 'long queue at cashier']),
         ('Slow cashier or reception reported', ['mabagal sa reception', 'mabagal ang pagproseso sa reception', 'slow cashier', 'slow reception']),
         ('Unclear queue instructions reported', ['walang malinaw na queue instructions', 'hindi malinaw ang pila', 'unclear queue instructions']),
+        ('Slow service reported', ['tagal ng service', 'tagal ng serbisyo', 'mabagal na serbisyo', 'slow service', 'babagal']),
+        ('Shorter wait requested', ['malessen yung wait time', 'lessen the wait time', 'reduce the wait time', 'shorter wait']),
     ],
     'staff_attitude': [
         ('Negative staff attitude reported', ['masama ugali', 'masama ang ugali', 'masamang ugali']),
         ('Unfair treatment or favoritism reported', ['bias', 'biased', 'favoritism', 'pabor sa kakilala', 'unfair treatment', 'favoring friends']),
-        ('Rude or unfriendly behavior reported', ['masungit', 'bastos', 'rude', 'unfriendly', 'disrespectful', 'impolite', 'pasigaw', 'sinungitan']),
+        ('Rude or unfriendly behavior reported', ['masungit', 'sungit', 'bastos', 'rude', 'unfriendly', 'disrespect', 'disrespectful', 'impolite', 'pasigaw', 'sinungitan']),
     ],
     'consultation_fees': [
         ('High price or fee reported', ['mahal', 'expensive', 'overpriced', 'unaffordable', 'mataas ang presyo', 'price too high']),
@@ -45,6 +47,7 @@ REASON_RULES = {
         ('Double booking reported', ['double booked', 'double booking']),
         ('Appointment cancellation or rescheduling reported', ['na cancel', 'kinansela', 'cancelled', 'canceled', 'reschedule', 'resched']),
         ('Booking or confirmation problem reported', ['hindi na confirm', 'walang confirmation', 'hindi ma book', 'hindi makapag book']),
+        ('Scheduling improvement requested', ['improvement sa service and scheduling', 'improvement sa scheduling', 'improve scheduling']),
     ],
     'staff_attentiveness': [
         ('Staff not accommodating or helpful reported', ['not accommodating', 'hindi accommodating', 'not helpful']),
@@ -80,11 +83,13 @@ REASON_RULES = {
         ('Room not clean on arrival reported', ['room was not clean upon arrival', 'room was not clean on arrival', 'room not clean upon arrival', 'room not clean on arrival', 'hindi malinis ang room pagdating', 'hindi malinis ang consultation room pagdating']),
         ('Restroom cleaning or maintenance needed reported', ['restroom needed cleaning', 'restroom needs cleaning', 'restroom needed maintenance', 'restroom needs maintenance', 'poor restroom cleanliness', 'restroom cleanliness was poor', 'restroom maintenance needed']),
         ('Dirty or smelly restroom reported', ['madumi ang banyo', 'maruming banyo', 'mabaho ang banyo', 'madumi ang comfort room', 'dirty restroom', 'dirty toilet', 'dirty bathroom']),
+        ('Clinic cleanliness concern reported', ['madumi ang clinic', 'marumi ang clinic', 'dumi ng clinic', 'dirty clinic']),
         ('No gloves or mask reported', ['walang guwantes', 'walang gloves', 'walang mask', 'no gloves', 'no mask']),
         ('Not sterile or disinfected reported', ['hindi sterile', 'not sterile', 'not disinfected', 'hindi nag disinfect']),
         # Crowding and seating already belong to this category in the shared lexicon.
         ('Overcrowded waiting area reported', ['siksikan sa waiting area', 'crowded waiting area', 'cramped waiting area', 'overcrowded waiting area', 'waiting area was overcrowded']),
         ('Insufficient seating reported', ['kulang ang upuan', 'kulang sa upuan', 'walang upuan', 'walang maupuan', 'not enough seats', 'lacked enough seating', 'not enough seating', 'limited seating', 'insufficient seating', 'lack of seating']),
+        ('Waiting area reported as too hot', ['init sa waiting area', 'mainit sa waiting area']),
         ('Heat or lack of air conditioning reported', ['mainit', 'walang aircon']),
     ],
     'privacy_confidentiality': [

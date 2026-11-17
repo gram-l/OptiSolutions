@@ -3,7 +3,7 @@
 @section('content')
 <div class="container">
     <div style="background: white; border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); max-width: 700px; margin: 0 auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--light-gray); padding-bottom: 1rem; margin-bottom: 1rem;">
+        <div class="page-header-divider" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.55rem; margin-bottom: 1rem;">
             <h3 style="color: var(--text-dark); margin: 0;">Patient Details</h3>
             <div>
                 <a href="{{ route('staff.patients') }}" class="btn-sm btn-secondary">← Back</a>

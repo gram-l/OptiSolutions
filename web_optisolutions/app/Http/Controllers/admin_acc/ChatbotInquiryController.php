@@ -64,6 +64,7 @@ class ChatbotInquiryController extends Controller
         return response()->json([
             'message' => 'Reply sent!',
             'time'    => $reply->created_at->format('g:i A'),
+            'timestamp' => $reply->created_at->toIso8601String(),
             'status'  => $inquiry->resolved_status,
         ]);
     }
@@ -201,6 +202,7 @@ class ChatbotInquiryController extends Controller
             'senderLabel' => 'Patient',
             'text'        => $log->user_message ?? '',
             'time'        => $timestamp->format('g:i A'),
+            'timestamp'   => $timestamp->toIso8601String(),
         ];
     }
 
@@ -212,6 +214,7 @@ class ChatbotInquiryController extends Controller
             'attachmentUrl'  => $reply->attachment_url,
             'attachmentName' => $reply->attachment_name,
             'time'           => $reply->created_at->format('g:i A'),
+            'timestamp'      => $reply->created_at->toIso8601String(),
         ];
     }
 

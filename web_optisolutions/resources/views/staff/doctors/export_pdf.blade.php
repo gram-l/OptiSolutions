@@ -8,7 +8,7 @@
         .specialty { color: #555; margin: 0 0 6px; font-size: 11px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
         th, td { border: 1px solid #ddd; padding: 5px 8px; text-align: left; }
-        th { background: #f2f2f2; }
+        th { background: #d3e4f3; color: #123b63; font-weight: 700; text-transform: uppercase; }
         .no-patients { color: #888; font-style: italic; padding: 6px 0; }
         .print-btn { display: inline-block; margin-bottom: 16px; padding: 10px 18px; background: #062744; color: #fff; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
         @media print {

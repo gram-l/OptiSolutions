@@ -4,7 +4,7 @@
 <div class="container" style="max-width: 100%; padding: 0 1rem;">
     <div style="max-width: 620px; margin: 0 auto; background: white; border-radius: 20px; padding: 2rem; box-shadow: var(--shadow);">
 
-        <h3 style="color: var(--text-dark); margin-bottom: 1.5rem;">Edit Schedule - {{ $doctor->doctor_name }}</h3>
+        <h3 class="page-header-divider" style="color: var(--text-dark); margin-bottom: 1.5rem;">Edit Schedule - {{ $doctor->doctor_name }}</h3>
 
         @php
             $dayOrder = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];

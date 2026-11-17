@@ -638,16 +638,13 @@
 .user-avatar-small img[hidden] { display:none; }
 .um-confirm { width:380px; max-width:calc(100vw - 32px); margin:auto; padding:2rem 1.75rem 1.75rem; border:0; border-radius:20px; background:white; color:#062744; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.2); }
 .um-confirm::backdrop { background:rgba(0,0,0,.48); }
-.um-confirm-icon { display:grid; place-items:center; margin:0 auto 1rem; width:56px; height:56px; border-radius:50%; color:#ee493c; background:#feeeec; font-size:1.5rem; }
 .um-confirm h3 { font-size:1.17rem; margin:0 0 .5rem; }
 .um-confirm p { font-size:.9rem; line-height:1.5; color:#6b7280; margin:0 0 1.5rem; }
 .um-confirm-actions { display:flex; justify-content:center; gap:1rem; }
 .um-confirm-actions button { padding:.7rem 1.5rem; border:0; border-radius:8px; font-family:inherit; font-size:13.3333px; font-weight:600; cursor:pointer; }
 .um-confirm-cancel { background:#edf0f2; color:#333; }
 .um-confirm-remove { background:#ee493c; color:white; }
-.um-confirm[data-variant="warning"] .um-confirm-icon { color:#f39c12; background:#fef5e9; }
 .um-confirm[data-variant="warning"] .um-confirm-remove { background:#f39c12; }
-.um-confirm[data-variant="primary"] .um-confirm-icon { color:#0e62aa; background:#eaf3fb; }
 .um-confirm[data-variant="primary"] .um-confirm-remove { background:#0e62aa; }
 .um-confirm { box-sizing:border-box; max-height:calc(100dvh - 32px); overflow-y:auto; }
 .um-confirm p { overflow-wrap:anywhere; }

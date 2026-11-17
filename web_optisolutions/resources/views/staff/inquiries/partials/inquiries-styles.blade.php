@@ -37,7 +37,7 @@
         border: 1px solid var(--light-gray);
         border-radius: 25px;
         outline: none;
-        font-family: 'Poppins', sans-serif;
+        font-family: inherit;
         font-size: 0.9rem;
         margin-bottom: 1rem;
         box-sizing: border-box;
@@ -56,26 +56,14 @@
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
-        /* A row can end up sliced in half at the scroll boundary (the
-           list's height is rarely an exact multiple of row height).
-           Fading it out instead of hard-clipping makes that read as
-           "more below, scroll for it" rather than a rendering glitch. */
-        -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
-        mask-image: linear-gradient(to bottom, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
         scrollbar-width: thin;
-        scrollbar-color: #cbd3da transparent;
     }
 
     .conv-list::-webkit-scrollbar {
         width: 6px;
     }
 
-    .conv-list::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
     .conv-list::-webkit-scrollbar-thumb {
-        background: #cbd3da;
         border-radius: 3px;
     }
 
@@ -103,7 +91,7 @@
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        background: linear-gradient(135deg, var(--primary-main), var(--primary-dark));
+        background: var(--primary-main);
         color: #ffffff;
         display: flex;
         align-items: center;
@@ -346,7 +334,7 @@
         border: 1px solid var(--light-gray);
         border-radius: 25px;
         outline: none;
-        font-family: 'Poppins', sans-serif;
+        font-family: inherit;
         font-size: 1rem;
         transition: all 0.3s ease;
     }
@@ -464,12 +452,6 @@
     }
     body.dark-mode .conv-item:hover {
         background: #232b3d;
-    }
-    body.dark-mode .conv-list {
-        scrollbar-color: #3a4356 transparent;
-    }
-    body.dark-mode .conv-list::-webkit-scrollbar-thumb {
-        background: #3a4356;
     }
     body.dark-mode .conv-item-active {
         background: rgba(14, 98, 170, 0.25);

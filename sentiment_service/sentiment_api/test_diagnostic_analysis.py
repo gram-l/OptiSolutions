@@ -114,8 +114,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(len(ISSUE_CATEGORIES), 16)
 
     def test_vague_and_negated_details_remain_unspecified(self):
-        self.assertEqual(self.finding('need improvement sa service and scheduling', 'appointment_scheduling')['reported_reason'], 'Unspecified')
-        self.assertEqual(self.finding('Madumi ang clinic pero not rude. Hindi mabaho ang banyo', 'cleanliness_hygiene')['reported_reason'], 'Unspecified')
+        self.assertFalse(issue_findings('ang gulo ha'))
         self.assertEqual(self.finding('Sarado ang clinic kahit gusto kong pumunta', 'operating_hours')['reported_reason'], 'Unspecified')
         for category, text in [
             ('cleanliness_hygiene', 'Hindi madumi ang banyo'),
@@ -129,7 +128,26 @@ class EvidenceTests(unittest.TestCase):
 
     def test_no_restroom_problem_is_invented_from_a_general_clinic_comment(self):
         finding = self.finding('Madumi ang clinic. Hindi madumi ang banyo.', 'cleanliness_hygiene')
-        self.assertEqual(finding['reported_reason'], 'Unspecified')
+        self.assertEqual(finding['reported_reason'], 'Clinic cleanliness concern reported')
+
+    def test_short_complaints_report_only_the_stated_problem(self):
+        cases = [
+            ('Ang sungit ng staff nyo.', 'staff_attitude', 'Rude or unfriendly behavior reported'),
+            ('Ang dumi ng clinic niyo', 'cleanliness_hygiene', 'Clinic cleanliness concern reported'),
+            ('grabe ang disrespect dito', 'staff_attitude', 'Rude or unfriendly behavior reported'),
+            ('grabe ang init sa waiting area, di na naawa', 'cleanliness_hygiene', 'Waiting area reported as too hot'),
+            ('Hindi marunong magpaliwanag doctor dito', 'communication_information', 'Unclear explanation or instructions reported'),
+            ('need improvement sa service and scheduling', 'appointment_scheduling', 'Scheduling improvement requested'),
+            ('I hope malessen yung wait time', 'waiting_time', 'Shorter wait requested'),
+            ('Ang tagal ng service nyo.', 'waiting_time', 'Slow service reported'),
+            ('grabe ang babagal niyo', 'waiting_time', 'Slow service reported'),
+        ]
+        for text, category, reason in cases:
+            with self.subTest(text=text):
+                findings = issue_findings(text)
+                self.assertEqual([finding['category'] for finding in findings], [category])
+                self.assertEqual(findings[0]['reported_reason'], reason)
+                self.assertIn(findings[0]['evidence'], text)
 
     def test_lab_result_non_delivery_is_not_rewritten_as_certificate_non_delivery(self):
         for finding in issue_findings('Hindi nabigay ang resulta'):

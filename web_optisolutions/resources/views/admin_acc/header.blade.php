@@ -16,9 +16,12 @@
 
         {{-- Logo --}}
         <a class="logo-section" href="/admin_acc/dashboard">
-            <img class="clinic-logo-light" src="{{ asset('images/polyclinic_logo.png') }}" alt="Polyclinic Logo">
-            <img class="clinic-logo-dark" src="{{ asset('images/polyclinic_logo_dark.png') }}" alt="Polyclinic Logo">
-            <h1>Polyclinic Admin</h1>
+            <img class="clinic-logo-light" src="{{ asset('images/polyclinic_logo.png') }}" alt="">
+            <img class="clinic-logo-dark" src="{{ asset('images/polyclinic_logo_dark.png') }}" alt="">
+            <div class="portal-brand">
+                <h1>Polyclinic</h1>
+                <span class="portal-brand-role">Administration</span>
+            </div>
         </a>
     </div>
 

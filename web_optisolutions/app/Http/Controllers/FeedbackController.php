@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\admin_models\SentimentResult;
+use App\Services\IssueAnalysisService;
 use App\Services\SentimentAnalysisService;
 use Illuminate\Http\Request;
 
@@ -38,6 +39,9 @@ class FeedbackController extends Controller
             ]);
           } catch (\Throwable $exception) {
             \Illuminate\Support\Facades\Log::warning('Review saved; sentiment analysis remains pending.', ['feedback_id' => $feedback->feedback_id]);
+          }
+          if ($feedback->star_rating <= 3 || strtolower($result['sentiment_label'] ?? '') === 'negative') {
+              app(IssueAnalysisService::class)->capture('feedback', $feedback->feedback_id, $feedback->feedback_text);
           }
         }
 

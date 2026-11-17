@@ -12,6 +12,7 @@ use App\Conversations\Concerns\HandlesGlobalCommands;
 use App\Conversations\Concerns\HandlesOffTopic;
 use App\Conversations\Concerns\HandlesRateLimit;
 use App\Services\SentimentAnalysisService;
+use App\Services\IssueAnalysisService;
 use App\Services\NotificationService;
 use App\Models\Notification;
 use App\Models\Staff\InquiryReply;
@@ -299,6 +300,9 @@ class ReviewConversation extends Conversation
                 }
               } catch (\Throwable $analysisError) {
                 \Illuminate\Support\Facades\Log::warning('Review saved; sentiment analysis remains pending.', ['feedback_id' => $feedback->feedback_id]);
+              }
+              if ($this->isLowRating() || strtolower($result['sentiment_label'] ?? '') === 'negative') {
+                  app(IssueAnalysisService::class)->capture('feedback', $feedback->feedback_id, $text);
               }
             }
 

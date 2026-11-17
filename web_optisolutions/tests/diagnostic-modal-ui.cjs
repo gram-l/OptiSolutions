@@ -11,7 +11,7 @@ const raw = fs.readFileSync('resources/views/admin_acc/partials/diagnostic_analy
 const script = raw.match(/<script>([\s\S]*?)<\/script>/)[1]
     .replace("@json($diagnostic['doctors'])", JSON.stringify(doctors))
     .replace("@json($diagnostic['specialties'])", JSON.stringify(['General Medicine', 'Pediatrics']))
-    .replace("@json($errors->hasAny(['diagnostic_week', 'diagnostic_doctor', 'diagnostic_specialty']))", 'false');
+    .replace('@json($errors->hasAny($diagnosticFields))', 'false');
 const nodes = new Map();
 const document = { body: { style: { overflow: '' } }, activeElement: null, getElementById: id => nodes.get(id) };
 function element(id, extra = {}) {
@@ -35,7 +35,11 @@ element('diagnostic-close');
 const doctor = element('diagnostic-doctor', { name: 'diagnostic_doctor' });
 const specialty = element('diagnostic-specialty', { name: 'diagnostic_specialty' });
 const week = element('diagnostic-week', { name: 'diagnostic_week', value: '2026-10-19' });
+const compareWeek = element('diagnostic-compare-week', { name: 'diagnostic_compare_week', value: '2026-09-28' });
 const button = element('diagnostic-compare');
+const reportDropdown = element('diagnostic-report', { open: true });
+const reportButton = { name: 'report_scope', value: 'all' };
+const reportDate = { name: 'report_date', value: '', reportValidity() { this.validityChecked = true; } };
 const results = element('diagnostic-results', { innerHTML: '<p>Previous results</p>' });
 const errors = element('diagnostic-errors');
 const status = element('diagnostic-status', { hidden: true });
@@ -46,7 +50,8 @@ const preferences = new Map();
 const timers = new Map();
 let timerId = 0;
 const form = element('diagnostic-form', {
-    elements: [week, doctor, specialty, button], dataset: { compareUrl: '/admin/dashboard/diagnostics' },
+    elements: Object.assign([week, compareWeek, doctor, specialty, button, reportDate], { report_date: reportDate }),
+    dataset: { compareUrl: '/admin/dashboard/diagnostics' },
     reportValidity: () => true,
     contains(candidate) { return this.elements.includes(candidate); },
 });
@@ -89,6 +94,22 @@ const values = select => select.options.map(o => o.value);
     assert.equal(specialty.value, 'General Medicine');
     assert.deepEqual(values(specialty), ['', 'General Medicine']);
 
+    let reportPrevented = false;
+    await form.fire('submit', { submitter: reportButton, preventDefault() { reportPrevented = true; } });
+    assert.equal(reportPrevented, false, 'Report submission follows the button’s native form action');
+    assert.equal(reportDropdown.open, false);
+    reportDropdown.open = true;
+    const chosenDateButton = { name: 'report_scope', value: 'date' };
+    await form.fire('submit', { submitter: chosenDateButton, preventDefault() { reportPrevented = true; } });
+    assert.equal(reportPrevented, true, 'Chosen date requires a date');
+    assert.equal(reportDate.validityChecked, true);
+    assert.equal(reportDropdown.open, true);
+    reportDate.value = '2026-10-20';
+    reportPrevented = false;
+    await form.fire('submit', { submitter: chosenDateButton, preventDefault() { reportPrevented = true; } });
+    assert.equal(reportPrevented, false);
+    assert.equal(requests.length, 0, 'Generating a report does not send a comparison request');
+
     document.activeElement = button;
     const pending = submit();
     document.activeElement = document.body; // Disabling a focused button releases its focus.
@@ -98,7 +119,9 @@ const values = select => select.options.map(o => o.value);
     assert.equal(status['data-state'], 'loading');
     assert.equal(results.innerHTML, '<p>Previous results</p>');
     assert.equal(requests[0].url.searchParams.get('diagnostic_doctor'), '1');
+    assert.equal(requests[0].url.searchParams.get('diagnostic_compare_week'), '2026-09-28');
     assert.equal(requests[0].url.searchParams.get('diagnostic_specialty'), 'General Medicine');
+    assert.equal(requests[0].url.searchParams.has('report_date'), false);
     respond({ ok: true, json: async () => ({ html: '<p>Updated results</p>' }) });
     await pending;
     assert.equal(modal.open, true, 'Success updates the results without closing the overlay');

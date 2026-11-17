@@ -6,8 +6,10 @@ use App\Models\admin_models\Service;
 use App\Models\admin_models\User;
 use App\Support\DoctorSpecialties;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ServiceSettingsTest extends TestCase
@@ -18,7 +20,9 @@ class ServiceSettingsTest extends TestCase
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         (require database_path('migrations/2026_01_01_000000_create_users_table.php'))->up();
         (require database_path('migrations/2026_01_01_000001_create_services_table.php'))->up();
+        (require database_path('migrations/2026_01_01_000001_create_service_conditions_table.php'))->up();
         (require database_path('migrations/2026_11_05_000001_create_doctor_service_table.php'))->up();
+        (require database_path('migrations/2026_11_09_000003_add_card_style_to_services_table.php'))->up();
         Schema::create('doctors', function (Blueprint $table) {
             $table->increments('doctor_id'); $table->string('doctor_name');
         });
@@ -34,7 +38,7 @@ class ServiceSettingsTest extends TestCase
     {
         $this->postJson('/admin_acc/system_settings/services', ['title' => ' ENT ', 'room' => 'Room 201', 'available' => 1])
             ->assertOk()->assertJsonPath('message', 'Service added.')->assertJsonStructure(['html']);
-        $this->assertDatabaseHas('services', ['title' => 'ENT', 'icon' => 'fa-solid fa-stethoscope', 'schedule' => null]);
+        $this->assertDatabaseHas('services', ['title' => 'ENT', 'icon' => '', 'schedule' => null]);
         $this->assertContains('ENT', DoctorSpecialties::catalog()->all(), 'Services with no assigned doctor are filter options');
     }
 
@@ -85,5 +89,48 @@ class ServiceSettingsTest extends TestCase
     {
         $this->post('/admin_acc/system_settings/services', ['title' => 'ENT'])
             ->assertRedirect(route('system_settings.index', ['tab' => 'services']))->assertSessionHas('success');
+    }
+
+    public function test_service_photo_can_be_uploaded_replaced_and_removed(): void
+    {
+        $disk = Storage::fake('public');
+        $url = '/admin_acc/system_settings/services';
+        $this->post($url, ['title' => 'ENT', 'card_image' => $this->picture()], ['Accept' => 'application/json'])->assertOk();
+        $service = Service::where('title', 'ENT')->firstOrFail();
+        $this->assertMatchesRegularExpression('~^/storage/service-cards/[a-zA-Z0-9]+\.png$~', $service->card_image);
+        $original = substr($service->card_image, strlen('/storage/'));
+        $disk->assertExists($original);
+
+        $url .= '/'.$service->getKey();
+        $this->post($url, ['_method' => 'PUT', 'title' => 'ENT', 'card_image' => $this->picture()], ['Accept' => 'application/json'])->assertOk();
+        $replacement = substr($service->refresh()->card_image, strlen('/storage/'));
+        $disk->assertMissing($original);
+        $disk->assertExists($replacement);
+
+        $this->putJson($url, ['title' => 'ENT', 'remove_card_image' => true])->assertOk();
+        $this->assertNull($service->refresh()->card_image);
+        $disk->assertMissing($replacement);
+    }
+
+    public function test_failed_photo_upload_reports_a_field_error_and_preserves_the_existing_picture(): void
+    {
+        $service = $this->service();
+        $service->update(['card_image' => '/images/services/service_previous.png']);
+        $disk = \Mockery::mock();
+        $disk->shouldReceive('putFileAs')->once()->andReturn(false);
+        Storage::shouldReceive('disk')->with('public')->andReturn($disk);
+
+        $this->post('/admin_acc/system_settings/services/'.$service->getKey(), [
+            '_method' => 'PUT', 'title' => 'New title', 'card_image' => $this->picture(),
+        ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors('card_image');
+
+        $this->assertDatabaseHas('services', [
+            'service_id' => $service->getKey(), 'title' => 'Pediatrics', 'card_image' => '/images/services/service_previous.png',
+        ]);
+    }
+
+    private function picture(): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent('card.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a24sAAAAASUVORK5CYII='));
     }
 }

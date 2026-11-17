@@ -12,6 +12,9 @@
     @vite(['resources/css/admin_css/feedback.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css'])
 
     <style>
+        [data-feedback-panel][hidden], #feedbackFilters[hidden] { display: none !important; }
+        #feedbackDoctorFilter, #feedbackServiceFilter { max-width: min(100%, 15rem); min-width: 0; }
+
         .reported-reason-item { margin-bottom: .6rem; }
         .reported-reasons-toggle {
             display: block; padding: 0; border: 0; background: none;
@@ -154,8 +157,13 @@
                 <p>Review patient feedback, analyze sentiment, and identify recurring issues</p>
             </div>
 
-            <!-- Filter Bar -->
-            <div class="filter-bar">
+            <div class="admin-tabs" id="feedbackTabs" role="tablist" aria-label="Feedback sections">
+                <button type="button" role="tab" id="overviewTab" aria-controls="overviewPanel" aria-selected="true">Overview</button>
+                <button type="button" role="tab" id="patientFeedbackTab" aria-controls="patientFeedbackPanel" aria-selected="false" tabindex="-1">Patient feedback</button>
+                <button type="button" role="tab" id="complaintsTab" aria-controls="complaintsPanel" aria-selected="false" tabindex="-1">Complaints</button>
+            </div>
+
+            <div class="filter-bar" id="feedbackFilters">
                 <div class="filter-group">
                     <input type="text" class="search-box" id="searchInput" placeholder="Search comment, doctor or service...">
                     <select class="filter-select" id="sentimentFilter">
@@ -164,41 +172,50 @@
                         <option value="neutral">Neutral <i class="fa-regular fa-face-meh"></i></option>
                         <option value="negative">Negative <i class="fa-regular fa-face-frown"></i></option>
                     </select>
+                    <select class="filter-select" id="feedbackDoctorFilter" aria-label="Filter feedback by doctor">
+                        <option value="">All Doctors</option>
+                    </select>
+                    <select class="filter-select" id="feedbackServiceFilter" aria-label="Filter feedback by service">
+                        <option value="">All Services</option>
+                    </select>
                     <input type="date" class="date-filter" id="dateFromFilter" title="From date">
                     <span class="date-filter-sep">to</span>
                     <input type="date" class="date-filter" id="dateToFilter" title="To date">
                 </div>
             </div>
 
-            <!-- Overview: sentiment distribution and recurring patterns -->
-            <div class="overview-grid">
-                <div class="analytics-card card-sentiment">
-                    <div class="analytics-title"><i class="fa-solid fa-chart-pie"></i> Sentiment Distribution</div>
-                    <div class="sentiment-summary" id="sentimentSummary"></div>
-                    <div class="sentiment-rating">
-                        <div class="rating-stars" id="avgRating"></div>
-                        <div class="sentiment-rating-text">Average Rating: <span id="avgRatingValue">0</span>/5</div>
+            <section id="overviewPanel" role="tabpanel" aria-labelledby="overviewTab" data-feedback-panel tabindex="0">
+                <!-- Overview: sentiment distribution and recurring patterns -->
+                <div class="overview-grid">
+                    <div class="analytics-card card-sentiment">
+                        <div class="analytics-title"><i class="fa-solid fa-chart-pie"></i> Sentiment Distribution</div>
+                        <div class="sentiment-summary" id="sentimentSummary"></div>
+                        <div class="sentiment-rating">
+                            <div class="rating-stars" id="avgRating"></div>
+                            <div class="sentiment-rating-text">Average Rating: <span id="avgRatingValue">0</span>/5</div>
+                        </div>
+                    </div>
+                    <div class="pattern-card card-pattern">
+                        <div class="analytics-title" id="negativePatternsTitle"><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i> Recurring Negative Patterns</div>
+                        <div id="negativePatterns" role="region" aria-labelledby="negativePatternsTitle" tabindex="0"></div>
+                        <p class="visit-ratings-note" id="filteredPatternsNote" hidden>Doctor and service filters use visit-linked feedback. Standalone complaints are available in the Complaints tab.</p>
                     </div>
                 </div>
-                <div class="pattern-card card-pattern">
-                    <div class="analytics-title" id="negativePatternsTitle"><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i> Recurring Negative Patterns</div>
-                    <div id="negativePatterns" role="region" aria-labelledby="negativePatternsTitle" tabindex="0"></div>
-                </div>
-            </div>
 
-            <!-- Feedback List -->
-            <div class="visit-ratings-grid">
-                <div class="analytics-card">
-                    <div class="analytics-title"><i class="fa-solid fa-user-doctor"></i> Doctor Star Ratings</div>
-                    <div id="doctorRatings"></div>
+                <div class="visit-ratings-grid">
+                    <div class="analytics-card">
+                        <div class="analytics-title"><i class="fa-solid fa-user-doctor"></i> Doctor Star Ratings</div>
+                        <div id="doctorRatings"></div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-title"><i class="fa-solid fa-stethoscope"></i> Service Overall Ratings</div>
+                        <div id="serviceRatings"></div>
+                    </div>
                 </div>
-                <div class="analytics-card">
-                    <div class="analytics-title"><i class="fa-solid fa-stethoscope"></i> Service Overall Ratings</div>
-                    <div id="serviceRatings"></div>
-                </div>
-            </div>
-            <p class="visit-ratings-note">Doctor and service averages use reviews linked to completed visits and follow the selected filters. A visit's overall rating contributes to both averages.</p>
-            <div class="feedback-section">
+                <p class="visit-ratings-note">Doctor and service averages use reviews linked to completed visits and follow the selected filters. A visit's overall rating contributes to both averages.</p>
+            </section>
+
+            <section class="feedback-section" id="patientFeedbackPanel" role="tabpanel" aria-labelledby="patientFeedbackTab" data-feedback-panel tabindex="0" hidden>
                 <div class="section-title">
                     <span>All Patient Feedback</span>
                     <div class="download-dropdown" id="downloadDropdownFeedback">
@@ -230,10 +247,9 @@
                     <span class="page-info" id="feedbackPageInfo"></span>
                     <button type="button" class="page-btn" id="feedbackNextBtn" onclick="changePage('feedback', 1)"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
-            </div>
+            </section>
 
-            <!-- Complaint List -->
-            <div class="feedback-section" style="margin-top: 2rem;">
+            <section class="feedback-section" id="complaintsPanel" role="tabpanel" aria-labelledby="complaintsTab" data-feedback-panel tabindex="0" hidden>
                 <div class="section-title">
                     <span>Complaint List</span>
                     <div class="download-dropdown" id="downloadDropdownComplaint">
@@ -263,7 +279,7 @@
                     <span class="page-info" id="complaintPageInfo"></span>
                     <button type="button" class="page-btn" id="complaintNextBtn" onclick="changePage('complaint', 1)"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 
@@ -283,6 +299,24 @@
 
         const feedbackData = sortByDateDesc(@json($feedbackData), 'date');
         const complaintData = sortByDateDesc(@json($complaintData), 'created_at');
+        const doctorFilter = document.getElementById('feedbackDoctorFilter');
+        const serviceFilter = document.getElementById('feedbackServiceFilter');
+        const serviceKey = value => (value || '').trim().toLowerCase();
+
+        function populateReviewFilter(select, keyFor, labelFor) {
+            const options = new Map();
+            for (const review of feedbackData) {
+                const key = keyFor(review);
+                const label = (labelFor(review) || '').trim();
+                if (key && label && !options.has(key)) options.set(key, label);
+            }
+            for (const [key, label] of [...options].sort((a, b) => a[1].localeCompare(b[1]))) {
+                select.add(new Option(label, key));
+            }
+        }
+
+        populateReviewFilter(doctorFilter, review => String(review.doctor_id ?? ''), review => review.doctor);
+        populateReviewFilter(serviceFilter, review => serviceKey(review.service), review => review.service);
 
         const ROWS_PER_PAGE = 10;
         let feedbackCurrentPage = 1;
@@ -312,7 +346,7 @@
                 const rating = Number(entry.rating);
                 const name = String(entry[label] || '').trim();
                 if (!entry[key] || !name || !Number.isInteger(rating) || rating < 1 || rating > 5) return;
-                const id = key === 'service' ? name.toLowerCase() : String(entry[key]);
+                const id = key === 'service' ? serviceKey(name) : String(entry[key]);
                 const group = groups.get(id) || { name, total: 0, count: 0, sentiments: { positive: 0, neutral: 0, negative: 0, pending: 0, no_comment: 0 } };
                 group.total += rating;
                 group.count++;
@@ -369,7 +403,9 @@
             const search = document.getElementById('searchInput').value.trim().toLowerCase();
             const from = document.getElementById('dateFromFilter').value;
             const to = document.getElementById('dateToFilter').value;
-            const complaints = complaintData.filter(c => {
+            const visitFilterActive = Boolean(doctorFilter.value || serviceFilter.value);
+            document.getElementById('filteredPatternsNote').hidden = !visitFilterActive;
+            const complaints = visitFilterActive ? [] : complaintData.filter(c => {
                 const date = toDateOnly(c.created_at);
                 return (c.complaint_text || '').toLowerCase().includes(search)
                     && (!from || (date && date >= from)) && (!to || (date && date <= to));
@@ -397,8 +433,8 @@
                         </div>
                     </div>
                 `;
-            }).join('') + '<p style="font-size:0.75rem;color:#7f8c8d;margin-top:0.6rem;">Based on negative feedback and complaints. One entry can mention multiple categories; percentages may total more than 100%. Unclassified entries need the analysis service.</p>'
-                : '<div style="padding:1rem; text-align:center; color:#95a5a6;">No negative feedback or complaints for selected filters</div>';
+            }).join('') + `<p style="font-size:0.75rem;color:#7f8c8d;margin-top:0.6rem;">Based on ${visitFilterActive ? 'negative visit feedback' : 'negative feedback and complaints'}. One entry can mention multiple categories; percentages may total more than 100%. Unclassified entries need the analysis service.</p>`
+                : `<div style="padding:1rem; text-align:center; color:#95a5a6;">No ${visitFilterActive ? 'negative visit feedback' : 'negative feedback or complaints'} for selected filters</div>`;
         }
 
         function renderFeedbackTable(filteredData) {
@@ -475,12 +511,15 @@
 
         function complaintFindings(c) {
             if (!c.issues_analyzed) return [{ category: 'unclassified', reported_reason: 'Analysis unavailable', evidence: '' }];
-            if (c.issue_findings?.length) return c.issue_findings.map(finding => ({
-                ...finding,
-                reported_reason: /^unspecified(?:\s|$)/i.test(finding.reported_reason || '')
-                    ? 'Reason unspecified' : finding.reported_reason,
-            }));
-            return [{ category: c.category || 'other', reported_reason: 'Reason unspecified', evidence: '' }];
+            if (c.issue_findings?.length) return c.issue_findings.map(finding => {
+                const reason = (finding.reported_reason || '').replace(/;\s*underlying reason unspecified$/i, '');
+                return {
+                    ...finding,
+                    reported_reason: !reason || /^unspecified\b/i.test(reason) ? 'No additional detail provided' : reason,
+                };
+            });
+            const category = c.category || 'other';
+            return [{ category, reported_reason: category === 'other' ? 'No specific issue described' : 'No additional detail provided', evidence: '' }];
         }
 
         function renderComplaintEvidence(c) {
@@ -506,6 +545,7 @@
         }
 
         function categoryLabel(category) {
+            if (category === 'other') return 'Needs clarification';
             const text = String(category || 'Uncategorized').trim().replace(/_/g, ' ');
             return text.replace(/\b\w/g, letter => letter.toUpperCase());
         }
@@ -548,18 +588,22 @@
         function getFilteredData() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const sentimentFilter = document.getElementById('sentimentFilter').value;
+            const selectedDoctor = doctorFilter.value;
+            const selectedService = serviceFilter.value;
             const dateFrom = document.getElementById('dateFromFilter').value;
             const dateTo = document.getElementById('dateToFilter').value;
 
             return feedbackData.filter(f => {
                 const matchesSearch = [f.comment, f.doctor, f.service].some(value => (value || '').toLowerCase().includes(searchTerm));
                 const matchesSentiment = sentimentFilter === 'all' || f.sentiment === sentimentFilter;
+                const matchesDoctor = !selectedDoctor || String(f.doctor_id ?? '') === selectedDoctor;
+                const matchesService = !selectedService || serviceKey(f.service) === selectedService;
 
                 const entryDate = toDateOnly(f.date);
                 const matchesFrom = !dateFrom || (entryDate && entryDate >= dateFrom);
                 const matchesTo = !dateTo || (entryDate && entryDate <= dateTo);
 
-                return matchesSearch && matchesSentiment && matchesFrom && matchesTo;
+                return matchesSearch && matchesSentiment && matchesDoctor && matchesService && matchesFrom && matchesTo;
             });
         }
 
@@ -573,6 +617,8 @@
 
         document.getElementById('searchInput').addEventListener('input', refreshAll);
         document.getElementById('sentimentFilter').addEventListener('change', refreshAll);
+        doctorFilter.addEventListener('change', refreshAll);
+        serviceFilter.addEventListener('change', refreshAll);
         document.getElementById('dateFromFilter').addEventListener('change', refreshAll);
         document.getElementById('dateToFilter').addEventListener('change', refreshAll);
 
@@ -597,6 +643,9 @@
                 Doctor: f.doctor || 'Not linked',
                 Service: f.service || 'Not linked',
                 Sentiment: f.sentiment,
+                'Issue categories': (f.issue_categories || []).map(categoryLabel).join(', '),
+                'Reported reasons': (f.issue_findings || []).map(finding =>
+                    `${categoryLabel(finding.category)}: ${finding.reported_reason || ''}`).join('; '),
                 Date: formatDate(f.date),
             }));
         }
@@ -695,6 +744,39 @@
         });
 
         refreshAll();
+    </script>
+    <script>
+        (() => {
+            const tabs = [...document.querySelectorAll('#feedbackTabs [role="tab"]')];
+            const filters = document.getElementById('feedbackFilters');
+
+            function selectTab(selected) {
+                tabs.forEach(tab => {
+                    const active = tab === selected;
+                    tab.setAttribute('aria-selected', String(active));
+                    tab.tabIndex = active ? 0 : -1;
+                    document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+                });
+                filters.hidden = selected.id === 'complaintsTab';
+            }
+
+            tabs.forEach((tab, index) => {
+                tab.addEventListener('click', () => selectTab(tab));
+                tab.addEventListener('keydown', event => {
+                    const nextIndex = {
+                        ArrowLeft: (index + tabs.length - 1) % tabs.length,
+                        ArrowRight: (index + 1) % tabs.length,
+                        Home: 0,
+                        End: tabs.length - 1,
+                    }[event.key];
+                    if (nextIndex === undefined) return;
+                    event.preventDefault();
+                    const next = tabs[nextIndex];
+                    selectTab(next);
+                    next.focus();
+                });
+            });
+        })();
     </script>
 </body>
 </html>

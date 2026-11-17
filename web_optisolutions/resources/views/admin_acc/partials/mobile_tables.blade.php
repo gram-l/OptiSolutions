@@ -45,10 +45,7 @@
             display: block;
             flex: 0 0 108px;
             font-size: 0.68rem;
-            font-weight: 600;
-            text-transform: uppercase;
             letter-spacing: 0.03em;
-            color: #95a5a6;
         }
         body table.admin-mobile-table .admin-mobile-value {
             display: block;

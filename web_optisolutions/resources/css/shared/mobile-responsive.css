@@ -1,0 +1,145 @@
+/* Shared phone rules for every admin and staff page (<= 768px).
+   Imported by header.css (admin) and staff.css (staff). Every selector starts
+   with `body` so it out-ranks the single-class desktop rules in page CSS. */
+@media (max-width: 768px) {
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    /* `clip` (not `hidden`) so sticky headers keep working. */
+    body {
+        overflow-x: clip;
+    }
+
+    body :is(img, video, svg, canvas, iframe) {
+        max-width: 100%;
+    }
+
+    body :is(p, li, h1, h2, h3, h4, h5, h6) {
+        overflow-wrap: break-word;
+    }
+
+    /* 16px inputs stop iOS Safari from zooming the whole page on focus,
+       which is what makes a page suddenly look like the desktop layout. */
+    body :is(
+        input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"]),
+        select,
+        textarea
+    ) {
+        font-size: 16px;
+        max-width: 100%;
+    }
+
+    /* Dialogs, popups and side panels never wider than the screen. */
+    body :is(.modal-content, .modal-box, .ss-modal-content, .notes-modal-content,
+             .confirm-modal-box, .command-confirm-content, .profile-modal,
+             .settings-modal, .logout-modal, .um-confirm) {
+        box-sizing: border-box;
+        width: min(100%, calc(100vw - 24px));
+        max-width: calc(100vw - 24px);
+    }
+    body :is(.modal-content, .modal-box, .ss-modal-content, .notes-modal-content) {
+        padding: 1.1rem;
+        max-height: calc(100dvh - 24px);
+        overflow-y: auto;
+    }
+    body .notif-panel {
+        width: min(420px, 100vw);
+        max-width: 100vw;
+    }
+    body .chat-window {
+        width: min(400px, calc(100vw - 24px));
+        height: min(550px, calc(100dvh - 120px));
+    }
+
+    /* Multi-column forms and detail grids become one column. */
+    body .form-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+    body :is([style*="grid-template-columns: 1fr 1fr"], [style*="grid-template-columns:1fr 1fr"]) {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+    body .add-session-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    body .add-session-row > :first-child,
+    body .add-session-row > :last-child {
+        grid-column: 1 / -1;
+    }
+
+    /* Inline min-widths on filter inputs let rows overflow the screen. */
+    body [style*="min-width: 220px"] {
+        min-width: min(220px, 100%) !important;
+    }
+    body [style*="min-width: 130px"] {
+        min-width: min(130px, 100%) !important;
+    }
+
+    /* Stat cards: two across instead of one tall card per row. */
+    body .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+    }
+
+    /* Tables that are not turned into cards scroll inside themselves. */
+    body .diagnostic-table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    /* Tabs (.admin-tabs): segmented control, active tab is a white pill. */
+    body .admin-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 2px;
+        margin-bottom: 0.75rem;
+        padding: 4px;
+        border: 0;
+        border-radius: 14px;
+        background: #e1e9f0;
+        box-shadow: 0 1px 4px rgb(6 39 68 / 8%);
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    body .admin-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    body .admin-tabs button {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0.5rem 0.4rem;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: #4b5d6e;
+        font-size: 0.8rem;
+        font-weight: 500;
+        line-height: 1.2;
+        text-align: center;
+        white-space: normal;
+    }
+    /* 4+ tabs can't all fit: keep each on one line and let the bar swipe. */
+    body .admin-tabs:has(> button:nth-child(4)) button {
+        flex: 1 0 auto;
+        padding: 0.55rem 0.8rem;
+        white-space: nowrap;
+    }
+    body .admin-tabs button:is(:hover, :focus-visible) {
+        border: 0;
+        color: var(--primary-dark, #062744);
+    }
+    body .admin-tabs button:is(.active, [aria-selected="true"]) {
+        border: 0;
+        background: #fff;
+        color: var(--primary-main, #0e62aa);
+        font-weight: 700;
+        box-shadow: 0 1px 4px rgb(6 39 68 / 15%);
+    }
+}
+
+body.dark-mode .admin-tabs { background: #222c3d; }
+body.dark-mode .admin-tabs button { color: #afbdce; }
+body.dark-mode .admin-tabs button:is(.active, [aria-selected="true"]) { background: #1a2232; color: #a7e0f7; }

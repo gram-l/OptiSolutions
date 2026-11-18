@@ -62,22 +62,24 @@
     flex-wrap: wrap;
 }
 
-/* Keep the current section's action beside its tabs when space permits. */
+/* Tabs on the left, the current section's action (Add Service / Add FAQ)
+   on the right. Wraps cleanly when there is not enough room. */
 .settings-tab-row {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 0 1rem;
-    margin-bottom: 0.85rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
 }
 
 .settings-tab-row .admin-tabs {
-    flex: 1 1 22rem;
+    flex: 0 1 auto;
     margin-bottom: 0;
 }
 
 .settings-tab-row > .add-patient-btn {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
 }
 
 /* Match the primary and row actions on Manage Doctors. */
@@ -242,4 +244,397 @@
     body .modal .form-group textarea { padding: 0.6rem; font-size: 16px; box-sizing: border-box; }
     body .modal .modal-buttons { margin-top: 1rem; gap: 0.5rem; flex-wrap: wrap; }
     body .modal .modal-buttons button { flex: 1; padding: 0.65rem 0.8rem; }
+}
+
+/* Phone: app-style System Settings. Tabs become a segmented control (active
+   tab is a white pill), actions are large full-width rounded buttons. */
+@media (max-width: 768px) {
+    body .settings-tab-row {
+        display: block;
+        margin-bottom: 0.75rem;
+    }
+
+    body .settings-tab-row .admin-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 2px;
+        margin: 0 0 0.6rem;
+        padding: 4px;
+        border: 0;
+        border-radius: 14px;
+        background: #e1e9f0;
+        box-shadow: 0 1px 4px rgb(6 39 68 / 8%);
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    body .settings-tab-row .admin-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    body .settings-tab-row .admin-tabs button {
+        flex: 1 0 auto;
+        padding: 0.55rem 0.8rem;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: #4b5d6e;
+        font-size: 0.82rem;
+        font-weight: 500;
+        text-align: center;
+        white-space: nowrap;
+    }
+    body .settings-tab-row .admin-tabs button:is(:hover, :focus-visible) {
+        border: 0;
+        color: var(--primary-dark);
+    }
+    body .settings-tab-row .admin-tabs button:is(.active, [aria-selected="true"]) {
+        border: 0;
+        background: #fff;
+        color: var(--primary-main);
+        font-weight: 700;
+        box-shadow: 0 1px 4px rgb(6 39 68 / 15%);
+    }
+
+    /* "Add Service" / "Add FAQ" */
+    body .settings-tab-row > .add-patient-btn {
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 0;
+        padding: 0.8rem 1rem;
+        border-radius: 14px;
+        box-shadow: 0 4px 10px rgb(14 98 170 / 25%);
+    }
+
+    /* Cards */
+    body .tab-panel > .patients-table-container[style*="padding"] {
+        padding: 1rem !important;
+        border-radius: 16px;
+    }
+    body .tab-panel .form-group label {
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    body .tab-panel .form-group :is(input, select, textarea) {
+        padding: 0.7rem 0.8rem;
+        border-radius: 12px;
+    }
+
+    /* Primary save buttons: large, full width, rounded */
+    body .tab-panel form .add-patient-btn {
+        width: 100%;
+        justify-content: center;
+        margin-top: 0.25rem;
+        padding: 0.85rem 1rem;
+        border-radius: 14px;
+        font-size: 1rem;
+        box-shadow: 0 4px 10px rgb(14 98 170 / 25%);
+    }
+
+    /* Secondary action ("Add Core Value"): outlined, full width */
+    body .tab-panel button[onclick="addCoreValueRow()"] {
+        width: 100%;
+        margin-bottom: 0.75rem;
+        padding: 0.7rem 1rem;
+        border: 1.5px solid #c3d0dc;
+        border-radius: 14px;
+        background: #fff;
+        color: var(--primary-dark);
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+}
+
+body.dark-mode .settings-tab-row .admin-tabs { background: #222c3d; }
+body.dark-mode .settings-tab-row .admin-tabs button { color: #afbdce; }
+body.dark-mode .settings-tab-row .admin-tabs button:is(.active, [aria-selected="true"]) { background: #1a2232; color: #a7e0f7; }
+/* ==========================================================================
+   System Settings polish (cards, forms, core values, tables, actions)
+   ========================================================================== */
+.tab-panel > .patients-table-container {
+    border: 1px solid #e3eaf1;
+    box-shadow: 0 4px 18px rgb(6 39 68 / 6%);
+}
+
+@media (min-width: 769px) {
+    .tab-panel > .patients-table-container[style*="padding"] {
+        padding: 1.75rem 2rem !important;
+    }
+}
+
+/* Form fields */
+body .tab-panel .form-group { margin-bottom: 1.35rem; }
+body .tab-panel .form-row { gap: 1.25rem; }
+body .tab-panel .form-group label {
+    display: block;
+    margin-bottom: 0.45rem;
+    color: var(--primary-dark);
+    font-size: 0.88rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+body .tab-panel .form-group :is(input, textarea, select) {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid #d3deea;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: var(--text-dark);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+body .tab-panel .form-group textarea { min-height: 96px; resize: vertical; }
+body .tab-panel .form-group :is(input, textarea, select):hover { border-color: #b4c6d8; }
+body .tab-panel .form-group :is(input, textarea, select):focus {
+    border-color: var(--primary-main);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgb(14 98 170 / 15%);
+}
+body .tab-panel .form-group > p {
+    margin-top: 0.5rem !important;
+    padding: 0.55rem 0.8rem;
+    border-radius: 10px;
+    background: #f1f6fb;
+    color: #5f7385 !important;
+    font-size: 0.8rem !important;
+    line-height: 1.5;
+}
+
+/* Core values: numbered cards with Name + Description fields */
+#coreValuesList { counter-reset: core-value; }
+.core-value-row {
+    counter-increment: core-value;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #e3eaf1;
+    border-radius: 14px;
+    background: #f8fafc;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.core-value-row:focus-within {
+    border-color: #9dbcd4;
+    box-shadow: 0 0 0 3px rgb(14 98 170 / 8%);
+}
+.core-value-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #e1ecf7;
+    color: var(--primary-main);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+.core-value-num::before { content: counter(core-value); }
+.core-value-fields {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.8fr) minmax(0, 2fr);
+    gap: 0.6rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.core-value-row input { flex: initial; }
+body .tab-panel .core-value-row .core-value-fields input { background: #fff; }
+body .tab-panel .core-value-row .cv-name { font-weight: 600; }
+.core-value-row .btn-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+body .tab-panel button[onclick="addCoreValueRow()"] {
+    margin-top: 0.35rem;
+    padding: 0.6rem 1.15rem;
+    border: 1.5px dashed #9dbcd4;
+    border-radius: 12px;
+    background: #f3f8fc;
+    color: var(--primary-main);
+    font-size: 0.85rem;
+}
+body .tab-panel button[onclick="addCoreValueRow()"]:hover {
+    border-color: var(--primary-main);
+    background: #e8f1fa;
+}
+
+/* Primary actions */
+.add-patient-btn {
+    justify-content: center;
+    min-height: 44px;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgb(14 98 170 / 22%);
+}
+.tab-panel form .add-patient-btn {
+    margin-top: 0.5rem;
+    min-width: 160px;
+    padding: 0.75rem 1.75rem;
+}
+
+/* Services / FAQs tables */
+.patients-table thead th {
+    padding: 0.9rem 1.25rem;
+    background: #eaf2f9;
+    color: var(--primary-dark);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.patients-table tbody td {
+    padding: 1rem 1.25rem;
+    color: var(--text-dark);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+.patients-table tbody tr:hover { background: #f5f9fc; }
+.patients-table .action-buttons { flex-wrap: nowrap; }
+.patients-table .empty-state {
+    padding: 2.5rem 1rem;
+    color: #7f8c8d;
+    text-align: center;
+}
+
+/* Dark mode */
+body.dark-mode .tab-panel > .patients-table-container { border-color: var(--dm-border); }
+body.dark-mode .tab-panel .form-group label { color: var(--dm-text); }
+body.dark-mode .tab-panel .form-group :is(input, textarea, select) {
+    background: var(--dm-raised);
+    border-color: var(--dm-border);
+    color: var(--dm-text);
+}
+body.dark-mode .tab-panel .form-group :is(input, textarea, select):focus {
+    background: var(--dm-surface);
+    box-shadow: 0 0 0 3px rgb(139 201 255 / 22%);
+}
+body.dark-mode .tab-panel .form-group > p { background: var(--dm-raised); color: var(--dm-muted) !important; }
+body.dark-mode .tab-panel button[onclick="addCoreValueRow()"] {
+    background: var(--dm-raised);
+    border-color: var(--dm-border);
+    color: var(--dm-link);
+}
+body.dark-mode .patients-table thead th { background: var(--dm-raised); color: var(--dm-text); }
+body.dark-mode .patients-table tbody td { color: var(--dm-text); border-color: var(--dm-border); }
+body.dark-mode .patients-table tbody tr:hover { background: var(--dm-raised); }
+
+@media (max-width: 768px) {
+    .tab-panel > .patients-table-container { border-radius: 16px; }
+    .core-value-row { align-items: flex-start; gap: 0.6rem; padding: 0.65rem; }
+    .core-value-num { flex-basis: 30px; width: 30px; height: 30px; margin-top: 4px; }
+    .core-value-fields { grid-template-columns: minmax(0, 1fr); }
+    .core-value-row .btn-remove { width: 36px; height: 36px; margin-top: 3px; }
+}
+
+body.dark-mode .core-value-row { background: var(--dm-raised); border-color: var(--dm-border); }
+body.dark-mode .core-value-num { background: var(--dm-surface); color: var(--dm-link); }
+body.dark-mode .tab-panel .core-value-row .core-value-fields input { background: var(--dm-surface); }
+
+/* ==========================================================================
+   Card headers, form footers, hint, FAQ table
+   ========================================================================== */
+.ss-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid #e9eff5;
+}
+.ss-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #e8f1fa;
+    color: var(--primary-main);
+    font-size: 1.25rem;
+}
+.ss-card-head h3 { margin: 0; color: var(--primary-dark); font-size: 1.1rem; font-weight: 700; }
+.ss-card-head p { margin: 0.15rem 0 0; color: #6b7c8c; font-size: 0.86rem; line-height: 1.4; }
+
+body .tab-panel .form-group > p.ss-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    padding: 0;
+    margin-top: 0.55rem !important;
+    color: #6b7c8c !important;
+    font-size: 0.82rem !important;
+}
+.ss-hint i { color: #e0a100; }
+
+.ss-form-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e9eff5;
+}
+.tab-panel form .ss-form-footer .add-patient-btn { margin-top: 0; }
+
+/* Status pills with a dot */
+.patients-table .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.75rem;
+}
+.patients-table .status-badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+/* FAQs */
+.faq-table tbody td { padding: 1.05rem 1.25rem; }
+.faq-order {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e8f1fa;
+    color: var(--primary-main);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+.faq-table .faq-q { width: 30%; color: var(--primary-dark); font-weight: 600; }
+.faq-table .faq-a {
+    color: #5f7385;
+    font-size: 0.88rem;
+    display: table-cell;
+}
+.faq-table .action-buttons { justify-content: flex-end; }
+
+body.dark-mode .ss-card-head, body.dark-mode .ss-form-footer { border-color: var(--dm-border); }
+body.dark-mode .ss-card-head h3 { color: var(--dm-text); }
+body.dark-mode .ss-card-head p, body.dark-mode .faq-table .faq-a { color: var(--dm-muted); }
+body.dark-mode .ss-card-icon, body.dark-mode .faq-order { background: var(--dm-raised); color: var(--dm-link); }
+body.dark-mode .faq-table .faq-q { color: var(--dm-text); }
+
+@media (max-width: 768px) {
+    .ss-card-head { gap: 0.7rem; margin-bottom: 1.1rem; padding-bottom: 1rem; }
+    .ss-card-icon { flex-basis: 38px; width: 38px; height: 38px; font-size: 1.1rem; }
+    .ss-card-head h3 { font-size: 1rem; }
+    .ss-form-footer { margin-top: 1.1rem; padding-top: 1rem; }
+    body .tab-panel form .ss-form-footer .add-patient-btn { margin-top: 0; }
+    .faq-table .faq-q { width: auto; min-width: 180px; }
 }

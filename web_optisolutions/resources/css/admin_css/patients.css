@@ -191,3 +191,104 @@
     body .container .stats-bar .stat-number { font-size: 1.4rem; line-height: 1.2; }
     body .container .stats-bar .stat-label { font-size: 0.68rem; line-height: 1.35; overflow-wrap: anywhere; }
 }
+
+/* ==========================================================================
+   Patient Records: same look as the staff page (stat cards stay on top)
+   ========================================================================== */
+.filter-bar.patients-action-bar { gap: 0.75rem 1rem; }
+.patients-filters { display: flex; align-items: center; gap: 0.75rem; flex: 1 1 auto; flex-wrap: wrap; }
+.patients-actions { display: flex; align-items: center; gap: 0.75rem; flex: 0 0 auto; }
+
+.patients-search { position: relative; flex: 1 1 360px; min-width: 240px; max-width: 520px; }
+.patients-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+body .patients-search .search-box {
+    width: 100%;
+    box-sizing: border-box;
+    height: 44px;
+    padding: 0 0.9rem 0 2.4rem;
+    border: 1px solid #d3deea;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: var(--text-dark);
+    font-family: inherit;
+    font-size: 0.92rem;
+}
+body .filter-select.patients-dept {
+    min-width: 190px;
+    height: 44px;
+    padding: 0 2.4rem 0 1rem;
+    border: 1px solid #d3deea;
+    border-radius: 12px;
+    background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235f7385' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.9rem center;
+    color: var(--text-dark);
+    font-family: inherit;
+    font-size: 0.92rem;
+    -webkit-appearance: none;
+    appearance: none;
+}
+body :is(.patients-search .search-box, .filter-select.patients-dept):hover { border-color: #b4c6d8; }
+body :is(.patients-search .search-box, .filter-select.patients-dept):focus {
+    border-color: var(--primary-main);
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgb(14 98 170 / 15%);
+}
+body .patients-actions .download-btn,
+body .patients-actions .add-patient-btn {
+    height: 44px;
+    padding: 0 1.2rem;
+    border-radius: 12px;
+    white-space: nowrap;
+    box-shadow: 0 3px 10px rgb(14 98 170 / 22%);
+}
+body .patients-actions .add-patient-btn { justify-content: center; }
+
+/* Table */
+.btn-icon { display: inline-flex; align-items: center; gap: 0.3rem; font-family: inherit; }
+.patients-table td.patient-actions { white-space: nowrap; }
+.patient-actions .action-buttons { flex-wrap: nowrap; }
+.patient-actions .btn-icon { flex: 0 0 auto; white-space: nowrap; }
+.patients-table tbody tr:hover .btn-icon:hover { background: var(--primary-main); color: #fff; }
+.patients-table td[data-label="Patient Name"] { font-weight: 500; }
+.patients-table td.patient-notes-cell small { color: #7f8c8d; font-size: 0.8rem; }
+.patients-table .sort-indicator { color: #7e96ae; }
+
+.dept-chip { display: inline-block; padding: 0.2rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; background: hsl(var(--h, 210) 70% 94%); color: hsl(var(--h, 210) 55% 28%); }
+.dept-chip--none { background: transparent; color: #9aa7b5; font-weight: 400; padding-left: 0; }
+
+@media (min-width: 769px) {
+    .patients-table thead th,
+    .patients-table td[data-label="Patient ID"],
+    .patients-table td[data-label="Age"],
+    .patients-table td[data-label="Department"] { white-space: nowrap; }
+}
+
+body.dark-mode .dept-chip { background: hsl(var(--h, 210) 35% 24%); color: hsl(var(--h, 210) 70% 85%); }
+body.dark-mode .patients-table td.patient-notes-cell small { color: #9fb2c8; }
+body.dark-mode :is(.patients-search .search-box, .filter-select.patients-dept) {
+    background-color: var(--dm-raised, #222d3e);
+    border-color: var(--dm-border, #45556e);
+    color: var(--dm-text, #e7edf5);
+}
+
+/* Phone */
+@media (max-width: 768px) {
+    .patients-filters { flex-direction: column; align-items: stretch; gap: 0.6rem; width: 100%; }
+    .patients-search { flex: none; width: 100%; min-width: 0; max-width: none; }
+    body .filter-select.patients-dept { width: 100%; min-width: 0; }
+    .patients-actions { width: 100%; }
+    body .patients-actions .download-dropdown { flex: 1 1 0; }
+    body .patients-actions .download-btn { width: 100%; justify-content: center; }
+    body .patients-actions .add-patient-btn { flex: 1 1 0; padding: 0 0.8rem; }
+
+    /* Cards: no dark blue bar, like the staff page */
+    body .patients-table tr { border-left: 1px solid var(--light-gray); }
+    body .patients-table td.patient-actions {
+        display: block;
+        border-bottom: none;
+        border-top: 1px dashed var(--light-gray);
+        margin-top: 0.25rem;
+        padding: 0.85rem 0 0;
+    }
+    body .patients-table td.patient-actions .action-buttons { width: 100%; }
+    body .patients-table td.patient-actions .btn-icon { flex: 1 1 0; justify-content: center; padding: 0.55rem 0.85rem; font-size: 0.82rem; }
+}

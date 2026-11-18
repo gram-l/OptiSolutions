@@ -258,13 +258,13 @@
         </div>
         <div id="recentActivityList">
             @forelse(($recentActivities ?? []) as $activity)
-                <div class="activity-item">
+                <div class="activity-item" style="--accent: {{ $activity['color'] ?? '#0E62AA' }};">
                     <div class="activity-icon"><i class="bi {{ $activity['icon'] }}"></i></div>
                     <div class="activity-details">
                         <div class="activity-title">{{ $activity['title'] }}</div>
                         <div class="activity-desc">{{ $activity['description'] }}</div>
                     </div>
-                    <span class="activity-time">{{ $activity['time_human'] }}</span>
+                    <span class="activity-time"><i class="bi bi-clock"></i> {{ $activity['time_human'] }}</span>
                 </div>
             @empty
                 <p id="recentActivityEmptyNote" class="chart-empty-note">No recent activity yet.</p>

@@ -53,14 +53,17 @@
         </div>
 
         <!-- Filter Bar -->
-        <div class="filter-bar">
-            <div class="filter-group">
-                <input type="text" class="search-box" id="searchInput" placeholder="Search by name, ID, or doctor...">
-                <select class="filter-select" id="departmentFilter">
+        <div class="filter-bar patients-action-bar">
+            <div class="filter-group patients-filters">
+                <div class="patients-search">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input type="text" class="search-box" id="searchInput" placeholder="Search by name, ID, or doctor...">
+                </div>
+                <select class="filter-select patients-dept" id="departmentFilter">
                     <option value="all">All Departments</option>
                 </select>
             </div>
-            <div style="display:flex; gap:0.75rem; align-items:center;">
+            <div class="patients-actions">
                 <div class="download-dropdown" id="downloadDropdown">
                     <button type="button" class="download-btn" id="downloadBtn">
                         <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
@@ -415,6 +418,20 @@
         }
 
         // Render patients table
+        // Department chip colour: same hue as the staff page (PHP: abs(crc32(dept)) % 360)
+        function crc32(str) {
+            let crc = -1;
+            for (const byte of new TextEncoder().encode(str)) {
+                crc ^= byte;
+                for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+            }
+            return (crc ^ -1) >>> 0;
+        }
+        function deptChip(dept) {
+            if (!dept) return '<span class="dept-chip dept-chip--none">—</span>';
+            return `<span class="dept-chip" style="--h: ${crc32(String(dept)) % 360};">${escapeHtml(dept)}</span>`;
+        }
+
         function renderPatients() {
             const filtered = getFilteredPatients();
             const tbody = document.getElementById('patientsTableBody');
@@ -434,12 +451,14 @@
                         <td data-label="Patient ID"><code>${patient.id}</code></td>
                         <td data-label="Patient Name" style="font-weight: 500;">${escapeHtml(patient.name)}</td>
                         <td data-label="Age">${patient.age != null ? patient.age + ' years' : '—'}</td>
-                        <td data-label="Department">${escapeHtml(patient.department || '—')}</td>
+                        <td data-label="Department">${deptChip(patient.department)}</td>
                         <td data-label="Assigned Doctor">${escapeHtml(patient.doctor || '—')}</td>
-                        <td data-label="Notes"><small style="color:#7f8c8d">${escapeHtml((patient.notes || '').length > 40 ? patient.notes.substring(0, 40) + '...' : (patient.notes || '—'))}</small></td>
-                        <td data-label="" class="action-buttons">
-                            <button class="btn-icon btn-view" onclick="viewPatient(${patient.id})"> <i class="fa-regular fa-eye"></i> View</button>
-                            <button class="btn-icon btn-edit" onclick="editPatient(${patient.id})"> <i class="fa-regular fa-edit"></i> Edit</button>
+                        <td data-label="Notes" class="patient-notes-cell"><small title="${escapeHtml(patient.notes || '')}">${escapeHtml((patient.notes || '').length > 40 ? patient.notes.substring(0, 40) + '...' : (patient.notes || '—'))}</small></td>
+                        <td data-label="" class="patient-actions">
+                            <div class="action-buttons">
+                                <button type="button" class="btn-icon btn-view" onclick="viewPatient(${patient.id})"><i class="fa-regular fa-eye"></i> View</button>
+                                <button type="button" class="btn-icon btn-edit" onclick="editPatient(${patient.id})"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                            </div>
                         </td>
                     </tr>
                 `).join('');

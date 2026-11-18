@@ -94,6 +94,7 @@
 </header>
 @include('admin_acc.partials.mobile_tables')
 @include('admin_acc.partials.compact_spacing')
+@vite(['resources/css/shared/portal-theme.css'])
 
 {{-- Empty container the notifications panel gets injected into on demand --}}
 <div id="notifPanelContainer"></div>

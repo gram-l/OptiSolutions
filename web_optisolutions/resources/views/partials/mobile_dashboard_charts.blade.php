@@ -14,7 +14,7 @@
     .portal-dashboard .chart-card {
         min-width: 0;
         max-width: 100%;
-        padding: 1rem;
+        padding: 0.8rem;
         box-sizing: border-box;
     }
     .portal-dashboard .chart-card canvas {
@@ -38,20 +38,23 @@
         margin-left: 0;
         line-height: 1.45;
     }
+    /* Donut and legend sit side by side when there is room, and stack when not. */
     .portal-dashboard .donut-layout {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1rem;
+        flex-flow: row wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem 1rem;
         min-width: 0;
     }
     .portal-dashboard .donut-chart-wrap {
-        width: min(200px, 100%);
+        width: min(150px, 100%);
         max-width: 100%;
-        margin: 0 auto;
+        margin: 0;
         min-width: 0;
     }
     .portal-dashboard .donut-legend {
-        width: 100%;
+        flex: 1 1 11rem;
+        width: auto;
         min-width: 0;
     }
     .portal-dashboard .donut-legend-row {

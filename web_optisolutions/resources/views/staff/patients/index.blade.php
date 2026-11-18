@@ -9,22 +9,21 @@
         <p class="page-subtitle">View and manage patient records</p>
     </div>
 
-    <div class="action-bar" style="background: white; border-radius: 20px; padding: 1rem 1.5rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
-        <div style="position: relative; min-width: 220px;">
-            <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+    <div class="action-bar patients-action-bar">
+        <div class="patients-search">
+            <i class="bi bi-search"></i>
             <input
                 type="text"
                 id="patientSearch"
                 placeholder="Search ID, name, or doctor..."
-                style="width: 100%; padding: 0.55rem 0.75rem 0.55rem 2.25rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none;"
                 onkeyup="filterPatientsTable()"
             >
         </div>
 
-        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <div class="patients-filters">
             <select
                 id="departmentFilter"
-                style="padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; background: white; min-width: 130px;"
+                class="patients-dept"
                 onchange="filterPatientsTable()"
             >
                 <option value="">All Departments</option>
@@ -41,42 +40,37 @@
                 @endforeach
             </select>
 
-            <form method="GET" action="{{ route('staff.patients') }}" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <label for="date_from" style="font-size: 0.85rem; color: #64748b; white-space: nowrap;">Visit from</label>
-                <input
-                    type="date"
-                    id="date_from"
-                    name="date_from"
-                    value="{{ request('date_from') }}"
-                    style="padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; outline: none;"
-                >
-                <label for="date_to" style="font-size: 0.85rem; color: #64748b; white-space: nowrap;">to</label>
-                <input
-                    type="date"
-                    id="date_to"
-                    name="date_to"
-                    value="{{ request('date_to') }}"
-                    style="padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; outline: none;"
-                >
-                <button type="submit" class="btn-sm btn-primary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem; line-height: 1.2; border: none; box-sizing: border-box; cursor: pointer;">Filter</button>
-                @if(request('date_from') || request('date_to'))
-                    <a href="{{ route('staff.patients') }}" class="btn-sm btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem; line-height: 1.2; border: none; box-sizing: border-box; display: inline-flex; align-items: center; text-decoration: none;">Clear</a>
-                @endif
+            <form method="GET" action="{{ route('staff.patients') }}" class="patients-date-form">
+                <div class="date-field">
+                    <label for="date_from">Visit from</label>
+                    <input type="date" id="date_from" name="date_from" value="{{ request('date_from') }}">
+                </div>
+                <div class="date-field">
+                    <label for="date_to">to</label>
+                    <input type="date" id="date_to" name="date_to" value="{{ request('date_to') }}">
+                </div>
+                <div class="date-actions">
+                    <button type="submit" class="btn-sm btn-primary">Filter</button>
+                    @if(request('date_from') || request('date_to'))
+                        <a href="{{ route('staff.patients') }}" class="btn-sm btn-secondary">Clear</a>
+                    @endif
+                </div>
             </form>
         </div>
     </div>
 
     @if($patients->count() > 0)
+        <div class="patients-table-container">
         <table class="data-table table-cards" id="patientsTable">
             <thead>
                 <tr>
-                    <th>Patient ID</th>
-                    <th>Patient Name</th>
-                    <th>Age</th>
-                    <th>Specialty</th>
-                    <th>Assigned Doctor</th>
-                    <th>Notes</th>
-                    <th>Actions</th>
+                    <th class="no-sort">Patient ID</th>
+                    <th onclick="sortPatientsTable('name')">Patient Name <span class="sort-indicator" id="sort-name"><i class="fa-solid fa-sort"></i></span></th>
+                    <th onclick="sortPatientsTable('age')">Age <span class="sort-indicator" id="sort-age"><i class="fa-solid fa-sort"></i></span></th>
+                    <th onclick="sortPatientsTable('department')">Department <span class="sort-indicator" id="sort-department"><i class="fa-solid fa-sort"></i></span></th>
+                    <th onclick="sortPatientsTable('doctor')">Assigned Doctor <span class="sort-indicator" id="sort-doctor"><i class="fa-solid fa-sort"></i></span></th>
+                    <th class="no-sort">Notes</th>
+                    <th class="no-sort"></th>
                 </tr>
             </thead>
             <tbody>
@@ -85,27 +79,37 @@
                     $dept = $p->latestVisit->doctor->specialty ?? 'N/A';
                     $age = $p->patient_birthdate ? \Carbon\Carbon::parse($p->patient_birthdate)->age : 'N/A';
                     $latestNotes = $p->latestVisit->notes ?? '—';
+                    $hue = abs(crc32((string) $dept)) % 360;
                 @endphp
                 <tr data-department="{{ strtolower($dept) }}">
-                    <td data-label="Patient ID">{{ $p->patient_id }}</td>
-                    <td data-label="Patient Name">{{ $p->full_name }}</td>
-                    <td data-label="Age">{{ $age }}</td>
-                    <td data-label="Specialty">{{ $dept }}</td>
+                    <td data-label="Patient ID"><code>{{ $p->patient_id }}</code></td>
+                    <td data-label="Patient Name" data-sort="{{ strtolower($p->full_name) }}">{{ $p->full_name }}</td>
+                    <td data-label="Age">{{ $age === 'N/A' ? '—' : $age . ' years' }}</td>
+                    <td data-label="Department">
+                        @if($dept === 'N/A')
+                            <span class="dept-chip dept-chip--none">—</span>
+                        @else
+                            <span class="dept-chip" style="--h: {{ $hue }};">{{ $dept }}</span>
+                        @endif
+                    </td>
                     <td data-label="Assigned Doctor">{{ $p->latestVisit->doctor->doctor_name ?? 'N/A' }}</td>
-                    <td data-label="Notes" class="patient-notes-cell">{{ $latestNotes }}</td>
-                    <td data-label="" class="table-cards-actions" style="display: flex; gap: 0.5rem;">
-                        <button type="button" class="btn-sm btn-view-patient" onclick="openViewPatientModal('{{ $p->patient_id }}')">View</button>
-                        <button type="button" class="btn-sm btn-edit-patient" onclick="openEditPatientModal('{{ $p->patient_id }}')">Edit</button>
+                    <td data-label="Notes" class="patient-notes-cell"><small title="{{ $latestNotes }}">{{ \Illuminate\Support\Str::limit($latestNotes, 40) }}</small></td>
+                    <td data-label="" class="table-cards-actions">
+                        <div class="action-buttons">
+                            <button type="button" class="btn-icon btn-view btn-view-patient" onclick="openViewPatientModal('{{ $p->patient_id }}')"><i class="fa-regular fa-eye"></i> View</button>
+                            <button type="button" class="btn-icon btn-edit btn-edit-patient" onclick="openEditPatientModal('{{ $p->patient_id }}')"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                        </div>
                     </td>
                 </tr>
                 @endforeach
             </tbody>
         </table>
-        <nav id="patientsPagination" aria-label="Patient records pages" style="display:none; justify-content:center; align-items:center; gap:1rem; flex-wrap:wrap; margin-top:1rem;">
-            <button type="button" id="patientsPrevBtn" class="btn-sm btn-secondary" onclick="changePatientsPage(-1)">Previous</button>
-            <span id="patientsPageInfo" role="status" aria-live="polite" style="color:#64748b; font-size:0.85rem;"></span>
-            <button type="button" id="patientsNextBtn" class="btn-sm btn-secondary" onclick="changePatientsPage(1)">Next</button>
+        <nav id="patientsPagination" class="pagination-wrap" aria-label="Patient records pages" style="display:none;">
+            <button type="button" id="patientsPrevBtn" class="page-btn" onclick="changePatientsPage(-1)" aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></button>
+            <span id="patientsPageInfo" class="page-info" role="status" aria-live="polite"></span>
+            <button type="button" id="patientsNextBtn" class="page-btn" onclick="changePatientsPage(1)" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></button>
         </nav>
+        </div>
         <p id="noResultsMsg" style="display: none; padding: 2rem; text-align: center; background: white; border-radius: 20px;">No matching patients found.</p>
     @else
         <p style="padding: 2rem; text-align: center; background: white; border-radius: 20px;">No patients found.</p>
@@ -121,7 +125,7 @@
         </div>
 
         <div id="patientCaptureArea" style="background: white; padding: 0.25rem;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="patient-detail-grid">
                 <div>
                     <label style="font-weight: 600; color: var(--text-dark);">Patient ID</label>
                     <p id="viewPatientId" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
@@ -146,7 +150,7 @@
                     <label style="font-weight: 600; color: var(--text-dark);">Contact</label>
                     <p id="viewPatientContact" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
                 </div>
-                <div style="grid-column: span 2;">
+                <div class="span-2">
                     <label style="font-weight: 600; color: var(--text-dark);">Email</label>
                     <p id="viewPatientEmail" style="padding: 0.5rem; background: var(--light-gray); border-radius: 8px;"></p>
                 </div>
@@ -158,8 +162,8 @@
             </div>
         </div>
 
-        <div style="display:flex; justify-content:flex-end; align-items:center; gap:0.75rem; margin-top: 1.5rem;">
-            <div style="position: relative;">
+        <div class="patient-modal-actions" style="display:flex; justify-content:flex-end; align-items:center; gap:0.75rem; margin-top: 1.5rem;">
+            <div class="patient-download-wrap" style="position: relative;">
                 <button type="button" class="btn-sm btn-primary" id="downloadPatientBtn" style="padding:0.8rem 1.5rem; display:inline-flex; align-items:center; gap:0.5rem;" onclick="toggleDownloadMenu(event)">
                     <i class="bi bi-download"></i> Download <i class="bi bi-chevron-down" style="font-size:0.7rem;"></i>
                 </button>
@@ -326,6 +330,53 @@
     const PATIENTS_PER_PAGE = 10;
     let patientsPage = 1;
 
+    // ===== Sorting (same behaviour as the admin Patient Records page) =====
+    const PATIENTS_SORT_COLUMNS = { name: 1, age: 2, department: 3, doctor: 4 };
+    let patientsSort = { column: 'name', direction: 'asc' };
+
+    function applyPatientsSort() {
+        const table = document.getElementById('patientsTable');
+        if (!table) return;
+        const tbody = table.tBodies[0];
+        const idx = PATIENTS_SORT_COLUMNS[patientsSort.column];
+        const dir = patientsSort.direction === 'asc' ? 1 : -1;
+        const rows = Array.from(tbody.rows);
+
+        rows.sort(function (a, b) {
+            let x = (a.cells[idx].dataset.sort || a.cells[idx].textContent).trim().toLowerCase();
+            let y = (b.cells[idx].dataset.sort || b.cells[idx].textContent).trim().toLowerCase();
+            if (patientsSort.column === 'age') {
+                x = parseInt(x, 10) || 0;
+                y = parseInt(y, 10) || 0;
+            }
+            if (x < y) return -1 * dir;
+            if (x > y) return 1 * dir;
+            return 0;
+        });
+        rows.forEach(function (row) { tbody.appendChild(row); });
+
+        Object.keys(PATIENTS_SORT_COLUMNS).forEach(function (col) {
+            const icon = document.querySelector('#sort-' + col + ' i');
+            if (!icon) return;
+            icon.parentElement.classList.toggle('active', col === patientsSort.column);
+            icon.className = col === patientsSort.column
+                ? (patientsSort.direction === 'asc' ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down')
+                : 'fa-solid fa-sort';
+        });
+    }
+
+    function sortPatientsTable(column) {
+        if (patientsSort.column === column) {
+            patientsSort.direction = patientsSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            patientsSort.column = column;
+            patientsSort.direction = 'asc';
+        }
+        applyPatientsSort();
+        patientsPage = 1;
+        renderPatientsPage();
+    }
+
     function filterPatientsTable() {
         patientsPage = 1;
         renderPatientsPage();
@@ -361,7 +412,7 @@
         const start = (patientsPage - 1) * PATIENTS_PER_PAGE;
         matchingRows.slice(start, start + PATIENTS_PER_PAGE).forEach(row => row.style.display = '');
         document.getElementById('patientsPagination').style.display = matchingRows.length > PATIENTS_PER_PAGE ? 'flex' : 'none';
-        document.getElementById('patientsPageInfo').textContent = `Page ${patientsPage} of ${totalPages} · ${matchingRows.length} patients`;
+        document.getElementById('patientsPageInfo').textContent = `Page ${patientsPage} of ${totalPages}`;
         document.getElementById('patientsPrevBtn').disabled = patientsPage <= 1;
         document.getElementById('patientsNextBtn').disabled = patientsPage >= totalPages;
 
@@ -376,6 +427,7 @@
         renderPatientsPage();
     }
 
+    applyPatientsSort();
     renderPatientsPage();
 
     // ===== View Patient Modal =====

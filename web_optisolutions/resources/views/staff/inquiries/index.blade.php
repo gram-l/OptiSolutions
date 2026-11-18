@@ -4,23 +4,578 @@
 @include('staff.inquiries.partials.inquiries-styles')
 
 <div class="container">
-    <div class="page-title-group" style="margin-bottom: 1rem;">
-        <h3 style="margin: 0; font-size: 1.75rem; color: var(--primary-dark); display: flex; align-items: center;">
-            <span class="inq-header-icon"><i class="bi bi-chat-square-text"></i></span> Chatbot Inquiries
-        </h3>
-        <p class="page-subtitle">Review and respond to patient conversations from the AI chatbot</p>
+<div class="inq-admin">
+    <div class="inq-page-header">
+        <h2><span><i class="bi bi-chat-dots"></i></span> Chatbot Inquiries</h2>
+        <p>Review and respond to patient conversations from the AI chatbot</p>
     </div>
 
-    <div class="inquiries-split inquiries-split--list-only">
-      
-        @include('staff.inquiries.partials.conversations-list', ['inquiries' => $inquiries])
+    <div class="inquiries-container">
+        <section class="chat-list" aria-label="Recent conversations">
+            <div class="chat-list-header">
+                <div class="chat-list-header-top">
+                    <div class="inquiry-search">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <input type="search" class="search-box" placeholder="Search patient or inquiry" id="searchInput" aria-label="Search patient or inquiry">
+                    </div>
+                </div>
+            </div>
+            <ul class="chat-items" id="chatList"></ul>
+        </section>
 
+        <div class="chat-conversation" id="conversationArea">
+            <div class="empty-state" id="emptyState">
+                <i class="bi bi-chat-dots empty-chat-icon" aria-hidden="true"></i>
+                <p>Select a conversation to view details</p>
+            </div>
 
-        <div class="conv-detail-panel">
-            <div class="conv-detail-empty">
-                Select a conversation to view messages.
+            <div id="conversationHeader" style="display: none;">
+                <div class="chat-conversation-header">
+                    <button class="back-to-list-btn" id="backToListBtn" type="button" aria-label="Back to conversation list">
+                        <i class="bi bi-arrow-left"></i>
+                    </button>
+                    <div class="patient-details">
+                        <h3 id="patientName"></h3>
+                        <p id="patientInfo"></p>
+                    </div>
+                    <div class="conversation-actions">
+                        <span class="status-badge status-active" id="statusBadge">Active</span>
+                        <button class="resolve-btn-modern" id="resolveBtn" type="button">
+                            <i class="bi bi-check2" aria-hidden="true"></i> Mark as resolved
+                        </button>
+                        <button class="unresolve-btn-modern" id="unresolveBtn" type="button">
+                            <i class="bi bi-arrow-counterclockwise"></i> Unresolve
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="messages-area" id="messagesArea"></div>
+
+            <div class="reply-area" id="replyArea" style="display: none;">
+                <input type="text" class="reply-input" placeholder="Type your response..." id="replyInput" aria-label="Type your response">
+                <button type="button" class="send-btn" id="sendBtn"><i class="bi bi-send" aria-hidden="true"></i><span>Send</span></button>
             </div>
         </div>
     </div>
+
+    <div class="modal-overlay" id="confirmModalOverlay" style="display:none;">
+        <div class="modal-box">
+            <h3 id="confirmModalTitle">Confirm Action</h3>
+            <p id="confirmModalMessage"></p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="confirmModalCancel" type="button">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" id="confirmModalConfirm" type="button">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
 </div>
+</div>
+
+<script>
+        // Real data, passed in from ChatbotInquiryController@index (was
+        // previously a hardcoded mock array with no backend connection).
+        const chatLogs = @json($inquiriesData);
+        const OPEN_ID = @json($openId ?? null);
+        const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+
+        let currentChatId = null;
+
+        // Selection mode — toggled by the pencil icon next to the search
+        // box. While active, clicking a chat item toggles it into
+        // selectedIds instead of opening the conversation.
+        let selectMode = false;
+        let selectedIds = new Set();
+
+        // How many chat items are shown before a "See more" control appears.
+        const PAGE_SIZE = 6;
+        let visibleCount = PAGE_SIZE;
+
+        // Render chat list
+        function renderChatList(filterText = "") {
+            const chatListEl = document.getElementById("chatList");
+            const query = filterText.trim().toLowerCase();
+            const filteredLogs = chatLogs.filter(chat =>
+                [chat.name, chat.inquiryCode, chat.patientId, chat.department, chat.lastMessage]
+                    .some(value => (value || '').toLowerCase().includes(query))
+            );
+
+            if (filteredLogs.length === 0) {
+                chatListEl.innerHTML = `<li class="chat-list-empty">No inquiries found.</li>`;
+                return;
+            }
+
+            const itemsToShow = filteredLogs.slice(0, visibleCount);
+
+            const focusedChat = document.activeElement?.closest('.chat-item')?.dataset.id;
+            let html = itemsToShow.map(chat => {
+                const isResolved = chat.rawStatus === 'Resolved';
+                const isOpen = currentChatId === chat.id;
+                const isSelected = selectMode && selectedIds.has(chat.id);
+                return `
+                    <li class="chat-item ${isOpen ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-id="${chat.id}">
+                        <button class="chat-item-button" type="button" ${selectMode ? `aria-pressed="${isSelected}"` : (isOpen ? 'aria-current="true"' : '')}>
+                            ${selectMode ? `<span class="chat-item-checkbox bi ${isSelected ? 'bi-check-square-fill' : 'bi-square'}" aria-hidden="true"></span>` : ''}
+                            <span class="chat-avatar" aria-hidden="true">${escapeHtml(chat.avatar)}</span>
+                            <span class="chat-info">
+                                <span class="chat-name-text">${escapeHtml(chat.name)}</span>
+                                <span class="chat-time">${formatTime(chat.timestamp)}</span>
+                                <span class="chat-code">${escapeHtml(chat.inquiryCode)}</span>
+                                <span class="chat-status-label ${isResolved ? 'resolved' : 'in-progress'}">
+                                    ${isResolved ? 'Resolved' : 'In progress'}
+                                </span>
+                            </span>
+                            <span class="chat-unread" ${chat.unread ? 'role="img" aria-label="Unread"' : 'aria-hidden="true" style="visibility: hidden"'}></span>
+                        </button>
+                    </li>
+                `;
+            }).join("");
+
+            if (filteredLogs.length > visibleCount) {
+                html += `
+                <li class="see-more-item">
+                    <button class="see-more-btn" id="seeMoreBtn">See more (${filteredLogs.length - visibleCount} more)</button>
+                </li>`;
+            }
+
+            chatListEl.innerHTML = html;
+            if (focusedChat) {
+                chatListEl.querySelector(`[data-id="${focusedChat}"] button`)?.focus({ preventScroll: true });
+            }
+
+            // Add click event listeners to chat items
+            document.querySelectorAll('.chat-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    openChat(parseInt(item.dataset.id));
+                });
+            });
+
+            const seeMoreBtn = document.getElementById('seeMoreBtn');
+            if (seeMoreBtn) {
+                seeMoreBtn.addEventListener('click', () => {
+                    visibleCount += PAGE_SIZE;
+                    renderChatList(document.getElementById("searchInput").value);
+                });
+            }
+        }
+
+        const clinicTimezone = 'Asia/Manila';
+        const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: clinicTimezone, dateStyle: 'short' });
+        const shortDate = new Intl.DateTimeFormat('en', { timeZone: clinicTimezone, month: 'short', day: 'numeric' });
+        const clockTime = new Intl.DateTimeFormat('en', { timeZone: clinicTimezone, hour: 'numeric', minute: '2-digit' });
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return dateKey.format(date) === dateKey.format(new Date()) ? clockTime.format(date) : shortDate.format(date);
+        }
+
+        // Show/hide the reply box and Resolve button based on the chat's
+        // current status. Pulled out into its own function so it can be
+        // re-run after sending a reply or resolving, not just on initial
+        // open — previously those actions could change chat.rawStatus
+        // without the buttons ever updating to match.
+        function updateActionVisibility(chat) {
+            const isResolved = chat.rawStatus === 'Resolved';
+            document.getElementById("replyArea").style.display = isResolved ? "none" : "flex";
+            document.getElementById("resolveBtn").style.display = isResolved ? "none" : "inline-flex";
+            document.getElementById("unresolveBtn").style.display = isResolved ? "inline-flex" : "none";
+        }
+
+        // Open a specific chat
+        function openChat(chatId) {
+            const chat = chatLogs.find(c => c.id === chatId);
+            if (!chat) return;
+
+            // Switching conversations — stop signalling "typing" on
+            // whichever chat we were previously composing a reply for.
+            if (typeof stopTypingHeartbeat === 'function') stopTypingHeartbeat();
+
+            currentChatId = chatId;
+
+            // On narrow/mobile layouts the list and conversation are two
+            // separate screens (not stacked panes) — opening a chat swaps
+            // to the conversation screen instead of pushing it below the
+            // whole (possibly very long) list.
+            document.getElementById("conversationArea").classList.add("mobile-active");
+
+            // Mark as read (locally — the actual "read" state is really
+            // just resolved_status !== 'Pending' server-side, updated once
+            // an Admin/Staff member actually replies).
+            chat.unread = false;
+            renderChatList(document.getElementById("searchInput").value);
+
+            // Hide empty state, show conversation elements
+            document.getElementById("emptyState").style.display = "none";
+            document.getElementById("conversationHeader").style.display = "block";
+
+            updateActionVisibility(chat);
+
+            document.getElementById("patientName").textContent = chat.name;
+            const infoParts = [chat.inquiryCode, `Started ${shortDate.format(new Date(chat.timestamp))}`];
+            if (chat.patientId !== 'Guest') infoParts.push(chat.patientId);
+            if (chat.department) infoParts.push(chat.department);
+            document.getElementById("patientInfo").textContent = infoParts.join(' · ');
+            const statusBadge = document.getElementById("statusBadge");
+            // 'active' and 'pending' both display as the same "In progress"
+            // badge now — only "resolved" gets its own look.
+            const displayStatus = chat.status === "resolved" ? "resolved" : "active";
+            statusBadge.className = `status-badge status-${displayStatus}`;
+            statusBadge.innerText = displayStatus === "resolved" ? "Resolved" : "In progress";
+
+            // Render messages
+            renderMessages(chat.conversation);
+        }
+
+        function renderMessages(messages) {
+            const messagesArea = document.getElementById("messagesArea");
+            const today = dateKey.format(new Date());
+            let previousDay;
+            messagesArea.innerHTML = messages.map(msg => {
+                const date = msg.timestamp ? new Date(msg.timestamp) : null;
+                const day = date ? dateKey.format(date) : null;
+                const divider = day && day !== previousDay
+                    ? `<div class="message-day">${day === today ? 'Today' : shortDate.format(date)}</div>`
+                    : '';
+                previousDay = day;
+                const outgoing = msg.sender !== 'patient' && msg.senderLabel !== 'Chatbot';
+                const sender = msg.senderLabel || (outgoing ? 'Admin' : 'Patient');
+                const icon = msg.senderLabel === 'Chatbot' ? 'bi-robot' : 'bi-person';
+                const text = msg.text && msg.text !== '(Sent an attachment)' ? escapeHtml(msg.text) : '';
+
+                return `${divider}
+                    <div class="message ${outgoing ? 'outgoing' : 'incoming'}">
+                        <span class="message-avatar" aria-hidden="true">
+                            ${outgoing ? (sender === 'Admin' ? 'AD' : 'ST') : `<i class="bi ${icon}"></i>`}
+                        </span>
+                        <div class="message-content">
+                            <div class="message-sender">${escapeHtml(sender)}</div>
+                            <div class="message-bubble">
+                                ${renderAttachment(msg)}
+                                ${text ? `<div class="message-text">${text}</div>` : ''}
+                            </div>
+                            <div class="message-time">${date ? clockTime.format(date) : escapeHtml(msg.time || '')}</div>
+                        </div>
+                    </div>`;
+            }).join("");
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        function renderAttachment(msg) {
+            if (!msg.attachmentUrl) return '';
+
+            const name = msg.attachmentName || 'Attachment';
+            const extension = name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+            const isImage = /\.(jpe?g|png|gif|webp)$/i.test(msg.attachmentName || msg.attachmentUrl);
+            if (!URL.canParse(msg.attachmentUrl, window.location.origin)) return '';
+            const url = new URL(msg.attachmentUrl, window.location.origin);
+            if (!['http:', 'https:'].includes(url.protocol)) return '';
+            const safeUrl = escapeHtml(url.href).replaceAll('"', '&quot;');
+            const safeName = escapeHtml(name);
+
+            if (isImage) {
+                return `<a class="message-image" href="${safeUrl}" target="_blank" rel="noopener">
+                    <img src="${safeUrl}" alt="${safeName.replaceAll('"', '&quot;')}">
+                </a>`;
+            }
+
+            return `<a class="message-file" href="${safeUrl}" target="_blank" rel="noopener">
+                <span class="message-file-icon ${extension === 'pdf' ? 'pdf' : ''}" aria-hidden="true">
+                    ${extension === 'pdf' ? 'PDF' : '<i class="bi bi-file-earmark"></i>'}
+                </span>
+                <span class="message-file-details">
+                    <span class="message-file-name">${safeName}</span>
+                    <span class="message-file-type">${extension === 'pdf' ? 'PDF document' : 'Attachment'}</span>
+                </span>
+                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+            </a>`;
+        }
+
+        // Simple escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Custom confirm modal — replaces window.confirm().
+        // Resolves to true/false depending on which button was clicked.
+        // variant: '' (default blue), 'resolve' (green), 'unresolve' (orange), 'delete' (red)
+        function showConfirm(message, variant = '', title = 'Confirm Action') {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('confirmModalOverlay');
+                document.getElementById('confirmModalMessage').textContent = message;
+                document.getElementById('confirmModalTitle').textContent = title;
+                overlay.style.display = 'flex';
+
+                const cancelBtn = document.getElementById('confirmModalCancel');
+                const confirmBtn = document.getElementById('confirmModalConfirm');
+
+                confirmBtn.classList.remove('modal-btn-confirm-resolve', 'modal-btn-confirm-unresolve', 'modal-btn-confirm-delete');
+                if (variant === 'resolve') {
+                    confirmBtn.classList.add('modal-btn-confirm-resolve');
+                } else if (variant === 'unresolve') {
+                    confirmBtn.classList.add('modal-btn-confirm-unresolve');
+                } else if (variant === 'delete') {
+                    confirmBtn.classList.add('modal-btn-confirm-delete');
+                }
+
+                function cleanup(result) {
+                    overlay.style.display = 'none';
+                    cancelBtn.removeEventListener('click', onCancel);
+                    confirmBtn.removeEventListener('click', onConfirm);
+                    resolve(result);
+                }
+                function onCancel() { cleanup(false); }
+                function onConfirm() { cleanup(true); }
+
+                cancelBtn.addEventListener('click', onCancel);
+                confirmBtn.addEventListener('click', onConfirm);
+            });
+        }
+
+        // Toast notification — replaces window.alert().
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('toast-hide');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Send reply — now actually posts to the backend and saves into
+        // the shared inquiry_replies thread (visible to Staff too).
+        async function sendReply() {
+            const input = document.getElementById("replyInput");
+            const messageText = input.value.trim();
+            if (!messageText || currentChatId === null) return;
+
+            // The reply is going out now, so this client's own "typing"
+            // signal should stop (the actual message will clear the flag
+            // server-side too, but there's no reason to keep pinging it).
+            stopTypingHeartbeat();
+
+            const chat = chatLogs.find(c => c.id === currentChatId);
+            if (!chat) return;
+
+            const sendBtn = document.getElementById("sendBtn");
+            sendBtn.disabled = true;
+
+            try {
+                const res = await fetch(`/staff/inquiries/${currentChatId}/reply`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ message: messageText }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to send reply.');
+
+                chat.conversation.push({
+                    sender: 'bot',
+                    senderLabel: 'Staff',
+                    text: messageText,
+                    time: data.time,
+                    timestamp: data.timestamp,
+                });
+                chat.lastMessage = messageText;
+                chat.rawStatus = data.status;
+                chat.status = data.status === 'Pending' ? 'pending' : (data.status === 'Resolved' ? 'resolved' : 'active');
+
+                renderMessages(chat.conversation);
+                renderChatList(document.getElementById("searchInput").value);
+                input.value = "";
+
+                // Keep the header badge and reply/resolve buttons in sync
+                // with the (possibly changed) status returned by the server.
+                const statusBadge = document.getElementById("statusBadge");
+                const displayStatus = chat.status === "resolved" ? "resolved" : "active";
+                statusBadge.className = `status-badge status-${displayStatus}`;
+                statusBadge.innerText = displayStatus === "resolved" ? "Resolved" : "In progress";
+                updateActionVisibility(chat);
+
+                const sendLabel = sendBtn.querySelector("span");
+                sendLabel.textContent = "Sent";
+                setTimeout(() => { sendLabel.textContent = "Send"; }, 1000);
+            } catch (e) {
+                showToast(e.message || 'Failed to send reply. Please try again.');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        // Mark the current inquiry as resolved.
+        async function resolveInquiry() {
+            if (currentChatId === null) return;
+            const chat = chatLogs.find(c => c.id === currentChatId);
+            if (!chat) return;
+
+            const confirmed = await showConfirm('Mark this inquiry as resolved?', 'resolve');
+            if (!confirmed) return;
+
+            const resolveBtn = document.getElementById("resolveBtn");
+            resolveBtn.disabled = true;
+            const originalResolveText = resolveBtn.innerHTML;
+            resolveBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Resolving...`;
+
+            try {
+                const res = await fetch(`/staff/inquiries/${currentChatId}/resolve`, {
+                    method: 'PUT',
+                    headers: {
+                        'X-CSRF-TOKEN': CSRF,
+                        'Accept': 'application/json',
+                    },
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to resolve.');
+
+                chat.rawStatus = 'Resolved';
+                chat.status = 'resolved';
+                chat.unread = false;
+                openChat(currentChatId);
+                renderChatList(document.getElementById("searchInput").value);
+                showToast('Inquiry marked as resolved.', 'success');
+            } catch (e) {
+                showToast(e.message || 'Failed to resolve inquiry.');
+            } finally {
+                resolveBtn.disabled = false;
+                resolveBtn.innerHTML = originalResolveText;
+            }
+        }
+
+        // Undo a resolve — puts the inquiry back into the actionable
+        // (In Progress) list and brings the reply box back.
+        async function unresolveInquiry() {
+            if (currentChatId === null) return;
+            const chat = chatLogs.find(c => c.id === currentChatId);
+            if (!chat) return;
+
+            const confirmed = await showConfirm('Mark this inquiry as unresolved?', 'unresolve');
+            if (!confirmed) return;
+
+            const unresolveBtn = document.getElementById("unresolveBtn");
+            unresolveBtn.disabled = true;
+            const originalText = unresolveBtn.innerHTML;
+            unresolveBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Updating...`;
+
+            try {
+                const res = await fetch(`/staff/inquiries/${currentChatId}/unresolve`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': CSRF,
+                        'Accept': 'application/json',
+                    },
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to unresolve.');
+
+                chat.rawStatus = data.status;
+                chat.status = data.status === 'Pending' ? 'pending' : (data.status === 'Resolved' ? 'resolved' : 'active');
+                openChat(currentChatId);
+                renderChatList(document.getElementById("searchInput").value);
+                showToast('Inquiry marked as unresolved.', 'success');
+            } catch (e) {
+                showToast(e.message || 'Failed to unresolve inquiry.');
+            } finally {
+                unresolveBtn.disabled = false;
+                unresolveBtn.innerHTML = originalText;
+            }
+        }
+
+        // Search functionality
+        document.getElementById("searchInput").addEventListener("input", (e) => {
+            visibleCount = PAGE_SIZE; // reset pagination on a new search
+            renderChatList(e.target.value);
+        });
+
+        // Send button click
+        document.getElementById("sendBtn").addEventListener("click", sendReply);
+
+        // Enter key to send
+        document.getElementById("replyInput").addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                sendReply();
+            }
+        });
+
+        // --- Typing presence -------------------------------------------------
+        // Tells the patient-facing widget "an Admin is actually typing a
+        // reply right now" (via TypingStatusService on the backend), instead
+        // of the old fake "..." that used to appear for every bot response.
+        // The flag has a short server-side TTL, so we re-send it every few
+        // seconds while the admin keeps typing, and clear it immediately on
+        // pause/send/switching conversations.
+        let typingHeartbeat = null;
+        let typingIdleTimer = null;
+        let typingActiveFor = null; // chat id the "typing: true" ping was last sent for
+
+        function postTyping(chatId, isTyping) {
+            if (chatId === null) return;
+            fetch(`/staff/inquiries/${chatId}/typing`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ typing: isTyping }),
+            }).catch(() => {}); // best-effort; a missed heartbeat just lets the TTL expire
+        }
+
+        function stopTypingHeartbeat() {
+            if (typingHeartbeat) { clearInterval(typingHeartbeat); typingHeartbeat = null; }
+            if (typingIdleTimer) { clearTimeout(typingIdleTimer); typingIdleTimer = null; }
+            if (typingActiveFor !== null) {
+                postTyping(typingActiveFor, false);
+                typingActiveFor = null;
+            }
+        }
+
+        document.getElementById("replyInput").addEventListener("input", () => {
+            if (currentChatId === null) return;
+
+            if (typingActiveFor !== currentChatId) {
+                typingActiveFor = currentChatId;
+                postTyping(currentChatId, true);
+                typingHeartbeat = setInterval(() => postTyping(currentChatId, true), 3000);
+            }
+
+            // Stop signalling "typing" if the admin pauses for a few seconds
+            // without sending — otherwise the dots would sit there forever.
+            clearTimeout(typingIdleTimer);
+            typingIdleTimer = setTimeout(stopTypingHeartbeat, 4000);
+        });
+
+        // Resolve / Unresolve button clicks
+        document.getElementById("resolveBtn").addEventListener("click", resolveInquiry);
+        document.getElementById("unresolveBtn").addEventListener("click", unresolveInquiry);
+
+        // Back button (mobile only) — return to the conversation list
+        // without losing the currently loaded conversation.
+        document.getElementById("backToListBtn").addEventListener("click", () => {
+            document.getElementById("conversationArea").classList.remove("mobile-active");
+            document.querySelector('#chatList [aria-current="true"]')?.focus();
+        });
+
+        // Initial render
+        renderChatList("");
+
+        // Deep link (/staff/inquiries/{id}) opens that conversation; otherwise
+        // desktop opens the first one and mobile starts on the recent list.
+        if (OPEN_ID !== null && chatLogs.some(c => c.id === OPEN_ID)) {
+            const idx = chatLogs.findIndex(c => c.id === OPEN_ID);
+            if (idx >= visibleCount) { visibleCount = idx + 1; renderChatList(""); }
+            openChat(OPEN_ID);
+        } else if (chatLogs.length > 0 && !window.matchMedia('(max-width: 768px)').matches) {
+            openChat(chatLogs[0].id);
+        }
+    </script>
 @endsection

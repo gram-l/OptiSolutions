@@ -70,14 +70,16 @@
             <div class="patients-table-container" style="padding: 1.5rem;">
                 <form action="{{ route('system_settings.update', 'hours') }}" method="POST">
                     @csrf
+                    <div class="ss-card-head">
+                        <span class="ss-card-icon" aria-hidden="true"><i class="bi bi-clock"></i></span>
+                        <div><h3>Clinic Hours</h3><p>This is what patients see as the clinic&rsquo;s opening hours.</p></div>
+                    </div>
                     <div class="form-group">
                         <label>Operating Hours</label>
-                        <textarea name="operating_hours" rows="3">{{ old('operating_hours', $clinic->operating_hours) }}</textarea>
-                        <p style="font-size:0.8rem; color:#7f8c8d; margin-top:0.4rem;">
-                            e.g. "Monday - Friday: 8:00 AM - 6:00 PM | Saturday: 9:00 AM - 1:00 PM"
-                        </p>
+                        <textarea name="operating_hours" rows="2">{{ old('operating_hours', $clinic->operating_hours) }}</textarea>
+                        <p class="ss-hint"><i class="bi bi-lightbulb" aria-hidden="true"></i> Example: "Monday - Friday: 8:00 AM - 6:00 PM | Saturday: 9:00 AM - 1:00 PM"</p>
                     </div>
-                    <button type="submit" class="add-patient-btn">Save Hours</button>
+                    <div class="ss-form-footer"><button type="submit" class="add-patient-btn">Save Hours</button></div>
                 </form>
             </div>
         </div>
@@ -87,6 +89,10 @@
             <div class="patients-table-container" style="padding: 1.5rem;">
                 <form action="{{ route('system_settings.update', 'about') }}" method="POST">
                     @csrf
+                    <div class="ss-card-head">
+                        <span class="ss-card-icon" aria-hidden="true"><i class="bi bi-info-circle"></i></span>
+                        <div><h3>About the Clinic</h3><p>Description, mission, vision and core values shown on the About page.</p></div>
+                    </div>
                     <div class="form-group">
                         <label>Description</label>
                         <textarea name="about_us" rows="4">{{ old('about_us', $clinic->about_us) }}</textarea>
@@ -104,21 +110,26 @@
                     <div class="form-group">
                         <label>Core Values</label>
                         <div id="coreValuesList">
-                            @forelse (old('core_values', $clinic->core_values ?? []) as $value)
+                            @php
+                                $coreValues = old('core_values', $clinic->core_values ?? []);
+                                if (empty($coreValues)) { $coreValues = ['']; }
+                            @endphp
+                            @foreach ($coreValues as $value)
+                                @php [$cvName, $cvDesc] = array_pad(explode('|', (string) $value, 2), 2, ''); @endphp
                                 <div class="core-value-row">
-                                    <input type="text" name="core_values[]" value="{{ $value }}" placeholder="Name|Short description (description optional)">
-                                    <button type="button" class="btn-icon btn-remove" aria-label="Remove core value" onclick="this.parentElement.remove()">&times;</button>
+                                    <span class="core-value-num" aria-hidden="true"></span>
+                                    <div class="core-value-fields">
+                                        <input type="text" class="cv-name" value="{{ trim($cvName) }}" placeholder="Value name (e.g. Compassion)" aria-label="Core value name">
+                                        <input type="text" class="cv-desc" value="{{ trim($cvDesc) }}" placeholder="Short description (optional)" aria-label="Core value description">
+                                        <input type="hidden" name="core_values[]" value="{{ $value }}">
+                                    </div>
+                                    <button type="button" class="btn-icon btn-remove" aria-label="Remove core value" onclick="removeCoreValueRow(this)">&times;</button>
                                 </div>
-                            @empty
-                                <div class="core-value-row">
-                                    <input type="text" name="core_values[]" value="" placeholder="Name|Short description (description optional)">
-                                    <button type="button" class="btn-icon btn-remove" aria-label="Remove core value" onclick="this.parentElement.remove()">&times;</button>
-                                </div>
-                            @endforelse
+                            @endforeach
                         </div>
                         <button type="button" class="btn-icon btn-edit" onclick="addCoreValueRow()">+ Add Core Value</button>
                     </div>
-                    <button type="submit" class="add-patient-btn">Save About</button>
+                    <div class="ss-form-footer"><button type="submit" class="add-patient-btn">Save About</button></div>
                 </form>
             </div>
         </div>
@@ -128,6 +139,10 @@
             <div class="patients-table-container" style="padding: 1.5rem;">
                 <form action="{{ route('system_settings.update', 'contact') }}" method="POST">
                     @csrf
+                    <div class="ss-card-head">
+                        <span class="ss-card-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+                        <div><h3>Contact Information</h3><p>Where patients can find and reach the clinic.</p></div>
+                    </div>
                     <div class="form-group">
                         <label>Address</label>
                         <textarea name="address" rows="2">{{ old('address', $clinic->address) }}</textarea>
@@ -152,7 +167,7 @@
                             <input type="url" name="website" value="{{ old('website', $clinic->website) }}">
                         </div>
                     </div>
-                    <button type="submit" class="add-patient-btn">Save Contact</button>
+                    <div class="ss-form-footer"><button type="submit" class="add-patient-btn">Save Contact</button></div>
                 </form>
             </div>
         </div>
@@ -290,17 +305,42 @@
     document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => activateSettingsTab(btn.dataset.tab)));
     activateSettingsTab(new URL(window.location.href).searchParams.get('tab') || 'hours');
 
-    // Core values dynamic rows
+    // Core values: separate Name and Description fields, saved as "Name|Description"
+    function syncCoreValue(row) {
+        const name = row.querySelector('.cv-name').value.replace(/\|/g, '').trim();
+        const desc = row.querySelector('.cv-desc').value.replace(/\|/g, '').trim();
+        row.querySelector('input[type="hidden"]').value = desc ? name + '|' + desc : name;
+    }
     function addCoreValueRow() {
         const container = document.getElementById('coreValuesList');
         const row = document.createElement('div');
         row.className = 'core-value-row';
         row.innerHTML = `
-            <input type="text" name="core_values[]" value="" placeholder="Name|Short description (description optional)">
-            <button type="button" class="btn-icon btn-remove" aria-label="Remove core value" onclick="this.parentElement.remove()">&times;</button>
+            <span class="core-value-num" aria-hidden="true"></span>
+            <div class="core-value-fields">
+                <input type="text" class="cv-name" value="" placeholder="Value name (e.g. Compassion)" aria-label="Core value name">
+                <input type="text" class="cv-desc" value="" placeholder="Short description (optional)" aria-label="Core value description">
+                <input type="hidden" name="core_values[]" value="">
+            </div>
+            <button type="button" class="btn-icon btn-remove" aria-label="Remove core value" onclick="removeCoreValueRow(this)">&times;</button>
         `;
         container.appendChild(row);
+        row.querySelector('.cv-name').focus();
     }
+    function removeCoreValueRow(button) {
+        button.closest('.core-value-row').remove();
+    }
+    (function () {
+        const list = document.getElementById('coreValuesList');
+        if (!list) return;
+        list.addEventListener('input', event => {
+            const row = event.target.closest('.core-value-row');
+            if (row) syncCoreValue(row);
+        });
+        list.closest('form').addEventListener('submit', () => {
+            list.querySelectorAll('.core-value-row').forEach(syncCoreValue);
+        });
+    })();
 
     // Service modal (scoped: uses the .ss-modal "open" class, not display toggling
     // shared with any other modal on the page)

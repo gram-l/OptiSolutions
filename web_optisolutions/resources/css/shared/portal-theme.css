@@ -1,0 +1,319 @@
+/* ==========================================================================
+   PORTAL THEME — single source of truth for the Admin and Staff look.
+
+   Loaded LAST on both portals:
+     - Admin: @vite in admin_acc/header.blade.php (included by every admin page)
+     - Staff: @vite in staff/layouts/app.blade.php, after staff.css
+
+   Admin is the reference design. Anything that used to differ between
+   admin_css/*.css and staff.css (tokens, page canvas, header controls,
+   dropdowns, page titles, filter bars, buttons, badges, modals, inputs) is
+   defined once here. Every selector starts with `body` so it out-ranks the
+   single-class rules and the per-page inline <style> blocks.
+   Light-only colours are scoped to body:not(.dark-mode) so the shared dark
+   palette (shared/dark-mode-components.css) keeps working untouched.
+   ========================================================================== */
+
+/* ---------- 1. Design tokens ---------- */
+:root {
+    --primary-light: #9DBCD4;
+    --primary-main: #0E62AA;
+    --primary-dark: #062744;
+    --primary-text: #0E62AA;
+    --icon-color: #062744;
+    --white: #FFFFFF;
+    --light-gray: #ECF0F1;
+    --text-dark: #333333;
+    --shadow: rgba(0, 0, 0, 0.1);
+    --danger: #e74c3c;
+    --danger-bg: #fdeaea;
+    --warning: #f39c12;
+    --portal-canvas: #eef2f7;
+    --portal-focus-ring: 0 0 0 2px rgba(14, 98, 170, 0.2);
+}
+
+/* ---------- 2. Page canvas ---------- */
+html body {
+    background-color: var(--portal-canvas);
+    font-family: Inter, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ---------- 3. Header ---------- */
+body .header {
+    height: 70px;
+    padding: 0 2rem;
+    z-index: 200;
+}
+
+body .header .logo-section {
+    gap: 0.75rem;
+    text-decoration: none;
+}
+
+body .header .logo-section img {
+    width: 42px;
+    height: 42px;
+}
+
+body .header .logo-section .portal-brand h1 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+/* Right-hand controls: staff markup (.header-actions / .notification-bell /
+   .user-avatar) rendered exactly like admin's (.header-controls / .icon-btn /
+   .avatar-btn). */
+body .header .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+body .header .notification-bell {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    color: var(--icon-color);
+    transition: background 0.2s;
+}
+
+body:not(.dark-mode) .header .notification-bell:hover {
+    background: #eef2f7;
+}
+
+body .header .notif-dot {
+    top: 7px;
+    right: 7px;
+    width: 8px;
+    height: 8px;
+    background: #e74c3c;
+    border: 2px solid var(--white);
+}
+
+body .header .avatar-dropdown > .user-avatar {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    background: #0E62AA;
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 700;
+    overflow: hidden;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+body .header .avatar-dropdown > .user-avatar:hover {
+    background: #0b4f8a;
+    box-shadow: 0 0 0 3px rgba(14, 98, 170, 0.2);
+}
+
+/* ---------- 4. Dropdown menus ---------- */
+body .dropdown-menu {
+    top: calc(100% + 10px);
+    min-width: 260px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+body .dropdown-menu .dropdown-header {
+    margin-bottom: 0;
+    padding: 1rem 1.2rem;
+}
+
+body .dropdown-menu .dropdown-header strong {
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+body .dropdown-menu .dropdown-email {
+    font-size: 0.75rem;
+}
+
+body .dropdown-menu .dropdown-item {
+    gap: 0.75rem;
+    padding: 0.75rem 1.2rem;
+    font-size: 0.85rem;
+}
+
+body .dropdown-menu .dropdown-item i {
+    width: 18px;
+    font-size: 0.9rem;
+}
+
+body:not(.dark-mode) .dropdown-menu .dropdown-header {
+    border-bottom-color: #f0f4f8;
+}
+
+body:not(.dark-mode) .dropdown-menu .dropdown-item {
+    color: #333;
+}
+
+body:not(.dark-mode) .dropdown-menu .dropdown-item i {
+    color: #7f8c8d;
+}
+
+body:not(.dark-mode) .dropdown-menu .dropdown-item:hover {
+    background: #f5f9ff;
+    color: #0E62AA;
+}
+
+body:not(.dark-mode) .dropdown-menu .dropdown-item:hover i {
+    color: #0E62AA;
+}
+
+body:not(.dark-mode) .dropdown-menu .dropdown-logout:hover {
+    background: #fff5f5;
+    color: #c0392b;
+}
+
+/* ---------- 5. Page titles (staff .page-title-group == admin .page-header) ---------- */
+body .container .page-title-group,
+body .container .page-header {
+    margin-bottom: 1rem;
+}
+
+body .container .page-title-group {
+    gap: 0.3rem;
+}
+
+body .container .page-title-group :is(h2, h3, h4),
+body .container .page-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin: 0;
+    font-size: clamp(1.25rem, 1rem + 0.75vw, 1.5rem);
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+/* Icon chip: tinted square behind the page icon, same as admin's <span>. */
+body .container .page-title-group :is(h2, h3, h4) > i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 10px;
+    background: rgba(14, 98, 170, 0.1);
+    color: var(--primary-main);
+    font-size: 1.05rem;
+}
+
+body .container :is(.page-subtitle, .page-header > p) {
+    margin: 0.3rem 0 0;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: #7f8c8d;
+}
+
+body.dark-mode .container :is(.page-subtitle, .page-header > p) {
+    color: #afbdce;
+}
+
+@media (max-width: 768px) {
+    body .container .page-title-group :is(h2, h3, h4),
+    body .container .page-header h2 {
+        gap: 0.55rem;
+    }
+
+    body .container .page-title-group :is(h2, h3, h4) > i {
+        width: 1.9rem;
+        height: 1.9rem;
+        font-size: 0.9rem;
+    }
+
+    body .container :is(.page-subtitle, .page-header > p) {
+        font-size: 0.85rem;
+    }
+}
+
+/* ---------- 6. Filter / action bars ---------- */
+/* Staff pages style these inline, hence !important. */
+body .container :is(.filter-bar, .action-bar) {
+    padding: 0.8rem 1rem !important;
+    gap: 0.75rem;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 2px 10px var(--shadow) !important;
+}
+
+@media (max-width: 768px) {
+    body .container :is(.filter-bar, .action-bar) {
+        padding: 0.75rem !important;
+        gap: 0.6rem;
+    }
+}
+
+/* ---------- 7. Inputs ---------- */
+body :is(.search-box, .filter-select, .form-group input, .form-group select, .form-group textarea) {
+    font-family: inherit;
+    outline: none;
+}
+
+body :is(.search-box, .filter-select, .form-group input, .form-group select, .form-group textarea):focus {
+    border-color: var(--primary-main);
+    box-shadow: var(--portal-focus-ring);
+}
+
+body .form-group :is(input, select, textarea) {
+    width: 100%;
+    padding: 0.7rem;
+    font-size: 0.9rem;
+}
+
+body .form-group label {
+    font-size: 0.9rem;
+}
+
+/* ---------- 8. Buttons ---------- */
+body .btn-sm {
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    box-shadow: none;
+}
+
+body .btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+body .modal-buttons button {
+    padding: 0.7rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* ---------- 9. Tables, badges, modals ---------- */
+body .data-table :is(th, td) {
+    padding: 0.75rem 1.25rem;
+}
+
+body .status-badge {
+    padding: 0.2rem 0.8rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+body .modal-content {
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+body .modal-content h3 {
+    margin-bottom: 1.5rem;
+}
+
+body:not(.dark-mode) .modal-content h3 {
+    color: var(--primary-dark);
+}

@@ -11,5 +11,13 @@
 @if (!empty($remarks))
 <p style="margin:0 0 20px;white-space:pre-line;"><strong>Remarks:</strong><br>{{ $remarks }}</p>
 @endif
+@if (!empty($confirmUrl))
+<p style="margin:0 0 4px;">Please let us know if this new schedule works for you.</p>
+@include('emails.partials.action-button', ['url' => $confirmUrl, 'label' => 'Confirm new schedule'])
+<p style="margin:0 0 16px;font-size:14px;">The button opens a short page where you can choose <strong>Yes, I'm coming</strong> or <strong>I can't come</strong>.</p>
+@endif
 <p style="margin:0;">Please contact the clinic if you need help with your new schedule.</p>
+@if (!empty($confirmUrl))
+<p style="margin:16px 0 0;color:#64748b;font-size:12px;">If the button does not work, copy this link into your browser:<br><span style="word-break:break-all;">{{ $confirmUrl }}</span></p>
+@endif
 @endsection

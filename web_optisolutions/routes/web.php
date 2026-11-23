@@ -81,6 +81,13 @@ Route::get('/chatbot',  [PolyclinicController::class, 'chatbot'])->name('chatbot
 // General Privacy Notice page (linked from the privacy consent modal)
 Route::get('/privacy-notice', [PolyclinicController::class, 'privacyNotice'])->name('privacy-notice');
 
+// Patient answers the reminder email: signed link, so only the emailed link works.
+// GET only shows the choices; POST records the answer.
+Route::get('/visit/{id}/attendance', [\App\Http\Controllers\VisitAttendanceController::class, 'show'])
+    ->whereNumber('id')->middleware(['signed', 'throttle:30,1'])->name('visit.attendance.show');
+Route::post('/visit/{id}/attendance', [\App\Http\Controllers\VisitAttendanceController::class, 'store'])
+    ->whereNumber('id')->middleware(['signed', 'throttle:30,1'])->name('visit.attendance.store');
+
 // ===== BotMan route =====
 // Receives messages from the chat widget (script.js) and returns BotMan's reply
 // Throttled per IP (40 messages/minute is generous for a real back-and-forth

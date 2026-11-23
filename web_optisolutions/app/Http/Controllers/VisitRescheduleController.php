@@ -62,6 +62,7 @@ class VisitRescheduleController extends Controller
             $visit = DB::table('schedule_visit')->where('visit_id', $id)->lockForUpdate()->first();
             abort_unless($visit, 404);
             if ($visit->visited) throw ValidationException::withMessages(['visit_date' => 'Completed visits cannot be rescheduled.']);
+            if (($visit->status ?? null) === 'Cancelled') throw ValidationException::withMessages(['visit_date' => 'Cancelled visits cannot be rescheduled.']);
             $doctor = DB::table('doctors')->where('doctor_id', $visit->doctor_id)->lockForUpdate()->first();
             $slot = DB::table('doctor_schedules')->where('doctor_id', $visit->doctor_id)->where('schedule_id', $data['schedule_id'])->lockForUpdate()->first();
             if (!$doctor || !$doctor->available || strtolower(trim($doctor->status ?? '')) !== 'active') {
@@ -80,6 +81,13 @@ class VisitRescheduleController extends Controller
                 && $end->eq(Carbon::parse($visit->visit_date . ' ' . $visit->visit_end_time, 'Asia/Manila'))) {
                 throw ValidationException::withMessages(['schedule_id' => 'This is already the visit’s current date and time. Choose a different date or time.']);
             }
+            // The new window must still have a free seat (this visit's own seat does not count).
+            if (\App\Support\ScheduleVisitCapacity::remainingForSlot((object) [
+                'schedule_id' => (int) $slot->schedule_id, 'doctor_id' => $slot->doctor_id,
+                'start_time' => $slot->start_time, 'end_time' => $slot->end_time,
+            ], $data['visit_date']) < 1) {
+                throw ValidationException::withMessages(['schedule_id' => 'That schedule is already full. Choose a different date or time.']);
+            }
             $patient = DB::table('patients')->where('patient_id', $visit->patient_id)->first();
             $email = trim($patient->patient_email ?? '');
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw ValidationException::withMessages(['patient_email' => 'Add a valid patient email before rescheduling.']);
@@ -90,10 +98,10 @@ class VisitRescheduleController extends Controller
             if ($remarks !== '') {
                 $notes = trim($notes) . (trim($notes) ? "\n" : '') . 'Reschedule remarks: ' . $remarks;
             }
-            DB::table('schedule_visit')->where('visit_id', $id)->update([
+            DB::table('schedule_visit')->where('visit_id', $id)->update(array_merge([
                 'visit_date' => $data['visit_date'], 'visit_time' => $slot->start_time, 'visit_end_time' => $slot->end_time,
                 'notes' => $details . (trim($notes) ? "\n" . trim($notes) : ''),
-            ]);
+            ], \App\Support\VisitAttendance::resetFields())); // new time = new reminder and a fresh reply
             return ['email' => $email, 'name' => trim(($patient->patient_fname ?? '') . ' ' . ($patient->patient_lname ?? '')),
                 'doctor' => $doctor->doctor_name, 'service' => $visit->service_type, 'details' => $details,
                 'remarks' => $remarks,
@@ -109,7 +117,16 @@ class VisitRescheduleController extends Controller
     private function sendUpdate(array $mailData, int $id, array $retry)
     {
         try {
-            Mail::to($mailData['email'])->send(new \App\Mail\VisitRescheduled($mailData['name'], $mailData['doctor'], $mailData['service'] ?? 'Clinic visit', $mailData['details'], $id, $mailData['remarks'] ?? null));
+            // Button so the patient can confirm (or decline) the new schedule. Skipped if the
+            // attendance migration has not run or the new schedule has already ended.
+            $confirmUrl = null;
+            if (\App\Support\VisitAttendance::hasColumns() && !empty($mailData['visit_date']) && !empty($mailData['visit_end_time'])) {
+                $expires = \Carbon\Carbon::parse(\Carbon\Carbon::parse($mailData['visit_date'])->toDateString() . ' ' . $mailData['visit_end_time'], \App\Support\VisitAttendance::TZ)->addHour();
+                if ($expires->isFuture()) {
+                    $confirmUrl = \App\Support\VisitAttendance::url($id, $expires);
+                }
+            }
+            Mail::to($mailData['email'])->send(new \App\Mail\VisitRescheduled($mailData['name'], $mailData['doctor'], $mailData['service'] ?? 'Clinic visit', $mailData['details'], $id, $mailData['remarks'] ?? null, $confirmUrl));
         } catch (\Throwable $exception) {
             Log::error('Rescheduled visit email failed.', ['visit_id' => $id, 'error' => $exception->getMessage()]);
             return response()->json(['success' => true, 'email_sent' => false,

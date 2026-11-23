@@ -20,12 +20,15 @@ class VisitConfirmationMail extends Mailable
         public string $service,
         public string $doctor,
         public string $schedule,
-        public int $visitId
+        public int $visitId,
+        public bool $pending = false
     ) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'PolyClinic Lipa: Your schedule visit is confirmed');
+        return new Envelope(subject: $this->pending
+            ? 'PolyClinic Lipa: Your schedule visit request was received'
+            : 'PolyClinic Lipa: Your schedule visit is confirmed');
     }
 
     public function content(): Content
@@ -53,6 +56,7 @@ class VisitConfirmationMail extends Mailable
                 'doctor' => $this->doctor,
                 'schedule' => $this->schedule,
                 'reference' => $this->visitId,
+                'pending' => $this->pending,
                 'clinicName' => $pick('clinic_name') ?: 'PolyClinic Lipa',
                 'address' => $pick('address'),
                 'phone' => $pick('contact_no'),

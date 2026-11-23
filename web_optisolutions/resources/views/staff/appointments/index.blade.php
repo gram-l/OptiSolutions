@@ -158,7 +158,20 @@
                     <td data-label="Patient"><strong>{{ $apt->patient_name ?: 'Unknown patient' }}</strong></td>
                     <td data-label="Doctor">{{ $apt->doctor_name ?? '—' }}</td>
                     <td data-label="Service">{{ $apt->service ?? '—' }}</td>
-                    <td data-label="Scheduled At"><small style="color:#7f8c8d">{{ $scheduledAt }}</small></td>
+                    <td data-label="Scheduled At"><small style="color:#7f8c8d">{{ $scheduledAt }}</small>
+                        @php $st = $apt->status ?? 'Confirmed'; @endphp
+                        <br><span id="statusText-{{ $apt->visit_id }}" style="display:inline-block;margin-top:.25rem;padding:.1rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;background:{{ $st === 'Pending' ? '#fff4d6' : ($st === 'Cancelled' ? '#fde2e2' : '#dcf5e4') }};color:{{ $st === 'Pending' ? '#8a5a00' : ($st === 'Cancelled' ? '#b42318' : '#15803d') }}">{{ $st }}</span>
+                        @if(!$apt->visited && $st !== 'Cancelled')
+                            @php $resp = $apt->attendance_response ?? null; @endphp
+                            @if($resp === 'confirmed')
+                                <br><span id="attendanceText-{{ $apt->visit_id }}" style="display:inline-block;margin-top:.25rem;padding:.1rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;background:#dcf5e4;color:#15803d">Patient is coming</span>
+                            @elseif($resp === 'declined')
+                                <br><span id="attendanceText-{{ $apt->visit_id }}" style="display:inline-block;margin-top:.25rem;padding:.1rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;background:#fde2e2;color:#b42318">Patient can't come</span>
+                            @elseif(!empty($apt->reminder_sent_at))
+                                <br><span id="attendanceText-{{ $apt->visit_id }}" style="display:inline-block;margin-top:.25rem;padding:.1rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;background:#fff4d6;color:#8a5a00">Reminder sent, awaiting reply</span>
+                            @endif
+                        @endif
+                    </td>
                     <td data-label="Notes" class="notes-cell" id="notesText-{{ $apt->visit_id }}">{{ $apt->notes ?: '—' }}</td>
                     <td data-label="Visited" class="visited-cell" id="visitedText-{{ $apt->visit_id }}">
                         @if($apt->visited)
@@ -176,8 +189,9 @@
                                 <summary aria-label="More actions for {{ $apt->patient_name ?: 'this patient' }}">&#8942;</summary>
                                 <div class="visit-menu-items">
                                     <button type="button" onclick="openNotesModal('{{ $apt->visit_id }}', {{ Js::from($apt->notes ?? '') }})">Edit</button>
-                                    @if(!$apt->visited)
+                                    @if(!$apt->visited && ($apt->status ?? 'Confirmed') !== 'Cancelled')
                                         <button type="button" data-pending-visit-action onclick="openVisitReschedule({{ $apt->visit_id }})">Reschedule</button>
+                                        <button type="button" data-pending-visit-action onclick="setVisitStatus({{ $apt->visit_id }}, 'Cancelled')">Cancel visit</button>
                                     @endif
                                 </div>
                             </details>
@@ -299,6 +313,26 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
             document.addEventListener('keydown', onKey);
         });
     }
+    async function setVisitStatus(id, status) {
+        // Staff can only cancel. Visits are confirmed automatically when booked.
+        if (!await showVisitMessage('Cancel this schedule visit? The slot will open again and this cannot be undone.', { confirm: true })) return;
+        try {
+            const response = await fetch(`/staff/appointments/${id}/status`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+                body: JSON.stringify({ status }),
+            });
+            const data = await response.json();
+            await showVisitMessage(data.message || Object.values(data.errors || {}).flat()[0] || 'Unable to update this visit.', {
+                title: data.success ? 'Schedule visit updated' : 'Unable to update visit',
+                variant: data.success ? 'success' : 'error',
+            });
+            if (data.success) location.reload();
+        } catch (error) {
+            await showVisitMessage('Could not reach the server. Please refresh to check the visit status before retrying.', { title: 'Connection problem', variant: 'error' });
+        }
+    }
+
     async function markVisitCompleted(id, button) {
         if (button.disabled) return;
         button.disabled = true;

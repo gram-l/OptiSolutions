@@ -29,8 +29,9 @@ class BookingConversationProbe extends AppointmentConversation
         $this->doctorId = 1;
         $this->doctor = 'Dr. Test';
         $this->service = 'General';
+        $this->scheduleId = 1;
         $this->scheduleDay = 'Monday';
-        $this->scheduleSuggestion = 'Monday morning';
+        $this->scheduleSuggestion = 'Monday at 9AM - 12PM';
         $this->sendCopy = $sendCopy;
     }
 
@@ -43,6 +44,7 @@ class BookingConversationProbe extends AppointmentConversation
     protected function sayLogged($message) { $this->messages[] = $message; }
     protected function askPostAppointment() { $this->postPromptShown = true; }
     protected function getNextAvailableISODate($dayStr) { return now()->addWeek()->toDateString(); }
+    protected function getNextAvailableDate($dayStr) { return 'Monday'; }
 }
 
 class PatientBookingTest extends TestCase
@@ -51,9 +53,14 @@ class PatientBookingTest extends TestCase
     {
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
-        foreach (['patients', 'doctors', 'schedule_visit', 'app_notifications'] as $table) {
+        foreach (['patients', 'doctors', 'doctor_schedules', 'schedule_visit', 'app_notifications'] as $table) {
             (require database_path("migrations/2026_01_01_000001_create_{$table}_table.php"))->up();
         }
+        // visit_time columns and the Pending/Confirmed/Cancelled status.
+        (require database_path('migrations/2026_10_14_000001_add_visit_times_to_schedule_visit.php'))->up();
+        (require database_path('migrations/2026_11_18_000001_add_status_to_schedule_visit.php'))->up();
+        \App\Support\ScheduleVisitCapacity::forgetStatusColumnCache();
+        DB::table('doctor_schedules')->insert(['schedule_id' => 1, 'doctor_id' => 1, 'day' => 'Monday', 'start_time' => '09:00:00', 'end_time' => '12:00:00']);
         DB::table('doctors')->insert([
             ['doctor_id' => 1, 'doctor_name' => 'Dr. Test', 'specialty' => 'General'],
             ['doctor_id' => 2, 'doctor_name' => 'Dr. Second', 'specialty' => 'General'],

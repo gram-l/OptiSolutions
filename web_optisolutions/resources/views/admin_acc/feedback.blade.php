@@ -178,9 +178,11 @@
                     <select class="filter-select" id="feedbackServiceFilter" aria-label="Filter feedback by service">
                         <option value="">All Services</option>
                     </select>
-                    <input type="date" class="date-filter" id="dateFromFilter" title="From date">
-                    <span class="date-filter-sep">to</span>
-                    <input type="date" class="date-filter" id="dateToFilter" title="To date">
+                    <div class="date-range">
+                        <input type="date" class="date-filter" id="dateFromFilter" title="From date">
+                        <span class="date-filter-sep">to</span>
+                        <input type="date" class="date-filter" id="dateToFilter" title="To date">
+                    </div>
                 </div>
             </div>
 
@@ -460,11 +462,11 @@
             tbody.innerHTML = rowsToShow.map(f => `
                 <tr>
                     <td data-label="Rating"><span class="rating-stars">${renderStars(f.rating)}</span></td>
-                    <td data-label="Comment" class="feedback-comment">${escapeHtml(f.comment)}</td>
-                    <td data-label="Doctor">${escapeHtml(f.doctor || 'Not linked')}</td>
-                    <td data-label="Service">${escapeHtml(f.service || 'Not linked')}</td>
+                    <td data-label="Comment" class="feedback-comment">${f.comment ? escapeHtml(f.comment) : '<span class="muted-text">No comment</span>'}</td>
+                    <td data-label="Doctor">${linkedCell(f.doctor, 'doctor-name')}</td>
+                    <td data-label="Service">${linkedCell(f.service, 'service-name')}</td>
                     <td data-label="Sentiment">${sentimentTag(f.sentiment)}</td>
-                    <td data-label="Date">${formatDate(f.date)}</td>
+                    <td data-label="Date" class="feedback-date">${formatDate(f.date)}</td>
                 </tr>
             `).join('');
 
@@ -496,10 +498,10 @@
 
             tbody.innerHTML = rowsToShow.map(c => `
                 <tr>
-                    <td class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
-                    <td>${escapeHtml(categoryLabel(c.category))}</td>
-                    <td>${renderComplaintEvidence(c)}</td>
-                    <td>${formatDate(c.created_at)}</td>
+                    <td data-label="Complaint" class="feedback-comment">${escapeHtml(c.complaint_text)}</td>
+                    <td data-label="Concern">${concernChip(c.category)}</td>
+                    <td data-label="Reported reason">${renderComplaintEvidence(c)}</td>
+                    <td data-label="Date" class="feedback-date">${formatDate(c.created_at)}</td>
                 </tr>
             `).join('');
 
@@ -542,6 +544,15 @@
             button.previousElementSibling.hidden = !expanded;
             button.setAttribute('aria-expanded', String(expanded));
             button.textContent = expanded ? 'Show less' : `+ ${button.dataset.remaining} more`;
+        }
+
+        function linkedCell(value, cls) {
+            return value ? `<span class="${cls}">${escapeHtml(value)}</span>` : '<span class="not-linked">Not linked</span>';
+        }
+
+        function concernChip(category) {
+            const muted = !category || ['unclassified', 'other'].includes(String(category).toLowerCase());
+            return `<span class="concern-chip${muted ? ' is-muted' : ''}">${escapeHtml(categoryLabel(category))}</span>`;
         }
 
         function categoryLabel(category) {

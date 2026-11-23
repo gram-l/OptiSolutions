@@ -133,14 +133,16 @@
             justify-content: center;
             color: var(--icon-color);
         }
-        .nav-item.active .nav-icon {
-            color: var(--white);
-        }
 
         @media (max-width: 768px) {
-            .dashboard-layout {
+            /* `body > .container` out-ranks stray `.container` / `.dashboard-layout`
+               rules, so the side gutter always applies and never touches the screen edge. */
+            body > .container.dashboard-layout {
                 flex-direction: column;
-                padding: 0 1rem;
+                margin: 0 auto 0.75rem;
+                padding-block: 0;
+                padding-inline: 12px;
+                column-gap: 0;
             }
             .sidebar {
                 width: 100%;

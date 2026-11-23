@@ -11,6 +11,7 @@ use App\Mail\VisitConfirmationMail;
 use App\Models\Staff\AppNotification;
 use Illuminate\Support\Facades\DB;
 use App\Support\PublicCatalog;
+use App\Support\ScheduleVisitCapacity;
 use App\Support\ScheduleVisitCatalog;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -1126,6 +1127,8 @@ class AppointmentConversation extends Conversation
                 }
                 if (!$slot) {
                     $errors['slot'] = 'Please select an available date and time.';
+                } elseif (ScheduleVisitCapacity::remainingForSlot($slot, $this->getNextAvailableISODate($slot->day)) < 1) {
+                    $errors['slot'] = 'That schedule is already full. Please choose another date or time.';
                 }
 
                 if (!empty($errors)) {
@@ -1181,7 +1184,7 @@ class AppointmentConversation extends Conversation
         $payload = [
             'title'   => 'Review your visit',
             'step'    => 'Step 3 of 3',
-            'notice'  => $notice ?? 'Please check that everything is correct before confirming.',
+            'notice'  => $notice ?? 'Please check that everything is correct. Your schedule visit is confirmed as soon as you submit it.',
             'summary' => [
                 ['heading' => 'Your details', 'rows' => [
                     ['label' => 'Full name',      'value' => $fullName],
@@ -1198,7 +1201,7 @@ class AppointmentConversation extends Conversation
             'fields'  => [],
             'confirm' => true,
             'saving'  => true,
-            'submit'  => 'Confirm Schedule Visit',
+            'submit'  => 'Submit Schedule Visit',
             'secondary' => [
                 ['label' => 'Edit details', 'value' => 'back_to_details'],
                 ['label' => 'Change visit', 'value' => 'back_to_visit'],
@@ -1338,7 +1341,25 @@ class AppointmentConversation extends Conversation
                 return;
             }
 
-            $visitDate = $this->getNextAvailableISODate($this->scheduleDay);
+            $slot = DB::table('doctor_schedules')
+                ->where('schedule_id', (int) $this->scheduleId)
+                ->where('doctor_id', (int) $this->doctorId)
+                ->first();
+            if (!$slot) {
+                $this->sayLogged('That schedule is no longer available. Please choose another one.');
+                return $this->askVisitForm();
+            }
+
+            // The date was worked out when the schedule was picked. If midnight passed since
+            // then, show the patient the updated date instead of saving a different one.
+            $visitDate = $this->getNextAvailableISODate($slot->day);
+            $freshSchedule = $this->getNextAvailableDate($slot->day)
+                . ' at ' . $this->formatTime($slot->start_time) . ' - ' . $this->formatTime($slot->end_time);
+            if ($freshSchedule !== $this->scheduleSuggestion) {
+                $this->scheduleDay = $slot->day;
+                $this->scheduleSuggestion = $freshSchedule;
+                return $this->askReview('The date of your selected schedule was updated. Please review it before submitting.');
+            }
 
             $booking = app(PatientBookingService::class)->book([
                 'patient_fname'     => $this->fname,
@@ -1350,6 +1371,8 @@ class AppointmentConversation extends Conversation
                 'doctor_id'    => $this->doctorId,
                 'service_type' => $this->service,
                 'visit_date'   => $visitDate,
+                'visit_time'   => $slot->start_time,
+                'visit_end_time' => $slot->end_time,
                 'notes'        => $this->scheduleSuggestion,
             ]);
             $patientId = $booking['patient']->patient_id;
@@ -1430,6 +1453,7 @@ class AppointmentConversation extends Conversation
                     [
                         'rows' => [
                             ['label' => 'Scheduled', 'value' => $this->scheduleSuggestion],
+                            ['label' => 'Status',    'value' => 'Confirmed'],
                         ],
                     ],
                 ],
@@ -1445,7 +1469,16 @@ class AppointmentConversation extends Conversation
 
             $this->askPostAppointment(); // → move to the final step
         } catch (ValidationException $e) {
-            $this->sayLogged(collect($e->errors())->flatten()->first());
+            $message = collect($e->errors())->flatten()->first();
+            if (array_key_exists('slot', $e->errors())) {
+                // Someone took the last seat while the patient was reviewing.
+                return $this->askVisitForm(
+                    ['slot' => $message],
+                    ['service' => (string) $this->serviceKey, 'doctor' => (string) $this->doctorId, 'slot' => ''],
+                    $message
+                );
+            }
+            $this->sayLogged($message);
         } catch (\Throwable $e) {
             Log::error('Failed to save schedule visit: ' . $e->getMessage(), [
                 'exception' => $e,
@@ -1488,7 +1521,7 @@ class AppointmentConversation extends Conversation
                     $visitId
                 )
             );
-            $this->sayLogged("Your visit confirmation has been sent to {$this->email}. Please check your inbox, including your spam folder.");
+            $this->sayLogged("Your schedule visit is confirmed, and the confirmation email has been sent to {$this->email}. Please check your inbox, including your spam folder. We will also email you a reminder shortly before your visit so you can confirm you're coming.");
         } catch (\Throwable $e) {
             Log::error('Failed to send visit confirmation email: ' . $e->getMessage(), [
                 'exception' => $e,

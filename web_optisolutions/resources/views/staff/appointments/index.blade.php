@@ -2,381 +2,148 @@
 
 @section('content')
 <style>
-    /* Scoped to this page only — mirrors admin's appointments.css look
-       (filter bar, table, pastel action buttons) without touching the
-       shared staff stylesheet. */
-    .visits-filter-bar {
-        background: #FFFFFF;
-        padding: 0.85rem 1rem;
-        border-radius: 15px;
-        margin-bottom: 1rem;
-        display: grid;
-        grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
-        gap: 0.65rem;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: flex-start;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
+    /* Admin "Scheduled Visits" look, scoped under .visits-admin. */
+    .visits-admin { --light-gray: #ECF0F1; --primary-dark: #062744; --shadow: rgba(0,0,0,0.1); }
+    .visits-admin .va-page-header { margin-bottom: 1.5rem; padding-left: 0.35rem; }
+    .visits-admin .va-page-header h2 { font-size: 1.75rem; color: var(--primary-dark); display: flex; align-items: center; gap: 0.65rem; margin: 0; }
+    .visits-admin .va-page-header h2 span { display: inline-flex; align-items: center; justify-content: center; width: 2.15rem; height: 2.15rem; flex-shrink: 0; border-radius: 10px; background: rgba(14,98,170,0.1); color: var(--primary-main); font-size: 1.05rem; }
+    .visits-admin .va-page-header p { color: #7f8c8d; margin: 0.4rem 0 0; padding-left: 0.35rem; }
 
-    .visits-filter-bar > #visitSearch,
-    .visits-filter-bar > #doctorFilter,
-    .visits-filter-bar > #serviceFilter {
-        box-sizing: border-box;
-        width: auto;
-        min-width: 0;
-        height: 40px;
-        margin: 0;
-        padding: 0.5rem 0.7rem;
-        font-size: 0.85rem;
-    }
-    .visits-filter-bar > #visitSearch,
-    .visits-filter-bar > #doctorFilter,
-    .visits-filter-bar > #serviceFilter { width: 100%; max-width: none; }
-    .visits-filter-bar .filter-bar-right { grid-column: 1 / -1; width: 100%; gap: 0.65rem; min-width: 0; }
-    .visits-filter-bar .download-wrap { margin-left: auto; }
-    .visits-filter-bar .date-nav { flex-wrap: wrap; gap: 0.4rem; min-width: 0; }
-    .visits-filter-bar input#visitDate { box-sizing: border-box; width: 145px; min-width: 0; height: 40px; }
-    .visits-filter-bar .date-nav-btn { width: 36px; height: 40px; padding: 0; flex-shrink: 0; }
-    .visits-filter-bar .date-label { flex-basis: 100%; font-size: 0.75rem; }
-    .visits-filter-bar .date-label:empty { display: none; }
+    .visits-admin .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .visits-admin .stat-card { background: #fff; padding: 1rem; border-radius: 12px; box-shadow: 0 2px 8px var(--shadow); text-align: center; border-left: 0; }
+    .visits-admin .stat-number { font-size: 1.8rem; font-weight: bold; color: var(--primary-main); margin: 0; }
+    .visits-admin .stat-label { font-size: 0.8rem; color: #7f8c8d; margin: 0; }
+
+    .visits-admin .filter-bar { background: #fff; padding: 1rem 1.5rem; border-radius: 15px; margin-bottom: 1.5rem !important; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px var(--shadow); }
+    .visits-admin .filter-group { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+    .visits-admin .search-box { padding: 0.6rem 1rem; border: 1px solid var(--light-gray); border-radius: 8px; min-width: 180px; max-width: 100%; outline: none; background: #fff; font-size: 0.9rem; }
+    .visits-admin .search-box:focus { border-color: var(--primary-main); box-shadow: 0 0 0 2px rgba(14,98,170,0.2); }
+    .visits-admin .filter-select { padding: 0.5rem 1rem; border: 1px solid var(--light-gray); border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.9rem; }
+
+    .visits-admin .day-nav { display: flex; align-items: center; gap: 0.6rem; }
+    .visits-admin .day-nav-btn { background: #fff; border: 1px solid #d7dce3; border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.95rem; color: #062744; padding: 0; }
+    .visits-admin .day-nav-btn:hover { background: #f0f4f9; }
+    .visits-admin .day-picker { border: 1px solid #d7dce3; border-radius: 8px; padding: 0.45rem 0.6rem; font-size: 0.85rem; background: #fff; }
+    .visits-admin .today-btn { background: #eef2f7; border: 1px solid #d7dce3; border-radius: 8px; padding: 0.45rem 0.75rem; font-size: 0.8rem; cursor: pointer; color: #062744; }
+    .visits-admin .download-dropdown { position: relative; display: inline-block; }
+    .visits-admin .download-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--primary-main); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: background .2s ease; }
+    .visits-admin .download-btn:hover { background: #0b4f8a; }
+    .visits-admin .download-btn .chevron { font-size: 0.65rem; transition: transform .2s ease; }
+    .visits-admin .download-dropdown.open .download-btn .chevron { transform: rotate(180deg); }
+    .visits-admin .download-menu { display: none; position: absolute; top: calc(100% + 0.5rem); left: 0; background: #fff; border-radius: 10px; box-shadow: 0 8px 24px var(--shadow); overflow: hidden; min-width: 170px; z-index: 50; }
+    .visits-admin .download-dropdown.open .download-menu { display: block; }
+    .visits-admin .download-menu a { display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.65rem 1rem; text-decoration: none; font-size: 0.85rem; color: #333; transition: background .15s ease; }
+    .visits-admin .download-menu a:hover { background: var(--light-gray); }
+    .visits-admin .download-menu a i { width: 16px; color: var(--primary-main); }
+
+    .visits-admin .day-panel { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px var(--shadow); }
+    .visits-admin .appointments-table { width: 100%; border-collapse: collapse; background: #fff; }
+    .visits-admin .appointments-table th { text-align: left; padding: 0.75rem 1.25rem; font-size: 0.85rem; }
+    .visits-admin .appointments-table td { padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--light-gray); vertical-align: middle; font-size: 0.92rem; color: #333; }
+    .visits-admin .appointments-table tr:hover td { background: #f8f9fa; }
+    .visits-admin .notes-cell { max-width: 220px; }
+    .visits-admin .btn-sm { display: inline-flex; align-items: center; gap: 0.4rem; border: none; border-radius: 999px; padding: 0.42rem 0.9rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s ease, transform .1s ease; }
+    .visits-admin .btn-sm:hover { transform: translateY(-1px); }
+    .visits-admin .btn-edit { background: #eaf2fb; color: #0E62AA; }
+    .visits-admin .btn-edit:hover { background: #d9e9f8; }
+    .visits-admin .visited-cell .btn-sm { display: block; margin-top: 0.4rem; }
+    .visits-admin .va-empty { text-align: center; padding: 1.5rem; background: #fff; border-radius: 20px; }
+
+    body.dark-mode .visits-admin .va-page-header h2 { color: #e7edf5; }
+    body.dark-mode .visits-admin :is(.stat-card, .filter-bar, .day-panel, .va-empty, .download-menu) { background: #1a2232; color: #e7edf5; }
+    body.dark-mode .visits-admin :is(.search-box, .filter-select, .day-picker, .day-nav-btn, .today-btn) { background: #1a2232; color: #e7edf5; border-color: #344155; }
+    body.dark-mode .visits-admin .appointments-table :is(tbody, tr, td) { background: #1a2232 !important; color: #e7edf5 !important; border-color: #344155 !important; }
+    body.dark-mode .visits-admin .appointments-table tr:hover > td { background: #25344a !important; }
+    body.dark-mode .visits-admin .download-menu a { color: #e7edf5; }
+    body.dark-mode .visits-admin .download-menu a:hover { background: #25344a; }
 
     @media (max-width: 768px) {
-        body .visits-filter-bar > #visitSearch,
-        body .visits-filter-bar > #doctorFilter,
-        body .visits-filter-bar > #serviceFilter {
-            flex: none;
-            width: 100%;
-            height: 40px;
-            min-height: 40px;
-            max-height: 40px;
-            min-width: 0;
-            max-width: 100%;
-        }
-        body .visits-filter-bar .filter-bar-right { flex: none; width: 100%; margin-left: 0; }
-        body .visits-filter-bar .date-nav { flex: none; }
-        body .visits-filter-bar .download-wrap { margin-left: 0; align-self: flex-end; }
+        .visits-admin .va-page-header { padding-left: 0.15rem; }
+        .visits-admin .va-page-header h2 { font-size: 1.4rem; gap: 0.55rem; }
+        .visits-admin .va-page-header h2 span { width: 1.9rem; height: 1.9rem; font-size: 0.9rem; border-radius: 8px; }
+        .visits-admin .va-page-header p { font-size: 0.85rem; padding-left: 0.15rem; }
+        .visits-admin .filter-bar { padding: 0.75rem; gap: 0.5rem; margin-bottom: 0.75rem !important; border-radius: 12px; }
+        .visits-admin .filter-group { display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%; }
+        .visits-admin .filter-group :is(.search-box, .filter-select) { flex: 1 1 100%; width: 100%; min-width: 0; min-height: 42px; padding: 0.5rem 0.75rem; border-radius: 10px; }
+        /* Row 1: [<] [date] [>]   Row 2: [Today] [Download] */
+        .visits-admin .day-nav { flex-wrap: wrap; align-items: stretch; gap: 0.5rem; width: 100%; }
+        .visits-admin .day-nav .day-nav-btn { flex: 0 0 44px; min-height: 42px; }
+        .visits-admin .day-nav .day-picker { flex: 1 1 calc(100% - 88px - 1rem); width: auto; min-width: 0; min-height: 42px; border-radius: 10px; }
+        .visits-admin .day-nav :is(.today-btn, .download-dropdown) { flex: 1 1 calc(50% - 0.25rem); min-width: 0; }
+        .visits-admin .day-nav .today-btn { min-height: 42px; border-radius: 10px; }
+        .visits-admin .day-nav .download-btn { width: 100%; min-height: 42px; justify-content: center; border-radius: 10px; }
+        .visits-admin .day-panel { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .visits-admin .appointments-table { min-width: 640px; }
+        .visits-admin .appointments-table th, .visits-admin .appointments-table td { padding: 0.75rem 0.5rem; font-size: 0.8rem; white-space: normal; }
     }
 
-    .visits-filter-bar select#serviceFilter {
-        padding: 0.5rem 1rem;
-        border: 1px solid #ECF0F1;
-        border-radius: 8px;
-        background: #FFFFFF;
-        cursor: pointer;
-        font-size: 0.9rem;
-        font-family: inherit;
-    }
-
-    .visits-filter-bar .filter-bar-right {
-        display: flex;
-        gap: 0.65rem;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-    .visits-filter-bar .date-nav {
-        display: contents;
-        gap: 0.4rem;
-        align-items: center;
-    }
-
-    .visits-filter-bar .date-nav-btn {
-        padding: 0;
-        background: #ECF0F1;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        color: #333333;
-    }
-
-    .visits-filter-bar .date-nav-btn:hover {
-        background: #0E62AA;
-        color: #FFFFFF;
-    }
-
-    .visits-filter-bar input#visitDate {
-        padding: 0.5rem 0.75rem;
-        border: 1px solid #ECF0F1;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        font-family: inherit;
-    }
-
-    .visits-filter-bar .date-label {
-        order: 1;
-        font-size: 0.85rem;
-        color: #7f8c8d;
-    }
-
-    .visits-filter-bar .btn-sm {
-        padding: 0.5rem 1.1rem;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.85rem;
-        font-weight: 600;
-        transition: all 0.2s ease;
-    }
-
-    .visits-filter-bar .btn-sm.btn-primary {
-        background: #0E62AA;
-        color: #FFFFFF;
-    }
-
-    .visits-filter-bar .btn-sm.btn-primary:hover {
-        background: #0b4f8a;
-    }
-
-    .visits-filter-bar .btn-sm.btn-secondary {
-        background: #ECF0F1;
-        color: #333333;
-    }
-
-    .visits-filter-bar .btn-sm.btn-secondary:hover {
-        background: #dde2e6;
-    }
-
-    #downloadBtn {
-        background: #0E62AA !important;
-        color: #FFFFFF !important;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-
-    #downloadBtn:hover {
-        background: #0b4f8a !important;
-    }
-
-    #exportMenu {
-        background: #FFFFFF;
-        border-radius: 12px;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        border: 1px solid #ECF0F1;
-        display: none;
-    }
-
-    #exportMenu.show {
-        display: block;
-    }
-
-    #exportMenu .dropdown-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.55rem 1rem;
-        font-size: 0.88rem;
-        color: #333333;
-        transition: background 0.2s ease;
-    }
-
-    #exportMenu .dropdown-item:hover {
-        background: #f4f6f8;
-    }
-
-    /* Table — same recipe as the admin appointments table */
-    #visitsTable {
-        width: 100%;
-        border-collapse: collapse;
-        background: #FFFFFF;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    #visitsTable thead th {
-        text-align: left;
-        padding: 0.75rem 1.25rem;
-        font-size: 0.85rem;
-    }
-
-    #visitsTable tbody td {
-        padding: 0.75rem 1.25rem;
-        border-bottom: 1px solid #ECF0F1;
-        vertical-align: middle;
-        font-size: 0.92rem;
-        color: #333333;
-    }
-
-    #visitsTable tbody tr:hover {
-        background: #f8f9fa;
-    }
-
-    .notes-cell {
-        max-width: 220px;
-        color: #5a6474;
-    }
-
-    .btn-edit-notes {
-        padding: 0.35rem 0.85rem;
-        border: none;
-        border-radius: 20px;
-        cursor: pointer;
-        font-size: 0.75rem;
-        font-weight: 600;
-        background: #e8f0fe;
-        color: #0E62AA;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        transition: all 0.2s ease;
-    }
-
-    .btn-edit-notes:hover {
-        background: #d5e5fc;
-    }
-
-    /* Notes edit modal */
-    .notes-modal {
-        display: none;
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .notes-modal.show {
-        display: flex;
-    }
-
-    .notes-modal-content {
-        background: #FFFFFF;
-        padding: 1.75rem;
-        border-radius: 20px;
-        max-width: 420px;
-        width: 90%;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    }
-
-    .notes-modal-content h3 {
-        margin-bottom: 1rem;
-        color: #062744;
-        font-size: 1.1rem;
-    }
-
-    .notes-modal-content textarea {
-        width: 100%;
-        min-height: 100px;
-        padding: 0.7rem;
-        border: 1px solid #ECF0F1;
-        border-radius: 8px;
-        font-family: inherit;
-        font-size: 0.9rem;
-        resize: vertical;
-    }
-
-    .notes-modal-buttons {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: flex-end;
-        margin-top: 1.25rem;
-    }
-
-    .notes-modal-buttons button {
-        padding: 0.5rem 1.2rem;
-        border: none;
-        border-radius: 20px;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 0.85rem;
-    }
-
-    .notes-modal-btn-cancel {
-        background: #ECF0F1;
-        color: #333333;
-    }
-
-    .notes-modal-btn-save {
-        background: #0E62AA;
-        color: #FFFFFF;
-    }
+    /* Notes edit modal (unchanged behaviour) */
+    .notes-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .notes-modal.show { display: flex; }
+    .notes-modal-content { background: #FFFFFF; padding: 1.75rem; border-radius: 20px; max-width: 420px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .notes-modal-content h3 { margin-bottom: 1rem; color: #062744; font-size: 1.1rem; }
+    .notes-modal-content textarea { width: 100%; min-height: 100px; padding: 0.7rem; border: 1px solid #ECF0F1; border-radius: 8px; font-family: inherit; font-size: 0.9rem; resize: vertical; }
+    .notes-modal-buttons { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; }
+    .notes-modal-buttons button { padding: 0.5rem 1.2rem; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+    .notes-modal-btn-cancel { background: #ECF0F1; color: #333333; }
+    .notes-modal-btn-save { background: #0E62AA; color: #FFFFFF; }
 </style>
 <div class="container">
-    <div class="page-title-group" style="margin-bottom: 1rem;">
-        <h3 style="margin: 0;">
-            <i class="bi bi-calendar-plus"></i> Scheduled Visits
-        </h3>
-        <p class="page-subtitle">Review and manage scheduled patient visits</p>
+<div class="visits-admin">
+    <div class="va-page-header">
+        <h2><span><i class="bi bi-calendar2-plus"></i></span> Scheduled Visits</h2>
+        <p>Review and manage scheduled patient visits, one day at a time</p>
     </div>
 
-    @php
-        $services = $visitServices;
-    @endphp
+    @php $services = $visitServices; @endphp
 
-    <div class="visits-filter-bar">
-        <input type="search" id="visitSearch" class="search-box visit-search" placeholder="Search patient, doctor or notes" aria-label="Search scheduled visits" oninput="filterVisitsTable()">
-        <select id="doctorFilter" aria-label="Filter by doctor" onchange="syncVisitFilters('doctor')">
-            <option value="">All Doctors</option>
-            @foreach($visitDoctors->pluck('doctor_name')->unique() as $doctorName)
-                <option value="{{ $doctorName }}">{{ $doctorName }}</option>
-            @endforeach
-        </select>
-        <select id="serviceFilter" aria-label="Filter by doctor specialty" onchange="syncVisitFilters('service')">
-            <option value="">All Services</option>
-            @foreach($services as $service)
-                <option value="{{ $service }}">{{ $service }}</option>
-            @endforeach
-        </select>
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-number" id="totalAppointments">0</div><div class="stat-label">Scheduled Visits Today</div></div>
+        <div class="stat-card"><div class="stat-number" id="totalPatients">0</div><div class="stat-label">Patients Scheduled</div></div>
+        <div class="stat-card"><div class="stat-number" id="totalDoctors">0</div><div class="stat-label">Doctors Involved</div></div>
+    </div>
 
-        <div class="filter-bar-right">
-            <div class="date-nav">
-                <button type="button" class="date-nav-btn" onclick="shiftDate(-1)" aria-label="Previous day">
-                    <i class="bi bi-chevron-left"></i>
+    <div class="filter-bar">
+        <div class="filter-group">
+            <input type="search" id="visitSearch" class="search-box" placeholder="Search patient, doctor or notes" aria-label="Search scheduled visits" oninput="filterVisitsTable()">
+            <select id="doctorFilter" class="filter-select" aria-label="Filter by doctor" onchange="syncVisitFilters('doctor')">
+                <option value="">All Doctors</option>
+                @foreach($visitDoctors->pluck('doctor_name')->unique() as $doctorName)
+                    <option value="{{ $doctorName }}">{{ $doctorName }}</option>
+                @endforeach
+            </select>
+            <select id="serviceFilter" class="filter-select" aria-label="Filter by doctor specialty" onchange="syncVisitFilters('service')">
+                <option value="">All Services</option>
+                @foreach($services as $service)
+                    <option value="{{ $service }}">{{ $service }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="day-nav">
+            <button type="button" class="day-nav-btn" onclick="shiftDate(-1)" title="Previous day" aria-label="Previous day"><i class="fa-solid fa-chevron-left"></i></button>
+            <input type="date" class="day-picker" id="visitDate" onchange="handleDateInputChange()">
+            <button type="button" class="day-nav-btn" onclick="shiftDate(1)" title="Next day" aria-label="Next day"><i class="fa-solid fa-chevron-right"></i></button>
+            <button type="button" class="today-btn" id="btnTodayFilter" onclick="setTodayFilter()">Today</button>
+            <div class="download-dropdown" id="downloadDropdown">
+                <button type="button" class="download-btn" id="downloadBtn" onclick="toggleExportMenu()">
+                    <i class="fa-solid fa-download"></i> Download <i class="fa-solid fa-chevron-down chevron"></i>
                 </button>
-                <input type="date" id="visitDate" onchange="handleDateInputChange()">
-                <button type="button" class="date-nav-btn" onclick="shiftDate(1)" aria-label="Next day">
-                    <i class="bi bi-chevron-right"></i>
-                </button>
-                <button type="button" id="btnTodayFilter" class="btn-sm btn-primary" onclick="setTodayFilter()">Today</button>
-                <button type="button" id="btnClearFilter" class="btn-sm btn-secondary" onclick="clearVisitFilters()">Clear</button>
-                <span id="dateLabel" class="date-label"></span>
-            </div>
-
-            <div class="download-wrap" style="position: relative;">
-                <button
-                    type="button"
-                    id="downloadBtn"
-                    onclick="toggleExportMenu()"
-                    class="btn-primary"
-                    style="display: flex; align-items: center; gap: 6px; padding: 0.55rem 1rem; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer;"
-                >
-                    <i class="bi bi-download"></i> Download
-                </button>
-
-                <div
-                    id="exportMenu"
-                    class="dropdown-menu"
-                    style="right: 0; left: auto; top: calc(100% + 6px); width: 200px; padding: 0.5rem 0;"
-                >
-                    <a href="{{ route('staff.visits.export', 'csv') }}" class="dropdown-item" style="text-decoration: none;">
-                        <i class="bi bi-filetype-csv"></i> Export as CSV
-                    </a>
-                    <a href="{{ route('staff.visits.export', 'xlsx') }}" class="dropdown-item" style="text-decoration: none;">
-                        <i class="bi bi-filetype-xlsx"></i> Export as Excel
-                    </a>
-                    <a href="{{ route('staff.visits.export', 'pdf') }}" target="_blank" class="dropdown-item" style="text-decoration: none;">
-                        <i class="bi bi-filetype-pdf"></i> Export as PDF
-                    </a>
+                <div class="download-menu" id="exportMenu">
+                    <a href="{{ route('staff.visits.export', 'pdf') }}" target="_blank"><i class="fa-regular fa-file-pdf"></i> PDF</a>
+                    <a href="{{ route('staff.visits.export', 'csv') }}"><i class="fa-regular fa-file-lines"></i> CSV</a>
+                    <a href="{{ route('staff.visits.export', 'xlsx') }}"><i class="fa-regular fa-file-excel"></i> Excel</a>
                 </div>
             </div>
         </div>
     </div>
 
     @if($appointments->count() > 0)
-        <table class="data-table table-cards" id="visitsTable">
+        <div class="day-panel" id="visitsPanel">
+        <table class="appointments-table" id="visitsTable">
             <thead>
                 <tr>
-                    <th>Patient</th>
-                    <th>Doctor</th>
-                    <th>Service</th>
-                    <th>Scheduled At</th>
-                    <th>Notes</th>
-                    <th>Visited</th>
-                    <th>Actions</th>
+                    <th>Patient</th><th>Doctor</th><th>Service</th><th>Scheduled At</th><th>Notes</th><th>Visited</th><th></th>
                 </tr>
             </thead>
             <tbody>
@@ -387,30 +154,44 @@
                         ? \Carbon\Carbon::parse($apt->visit_date . ' ' . $apt->visit_time)->format('M j, g:i A') . ' – ' . \Carbon\Carbon::parse($apt->visit_end_time)->format('g:i A')
                         : \Carbon\Carbon::parse($apt->visit_date)->format('M j, g:i A');
                 @endphp
-                <tr data-visited="{{ $apt->visited ? '1' : '0' }}" data-date="{{ $visitDate }}" data-service="{{ strtolower($apt->service ?? '') }}" data-doctor="{{ $apt->doctor_name ?? '' }}" data-search="{{ strtolower(implode(' ', [$apt->patient_name, $apt->doctor_name, $apt->service, $apt->notes])) }}">
-                    <td data-label="Patient">{{ $apt->patient_name ?: 'N/A' }}</td>
-                    <td data-label="Doctor">{{ $apt->doctor_name ?? 'N/A' }}</td>
-                    <td data-label="Service">{{ $apt->service ?? 'N/A' }}</td>
-                    <td data-label="Scheduled At">{{ $scheduledAt }}</td>
+                <tr data-visited="{{ $apt->visited ? '1' : '0' }}" data-date="{{ $visitDate }}" data-service="{{ strtolower($apt->service ?? '') }}" data-doctor="{{ $apt->doctor_name ?? '' }}" data-patient="{{ $apt->patient_name ?? '' }}" data-search="{{ strtolower(implode(' ', [$apt->patient_name, $apt->doctor_name, $apt->service, $apt->notes])) }}">
+                    <td data-label="Patient"><strong>{{ $apt->patient_name ?: 'Unknown patient' }}</strong></td>
+                    <td data-label="Doctor">{{ $apt->doctor_name ?? '—' }}</td>
+                    <td data-label="Service">{{ $apt->service ?? '—' }}</td>
+                    <td data-label="Scheduled At"><small style="color:#7f8c8d">{{ $scheduledAt }}</small>
+                        @php $st = $apt->status ?? 'Confirmed'; @endphp
+                        <br><span id="statusText-{{ $apt->visit_id }}" style="display:inline-block;margin-top:.25rem;padding:.1rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;background:{{ $st === 'Pending' ? '#fff4d6' : ($st === 'Cancelled' ? '#fde2e2' : '#dcf5e4') }};color:{{ $st === 'Pending' ? '#8a5a00' : ($st === 'Cancelled' ? '#b42318' : '#15803d') }}">{{ $st }}</span>
+                        @if(!$apt->visited && $st !== 'Cancelled')
+                            @php $resp = $apt->attendance_response ?? null; @endphp
+                            @if($resp === 'confirmed')
+                                <br><span id="attendanceText-{{ $apt->visit_id }}" style="display:inline-block;margin-top:.25rem;padding:.1rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;background:#dcf5e4;color:#15803d">Patient is coming</span>
+                            @elseif($resp === 'declined')
+                                <br><span id="attendanceText-{{ $apt->visit_id }}" style="display:inline-block;margin-top:.25rem;padding:.1rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;background:#fde2e2;color:#b42318">Patient can't come</span>
+                            @elseif(!empty($apt->reminder_sent_at))
+                                <br><span id="attendanceText-{{ $apt->visit_id }}" style="display:inline-block;margin-top:.25rem;padding:.1rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;background:#fff4d6;color:#8a5a00">Reminder sent, awaiting reply</span>
+                            @endif
+                        @endif
+                    </td>
                     <td data-label="Notes" class="notes-cell" id="notesText-{{ $apt->visit_id }}">{{ $apt->notes ?: '—' }}</td>
-                    <td data-label="Visited" id="visitedText-{{ $apt->visit_id }}">
+                    <td data-label="Visited" class="visited-cell" id="visitedText-{{ $apt->visit_id }}">
                         @if($apt->visited)
                             <strong style="color:#15803d">Visited</strong><br><small>{{ $apt->review_pass_sent_at ? 'Review pass emailed' : 'Email not sent' }}</small>
                         @else
                             <span class="visit-no-show">{{ \App\Services\VisitReviewService::attendanceLabel($apt) === 'Did not visit' ? 'Did not visit' : '' }}</span>
                         @endif
                     </td>
-                    <td data-label="Actions" class="table-cards-actions">
+                    <td data-label="Actions">
                         <div class="visit-actions">
                             @if(!$apt->visited || !$apt->review_pass_sent_at)
-                                <button type="button" class="btn-edit-notes" onclick="markVisitCompleted({{ $apt->visit_id }}, this)">{{ $apt->visited ? 'Retry email' : 'Mark visited' }}</button>
+                                <button type="button" class="btn-sm btn-edit" onclick="markVisitCompleted({{ $apt->visit_id }}, this)">{{ $apt->visited ? 'Retry email' : 'Mark visited' }}</button>
                             @endif
                             <details class="visit-menu">
                                 <summary aria-label="More actions for {{ $apt->patient_name ?: 'this patient' }}">&#8942;</summary>
                                 <div class="visit-menu-items">
                                     <button type="button" onclick="openNotesModal('{{ $apt->visit_id }}', {{ Js::from($apt->notes ?? '') }})">Edit</button>
-                                    @if(!$apt->visited)
+                                    @if(!$apt->visited && ($apt->status ?? 'Confirmed') !== 'Cancelled')
                                         <button type="button" data-pending-visit-action onclick="openVisitReschedule({{ $apt->visit_id }})">Reschedule</button>
+                                        <button type="button" data-pending-visit-action onclick="setVisitStatus({{ $apt->visit_id }}, 'Cancelled')">Cancel visit</button>
                                     @endif
                                 </div>
                             </details>
@@ -420,14 +201,12 @@
                 @endforeach
             </tbody>
         </table>
-        <div class="visits-list-footer">
-            <span id="visitsVisibleCount" role="status" aria-live="polite"></span>
-            <button type="button" class="visits-see-more-btn" id="visitsSeeMore" aria-controls="visitsTable" hidden onclick="visibleVisitCount += 7; filterVisitsTable(false);">See more</button>
         </div>
-        <p id="noResultsMsg" style="display: none; padding: 2rem; text-align: center; background: white; border-radius: 20px;">No visits scheduled for this day.</p>
+        <div class="va-empty" id="noResultsMsg" style="display: none;">No scheduled visit found for this day.</div>
     @else
-        <p style="padding: 2rem; text-align: center; background: white; border-radius: 20px;">No appointments found.</p>
+        <div class="va-empty">No scheduled visit found for this day.</div>
     @endif
+</div>
 </div>
 
 <!-- Notes edit modal -->
@@ -443,17 +222,9 @@
 </div>
 
 <script src="{{ asset('js/doctor-specialties.js') }}"></script>
-<style>
-    .visits-list-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.75rem 1.5rem; padding:1rem; }
-    #visitsVisibleCount { color:#64748b; font-size:.85rem; }
-    .visits-see-more-btn { border:1px solid #9dbcd4; border-radius:999px; background:transparent; color:#0e62aa; padding:.5rem 1.25rem; font:inherit; font-size:.85rem; font-weight:600; cursor:pointer; }
-    .visits-see-more-btn:hover { background:#eef5fc; }
-    .visits-see-more-btn:focus-visible { outline:2px solid #0e62aa; outline-offset:3px; }
-</style>
 <script>
     const visitDoctors = @json($visitDoctors);
     const visitServices = @json($visitServices);
-    let visibleVisitCount = 7;
 
     function syncVisitFilters(changed) {
         const doctorSelect = document.getElementById('doctorFilter');
@@ -542,6 +313,26 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
             document.addEventListener('keydown', onKey);
         });
     }
+    async function setVisitStatus(id, status) {
+        // Staff can only cancel. Visits are confirmed automatically when booked.
+        if (!await showVisitMessage('Cancel this schedule visit? The slot will open again and this cannot be undone.', { confirm: true })) return;
+        try {
+            const response = await fetch(`/staff/appointments/${id}/status`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+                body: JSON.stringify({ status }),
+            });
+            const data = await response.json();
+            await showVisitMessage(data.message || Object.values(data.errors || {}).flat()[0] || 'Unable to update this visit.', {
+                title: data.success ? 'Schedule visit updated' : 'Unable to update visit',
+                variant: data.success ? 'success' : 'error',
+            });
+            if (data.success) location.reload();
+        } catch (error) {
+            await showVisitMessage('Could not reach the server. Please refresh to check the visit status before retrying.', { title: 'Connection problem', variant: 'error' });
+        }
+    }
+
     async function markVisitCompleted(id, button) {
         if (button.disabled) return;
         button.disabled = true;
@@ -604,15 +395,12 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
     }
 
     function toggleExportMenu() {
-        document.getElementById('exportMenu').classList.toggle('show');
+        document.getElementById('downloadDropdown').classList.toggle('open');
     }
 
     document.addEventListener('click', function (e) {
-        const menu = document.getElementById('exportMenu');
-        const btn = document.getElementById('downloadBtn');
-        if (menu && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-            menu.classList.remove('show');
-        }
+        const dd = document.getElementById('downloadDropdown');
+        if (dd && !dd.contains(e.target)) dd.classList.remove('open');
     });
 
     function todayISO() {
@@ -634,36 +422,12 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         return `${y}-${m}-${day}`;
     }
 
-    function formatDateLabel(dateStr) {
-        const d = parseDateInputValue(dateStr);
-        return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    }
+    function updateDateLabel() {}
 
-    function updateDateLabel() {
-        const input = document.getElementById('visitDate');
-        const label = document.getElementById('dateLabel');
-        label.textContent = input.value ? formatDateLabel(input.value) : 'Showing all scheduled visits';
-    }
-
-    function updateTodayButtonState() {
-        const input = document.getElementById('visitDate');
-        const isToday = input.value === todayISO();
-        const btn = document.getElementById('btnTodayFilter');
-        btn.classList.toggle('btn-primary', isToday);
-        btn.classList.toggle('btn-secondary', !isToday);
-    }
+    function updateTodayButtonState() {}
 
     function setTodayFilter() {
         document.getElementById('visitDate').value = todayISO();
-        handleDateInputChange();
-    }
-
-    function clearVisitFilters() {
-        document.getElementById('visitDate').value = '';
-        document.getElementById('serviceFilter').value = '';
-        document.getElementById('doctorFilter').value = '';
-        document.getElementById('visitSearch').value = '';
-        syncVisitFilters('service');
         handleDateInputChange();
     }
 
@@ -682,8 +446,7 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         filterVisitsTable();
     }
 
-    function filterVisitsTable(reset = true) {
-        if (reset) visibleVisitCount = 7;
+    function filterVisitsTable() {
         const selectedDate = document.getElementById('visitDate').value;
         const serviceFilter = document.getElementById('serviceFilter').value;
         const doctor = document.getElementById('doctorFilter').value;
@@ -695,41 +458,39 @@ function showVisitMessage(message, { confirm = false, variant = 'primary', title
         });
 
         const table = document.getElementById('visitsTable');
-        if (!table) return;
+        if (!table) { updateVisitStats([]); return; }
 
-        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+        const rows = table.tBodies[0].rows;
+        const patients = new Set();
+        const doctors = new Set();
         let visibleCount = 0;
 
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            const rowDate = row.getAttribute('data-date');
-
-
-            const matchesDate = !selectedDate || rowDate === selectedDate;
+        for (const row of rows) {
+            const matchesDate = !selectedDate || row.dataset.date === selectedDate;
             const rowDoctor = visitDoctors.find(d => d.doctor_name === row.dataset.doctor);
             const matchesService = serviceFilter === '' || doctorSpecialties(rowDoctor?.specialty).includes(serviceFilter);
-
             const isMatch = matchesDate && matchesService && (!doctor || row.dataset.doctor === doctor)
                 && (row.dataset.search || '').includes(search);
-            row.style.display = isMatch && visibleCount < visibleVisitCount ? '' : 'none';
-            if (isMatch) visibleCount++;
+            row.style.display = isMatch ? '' : 'none';
+            if (isMatch) {
+                visibleCount++;
+                if (row.dataset.patient) patients.add(row.dataset.patient);
+                if (row.dataset.doctor) doctors.add(row.dataset.doctor);
+            }
         }
 
-        document.getElementById('visitsVisibleCount').textContent = `${Math.min(visibleVisitCount, visibleCount)} of ${visibleCount} visit(s)`;
-        const more = document.getElementById('visitsSeeMore');
-        const remaining = Math.max(0, visibleCount - visibleVisitCount);
-        more.hidden = remaining === 0;
-        more.textContent = `See more (${remaining} more)`;
-
-        const noResultsMsg = document.getElementById('noResultsMsg');
-        if (noResultsMsg) {
-            noResultsMsg.style.display = visibleCount === 0 ? 'block' : 'none';
-        }
+        updateVisitStats([visibleCount, patients.size, doctors.size]);
+        document.getElementById('visitsPanel').style.display = visibleCount === 0 ? 'none' : '';
+        document.getElementById('noResultsMsg').style.display = visibleCount === 0 ? 'block' : 'none';
     }
 
+    function updateVisitStats(values) {
+        ['totalAppointments', 'totalPatients', 'totalDoctors'].forEach((id, i) => {
+            document.getElementById(id).textContent = values[i] ?? 0;
+        });
+    }
 
-    updateDateLabel();
-    updateTodayButtonState();
+    document.getElementById('visitDate').value = todayISO();
     filterVisitsTable();
     function refreshVisitAttendance() {
         const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());

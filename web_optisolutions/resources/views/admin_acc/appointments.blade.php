@@ -462,7 +462,11 @@
             const container = document.getElementById('appointmentsContainer');
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div style="text-align: center; padding: 1.5rem; background: white; border-radius: 20px;">No scheduled visit found for this day.</div>';
+                container.innerHTML = `<div class="empty-day">
+                    <span class="empty-day-icon" aria-hidden="true"><i class="fa-regular fa-calendar-xmark"></i></span>
+                    <strong>No scheduled visit found for this day.</strong>
+                    <span>Try another date, or adjust the search and filters.</span>
+                </div>`;
                 return;
             }
 

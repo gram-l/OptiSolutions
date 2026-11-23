@@ -705,11 +705,17 @@ body.dark-mode .portal-dashboard .diagnostic-trigger:hover {
         flex-wrap: wrap;
     }
     .portal-dashboard .donut-layout {
-        flex-direction: column;
+        flex-flow: row wrap;
+        justify-content: center;
+        gap: 0.6rem 1rem;
     }
     .portal-dashboard .donut-chart-wrap {
-        width: 200px;
-        margin: 0 auto;
+        width: 150px;
+        margin: 0;
+    }
+    .portal-dashboard .donut-legend {
+        flex: 1 1 11rem;
+        min-width: 0;
     }
     .portal-dashboard .chart-subtitle {
         margin-left: 0;
@@ -732,4 +738,63 @@ body.dark-mode .portal-dashboard .diagnostic-trigger:hover {
 
 .portal-dashboard .activity-time {
     color: var(--text-dark);
+}
+
+/* Phones: tighter, even spacing so cards don't leave large white gaps. */
+@media (max-width: 768px) {
+    .portal-dashboard {
+        --dashboard-card-gap: 0.75rem;
+    }
+    .portal-dashboard .dashboard-heading {
+        gap: 0.6rem;
+        margin: 0.75rem 0 var(--dashboard-card-gap);
+    }
+    .portal-dashboard .dashboard-heading h1 {
+        gap: 0.6rem;
+    }
+    .portal-dashboard .dashboard-heading-icon {
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.6rem;
+        font-size: 1.15rem;
+    }
+    .portal-dashboard .diagnostic-trigger {
+        padding: 0.5rem 0.85rem;
+        font-size: 0.88rem;
+    }
+    .portal-dashboard .card-top-row {
+        margin-bottom: 0.3rem;
+    }
+    .portal-dashboard .card-value {
+        margin-bottom: 0.15rem;
+    }
+    .portal-dashboard .charts-grid > .chart-card {
+        padding: 0.8rem;
+    }
+    .portal-dashboard .chart-header {
+        margin-bottom: 0.15rem;
+    }
+    .portal-dashboard .chart-subtitle {
+        margin: 0.1rem 0 0.4rem;
+    }
+    .portal-dashboard .rating-leaders-columns {
+        gap: 0.25rem;
+    }
+    .portal-dashboard .rating-leaders-columns h4 {
+        margin: 0.35rem 0 0.15rem;
+    }
+    .portal-dashboard .rating-leaders-list li {
+        padding: 0.3rem 0;
+    }
+    .portal-dashboard .chart-interpretation {
+        margin-top: 0.4rem;
+        padding-top: 0.4rem;
+    }
+    .portal-dashboard .sentiment-bars {
+        gap: 0.45rem;
+        margin-top: 0.45rem;
+    }
+    .portal-dashboard .compact-chart-plot {
+        height: 8.5rem;
+    }
 }

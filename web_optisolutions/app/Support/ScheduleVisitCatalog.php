@@ -35,6 +35,14 @@ class ScheduleVisitCatalog
                 ->get()->groupBy('service_id')
                 ->map(fn ($rows) => $rows->pluck('doctor_id')->flip());
 
+        // Seats left per slot on its next date (Pending + Confirmed visits hold a slot).
+        $allSlots = $schedules->flatten(1);
+        $dates = [];
+        foreach ($allSlots as $slot) {
+            $dates[$slot->schedule_id] = self::nextIso($slot->day);
+        }
+        $left = ScheduleVisitCapacity::remainingForSlots($allSlots, $dates);
+
         $serviceOptions = $doctorOptions = $slotOptions = [];
 
         foreach ($services as $svc) {
@@ -54,7 +62,11 @@ class ScheduleVisitCatalog
                 $doctorOptions[] = ['value' => (string) $d->doctor_id, 'label' => $d->doctor_name, 'parent' => $svc->service_key];
 
                 foreach ($docSlots as $slot) {
-                    $slotOptions[] = ['value' => (string) $slot->schedule_id, 'label' => self::slotLabel($slot), 'parent' => (string) $d->doctor_id];
+                    $slotOptions[] = [
+                        'value'  => (string) $slot->schedule_id,
+                        'label'  => self::slotLabel($slot) . ' · ' . ScheduleVisitCapacity::label($left[(int) $slot->schedule_id] ?? 0),
+                        'parent' => (string) $d->doctor_id,
+                    ];
                 }
             }
 
@@ -74,6 +86,13 @@ class ScheduleVisitCatalog
 
     protected static function nextDate(string $dayStr): string
     {
+        return (new \DateTime(self::nextIso($dayStr)))->format('l, F j, Y');
+    }
+
+    // Same rule the chatbot uses when it saves the visit: the next matching weekday,
+    // never today (a day that is today moves to next week).
+    public static function nextIso(string $dayStr): string
+    {
         $dayMap = ['Sunday'=>0,'Monday'=>1,'Tuesday'=>2,'Wednesday'=>3,'Thursday'=>4,'Friday'=>5,'Saturday'=>6];
         $target = trim(explode('-', explode(',', $dayStr)[0])[0]);
         $targetIndex = $dayMap[$target] ?? null;
@@ -85,6 +104,6 @@ class ScheduleVisitCatalog
             if ($daysUntil === 0) $daysUntil = 7;
             $now->modify("+{$daysUntil} days");
         }
-        return $now->format('l, F j, Y');
+        return $now->format('Y-m-d');
     }
 }

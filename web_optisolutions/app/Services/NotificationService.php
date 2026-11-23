@@ -111,6 +111,21 @@ class NotificationService
         );
     }
 
+    // Patient answered the reminder email ("I'll be there" / "I can't come").
+    public static function visitAttendance(string $patientName, string $doctorName, string $visitDate, int $visitId, bool $coming): void
+    {
+        $date = \Carbon\Carbon::parse($visitDate)->format('M d, Y');
+        self::create(
+            'appointment',
+            $coming ? 'Patient Is Coming' : "Patient Can't Make Visit",
+            $coming
+                ? "{$patientName} said they are coming for the visit with {$doctorName} on {$date}."
+                : "{$patientName} said they can't come for the visit with {$doctorName} on {$date}. You may cancel it to free the slot.",
+            'visit',
+            $visitId
+        );
+    }
+
     public static function system(string $title, string $message): void
     {
         self::create('system', $title, $message);

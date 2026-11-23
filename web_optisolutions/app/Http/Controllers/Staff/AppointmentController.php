@@ -13,10 +13,15 @@ class AppointmentController extends Controller
     {
         // NOTE: assumes schedule_visit has a `notes` and `patient_id` column.
         // If your actual column names differ, adjust the select() below.
+        $statusColumn = \App\Support\ScheduleVisitCapacity::hasStatusColumn()
+            ? 'schedule_visit.status'
+            : DB::raw("'Confirmed' as status");
+
         $appointments = DB::table('schedule_visit')
             ->leftJoin('doctors', 'schedule_visit.doctor_id', '=', 'doctors.doctor_id')
             ->leftJoin('patients', 'schedule_visit.patient_id', '=', 'patients.patient_id')
             ->select(
+                $statusColumn,
                 'schedule_visit.visit_id',
                 'schedule_visit.doctor_id',
                 'doctors.doctor_name as doctor_name',
@@ -30,6 +35,10 @@ class AppointmentController extends Controller
                 'schedule_visit.visit_end_time',
                 DB::raw("TRIM(CONCAT(patients.patient_fname, ' ', patients.patient_lname)) as patient_name")
             )
+            ->when(\App\Support\VisitAttendance::hasColumns(), fn ($q) => $q->addSelect([
+                'schedule_visit.attendance_response',
+                'schedule_visit.reminder_sent_at',
+            ]))
             ->orderBy('schedule_visit.visit_date')
             ->get();
         \App\Support\DoctorServices::withLabels($appointments, 'doctor_specialty');

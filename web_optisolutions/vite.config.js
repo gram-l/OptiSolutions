@@ -9,6 +9,7 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/css/login.css',
                 'resources/css/staff.css',
+                'resources/css/shared/portal-theme.css',
 
                 'resources/css/admin_css/dashboard.css',
                 'resources/css/admin_css/appointments.css',

@@ -19,11 +19,11 @@
         body table.admin-mobile-table > thead { display: none; }
         body table.admin-mobile-table > tbody > tr {
             display: block;
-            margin-bottom: 1rem;
-            padding: 0.9rem 1.1rem;
+            margin-bottom: 0.7rem;
+            padding: 0.5rem 0.85rem;
             border: 1px solid #ecf0f1;
-            border-left: 4px solid #0e62aa;
-            border-radius: 14px;
+            border-left: 3px solid #0e62aa;
+            border-radius: 12px;
             background: #fff;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
@@ -35,7 +35,7 @@
             max-width: none;
             align-items: baseline;
             gap: 0.6rem;
-            padding: 0.55rem 0;
+            padding: 0.4rem 0;
             border-bottom: 1px solid #f1f3f5;
             white-space: normal;
             text-align: left;
@@ -43,7 +43,7 @@
         body table.admin-mobile-table td[data-label]:not([data-label=""])::before {
             content: attr(data-label);
             display: block;
-            flex: 0 0 108px;
+            flex: 0 0 86px;
             font-size: 0.68rem;
             letter-spacing: 0.03em;
         }
@@ -52,6 +52,8 @@
             flex: 1;
             min-width: 0;
             overflow-wrap: anywhere;
+            font-size: 0.9rem;
+            line-height: 1.35;
         }
         body table.admin-mobile-table td.admin-mobile-actions {
             flex-direction: row;
@@ -61,7 +63,7 @@
             border-bottom: none;
             border-top: 1px dashed #ecf0f1;
             margin-top: 0.25rem;
-            padding-top: 0.85rem;
+            padding-top: 0.6rem;
             padding-bottom: 0;
         }
         body table.admin-mobile-table td.admin-mobile-actions > .action-buttons {

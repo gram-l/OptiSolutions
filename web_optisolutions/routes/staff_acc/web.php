@@ -34,6 +34,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
     Route::get('/staff/appointments/{id}/schedules', [\App\Http\Controllers\VisitRescheduleController::class, 'schedules']);
     Route::post('/staff/appointments/{id}/reschedule', [\App\Http\Controllers\VisitRescheduleController::class, 'store'])->middleware('throttle:10,1');
     Route::post('/staff/appointments/{id}/visited', [\App\Http\Controllers\VisitCompletionController::class, 'store'])->middleware('throttle:20,1');
+    Route::post('/staff/appointments/{id}/status', [\App\Http\Controllers\VisitStatusController::class, 'update'])->middleware('throttle:20,1');
     Route::get('visits/export/{format}', [AppointmentController::class, 'export'])->name('staff.visits.export');
 
     // INQUIRIES
@@ -41,6 +42,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
     Route::get('/staff/inquiries/{id}', [InquiryController::class, 'show'])->name('staff.inquiries.show');
     Route::post('/staff/inquiries/{id}/reply', [InquiryController::class, 'reply'])->name('staff.inquiries.reply');
     Route::put('/staff/inquiries/{id}/resolve', [InquiryController::class, 'resolve'])->name('staff.inquiries.resolve');
+    Route::post('/staff/inquiries/{id}/unresolve', [InquiryController::class, 'unresolve'])->name('staff.inquiries.unresolve');
     Route::post('/staff/inquiries/{id}/typing', [InquiryController::class, 'typing'])->name('staff.inquiries.typing');
 
     // DOCTORS

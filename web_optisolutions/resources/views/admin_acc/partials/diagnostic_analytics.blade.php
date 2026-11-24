@@ -40,6 +40,9 @@
             <details id="diagnostic-report" class="diagnostic-report-dropdown">
                 <summary>Generate report <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
                 <div class="diagnostic-report-options">
+                    <button type="submit" name="report_scope" value="weeks" formaction="{{ route('admin.dashboard.diagnostics.report') }}" formtarget="_blank" formnovalidate>
+                        <i class="bi bi-arrow-left-right" aria-hidden="true"></i> Selected weeks (compare)
+                    </button>
                     <button type="submit" name="report_scope" value="all" formaction="{{ route('admin.dashboard.diagnostics.report') }}" formtarget="_blank" formnovalidate>
                         <i class="bi bi-calendar-range" aria-hidden="true"></i> All dates
                     </button>
@@ -50,6 +53,7 @@
                         </label>
                         <button type="submit" name="report_scope" value="date" formaction="{{ route('admin.dashboard.diagnostics.report') }}" formtarget="_blank" formnovalidate>Generate for this date</button>
                     </details>
+                    <label><input type="checkbox" name="report_comments" value="1"> Include short patient comments</label>
                 </div>
             </details>
         @endunless
@@ -242,6 +246,7 @@
         if (comparisonController || !form.reportValidity()) return;
         const parameters = new URLSearchParams(new FormData(form));
         parameters.delete('report_date');
+        parameters.delete('report_comments');
         const url = new URL(form.dataset.compareUrl, window.location.href);
         url.search = parameters.toString();
         const controller = new AbortController();
@@ -334,4 +339,3 @@
     }
 })();
 </script>
-

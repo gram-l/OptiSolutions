@@ -360,7 +360,7 @@ class DiagnosticAnalyticsTest extends TestCase
         ]);
         $response = $this->get($url)->assertOk()
             ->assertSee('Diagnostic Report')->assertSee('Print / Save as PDF')
-            ->assertSee('Oct 19, 2026')->assertSee('3/5 (1)')->assertSee('Waiting Time (1)')
+            ->assertSee('Oct 19, 2026')->assertSee('Waiting time')->assertSee('How this period compares')
             ->assertDontSee('Long wait');
         $current = $response->viewData('report')['periods'][1];
         $this->assertSame(3, $current['overall']['reviews']);
@@ -392,6 +392,151 @@ class DiagnosticAnalyticsTest extends TestCase
 
         $this->getJson(route('admin.dashboard.diagnostics.report', ['report_scope' => 'date']))
             ->assertUnprocessable()->assertJsonValidationErrors('report_date');
+    }
+
+    private function reportAs(): void
+    {
+        $this->actingAs((new \App\Models\admin_models\User([
+            'name' => 'Test Admin', 'email' => 'admin@example.test', 'user_role' => 'Admin',
+        ]))->forceFill(['status' => 'active']));
+    }
+
+    public function test_weekly_report_compares_periods_and_explains_the_change_in_plain_words(): void
+    {
+        $this->reportAs();
+        // Previous week (Oct 12–18): two 5-star reviews. Current week (Oct 19–25): one 1-star, one 3-star.
+        DB::table('feedback')->insert([
+            ['visit_id' => null, 'feedback_text' => null, 'star_rating' => 5, 'submitted_at' => '2026-10-13 10:00:00'],
+            ['visit_id' => null, 'feedback_text' => null, 'star_rating' => 5, 'submitted_at' => '2026-10-14 10:00:00'],
+            ['visit_id' => null, 'feedback_text' => null, 'star_rating' => 1, 'submitted_at' => '2026-10-20 10:00:00'],
+            ['visit_id' => null, 'feedback_text' => null, 'star_rating' => 3, 'submitted_at' => '2026-10-21 10:00:00'],
+        ]);
+
+        $report = $this->get(route('admin.dashboard.diagnostics.report', [
+            'report_scope' => 'weeks', 'diagnostic_week' => '2026-10-19', 'diagnostic_compare_week' => '2026-10-12',
+        ]))->assertOk()->assertSee('Week-by-week comparison')->assertSee('How this period compares')
+            ->assertSee('This is down from 5.0 in the previous period.')->viewData('report');
+
+        $this->assertCount(2, $report['periods']);
+        $rows = collect($report['comparison']['rows'])->keyBy('label');
+        $this->assertSame('2.0', $rows['Average rating (out of 5)']['current']);
+        $this->assertSame('5.0', $rows['Average rating (out of 5)']['previous']);
+        $this->assertFalse($rows['Average rating (out of 5)']['better']);
+        $this->assertSame('100%', $rows['Unhappy reviews (1–3 stars)']['current']);
+        $this->assertFalse($rows['Unhappy reviews (1–3 stars)']['better']);
+        $this->assertNull($rows['Reviews received']['better']);
+    }
+
+    public function test_single_period_report_has_no_comparison_and_says_so(): void
+    {
+        $this->reportAs();
+        $this->review('2026-10-20', 'Negative');
+
+        $report = $this->get(route('admin.dashboard.diagnostics.report', ['report_scope' => 'all']))
+            ->assertOk()->assertSee('no earlier period to compare against')->assertDontSee('How this period compares')
+            ->viewData('report');
+
+        $this->assertNull($report['comparison']);
+    }
+
+    public function test_unlinked_reviews_explain_why_doctor_and_service_tables_are_missing(): void
+    {
+        $this->reportAs();
+        $this->review('2026-10-20', 'Neutral', 'fine', null);
+        $this->review('2026-10-21', 'Neutral', 'fine', null);
+
+        $current = $this->get(route('admin.dashboard.diagnostics.report', ['report_scope' => 'all']))
+            ->assertOk()->assertSee('This breakdown is not available: none of the 2 reviews are linked to a doctor.', false)
+            ->assertSee('linked to a service')
+            ->viewData('report')['periods'][0];
+
+        $this->assertSame([], $current['doctor_breakdown']['rows']);
+        $this->assertSame(2, $current['doctor_breakdown']['unlinked_reviews']);
+        $this->assertSame([], $current['service_breakdown']['rows']);
+    }
+
+    public function test_breakdown_lists_linked_doctors_worst_first_and_flags_low_averages(): void
+    {
+        $this->reportAs();
+        // Five reviews with no visit link, which must be counted but not listed as a doctor.
+        foreach (range(1, 5) as $i) {
+            DB::table('feedback')->insert(['visit_id' => null, 'feedback_text' => null, 'star_rating' => 5, 'submitted_at' => '2026-10-20 10:00:00']);
+        }
+        // Doctor A: five 5-star reviews. Doctor B: five 2-star reviews.
+        foreach (range(1, 5) as $i) {
+            $v1 = DB::table('schedule_visit')->insertGetId(['doctor_id' => 1, 'service_type' => 'Consultation'], 'visit_id');
+            $v2 = DB::table('schedule_visit')->insertGetId(['doctor_id' => 2, 'service_type' => 'Pediatrics'], 'visit_id');
+            DB::table('feedback')->insert([
+                ['visit_id' => $v1, 'feedback_text' => null, 'star_rating' => 5, 'submitted_at' => '2026-10-20 10:00:00'],
+                ['visit_id' => $v2, 'feedback_text' => null, 'star_rating' => 2, 'submitted_at' => '2026-10-20 10:00:00'],
+            ]);
+        }
+
+        $breakdown = $this->get(route('admin.dashboard.diagnostics.report', ['report_scope' => 'all']))
+            ->assertOk()->assertSee('Needs attention')->viewData('report')['periods'][0]['doctor_breakdown'];
+
+        $this->assertSame(['Doctor B', 'Doctor A'], array_column($breakdown['rows'], 'label'));
+        $this->assertTrue($breakdown['rows'][0]['needs_attention']);
+        $this->assertFalse($breakdown['rows'][1]['needs_attention']);
+        $this->assertSame(5, $breakdown['unlinked_reviews']);
+    }
+
+    public function test_uncategorized_reports_are_counted_and_ranked_issues_show_shares(): void
+    {
+        $this->reportAs();
+        foreach (['long wait here', 'wait wait', 'something else', 'another thing'] as $i => $text) {
+            DB::table('complaints')->insert(['complaint_text' => $text, 'created_at' => '2026-10-20 12:00:00']);
+        }
+
+        $period = $this->get(route('admin.dashboard.diagnostics.report', ['report_scope' => 'all']))
+            ->assertOk()->assertSee('No category matched')->viewData('report')['periods'][0];
+
+        $this->assertSame(4, $period['issue_reports']);
+        $this->assertSame(2, $period['uncategorized']);
+        $this->assertSame('Waiting time', $period['issues'][0]['label']);
+        $this->assertSame(2, $period['issues'][0]['total']);
+        $this->assertSame(50, $period['issues'][0]['share']);
+    }
+
+    public function test_patient_comments_appear_only_when_requested_and_are_escaped(): void
+    {
+        $this->reportAs();
+        DB::table('complaints')->insert(['complaint_text' => 'wait <b>too long</b>', 'created_at' => '2026-10-20 12:00:00']);
+
+        $this->get(route('admin.dashboard.diagnostics.report', ['report_scope' => 'all']))
+            ->assertOk()->assertDontSee('too long')->assertDontSee('What patients said');
+
+        $html = $this->get(route('admin.dashboard.diagnostics.report', ['report_scope' => 'all', 'report_comments' => 1]))
+            ->assertOk()->assertSee('What patients said')->assertSee('wait &lt;b&gt;too long&lt;/b&gt;', false)
+            ->getContent();
+        $this->assertStringNotContainsString('<b>too long</b>', $html);
+    }
+
+    public function test_headline_names_the_top_issue_and_actions_use_plain_advice(): void
+    {
+        $this->reportAs();
+        foreach (range(1, 3) as $i) {
+            DB::table('complaints')->insert(['complaint_text' => 'wait ' . $i, 'created_at' => '2026-10-20 12:00:00']);
+        }
+        $this->review('2026-10-20', 'Neutral', null);
+
+        $report = $this->get(route('admin.dashboard.diagnostics.report', ['report_scope' => 'all']))
+            ->assertOk()->viewData('report');
+
+        $this->assertStringContainsString('Waiting time is the most reported issue (3 of 3 reports).', $report['headline']);
+        $this->assertStringContainsString('Waiting time appears in 100% of issue reports (3 of 3).', $report['actions'][0]);
+    }
+
+    public function test_report_with_no_data_says_so_without_errors(): void
+    {
+        $this->reportAs();
+
+        $report = $this->get(route('admin.dashboard.diagnostics.report', ['report_scope' => 'all']))
+            ->assertOk()->assertSee('No complaints or unhappy comments were recorded in this period.')
+            ->viewData('report');
+
+        $this->assertSame('No reviews or complaints were recorded for this period.', $report['headline']);
+        $this->assertSame([], $report['actions']);
     }
 
     public function test_staff_dashboard_renders_shared_modal_with_staff_comparison_routes(): void

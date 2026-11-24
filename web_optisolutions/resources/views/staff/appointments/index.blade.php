@@ -91,7 +91,7 @@
 <div class="container">
 <div class="visits-admin">
     <div class="va-page-header">
-        <h2><span><i class="bi bi-calendar2-plus"></i></span> Scheduled Visits</h2>
+        <h2>Scheduled Visits</h2>
         <p>Review and manage scheduled patient visits, one day at a time</p>
     </div>
 

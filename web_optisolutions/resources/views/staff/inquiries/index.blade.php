@@ -6,7 +6,7 @@
 <div class="container">
 <div class="inq-admin">
     <div class="inq-page-header">
-        <h2><span><i class="bi bi-chat-dots"></i></span> Chatbot Inquiries</h2>
+        <h2>Chatbot Inquiries</h2>
         <p>Review and respond to patient conversations from the AI chatbot</p>
     </div>
 
@@ -568,14 +568,14 @@
         // Initial render
         renderChatList("");
 
-        // Deep link (/staff/inquiries/{id}) opens that conversation; otherwise
-        // desktop opens the first one and mobile starts on the recent list.
+        // Deep link (/staff/inquiries/{id}) opens that conversation; otherwise nothing is
+        // opened until a conversation is clicked.
         if (OPEN_ID !== null && chatLogs.some(c => c.id === OPEN_ID)) {
             const idx = chatLogs.findIndex(c => c.id === OPEN_ID);
             if (idx >= visibleCount) { visibleCount = idx + 1; renderChatList(""); }
             openChat(OPEN_ID);
-        } else if (chatLogs.length > 0 && !window.matchMedia('(max-width: 768px)').matches) {
-            openChat(chatLogs[0].id);
         }
     </script>
+
+@include('partials.inquiry-panel-resizer')
 @endsection

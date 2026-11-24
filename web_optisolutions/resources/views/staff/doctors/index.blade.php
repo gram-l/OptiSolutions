@@ -34,6 +34,26 @@
             return implode(', ', $parts);
         }
     }
+
+    // One line per scheduled day, e.g. "Mon 10 AM–03 PM" / "Tue 01–03 PM" (as in the table design).
+    if (!function_exists('doctorScheduleLines')) {
+        function doctorScheduleLines($schedules): array {
+            if (!$schedules || $schedules->isEmpty()) return [];
+            $order = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+            $fmt = function ($t, $withMeridiem) {
+                $c = \Carbon\Carbon::parse($t);
+                return $c->format($c->minute === 0 ? 'h' : 'h:i') . ($withMeridiem ? ' ' . $c->format('A') : '');
+            };
+            return $schedules->sortBy(fn ($s) => [array_search($s->day, $order), $s->start_time])->map(function ($s) use ($fmt) {
+                $day = substr($s->day, 0, 3);
+                if (!$s->start_time || !$s->end_time) return $day;
+                $start = \Carbon\Carbon::parse($s->start_time);
+                $end = \Carbon\Carbon::parse($s->end_time);
+                $sameMeridiem = $start->format('A') === $end->format('A');
+                return $day . ' ' . $fmt($s->start_time, !$sameMeridiem) . '–' . $fmt($s->end_time, true);
+            })->values()->all();
+        }
+    }
 @endphp
 
 <style>
@@ -41,7 +61,6 @@
     .docs-admin { --light-gray: #ECF0F1; --primary-dark: #062744; --shadow: rgba(0,0,0,0.1); }
     .docs-admin .dc-page-header { margin-bottom: 1.25rem; padding-left: 0.35rem; }
     .docs-admin .dc-page-header h2 { font-size: 1.75rem; color: var(--primary-dark); display: flex; align-items: center; gap: 0.65rem; margin: 0; }
-    .docs-admin .dc-page-header h2 span { display: inline-flex; align-items: center; justify-content: center; width: 2.15rem; height: 2.15rem; flex-shrink: 0; border-radius: 10px; background: rgba(14,98,170,0.1); color: var(--primary-main); font-size: 1.05rem; }
     .docs-admin .dc-page-header p { color: #7f8c8d; margin: 0.4rem 0 0; padding-left: 0.35rem; }
     .docs-admin .action-bar { background: #fff; padding: 1rem 1.5rem; border-radius: 15px; margin-bottom: 1.5rem !important; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; box-shadow: 0 2px 10px var(--shadow); }
     .docs-admin .action-bar .filters { display: flex; gap: 1rem; flex-wrap: wrap; }
@@ -53,54 +72,54 @@
     .docs-admin .dl-btn:hover { background: #0b4f8a; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(14,98,170,0.3); }
     .docs-admin #exportMenu { right: 0; left: auto; top: calc(100% + 6px); width: 200px; padding: 0.5rem 0; }
 
-    .docs-admin .doctors-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
-    .docs-admin .doctor-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 15px var(--shadow); border: 1px solid var(--light-gray); overflow: hidden; display: flex; flex-direction: column; transition: transform .25s ease, box-shadow .25s ease; }
-    .docs-admin .doctor-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
-    .docs-admin .doctor-card.inactive { opacity: 0.7; }
-    .docs-admin .card-header { padding: 1.5rem 1.5rem 1.1rem; text-align: center; border-bottom: 1px solid var(--light-gray); }
-    .docs-admin .doctor-avatar { width: 76px; height: 76px; margin: 0 auto 0.75rem; border-radius: 50%; background: var(--primary-main); color: #fff; font-size: 1.9rem; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .docs-admin .doctors-table-wrap { background: #fff; border-radius: 15px; box-shadow: 0 2px 10px var(--shadow); overflow-x: auto; }
+    .docs-admin .doctors-table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    .docs-admin .doctors-table thead th { background: #ECF0F1; color: #34495e; font-size: 0.85rem; font-weight: 600; text-align: left; padding: 1rem 1.25rem; white-space: nowrap; }
+    .docs-admin .doctors-table tbody td { padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--light-gray); vertical-align: middle; font-size: 0.92rem; color: var(--primary-dark); }
+    .docs-admin .doctors-table tbody tr:last-child td { border-bottom: none; }
+    .docs-admin .doctors-table tbody tr.doctor-row:hover { background: #f8fafc; }
+    .docs-admin .doctors-table tr.inactive td { opacity: 0.7; }
+    .docs-admin .doc-cell { display: flex; align-items: center; gap: 0.75rem; font-weight: 500; }
+    .docs-admin .doctor-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--primary-main); color: #fff; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
     .docs-admin .doctor-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .docs-admin .doctor-name { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 0.15rem; }
-    .docs-admin .doctor-specialty { font-size: 0.82rem; color: #7f8c8d; margin-bottom: 0.7rem; }
-    .docs-admin .status-badge { display: inline-block; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.03em; }
-    .docs-admin .status-active { background: #e8f8f0; color: #0E62AA; }
+    .docs-admin .sched-line { font-size: 0.85rem; color: #5a6474; line-height: 1.55; white-space: nowrap; }
+    .docs-admin .sched-extra { display: none; }
+    .docs-admin .sched-extra.open { display: block; }
+    .docs-admin .sched-more { background: none; border: none; padding: 0; margin-top: 0.1rem; color: var(--primary-main); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .docs-admin .sched-more:hover { text-decoration: underline; }
+    .docs-admin .sched-none { font-size: 0.85rem; color: #95a5a6; }
+    .docs-admin .status-badge { display: inline-block; padding: 0.3rem 0.85rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+    .docs-admin .status-active { background: #e8f8f0; color: #1e9e5a; }
     .docs-admin .status-inactive { background: #fdeaea; color: #e74c3c; }
-    .docs-admin .card-body { padding: 1.25rem 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; flex: 1; }
-    .docs-admin .doctor-description { font-size: 0.85rem; color: #5a6474; line-height: 1.5; }
-    .docs-admin .schedule-info { background: #f4f6fb; border-radius: 10px; padding: 0.8rem 1rem; }
-    .docs-admin .schedule-title { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; font-size: 0.8rem; color: var(--primary-dark); margin-bottom: 0.35rem; }
-    .docs-admin .schedule-text { font-size: 0.8rem; color: #5a6474; line-height: 1.45; }
-    .docs-admin .card-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: auto; padding-top: 0.25rem; }
-    .docs-admin .btn-icon { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.35rem 0.85rem; border: none; border-radius: 20px; cursor: pointer; font-size: 0.75rem; font-weight: 600; transition: all .2s ease; background: #e8f0fe; color: var(--primary-main); }
+    .docs-admin .btn-icon { display: inline-flex; align-items: center; justify-content: center; padding: 0.4rem 1.1rem; border: none; border-radius: 20px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all .2s ease; background: #e8f0fe; color: var(--primary-main); }
     .docs-admin .btn-icon:hover { background: #d5e5fc; }
     .docs-admin .btn-icon:disabled { background: var(--light-gray); color: #a3adb8; cursor: not-allowed; }
-    .docs-admin .empty-state { text-align: center; padding: 3rem; color: #95a5a6; grid-column: 1 / -1; }
-    body.dark-mode .docs-admin .dc-page-header h2, body.dark-mode .docs-admin .doctor-name, body.dark-mode .docs-admin .schedule-title { color: #e7edf5; }
-    body.dark-mode .docs-admin :is(.action-bar, .doctor-card, .search-box, .filter-select) { background: #1a2232; border-color: #344155; color: #e7edf5; }
-    body.dark-mode .docs-admin .card-header { border-color: #344155; }
-    body.dark-mode .docs-admin .schedule-info { background: #293548; }
-    body.dark-mode .docs-admin :is(.doctor-description, .schedule-text, .doctor-specialty) { color: #afbdce; }
+    .docs-admin .empty-state { text-align: center; padding: 3rem 1rem !important; color: #95a5a6 !important; }
+    body.dark-mode .docs-admin .dc-page-header h2, body.dark-mode .docs-admin .doctors-table tbody td { color: #e7edf5; }
+    body.dark-mode .docs-admin :is(.action-bar, .doctors-table-wrap, .search-box, .filter-select) { background: #1a2232; border-color: #344155; color: #e7edf5; }
+    body.dark-mode .docs-admin .doctors-table thead th { background: #293548; color: #afbdce; }
+    body.dark-mode .docs-admin .doctors-table tbody td { border-color: #344155; }
+    body.dark-mode .docs-admin .doctors-table tbody tr.doctor-row:hover { background: #222d40; }
+    body.dark-mode .docs-admin :is(.sched-line, .sched-none) { color: #afbdce; }
     @media (max-width: 768px) {
         .docs-admin .dc-page-header { padding-left: 0.15rem; }
-        .docs-admin .dc-page-header h2 { font-size: 1.4rem; gap: 0.55rem; }
-        .docs-admin .dc-page-header h2 span { width: 1.9rem; height: 1.9rem; font-size: 0.9rem; border-radius: 8px; }
+        .docs-admin .dc-page-header h2 { font-size: 1.4rem; }
         .docs-admin .action-bar, .docs-admin .action-bar .filters { flex-direction: column; align-items: stretch; }
         .docs-admin .search-box { width: 100%; }
         .docs-admin .dl-btn { justify-content: center; width: 100%; }
-        .docs-admin .doctors-grid { grid-template-columns: 1fr; gap: 1rem; }
     }
 </style>
 
 <div class="container">
 <div class="docs-admin">
     <div class="dc-page-header">
-        <h2><span><i class="fa-solid fa-user-doctor"></i></span> Manage Doctors</h2>
-        <p>View doctor profiles and edit their schedules</p>
+        <h2>Manage Doctors</h2>
+        <p>View and edit doctor schedules</p>
     </div>
 
     <div class="action-bar">
         <div class="filters">
-            <input type="text" class="search-box" id="doctorSearch" placeholder="Search by name or specialty..." oninput="filterDoctorsTable()">
+            <input type="text" class="search-box" id="doctorSearch" placeholder="Search name or specialty..." oninput="filterDoctorsTable()">
             <select class="filter-select" id="departmentFilter" onchange="filterDoctorsTable()">
                 <option value="">All Departments</option>
                 @foreach(\App\Support\DoctorSpecialties::catalog() as $specialty)
@@ -126,54 +145,78 @@
         </div>
     </div>
 
-    <div class="doctors-grid" id="doctorsGrid">
-        @forelse($doctors as $doc)
-            @php
-                $isActive = (bool) $doc->available;
-                $desc = trim((string) $doc->description);
-                $desc = $desc === '' ? 'No description provided.' : \Illuminate\Support\Str::limit($desc, 100);
-            @endphp
-            <div class="doctor-card {{ $isActive ? '' : 'inactive' }}"
-                 data-name="{{ strtolower($doc->doctor_name) }}"
-                 data-specialty="{{ strtolower($doc->specialty) }}"
-                 data-status="{{ $isActive ? 'active' : 'inactive' }}">
-                <div class="card-header">
-                    <div class="doctor-avatar">
-                        @if($doc->profile_image)
-                            <img src="{{ asset('storage/' . $doc->profile_image) }}" alt="{{ $doc->doctor_name }}">
-                        @else
-                            <i class="fa-solid fa-user-doctor"></i>
-                        @endif
-                    </div>
-                    <div class="doctor-name">{{ $doc->doctor_name }}</div>
-                    <div class="doctor-specialty">{{ $doc->specialty }}</div>
-                    <span class="status-badge {{ $isActive ? 'status-active' : 'status-inactive' }}">
-                        {{ $isActive ? '● ACTIVE' : '○ INACTIVE' }}
-                    </span>
-                </div>
-                <div class="card-body">
-                    <div class="doctor-description">{{ $desc }}</div>
-                    <div class="schedule-info">
-                        <div class="schedule-title"><span><i class="fa-solid fa-clock"></i></span> Schedule</div>
-                        <div class="schedule-text">{{ formatScheduleAdminStyle($doc->schedules) }}</div>
-                    </div>
-                    <div class="card-actions">
-                        @if($isActive)
-                            <button type="button" class="btn-icon" onclick="openEditModal({{ $doc->doctor_id }})">
-                                <i class="fa-solid fa-edit"></i> Edit
-                            </button>
-                        @else
-                            <button type="button" class="btn-icon" disabled title="Set as inactive by the admin, so its schedule can't be edited here.">
-                                <i class="fa-solid fa-edit"></i> Edit
-                            </button>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        @empty
-            <div class="empty-state">No doctors found.</div>
-        @endforelse
-        <div class="empty-state" id="noResultsMsg" style="display: none;">No matching doctors found.</div>
+    <div class="doctors-table-wrap">
+        <table class="doctors-table" id="doctorsTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Specialty</th>
+                    <th>Schedule</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($doctors as $doc)
+                    @php
+                        $isActive = (bool) $doc->available;
+                        $lines = doctorScheduleLines($doc->schedules);
+                        $initials = collect(preg_split('/\s+/', preg_replace('/^Dr\.?\s*/i', '', trim((string) $doc->doctor_name))))
+                            ->filter()->take(2)->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))->implode('');
+                    @endphp
+                    <tr class="doctor-row {{ $isActive ? '' : 'inactive' }}"
+                        data-name="{{ strtolower($doc->doctor_name) }}"
+                        data-specialty="{{ strtolower($doc->specialty) }}"
+                        data-status="{{ $isActive ? 'active' : 'inactive' }}">
+                        <td>
+                            <div class="doc-cell">
+                                <div class="doctor-avatar">
+                                    @if($doc->profile_image)
+                                        <img src="{{ asset('storage/' . $doc->profile_image) }}" alt="{{ $doc->doctor_name }}">
+                                    @else
+                                        {{ $initials }}
+                                    @endif
+                                </div>
+                                <span>{{ $doc->doctor_name }}</span>
+                            </div>
+                        </td>
+                        <td>{{ $doc->specialty }}</td>
+                        <td>
+                            @if(count($lines) === 0)
+                                <span class="sched-none">Schedule not set</span>
+                            @else
+                                @foreach(array_slice($lines, 0, 2) as $line)
+                                    <div class="sched-line">{{ $line }}</div>
+                                @endforeach
+                                @if(count($lines) > 2)
+                                    <div class="sched-extra">
+                                        @foreach(array_slice($lines, 2) as $line)
+                                            <div class="sched-line">{{ $line }}</div>
+                                        @endforeach
+                                    </div>
+                                    <button type="button" class="sched-more" data-more="+ {{ count($lines) - 2 }} more" onclick="toggleScheduleMore(this)">+ {{ count($lines) - 2 }} more</button>
+                                @endif
+                            @endif
+                        </td>
+                        <td>
+                            <span class="status-badge {{ $isActive ? 'status-active' : 'status-inactive' }}">
+                                {{ $isActive ? '● Available' : '○ Inactive' }}
+                            </span>
+                        </td>
+                        <td style="text-align:right;">
+                            @if($isActive)
+                                <button type="button" class="btn-icon" onclick="openEditModal({{ $doc->doctor_id }})">Edit</button>
+                            @else
+                                <button type="button" class="btn-icon" disabled title="Set as inactive by the admin, so its schedule can't be edited here.">Edit</button>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="empty-state">No doctors found.</td></tr>
+                @endforelse
+                <tr id="noResultsMsg" style="display: none;"><td colspan="5" class="empty-state">No matching doctors found.</td></tr>
+            </tbody>
+        </table>
     </div>
 </div>
 </div>
@@ -276,24 +319,31 @@
         }
     });
 
+    function toggleScheduleMore(btn) {
+        const extra = btn.previousElementSibling;
+        const open = extra.classList.toggle('open');
+        btn.textContent = open ? 'Show less' : btn.dataset.more;
+    }
+
     function filterDoctorsTable() {
         const search = document.getElementById('doctorSearch').value.trim().toLowerCase();
         const department = document.getElementById('departmentFilter').value;
         const status = document.getElementById('statusFilter').value;
         let visible = 0;
 
-        document.querySelectorAll('#doctorsGrid .doctor-card').forEach(function (card) {
+        document.querySelectorAll('#doctorsTable tr.doctor-row').forEach(function (card) {
             const specialty = card.dataset.specialty || '';
             const matchesSearch = (card.dataset.name + ' ' + specialty).includes(search);
             const matchesDepartment = department === '' || specialty.split('/').map(function (v) { return v.trim(); }).includes(department);
             const matchesStatus = status === '' || card.dataset.status === status;
             const show = matchesSearch && matchesDepartment && matchesStatus;
             card.style.display = show ? '' : 'none';
+            if (!show) { const ex = card.querySelector('.sched-extra'); if (ex) ex.classList.remove('open'); }
             if (show) visible++;
         });
 
         const msg = document.getElementById('noResultsMsg');
-        if (msg) msg.style.display = visible === 0 && document.querySelector('#doctorsGrid .doctor-card') ? 'block' : 'none';
+        if (msg) msg.style.display = visible === 0 && document.querySelector('#doctorsTable tr.doctor-row') ? 'table-row' : 'none';
     }
 
     // ===== Edit Schedule Modal =====

@@ -200,7 +200,6 @@
         <div style="flex: 1; min-width: 0;">
         <div class="page-header">
             <h2>
-                <span><i class="bi bi-calendar2-plus"></i></span>
                 Scheduled Visits
             </h2>
             <p>Review and manage scheduled patient visits, one day at a time</p>

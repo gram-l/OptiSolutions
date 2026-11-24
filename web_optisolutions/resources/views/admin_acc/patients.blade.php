@@ -29,7 +29,6 @@
         <div style="flex: 1; min-width: 0;">
         <div class="page-header">
             <h2>
-                <span><i class="fa-regular fa-hospital"></i></span> 
                 Patient Records
             </h2>
             <p>View and manage all registered patients, their medical history, and assigned doctors</p>

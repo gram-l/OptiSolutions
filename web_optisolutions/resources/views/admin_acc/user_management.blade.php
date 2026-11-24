@@ -8,6 +8,34 @@
     <title>OptiSolutions - User Management</title>
     @vite(['resources/css/admin_css/user_management.css', 'resources/css/admin_css/sidebar.css', 'resources/css/admin_css/header.css', 'resources/css/admin_css/system_settings.css'])
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        /* Role: no box, just bold text */
+        .users-table .role-badge { background: transparent !important; padding: 0; border-radius: 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.01em; }
+        .users-table .role-admin { color: #12395c; }
+        .users-table .role-staff { color: #4a5a6c; }
+        body.dark-mode .users-table .role-badge { background: transparent !important; }
+        body.dark-mode .users-table .role-admin { color: #cfe5ff !important; }
+        body.dark-mode .users-table .role-staff { color: #c3cedb !important; }
+
+        /* Status: a plain green / red circle. The label shows on hover or keyboard focus. */
+        .users-table .status-pill { position: relative; display: inline-block; width: 16px; height: 16px; min-width: 16px; flex: none; aspect-ratio: 1 / 1; border-radius: 50% !important; cursor: default; outline: none; vertical-align: middle; }
+        .users-table .status-pill.is-active { background: #1e9e55; }
+        .users-table .status-pill.is-inactive { background: #d64545; }
+        .users-table .status-pill:focus-visible { box-shadow: 0 0 0 3px rgba(14, 98, 170, 0.35); }
+        .users-table .status-pill::after { content: attr(data-tip); position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%); padding: 0.3rem 0.7rem; border-radius: 6px; background: #fff; border: 1px solid #dfe5ec; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12); font-size: 0.78rem; font-weight: 700; line-height: 1.2; white-space: nowrap; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .12s ease; z-index: 5; }
+        .users-table .status-pill.is-active::after { color: #1e8a4c; }
+        .users-table .status-pill.is-inactive::after { color: #c62828; }
+        .users-table .status-pill:is(:hover, :focus-visible)::after { opacity: 1; visibility: visible; }
+        body.dark-mode .users-table .status-pill::after { background: #1a2232; border-color: #344155; }
+        body.dark-mode .users-table .status-pill.is-active::after { color: #8ce3ba; }
+        body.dark-mode .users-table .status-pill.is-inactive::after { color: #ffb9c1; }
+
+        /* Status column: centred (desktop table only; mobile cards keep their label/value layout) */
+        @media (min-width: 769px) {
+            .users-table th:nth-child(4), .users-table td[data-label="Status"] { text-align: center; }
+        }
+    </style>
+    @include('partials.pro-action-buttons')
 </head>
 <body>
     @include('admin_acc.header')
@@ -18,7 +46,7 @@
         <div id="userManagementContent" style="flex: 1; min-width: 0;">
 
             <div class="page-header">
-                <h2><span><i class="fa-solid fa-users"></i></span> User Management</h2>
+                <h2>User Management</h2>
                 <p>Manage staff accounts, roles, and permissions</p>
             </div>
 
@@ -34,7 +62,7 @@
                 <select class="filter-select" id="statusFilter">
                     <option value="all">All Status</option>
                     <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="inactive">Deactivated</option>
                 </select>
                 <button class="add-user-btn" id="openAddModalBtn">
                     <span><i class="fa-solid fa-user-plus"></i></span> Add New Staff Account
@@ -223,7 +251,7 @@
                             </td>
                             <td data-label="Email">${escapeHtml(u.email)}</td>
                             <td data-label="Role"><span class="role-badge ${getRoleBadgeClass(u.user_role)}">${u.user_role}</span></td>
-                            <td data-label="Status"><span class="status-badge status-${u.status}">${isActive ? '● Active' : '○ Inactive'}</span></td>
+                            <td data-label="Status"><span class="status-pill ${isActive ? 'is-active' : 'is-inactive'}" tabindex="0" role="img" aria-label="${isActive ? 'Active' : 'Deactivated'}" data-tip="${isActive ? 'Active' : 'Deactivated'}"></span></td>
                             <td data-label="Last Login" style="font-size:0.85rem;color:#7f8c8d;">${u.last_login_at ?? 'Never'}</td>
                             <td data-label="" class="action-buttons">
                                 <button class="btn-icon btn-edit" onclick="openEditModal(${u.user_id})">

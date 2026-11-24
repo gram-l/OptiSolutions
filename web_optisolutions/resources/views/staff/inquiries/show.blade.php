@@ -6,7 +6,7 @@
 <div class="container">
     <div class="page-title-group" style="margin-bottom: 1rem;">
         <h3 style="margin: 0; font-size: 1.75rem; color: var(--primary-dark); display: flex; align-items: center;">
-            <span class="inq-header-icon"><i class="bi bi-chat-square-text"></i></span> Chatbot Inquiries
+            Chatbot Inquiries
         </h3>
         <p class="page-subtitle">Review and respond to patient conversations from the AI chatbot</p>
     </div>

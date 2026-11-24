@@ -81,7 +81,6 @@
         <div style="flex: 1; min-width: 0;">
             <div class="page-header">
                 <h2>
-                    <span><i class="fa-solid fa-robot"></i></span>
                     Chatbot Commands
                 </h2>
                 <p>Manage the extra quick replies the chatbot can answer with — FAQs like "parking",

@@ -23,7 +23,7 @@ class ScheduleVisitCapacity
 
     public static function perHour(): int
     {
-        return max(1, (int) config('clinic.max_patients_per_hour', 2));
+        return max(1, (int) config('clinic.max_patients_per_hour', 3));
     }
 
     public static function maxVisitsPerPatientPerDay(): int

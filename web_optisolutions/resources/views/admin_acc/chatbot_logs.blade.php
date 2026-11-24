@@ -30,8 +30,7 @@
 <main class="inquiries-page">
         <div class="page-header">
             <h2>
-                <span><i class="bi bi-chat-dots"></i></span> 
-                Chatbot Inquiries
+                                Chatbot Inquiries
             </h2>
             <p>Review and respond to patient conversations from the AI chatbot</p>
         </div>
@@ -734,12 +733,7 @@
         // Initial render
         renderChatList("");
 
-        // Desktop opens the first conversation; mobile starts with the recent list.
-        if (chatLogs.length > 0 && !window.matchMedia('(max-width: 768px)').matches) {
-            setTimeout(() => {
-                if (!window.matchMedia('(max-width: 768px)').matches) openChat(chatLogs[0].id);
-            }, 100);
-        }
     </script>
+@include('partials.inquiry-panel-resizer')
 </body>
 </html>

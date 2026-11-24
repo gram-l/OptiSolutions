@@ -28,7 +28,7 @@
         <!-- Modal topbar -->
         <div class="settings-modal-topbar">
             <div class="settings-modal-topbar-text">
-                <h2><i class="bi bi-gear"></i> Settings</h2>
+                <h2>Settings</h2>
                 <p>Manage clinic-wide preferences, security, and account options</p>
             </div>
             <button class="settings-modal-close" id="settingsCloseBtn" aria-label="Close settings">

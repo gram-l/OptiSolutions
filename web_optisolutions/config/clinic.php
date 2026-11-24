@@ -9,7 +9,7 @@ return [
     | max_visits_per_patient_per_day: schedule visits one patient can hold on
     |   the same date (Pending and Confirmed count; Cancelled does not).
     */
-    'max_patients_per_hour' => (int) env('CLINIC_MAX_PATIENTS_PER_HOUR', 2),
+    'max_patients_per_hour' => (int) env('CLINIC_MAX_PATIENTS_PER_HOUR', 3),
     'max_visits_per_patient_per_day' => (int) env('CLINIC_MAX_VISITS_PER_PATIENT_PER_DAY', 2),
     /*
     | Short reminders shown in the visit confirmation email (one per line).

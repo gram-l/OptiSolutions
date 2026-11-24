@@ -29,6 +29,9 @@
             overflow-y: auto;
             box-shadow: 0 12px 32px var(--shadow);
         }
+        /* Core-value remove (x): no background, just the red x */
+        .core-value-row .btn-remove, .core-value-row .btn-remove:hover { background: transparent !important; }
+        .core-value-row .btn-remove:hover { color: #b42318; }
     </style>
     @include('admin_acc.partials.centered-toast-styles')
 </head>
@@ -42,7 +45,6 @@
         <main style="flex: 1; min-width: 0;">
             <div class="page-header">
             <h2>
-                <span><i class="bi bi-gear"></i></span>
                 System Settings
             </h2>
             <p>Manage clinic hours, about page, contact info, services, and FAQs</p>
@@ -71,7 +73,6 @@
                 <form action="{{ route('system_settings.update', 'hours') }}" method="POST">
                     @csrf
                     <div class="ss-card-head">
-                        <span class="ss-card-icon" aria-hidden="true"><i class="bi bi-clock"></i></span>
                         <div><h3>Clinic Hours</h3><p>This is what patients see as the clinic&rsquo;s opening hours.</p></div>
                     </div>
                     <div class="form-group">
@@ -90,7 +91,6 @@
                 <form action="{{ route('system_settings.update', 'about') }}" method="POST">
                     @csrf
                     <div class="ss-card-head">
-                        <span class="ss-card-icon" aria-hidden="true"><i class="bi bi-info-circle"></i></span>
                         <div><h3>About the Clinic</h3><p>Description, mission, vision and core values shown on the About page.</p></div>
                     </div>
                     <div class="form-group">
@@ -140,7 +140,6 @@
                 <form action="{{ route('system_settings.update', 'contact') }}" method="POST">
                     @csrf
                     <div class="ss-card-head">
-                        <span class="ss-card-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
                         <div><h3>Contact Information</h3><p>Where patients can find and reach the clinic.</p></div>
                     </div>
                     <div class="form-group">

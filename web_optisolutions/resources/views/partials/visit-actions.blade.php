@@ -37,6 +37,35 @@
         const menu = document.querySelector('.visit-menu[open]');
         if (menu) { menu.open = false; menu.querySelector('summary').focus(); }
     });
+    // Hover-capable devices (mouse/trackpad): open the menu the moment the cursor is on the
+    // three dots, and keep it open while the cursor is on the dots or the menu itself.
+    // Touch devices and keyboard users still use tap / Enter / Space as before.
+    const canHover = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const closeTimers = new WeakMap();
+    const cancelClose = menu => { clearTimeout(closeTimers.get(menu)); closeTimers.delete(menu); };
+    document.addEventListener('mouseover', event => {
+        if (!canHover.matches) return;
+        const menu = event.target.closest?.('.visit-menu');
+        if (!menu) return;
+        cancelClose(menu);
+        if (!menu.open) menu.open = true;
+    });
+    document.addEventListener('mouseout', event => {
+        if (!canHover.matches) return;
+        const menu = event.target.closest?.('.visit-menu');
+        if (!menu || menu.contains(event.relatedTarget)) return;
+        cancelClose(menu);
+        // short grace period so the cursor can cross the small gap between the dots and the menu
+        closeTimers.set(menu, setTimeout(() => { menu.open = false; }, 180));
+    });
+    // A mouse click on the dots must not close a menu that hover already opened.
+    document.addEventListener('click', event => {
+        const summary = event.target.closest?.('.visit-menu summary');
+        if (summary && canHover.matches && event.detail > 0) {
+            event.preventDefault();
+            summary.parentElement.open = true;
+        }
+    }, true);
     document.addEventListener('scroll', () => closeMenus(), true);
     window.addEventListener('resize', () => closeMenus());
 })();

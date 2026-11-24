@@ -4,7 +4,7 @@
 <div class="container">
     <div class="page-title-group" style="margin-bottom: 1rem;">
         <h3 style="margin: 0;">
-            <i class="bi bi-folder2-open"></i> Patient Records
+            Patient Records
         </h3>
         <p class="page-subtitle">View and manage patient records</p>
     </div>

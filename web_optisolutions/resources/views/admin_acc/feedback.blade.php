@@ -151,7 +151,6 @@
         <div style="flex: 1; min-width: 0;">
             <div class="page-header">
                 <h2>
-                    <span><i class="fa-solid fa-star-half-stroke"></i></span>
                     Feedback & Sentiment Analysis
                 </h2>
                 <p>Review patient feedback, analyze sentiment, and identify recurring issues</p>

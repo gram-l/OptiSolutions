@@ -60,11 +60,11 @@
     .rating-leaders-list { list-style:none; padding:0; margin:0; }
     .rating-leaders-list li { display:flex; flex-direction:column; gap:.3rem; padding:.7rem 0; border-bottom:1px solid #e2e8f0; }
     .rating-leader-name { color:#334155; font-size:.9rem; overflow-wrap:anywhere; }
-    .rating-leader-score { color:#8a5700; font-weight:700; font-size:.9rem; }
+    .rating-leader-score { color:#0f172a; font-weight:700; font-size:.9rem; }
     .rating-leader-count,.rating-leaders-note,.rating-leaders-empty { color:#64748b; font-size:.8rem; font-weight:400; }
     .rating-leaders-note { margin:1rem 0 0; }
     body.dark-mode .rating-leaders-columns h4,body.dark-mode .rating-leader-name { color:#d9e5f5; }
-    body.dark-mode .rating-leader-score { color:#f5ce73; }
+    body.dark-mode .rating-leader-score { color:#e7edf5; }
     body.dark-mode :is(.rating-leader-count,.rating-leaders-note,.rating-leaders-empty) { color:#adbdcf; }
     @media(max-width:600px) { .rating-leaders-columns { grid-template-columns:1fr; gap:1rem; } }
     @media(max-width:900px) { .chart-card.rating-leaders-card { contain:none; height:400px; box-sizing:border-box; } }

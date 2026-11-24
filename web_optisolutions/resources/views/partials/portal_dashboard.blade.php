@@ -1,5 +1,5 @@
 <header class="dashboard-heading">
-    <h1><span class="dashboard-heading-icon" aria-hidden="true"><i class="bi bi-house-door"></i></span> Dashboard</h1>
+    <h1>Dashboard</h1>
     <button type="button" class="diagnostic-trigger" id="diagnostic-open" aria-haspopup="dialog" aria-controls="diagnostic-modal">
         <i class="bi bi-bar-chart-line-fill" aria-hidden="true"></i> Diagnostic Analytics
     </button>

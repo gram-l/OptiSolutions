@@ -141,7 +141,23 @@
             background: #0E62AA;
         }
 
+        /* ---- Compact doctor cards ---- */
+        .doctors-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+        .doctor-card { border-radius: 12px; }
+        .doctor-card .card-header { padding: 0.9rem 1rem 0.7rem; }
+        .doctor-card .doctor-avatar { width: 56px; height: 56px; margin-bottom: 0.45rem; font-size: 1.4rem; }
+        .doctor-card .doctor-name { font-size: 0.95rem; line-height: 1.25; margin-bottom: 0.1rem; }
+        .doctor-card .doctor-specialty { font-size: 0.78rem; margin-bottom: 0.45rem; }
+        .doctor-card .card-header .status-badge { padding: 0.12rem 0.65rem; font-size: 0.65rem; }
+        .doctor-card .card-body { padding: 0.8rem 1rem 0.9rem; gap: 0.6rem; }
+        .doctor-card .doctor-description { font-size: 0.8rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .doctor-card .schedule-info { padding: 0.5rem 0.75rem; border-radius: 8px; }
+        .doctor-card .schedule-title { font-size: 0.76rem; margin-bottom: 0.2rem; }
+        .doctor-card .schedule-text { font-size: 0.76rem; line-height: 1.35; }
+        .doctor-card .card-actions { gap: 0.35rem; padding-top: 0; }
+        .doctor-card .card-actions .btn-icon { padding: 0.35rem 0.65rem; font-size: 0.76rem; }
     </style>
+    @include('partials.pro-action-buttons')
     @include('admin_acc.partials.centered-toast-styles')
 </head>
 <body>
@@ -155,7 +171,6 @@
           <div style="flex: 1; min-width: 0;">
         <div class="page-header">
             <h2>
-                <span><i class="fa-solid fa-user-doctor"></i></span> 
                 Manage Doctors
             </h2>
             <p>Add, edit, or remove doctor profiles and manage their schedules</p>

@@ -1,14 +1,13 @@
 {{-- Admin "Manage" lists (User Management table, Manage Doctors cards):
      Edit / Deactivate / Activate keep their original coloured look (with icons).
-     Only Delete / Remove is toned down: muted text, no background, and it only
-     turns red when hovered, so it doesn't draw attention. --}}
+     Delete / Remove is always red (soft red pill), darker red on hover. --}}
 <style>
     .users-table .action-buttons .btn-delete,
-    .doctor-card .card-actions .btn-remove { background: transparent; color: #8a94a0; font-weight: 500; box-shadow: none; }
+    .doctor-card .card-actions .btn-remove { background: #fdeaea; color: #e74c3c; font-weight: 600; box-shadow: none; }
     .users-table .action-buttons .btn-delete:hover,
-    .doctor-card .card-actions .btn-remove:hover { background: #fdf3f3; color: #b42318; }
+    .doctor-card .card-actions .btn-remove:hover { background: #fbd8d8; color: #c0392b; }
     body.dark-mode .users-table .action-buttons .btn-delete,
-    body.dark-mode .doctor-card .card-actions .btn-remove { background: transparent !important; color: #98a6b8 !important; }
+    body.dark-mode .doctor-card .card-actions .btn-remove { background: #4a2831 !important; color: #ffb9c1 !important; }
     body.dark-mode .users-table .action-buttons .btn-delete:hover,
-    body.dark-mode .doctor-card .card-actions .btn-remove:hover { background: #3a2530 !important; color: #ffb9c1 !important; }
+    body.dark-mode .doctor-card .card-actions .btn-remove:hover { background: #5a313c !important; color: #ffd0d5 !important; }
 </style>

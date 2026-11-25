@@ -227,6 +227,7 @@ body.dark-mode .sidebar {
 .sidebar .nav-item.active {
     background: var(--sidebar-active);
     color: var(--sidebar-active-text);
+    box-shadow: inset 3px 0 var(--sidebar-accent);
     font-weight: 600;
 }
 

@@ -207,10 +207,13 @@ class DiagnosticAnalyticsService
         $ratings = $reviews->whereBetween('star_rating', [1, 5]);
         $low = $ratings->filter(fn ($review) => $this->isLowRating($review->star_rating));
         $categories = [];
+        $negativeCategorised = 0;
         foreach ($reviews as $key => $review) {
             $isNegative = $negative->has($key);
             $isLow = $low->has($key);
-            foreach (array_unique($matches->get($review->feedback_id)['matched_categories'] ?? []) as $category) {
+            $matched = array_unique($matches->get($review->feedback_id)['matched_categories'] ?? []);
+            $negativeCategorised += (int) ($isNegative && $matched !== []);
+            foreach ($matched as $category) {
                 $categories[$category] ??= ['negative' => 0, 'low' => 0, 'negative_ratings' => []];
                 $categories[$category]['negative'] += (int) $isNegative;
                 $categories[$category]['low'] += (int) $isLow;
@@ -229,6 +232,7 @@ class DiagnosticAnalyticsService
             'low' => $low->count(),
             'low_without_comment' => $low->filter(fn ($review) => trim($review->feedback_text ?? '') === '')->count(),
             'negative' => $reviews->intersectByKeys($negative)->count(),
+            'negative_categorised' => $negativeCategorised,
             'categories' => $categories,
         ];
     }
